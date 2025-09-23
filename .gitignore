@@ -1,0 +1,82 @@
+#######################################################
+# GLOBAL IGNORE (áp dụng chung cho cả FE và BE)
+#######################################################
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+#######################################################
+# BACKEND (.NET / ASP.NET)
+#######################################################
+# Build results
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / JetBrains
+.idea/
+*.iml
+
+# Test results
+TestResult*/
+*.VisualState.xml
+*.testlog
+
+# Others
+*.dbmdl
+*.bak
+*.ldf
+*.mdf
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+*.nuspec
+*.psess
+*.vsp
+*.vspx
+
+# Publish
+*.Publish.xml
+publish/
+wwwroot/dist/
+wwwroot/build/
+
+#######################################################
+# FRONTEND (React / NodeJS)
+#######################################################
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.cache/
+.next/
+out/
+
+# Testing
+coverage/
+.vites
