@@ -1,7 +1,7 @@
 ﻿using Backend.Data;
-using Backend.Handles;
 using Microsoft.OpenApi.Models;
 using Dapper;
+using FJAP.Handles.student;
 
 var builder = WebApplication.CreateBuilder(args);
 

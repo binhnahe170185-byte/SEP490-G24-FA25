@@ -1,11 +1,23 @@
 import React from "react";
-import StudentTable from "../components/student/studentTable/StudentList";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import StudentList from "../pages/student/studentTable/StudentList";
+
+function Home() {
+  return (
+    <div style={{ padding: 32 }}>
+      <h2>Trang chủ</h2>
+      <p>Chào mừng bạn đến với hệ thống quản lý sinh viên!</p>
+    </div>
+  );
+}
 
 export default function App() {
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Danh sách sinh viên</h1>
-      <StudentTable />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/studentTable" element={<StudentList />} />
+      </Routes>
+    </Router>
   );
 }
