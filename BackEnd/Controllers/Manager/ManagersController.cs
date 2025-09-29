@@ -14,7 +14,7 @@ namespace Backend.Controllers
             _handle = handle;
         }
 
-        // GET /api/students
+        // GET /api/managers
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<object>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAll()
