@@ -1,4 +1,4 @@
-using Backend.Handles;
+using FJAP.Handles.student;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers
