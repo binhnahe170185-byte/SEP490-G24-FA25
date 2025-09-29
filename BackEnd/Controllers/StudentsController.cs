@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/students")]
     public class StudentsController : ControllerBase
     {
         private readonly IStudentsHandle _handle;
