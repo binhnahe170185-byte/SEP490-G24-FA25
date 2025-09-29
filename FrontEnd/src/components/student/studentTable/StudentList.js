@@ -4,7 +4,7 @@ import "./studentList.css";
 
 export default function StudentTable() {
     const [students, setStudents] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading,       setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     // gọi API trực tiếp trong useEffect
