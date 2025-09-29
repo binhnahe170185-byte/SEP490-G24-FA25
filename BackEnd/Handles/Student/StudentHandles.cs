@@ -2,7 +2,7 @@
 using Dapper;
 using FAJP.Models;
 
-namespace Backend.Handles
+namespace FJAP.Handles.student
 {
     // Interface để DI vào controller
     public interface IStudentsHandle
