@@ -12,4 +12,12 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\Admin\" />
+    <Folder Include="Controllers\Lecture\" />
+    <Folder Include="Handles\Admin\" />
+    <Folder Include="Handles\Manager\" />
+    <Folder Include="Handles\Lecture\" />
+  </ItemGroup>
+
 </Project>
