@@ -1,7 +1,8 @@
 ﻿using Backend.Data;
-using Backend.Handles;
 using Microsoft.OpenApi.Models;
 using Dapper;
+using FJAP.Handles.student;
+using FJAP.Handles.Manager;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,8 +30,9 @@ builder.Services.AddSwaggerGen(c =>
 DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 // DI: Db helper + Handle
-builder.Services.AddSingleton<MySqlDb>();             
+builder.Services.AddSingleton<MySqlDb>();
 builder.Services.AddScoped<IStudentsHandle, StudentsHandle>();
+builder.Services.AddScoped<IClassHandle, ClassHandle>();
 
 var app = builder.Build();
 
