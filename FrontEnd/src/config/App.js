@@ -1,6 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import StudentList from "../pages/student/studentTable/StudentList";
+import ClassPage from "../pages/manager";
+import ManagerLayout from "../pages/layouts/manager-layout";
 
 function Home() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/studentTable" element={<StudentList />} />
+        <Route path="/manager/class" element={<ClassPage />} />
+        <Route path="/manager" element={<ManagerLayout />} />
       </Routes>
     </Router>
   );
