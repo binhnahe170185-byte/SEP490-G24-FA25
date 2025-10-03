@@ -8,6 +8,7 @@ namespace FJAP.Handles.Manager
     public interface IClassHandle
     {
         Task<IEnumerable<Class>> GetAllAsync();
+        Task UpdateStatusAsync(string classId, bool status);
         // sau này có thể thêm: GetByIdAsync, CreateAsync, UpdateAsync, DeleteAsync...
     }
 
@@ -21,29 +22,32 @@ namespace FJAP.Handles.Manager
         public async Task<IEnumerable<Class>> GetAllAsync()
         {
             const string sql = @"
-                SELECT 
+                SELECT
                     c.class_id,
                     c.class_name,
-                    s.subject_name     AS subject,
-                    CONCAT(u.first_name, ' ', u.last_name) AS teacher,
-                    r.room_name,
-                    CAST(COUNT(DISTINCT e.student_id) AS UNSIGNED) AS students
+                    s.name        AS semester,
+                    s.start_date,
+                    s.end_date,
+                    c.Status AS status
                 FROM class c
-                JOIN subject s ON s.class_id = c.class_id
-                JOIN lesson l ON l.class_id = c.class_id
-                JOIN lecture lec ON lec.lecture_id = l.lecture_id
-                JOIN user u ON u.user_id = lec.user_id
-                JOIN room r ON r.room_id = l.room_id
-                LEFT JOIN enrollment e ON e.class_id = c.class_id
-                GROUP BY 
-                    c.class_id,
-                    c.class_name,
-                    s.subject_name,
-                    CONCAT(u.first_name, ' ', u.last_name),
-                    r.room_name
-                ORDER BY c.class_id;";
+                JOIN semester s ON c.semester_id = s.semester_id
+                ORDER BY s.start_date DESC, c.class_name;;";
 
             return await _db.QueryAsync<Class>(sql);
+        }
+
+        public async Task UpdateStatusAsync(string classId, bool status)
+        {
+            const string sql = @"
+                UPDATE class
+                SET Status = @Status
+                WHERE class_id = @ClassId";
+
+            await _db.ExecuteAsync(sql, new
+            {
+                Status = status ? "Active" : "Inactive",
+                ClassId = classId
+            });
         }
     }
 }

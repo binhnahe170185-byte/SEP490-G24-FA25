@@ -5,6 +5,13 @@ class ClassList {
     const response = await http.get("api/manager/classes");
     return response.data.data;
   }
+
+  static async updateStatus(classId, status) {
+    const response = await http.patch(`api/manager/classes/${classId}/status`, {
+      status,
+    });
+    return response.data;
+  }
 }
 
 export default ClassList;
