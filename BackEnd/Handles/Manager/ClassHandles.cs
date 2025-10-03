@@ -8,6 +8,7 @@ namespace FJAP.Handles.Manager
     public interface IClassHandle
     {
         Task<IEnumerable<Class>> GetAllAsync();
+        Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId);
         Task UpdateStatusAsync(string classId, bool status);
         // sau này có thể thêm: GetByIdAsync, CreateAsync, UpdateAsync, DeleteAsync...
     }
@@ -34,6 +35,30 @@ namespace FJAP.Handles.Manager
                 ORDER BY s.start_date DESC, c.class_name;;";
 
             return await _db.QueryAsync<Class>(sql);
+        }
+
+        public async Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId)
+        {
+            const string sql = @"
+                                SELECT
+                                    c.class_id,
+                                    c.class_name,
+                                    sub.subject_name,
+                                    l.level_name AS subject_level,
+                                    COUNT(DISTINCT e.student_id) AS total_students
+                                    FROM class c
+                                    JOIN subject sub ON sub.class_id = c.class_id
+                                    JOIN level l ON sub.level_id = l.level_id
+                                    LEFT JOIN enrollment e ON e.class_id = c.class_id
+                                WHERE c.class_id = @ClassId
+                                GROUP BY
+                                    c.class_id,
+                                    c.class_name,
+                                    sub.subject_id,
+                                    sub.subject_name,
+                                    l.level_name;";
+
+            return await _db.QueryAsync<ClassSubjectDetail>(sql, new { ClassId = classId });
         }
 
         public async Task UpdateStatusAsync(string classId, bool status)
