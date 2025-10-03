@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button, Input, Select, Space, Table, Tooltip, Switch, message } from "antd";
 import { EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import ClassListApi from "../../api/ClassList";
 
 const STATUS_FILTER_OPTIONS = [
@@ -38,6 +39,7 @@ export default function ClassList() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 8 });
   const { current: currentPage, pageSize } = pagination;
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const navigate = useNavigate();
 
   const normalizeClasses = (list = []) =>
     list.map((item, index) => {
@@ -197,7 +199,14 @@ export default function ClassList() {
   };
 
   const handleView = (record) => {
-    console.log("View class", record);
+    if (!record?.class_id) {
+      return;
+    }
+
+    navigate(`/manager/class/${record.class_id}`,
+      {
+        state: { className: record.class_name ?? record.class_id }
+      });
   };
 
   const actionButtonStyle = {
