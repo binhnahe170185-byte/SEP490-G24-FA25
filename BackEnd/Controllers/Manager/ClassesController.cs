@@ -44,6 +44,34 @@ public class ClassesController : ControllerBase
         }
     }
 
+    // GET /api/manager/classes/{classId}
+    [HttpGet("{classId}")]
+    [ProducesResponseType(typeof(IEnumerable<ClassSubjectDetail>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetSubjects(string classId)
+    {
+        try
+        {
+            var rows = await _handle.GetSubjectsAsync(classId);
+
+            return Ok(new
+            {
+                code = StatusCodes.Status200OK,
+                message = "Success",
+                data = rows
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                code = StatusCodes.Status500InternalServerError,
+                message = "Internal Server Error",
+                detail = ex.Message
+            });
+        }
+    }
+
     // PATCH /api/manager/classes/{classId}/status
     [HttpPatch("{classId}/status")]
     [ProducesResponseType(StatusCodes.Status200OK)]
