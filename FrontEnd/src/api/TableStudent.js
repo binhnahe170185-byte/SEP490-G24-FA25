@@ -1,4 +1,4 @@
-import http from "./http";
+import { api, setAuthToken } from "./http";
 
 class TableStudent {
   static async getAll() {
