@@ -15,7 +15,9 @@ public class AuthController : ControllerBase
 
     public AuthController(IConfiguration cfg, JwtTokenService jwt, IDbConnection db)
     {
-        _cfg = cfg; _jwt = jwt; _db = db;
+        _cfg = cfg;
+        _jwt = jwt;
+        _db = db;
     }
 
     public class GoogleLoginRequest
