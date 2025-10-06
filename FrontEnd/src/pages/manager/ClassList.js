@@ -1,35 +1,67 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Input, Select, Space, Table, Tooltip } from "antd";
-import {
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from "@ant-design/icons";
+import { Button, Input, Select, Space, Table, Tooltip, Switch, message } from "antd";
+import { EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import ClassListApi from "../../api/ClassList";
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All Statuses" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
+
+const toStatusLabel = (value) => (value ? "Active" : "Inactive");
+
+const parseStatus = (raw) => {
+  if (typeof raw === "boolean") {
+    return raw;
+  }
+
+  if (raw === null || raw === undefined) {
+    return false;
+  }
+
+  if (typeof raw === "number") {
+    return raw === 1;
+  }
+
+  const normalized = raw.toString().trim().toLowerCase();
+  return ["1", "true", "show", "active", "enabled", "on"].includes(normalized);
+};
 export default function ClassList() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: "",
-    subject: "all",
-    teacher: "all",
-    room: "all",
+    semester: "all",
+    status: "all",
   });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 8 });
   const { current: currentPage, pageSize } = pagination;
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const navigate = useNavigate();
 
   const normalizeClasses = (list = []) =>
-    list.map((item, index) => ({
-      ...item,
-      class_id: item.class_id ?? item.id ?? `CL${String(index + 1).padStart(3, "0")}`,
-      class_name: item.class_name ?? item.name ?? "-",
-      subject: item.subject ?? item.subject_code ?? item.subject_name ?? "-",
-      teacher: item.teacher ?? item.teacher_name ?? "-",
-      room_name: item.room_name ?? item.room ?? "-",
-      students: item.students ?? item.student_count ?? item.total_students ?? 0,
-    }));
+    list.map((item, index) => {
+      const classId = item.class_id ?? item.id ?? null;
+      const semester =
+        item.semester ?? item.semester_name ?? item.semesterName ?? "-";
+      const startDate = item.start_date ?? item.startDate ?? item.begin_date ?? null;
+      const endDate = item.end_date ?? item.endDate ?? item.finish_date ?? null;
+      const rawStatus = item.status ?? item.Status ?? item.state ?? null;
+      const statusBool = parseStatus(rawStatus);
+      const statusLabel = rawStatus?.toString() ?? toStatusLabel(statusBool);
+
+      return {
+        class_id: classId ?? `CL${String(index + 1).padStart(3, "0")}`,
+        class_name: item.class_name ?? item.name ?? "-",
+        semester,
+        start_date: startDate,
+        end_date: endDate,
+        status: statusBool,
+        statusLabel,
+      };
+    });
 
   useEffect(() => {
     ClassListApi.getAll()
@@ -42,19 +74,24 @@ export default function ClassList() {
   }, []);
 
   const filterOptions = useMemo(() => {
-    const uniqueValues = (field) =>
-      Array.from(
-        new Set(
-          classes
-            .map((item) => item[field])
-            .filter((value) => value && value !== "-")
-        )
-      );
+    const seen = new Set();
+    const semesters = [];
+
+    classes.forEach((item) => {
+      const value = item.semester;
+      if (!value || value === "-") {
+        return;
+      }
+
+      const key = value.toString().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        semesters.push(value);
+      }
+    });
 
     return {
-      subjects: uniqueValues("subject"),
-      teachers: uniqueValues("teacher"),
-      rooms: uniqueValues("room_name"),
+      semesters,
     };
   }, [classes]);
 
@@ -72,17 +109,18 @@ export default function ClassList() {
           .replace(/\D/g, "");
         matchesSearch = idDigits.includes(searchTerm);
       } else {
-        matchesSearch = [
+        const candidates = [
           item.class_id,
           item.class_name,
-          item.subject,
-          item.teacher,
-          item.room_name,
-        ]
+          item.semester,
+          formatDate(item.start_date),
+          formatDate(item.end_date),
+          item.statusLabel,
+        ];
+
+        matchesSearch = candidates
           .filter(Boolean)
-          .some((value) =>
-            value.toString().toLowerCase().includes(searchTerm)
-          );
+          .some((value) => value.toString().toLowerCase().includes(searchTerm));
       }
     }
 
@@ -90,14 +128,14 @@ export default function ClassList() {
       return false;
     }
 
-    const matchesSubject =
-      filters.subject === "all" || item.subject === filters.subject;
-    const matchesTeacher =
-      filters.teacher === "all" || item.teacher === filters.teacher;
-    const matchesRoom =
-      filters.room === "all" || item.room_name === filters.room;
+    const matchesSemester =
+      filters.semester === "all" || item.semester === filters.semester;
+    const matchesStatus =
+      filters.status === "all" ||
+      (filters.status === "active" && item.status) ||
+      (filters.status === "inactive" && !item.status);
 
-    return matchesSubject && matchesTeacher && matchesRoom;
+    return matchesSemester && matchesStatus;
   });
 
   useEffect(() => {
@@ -126,16 +164,49 @@ export default function ClassList() {
     return filteredClasses.slice(start, start + pageSize);
   }, [filteredClasses, currentPage, pageSize]);
 
+  const handleStatusToggle = async (record, checked) => {
+    const previousStatus = record.status;
+    setUpdatingStatusId(record.class_id);
+    setClasses((prev) =>
+      prev.map((item) =>
+        item.class_id === record.class_id
+          ? { ...item, status: checked, statusLabel: toStatusLabel(checked) }
+          : item
+      )
+    );
+
+    try {
+      await ClassListApi.updateStatus(record.class_id, checked);
+      message.success(
+        `${record.class_name} is now ${checked ? "Active" : "Inactive"}`
+      );
+    } catch (error) {
+      message.error("Failed to update class status");
+      setClasses((prev) =>
+        prev.map((item) =>
+          item.class_id === record.class_id
+            ? {
+                ...item,
+                status: previousStatus,
+                statusLabel: toStatusLabel(previousStatus),
+              }
+            : item
+        )
+      );
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
   const handleView = (record) => {
-    console.log("View class", record);
-  };
+    if (!record?.class_id) {
+      return;
+    }
 
-  const handleEdit = (record) => {
-    console.log("Edit class", record);
-  };
-
-  const handleDelete = (record) => {
-    console.log("Delete class", record);
+    navigate(`/manager/class/${record.class_id}`,
+      {
+        state: { className: record.class_name ?? record.class_id }
+      });
   };
 
   const actionButtonStyle = {
@@ -148,20 +219,45 @@ export default function ClassList() {
 
   const columns = [
     {
-      title: "Class ID",
-      dataIndex: "class_id",
-      key: "class_id",
+      title: "No.",
+      key: "rowNumber",
+      align: "center",
+      width: 80,
+      render: (_value, _record, index) =>
+        (currentPage - 1) * pageSize + index + 1,
+    },
+    {
+      title: "Class Name",
+      dataIndex: "class_name",
+      key: "class_name",
       render: (value) => <strong>{value}</strong>,
     },
-    { title: "Class Name", dataIndex: "class_name", key: "class_name" },
-    { title: "Subject", dataIndex: "subject", key: "subject" },
-    { title: "Teacher", dataIndex: "teacher", key: "teacher" },
-    { title: "Room Name", dataIndex: "room_name", key: "room_name" },
+    { title: "Semester", dataIndex: "semester", key: "semester" },
     {
-      title: "Students",
-      dataIndex: "students",
-      key: "students",
-      align: "right",
+      title: "Start Date",
+      dataIndex: "start_date",
+      key: "start_date",
+      render: (value) => formatDate(value),
+    },
+    {
+      title: "End Date",
+      dataIndex: "end_date",
+      key: "end_date",
+      render: (value) => formatDate(value),
+    },
+    {
+      title: "Status",
+      key: "status",
+      align: "center",
+      render: (_value, record) => (
+        <Switch
+          checkedChildren="Active"
+          unCheckedChildren="Inactive"
+          checked={record.status}
+          onChange={(checked) => handleStatusToggle(record, checked)}
+          loading={updatingStatusId === record.class_id}
+        />
+      ),
     },
     {
       title: "Actions",
@@ -175,24 +271,6 @@ export default function ClassList() {
               style={actionButtonStyle}
             >
               <EyeOutlined />
-            </button>
-          </Tooltip>
-          <Tooltip title="Edit">
-            <button
-              type="button"
-              onClick={() => handleEdit(record)}
-              style={actionButtonStyle}
-            >
-              <EditOutlined />
-            </button>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <button
-              type="button"
-              onClick={() => handleDelete(record)}
-              style={actionButtonStyle}
-            >
-              <DeleteOutlined />
             </button>
           </Tooltip>
         </Space>
@@ -216,11 +294,11 @@ export default function ClassList() {
           />
 
           <Select
-            value={filters.subject}
-            onChange={(value) => handleFilterChange("subject", value)}
+            value={filters.semester}
+            onChange={(value) => handleFilterChange("semester", value)}
             options={[
-              { value: "all", label: "All Subjects" },
-              ...filterOptions.subjects.map((value) => ({
+              { value: "all", label: "All Semesters" },
+              ...filterOptions.semesters.map((value) => ({
                 value,
                 label: value,
               })),
@@ -229,28 +307,9 @@ export default function ClassList() {
           />
 
           <Select
-            value={filters.teacher}
-            onChange={(value) => handleFilterChange("teacher", value)}
-            options={[
-              { value: "all", label: "All Teachers" },
-              ...filterOptions.teachers.map((value) => ({
-                value,
-                label: value,
-              })),
-            ]}
-            style={{ minWidth: 160 }}
-          />
-
-          <Select
-            value={filters.room}
-            onChange={(value) => handleFilterChange("room", value)}
-            options={[
-              { value: "all", label: "All Rooms" },
-              ...filterOptions.rooms.map((value) => ({
-                value,
-                label: value,
-              })),
-            ]}
+            value={filters.status}
+            onChange={(value) => handleFilterChange("status", value)}
+            options={STATUS_FILTER_OPTIONS}
             style={{ minWidth: 160 }}
           />
         </div>
@@ -285,6 +344,19 @@ export default function ClassList() {
 
   );
 }
+
+const formatDate = (value) => {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString();
+};
 
 const toolbarContainerStyle = {
   display: "flex",
