@@ -1,6 +1,6 @@
-﻿namespace FAJP.Models
+namespace FAJP.Models
 {
-    public class Student
+    public class Manager
     {
         public long Id { get; set; }
         public string Name { get; set; }
