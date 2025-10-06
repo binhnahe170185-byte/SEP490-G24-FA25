@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using FAJP.Models;
+using FJAP.Models;
 using FJAP.Handles.Manager;
 using Microsoft.AspNetCore.Mvc;
 

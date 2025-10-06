@@ -1,6 +1,6 @@
 ﻿using Backend.Data;
 using Dapper;
-using FAJP.Models;
+using FJAP.Models;
 
 namespace FJAP.Handles.student
 {

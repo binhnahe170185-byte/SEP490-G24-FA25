@@ -1,4 +1,4 @@
-namespace FAJP.Models
+namespace FJAP.Models
 {
     public class ClassSubjectDetail
     {

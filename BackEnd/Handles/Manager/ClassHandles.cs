@@ -1,11 +1,11 @@
-using Backend.Data;
+using FJAP.Models;
 using Dapper;
-using FAJP.Models;
+using Backend.Data;
 
 namespace FJAP.Handles.Manager
 {
     // Interface để DI vào controller
-    public interface IClassHandle
+    public interface IClassHandle   
     {
         Task<IEnumerable<Class>> GetAllAsync();
         Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId);
