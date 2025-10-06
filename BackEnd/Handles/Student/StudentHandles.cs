@@ -20,9 +20,8 @@ namespace FJAP.Handles.student
 
         public async Task<IEnumerable<Student>> GetAllAsync()
         {
-            const string sql = @"SELECT id, name, email 
-                                 FROM users 
-                                 ORDER BY id DESC";
+            const string sql = @"SELECT *
+                                 FROM user  ";
             // dùng hàm helper chung 
             return await _db.QueryAsync<Student>(sql);
         }
