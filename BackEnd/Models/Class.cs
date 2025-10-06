@@ -1,14 +1,17 @@
 using System;
+using System.Collections.Generic;
 
-namespace FAJP.Models
+namespace FJAP.Models;
+
+public partial class Class
 {
-    public class Class
-    {
-        public string class_id { get; set; }
-        public string class_name { get; set; }
-        public string semester { get; set; }
-        public DateTime? start_date { get; set; }
-        public DateTime? end_date { get; set; }
-        public string status { get; set; }
-    }
+    public int ClassId { get; set; }
+
+    public string ClassName { get; set; } = null!;
+
+    public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
+
+    public virtual ICollection<Subject> Subjects { get; set; } = new List<Subject>();
+
+    public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 }
