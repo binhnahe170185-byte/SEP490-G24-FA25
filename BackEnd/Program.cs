@@ -1,30 +1,62 @@
-﻿using FJAP.Infrastructure.Extensions;
-using FJAP.Infrastructure.Security;
-using MySqlConnector;
-using System.Data;
+using Dapper;
+using FJAP.Models;
+using FJAP.Repositories;
+using FJAP.Repositories.Interfaces;
+using FJAP.Services;
+using FJAP.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
 builder.Services.AddControllers();
 
-// CORS + Swagger + Dapper mapping (giữ như cũ)
-builder.Services.AddAppCors(builder.Configuration);
-builder.Services.AddAppSwagger();
-builder.Services.AddDapperMapping();
+builder.Services.AddDbContext<FjapDbContext>(options =>
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        new MySqlServerVersion(new Version(8, 0, 34)), // Phiên bản MySQL Server của bạn
+        mysqlOptions =>
+        {
+            mysqlOptions.SchemaBehavior(MySqlSchemaBehavior.Ignore);
+            mysqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+        }
+    )
+);
 
-// DB Connection (đúng key "MySql")
-builder.Services.AddScoped<IDbConnection>(sp =>
+// Repository & Service DI (scoped for per-request lifetime)
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IStudentRepository, StudentRepository>();
+builder.Services.AddScoped<IClassRepository, ClassRepository>();
+builder.Services.AddScoped<IMaterialRepository, MaterialRepository>();
+
+builder.Services.AddScoped<IStudentService, StudentService>();
+builder.Services.AddScoped<IClassService, ClassService>();
+builder.Services.AddScoped<IMaterialService, MaterialService>();
+
+// CORS
+const string CorsPolicy = "AllowFrontend";
+builder.Services.AddCors(opt =>
 {
-    var cfg = sp.GetRequiredService<IConfiguration>();
-    var cs = cfg.GetConnectionString("MySql")
-             ?? throw new InvalidOperationException("Missing ConnectionStrings:MySql");
-    return new MySqlConnection(cs);
+    opt.AddPolicy(CorsPolicy, p =>
+        p.WithOrigins("http://localhost:3000")
+         .AllowAnyHeader()
+         .AllowAnyMethod());
 });
 
-// App services + JWT
-builder.Services.AddAppServices(builder.Configuration);
-builder.Services.AddJwtAuthentication(builder.Configuration);
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "FAJP API", Version = "v1" });
+});
+
+// Dapper config (nếu DB đặt tên cột snake_case)
+DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 var app = builder.Build();
 
