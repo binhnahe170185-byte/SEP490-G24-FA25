@@ -7,19 +7,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Controllers\Admin\**" />
+    <Compile Remove="Controllers\Lecture\**" />
+    <Content Remove="Controllers\Admin\**" />
+    <Content Remove="Controllers\Lecture\**" />
+    <EmbeddedResource Remove="Controllers\Admin\**" />
+    <EmbeddedResource Remove="Controllers\Lecture\**" />
+    <None Remove="Controllers\Admin\**" />
+    <None Remove="Controllers\Lecture\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Google.Apis.Auth" Version="1.71.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.7" />
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-  </ItemGroup>
+	<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.13" />
+	<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
 
-  <ItemGroup>
-    <Folder Include="Controllers\Admin\" />
-    <Folder Include="Controllers\Lecture\" />
-    <Folder Include="Handles\Admin\" />
-    <Folder Include="Handles\Manager\" />
-    <Folder Include="Handles\Lecture\" />
   </ItemGroup>
 
 </Project>
