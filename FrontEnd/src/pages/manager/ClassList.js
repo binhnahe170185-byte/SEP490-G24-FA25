@@ -43,18 +43,56 @@ export default function ClassList() {
 
   const normalizeClasses = (list = []) =>
     list.map((item, index) => {
-      const classId = item.class_id ?? item.id ?? null;
+      const classId =
+        item.class_id ??
+        item.classId ??
+        item.ClassId ??
+        item.id ??
+        null;
+      const className =
+        item.class_name ??
+        item.className ??
+        item.ClassName ??
+        item.name ??
+        "-";
       const semester =
-        item.semester ?? item.semester_name ?? item.semesterName ?? "-";
-      const startDate = item.start_date ?? item.startDate ?? item.begin_date ?? null;
-      const endDate = item.end_date ?? item.endDate ?? item.finish_date ?? null;
-      const rawStatus = item.status ?? item.Status ?? item.state ?? null;
+        item.semester ??
+        item.Semester ??
+        item.semester_name ??
+        item.semesterName ??
+        item.SemesterName ??
+        "-";
+      const startDate =
+        item.start_date ??
+        item.startDate ??
+        item.StartDate ??
+        item.begin_date ??
+        item.BeginDate ??
+        null;
+      const endDate =
+        item.end_date ??
+        item.endDate ??
+        item.EndDate ??
+        item.finish_date ??
+        item.FinishDate ??
+        null;
+      const rawStatus =
+        item.status ??
+        item.Status ??
+        item.state ??
+        item.State ??
+        item.isActive ??
+        item.IsActive ??
+        null;
       const statusBool = parseStatus(rawStatus);
-      const statusLabel = rawStatus?.toString() ?? toStatusLabel(statusBool);
+      const statusLabel =
+        typeof rawStatus === "string"
+          ? rawStatus
+          : toStatusLabel(statusBool);
 
       return {
         class_id: classId ?? `CL${String(index + 1).padStart(3, "0")}`,
-        class_name: item.class_name ?? item.name ?? "-",
+        class_name: className,
         semester,
         start_date: startDate,
         end_date: endDate,
