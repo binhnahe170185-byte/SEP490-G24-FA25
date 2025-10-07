@@ -21,7 +21,7 @@ import ClassDetail from "../pages/manager/ClassDetail";
 const apiBase =
   process.env.REACT_APP_API_BASE?.trim() ||
   (window.location.origin.includes("localhost")
-    ? "http://localhost:5084" // fallback local BE
+    ? "http://localhost:5000" // fallback local BE
     : "/");
 
 export const api = axios.create({ baseURL: apiBase });
@@ -235,6 +235,7 @@ export default function App() {
               <Route index element={<ClassPage />} />
               <Route path="class" element={<ClassPage />} />
               <Route path="class/:classId" element={<ClassDetail />} />
+              
             </Route>
 
             {/* Fallback */}

@@ -1,4 +1,5 @@
 import React from "react";
+import { Outlet } from "react-router-dom";
 import Header from "./manager-header";
 import ManagerSidebar from "./manager-sidebar";
 
@@ -30,6 +31,8 @@ const mainStyles = {
 };
 
 const ManagerLayout = ({ children }) => {
+  const bodyContent = children ?? <Outlet />;
+
   return (
     <div style={layoutStyles}>
       <Header title="Manager Page" />
@@ -39,7 +42,7 @@ const ManagerLayout = ({ children }) => {
           <ManagerSidebar />
         </aside>
 
-        <main style={mainStyles}>{children}</main>
+        <main style={mainStyles}>{bodyContent}</main>
       </div>
     </div>
   );
