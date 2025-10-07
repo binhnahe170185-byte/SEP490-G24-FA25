@@ -3,7 +3,7 @@ import { api } from "./http";
 class ClassList {
   // Lấy tất cả class
   static async getAll() {
-    const response = await api.get("/api/classes");
+    const response = await api.get("/api/manager/classes");
     return response.data?.data ?? response.data; // hỗ trợ cả 2 kiểu payload
   }
 
