@@ -33,10 +33,12 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IMaterialRepository, MaterialRepository>();
-
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+    
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 // CORS
 const string CorsPolicy = "AllowFrontend";
@@ -52,13 +54,13 @@ builder.Services.AddCors(opt =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "FAJP API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "FJAP API", Version = "v1" });
 });
 
 // Dapper config (nếu DB đặt tên cột snake_case)
 DefaultTypeMap.MatchNamesWithUnderscores = true;
 
-var app = builder.Build();
+    var app = builder.Build();
 
 // Middleware
 // (Dev có thể để https sau)

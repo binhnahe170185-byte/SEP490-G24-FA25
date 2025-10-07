@@ -1,3 +1,4 @@
+// App.js
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
@@ -17,9 +18,13 @@ import ClassPage from "../pages/manager";
 import ClassDetail from "../pages/manager/ClassDetail";
 
 // ================= axios instance =================
-export const api = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE,
-});
+const apiBase =
+  process.env.REACT_APP_API_BASE?.trim() ||
+  (window.location.origin.includes("localhost")
+    ? "http://localhost:5084" // fallback local BE
+    : "/");
+
+export const api = axios.create({ baseURL: apiBase });
 
 export function setAuthToken(token) {
   if (token) api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -30,30 +35,46 @@ export function setAuthToken(token) {
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
 
+function safeParse(raw) {
+  if (!raw) return null;
+  if (raw === "undefined" || raw === "null") return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
+  // Khởi tạo từ localStorage (an toàn, không crash)
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const profileStr = localStorage.getItem("profile");
-    if (token && profileStr) {
+    const token = localStorage.getItem("token") || null;
+    const profile = safeParse(localStorage.getItem("profile"));
+    if (token && profile) {
       setAuthToken(token);
-      setUser({ ...JSON.parse(profileStr), token });
+      setUser({ ...profile, token });
+    } else {
+      localStorage.removeItem("token");
+      localStorage.removeItem("profile");
+      setAuthToken(null);
+      setUser(null);
     }
   }, []);
 
   const login = ({ token, profile }) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("profile", JSON.stringify(profile));
     setAuthToken(token);
     setUser({ ...profile, token });
+    localStorage.setItem("token", token);
+    localStorage.setItem("profile", JSON.stringify(profile));
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("profile");
     setAuthToken(null);
     setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("profile");
   };
 
   return (
@@ -89,7 +110,7 @@ function Header() {
                 style={{ width: 28, height: 28, borderRadius: 14 }}
               />
             )}
-            <span>{user.name}</span>
+            <span>{user.name || user.email}</span>
             <button onClick={logout}>Đăng xuất</button>
           </div>
         ) : (
@@ -114,19 +135,40 @@ function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  async function onGoogleSuccess(res) {
-    try {
-      const apiRes = await api.post("/api/auth/google", {
-        credential: res.credential,
-      });
-      const { token, profile } = apiRes.data;
-      login({ token, profile });
-      navigate("/studentTable", { replace: true });
-    } catch (e) {
-      console.error(e);
-      alert("Đăng nhập thất bại");
-    }
+ async function onGoogleSuccess(res) {
+  try {
+    const { data } = await api.post("/api/auth/login", {
+      credential: res.credential,
+    });
+
+    // BE trả về: { email, name, picture, token, (maybe) roleId/role_id }
+    const token = data?.token;
+    if (!token) throw new Error("Missing token");
+
+    const profile =
+      data?.profile ??
+      {
+        email: data.email ?? "",
+        name: data.name ?? "",
+        picture: data.picture ?? null,
+        roleId: data.roleId ?? data.role_id ?? 1, // tùy BE
+      };
+
+    // Lưu & set context
+    login({ token, profile });
+    // dọn rác cũ nếu từng lưu sai
+    if (!profile) localStorage.removeItem("profile");
+
+    // Điều hướng
+    // Nếu có trang Manager cần roleId=2:
+    // Number(profile.roleId) === 2 ? navigate("/manager", { replace: true }) :
+    navigate("/studentTable", { replace: true });
+  } catch (e) {
+    console.error(e);
+    alert("Đăng nhập thất bại");
   }
+}
+
 
   return (
     <div
@@ -142,7 +184,7 @@ function LoginPage() {
   );
 }
 
-// =============== Route guard ===============
+// =============== Route guards ===============
 function RequireAuth({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -151,15 +193,13 @@ function RequireAuth({ children }) {
 
 function RequireManager({ children }) {
   const { user } = useAuth();
-  if (!user || user.roleId !== 2) {
-    return <Navigate to="/" replace />;
-  }
+  if (!user || Number(user.roleId) !== 2) return <Navigate to="/" replace />;
   return children;
 }
 
 // =============== App Root ===============
 export default function App() {
-  const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+  const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
@@ -168,8 +208,8 @@ export default function App() {
           <Header />
           <Routes>
             {/* Public */}
-            <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Home />} />
+            <Route path="/login" element={<LoginPage />} />
 
             {/* Protected: Student */}
             <Route

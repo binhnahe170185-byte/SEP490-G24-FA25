@@ -8,7 +8,7 @@ export default function LoginPage() {
 
   async function onSuccess(credentialResponse) {
     try {
-      const res = await api.post("/api/auth/google", {
+      const res = await api.post("/api/auth/login", {
         credential: credentialResponse.credential, // id_token
       });
       const { token, email, name, picture } = res.data;
