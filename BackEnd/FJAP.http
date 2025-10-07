@@ -1,6 +1,6 @@
-@FAJP_HostAddress = http://localhost:5098
+@FJAP_HostAddress = http://localhost:5098
 
-GET {{FAJP_HostAddress}}/weatherforecast/
+GET {{FJAP_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###

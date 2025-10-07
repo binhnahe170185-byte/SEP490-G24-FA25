@@ -1,9 +1,7 @@
-﻿// Infrastructure/Extensions/ServiceCollectionExtensions.cs
-using Backend.Data;
-using FJAP.Handles.Manager;
-using FJAP.Handles.student;
-using MySqlConnector;
-using System.Data;
+﻿using FJAP.Repositories;
+using FJAP.Repositories.Interfaces;
+using FJAP.Services;
+using FJAP.Services.Interfaces;
 
 namespace FJAP.Infrastructure.Extensions
 {
@@ -12,23 +10,17 @@ namespace FJAP.Infrastructure.Extensions
         public static IServiceCollection AddAppServices(
             this IServiceCollection services, IConfiguration cfg)
         {
-            // Nếu MySqlDb KHÔNG giữ connection thì giữ nguyên Singleton.
-            // Còn nếu có giữ MySqlConnection bên trong -> đổi sang Scoped.
-            services.AddSingleton<MySqlDb>();
+            // Đăng ký DbContext nếu chưa có
+            // services.AddDbContext<FjapDbContext>(...);
 
-            // Đăng ký IDbConnection chuẩn (mọi Handle có thể Inject)
-            services.AddScoped<IDbConnection>(_ =>
-            {
-                var cs = cfg.GetConnectionString("MySql")
-                    ?? throw new InvalidOperationException("Missing ConnectionStrings:MySql");
-                return new MySqlConnection(cs);
-            });
+            // Đăng ký Repository & Service chuẩn
+            services.AddScoped<IStudentRepository, StudentRepository>();
+            services.AddScoped<IClassRepository, ClassRepository>();
+            services.AddScoped<IAuthRepository, AuthRepository>();
 
-            // Các Handles của bạn
-            services.AddScoped<IStudentsHandle, StudentsHandle>();
-            services.AddScoped<IClassHandle, ClassHandle>();
-
-            // (nếu có) services.AddScoped<IAccountHandles, AccountHandles>();
+            services.AddScoped<IStudentService, StudentService>();
+            services.AddScoped<IClassService, ClassService>();
+            services.AddScoped<IAuthService, AuthService>();
 
             return services;
         }
