@@ -61,4 +61,23 @@ public class ClassController : ControllerBase
         if (!ok) return NotFound();
         return NoContent();
     }
+
+    [HttpGet("{classId}")]
+    public async Task<IActionResult> GetSubjects(string classId)
+    {
+        var rows = await _classService.GetSubjectsAsync(classId);
+        return Ok(new { code = 200, message = "Success", data = rows });
+    }
+        
+    [HttpPatch("{classId}/status")]
+    public async Task<IActionResult> UpdateStatus(string classId, [FromBody] UpdateClassStatusRequest request)
+    {
+        await _classService.UpdateStatusAsync(classId, request.Status);
+        return Ok(new { code = 200, message = "Class status updated" });
+    }
+}
+
+public class UpdateClassStatusRequest
+{
+    public bool Status { get; set; }
 }
