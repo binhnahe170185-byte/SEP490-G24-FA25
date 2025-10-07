@@ -23,7 +23,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // ----- DB (EF Core MySQL) -----
-var connStr = builder.Configuration.GetConnectionString("MySql")
+var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Missing ConnectionStrings:MySql");
 
 builder.Services.AddDbContext<FjapDbContext>(options =>
