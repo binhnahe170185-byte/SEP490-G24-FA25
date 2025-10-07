@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FJAP.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/manager/classes")]
 public class ClassController : ControllerBase
 {
     private readonly IClassService _classService;

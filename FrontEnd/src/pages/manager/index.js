@@ -1,12 +1,7 @@
-import ManagerLayout from "../layouts/manager-layout";
 import ClassList from "./ClassList";
 
 const ClassPage = () => {
-  return (
-    <ManagerLayout>
-      <ClassList />
-    </ManagerLayout>
-  );
+  return <ClassList />;
 };
 
 export default ClassPage;
