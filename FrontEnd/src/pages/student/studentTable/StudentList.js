@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import "./StudentList.css";
 import { api } from "../../../api/http";
 
@@ -17,64 +17,77 @@ export default function StudentList() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
-
-    api.get("/api/students")
-      .then(res => {
-        // Hỗ trợ cả 2 kiểu payload: mảng thuần hoặc { data: [...] }
-        const payload = res.data;
-        const rows = Array.isArray(payload) ? payload : payload?.data;
-        if (!Array.isArray(rows)) {
-          throw new Error("Payload không phải mảng");
-        }
-        if (mounted) {
-          setStudents(rows);
-          setError(null);
-        }
-      })
-      .catch(err => {
-        const status = err?.response?.status;
-        const body   = err?.response?.data;
-        console.error("students error:", status, body || err.message);
-        if (mounted) setError(`Không tải được dữ liệu (status ${status ?? "?"})`);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-
-    return () => { mounted = false; };
+  const fetchStudents = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get("/api/students");
+      // BE trả { code, data: [...] }
+      const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+      setStudents(rows);
+    } catch (err) {
+      const status = err?.response?.status;
+      const body   = err?.response?.data;
+      console.error("GET /api/students failed:", status, body || err.message);
+      setError(`Không tải được dữ liệu (status ${status ?? "?"})`);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  if (loading) return <p>Đang tải...</p>;
-  if (error)   return <p style={{ color: "crimson" }}>{error}</p>;
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
 
-  // Mapping cột: nếu BE trả tên khác (vd user_id, first_name, email) thì map lại
-  const renderRow = (s) => {
-    const id    = s.id ?? s.user_id ?? s.student_id ?? s.Id;
-    const name  = s.name ?? s.full_name ?? `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim();
-    const email = s.email ?? s.Email;
+  if (loading) return <p>Đang tải...</p>;
+
+  if (error) {
     return (
-      <tr key={id}>
-        <td>{id}</td>
-        <td>{name}</td>
-        <td>{email}</td>
-      </tr>
+      <div>
+        <p style={{ color: "crimson", marginBottom: 8 }}>{error}</p>
+        <button onClick={fetchStudents}>Thử lại</button>
+      </div>
     );
-  };
+  }
 
   return (
     <>
-      <RenderSquares />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <RenderSquares />
+        <button onClick={fetchStudents}>Refresh</button>
+      </div>
+
       <table className="student-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Tên</th>
-            <th>Email</th>
+            <th style={{ width: 90 }}>Student ID</th>
+            <th style={{ width: 140 }}>Student Code</th>
+            <th style={{ width: 100 }}>Status</th>
+            <th style={{ width: 90 }}>User ID</th>
+            <th style={{ width: 90 }}>Level ID</th>
+            <th style={{ width: 150 }}>Attendances (count)</th>
           </tr>
         </thead>
-        <tbody>{students.map(renderRow)}</tbody>
+        <tbody>
+          {students.length === 0 ? (
+            <tr>
+              <td colSpan={6} style={{ textAlign: "center", padding: 16 }}>
+                Không có dữ liệu
+              </td>
+            </tr>
+          ) : (
+            students.map((s) => (
+              <tr key={s.studentId}>
+                <td>{s.studentId}</td>
+                <td>{s.studentCode}</td>
+                <td>{s.status}</td>
+                <td>{s.userId}</td>
+                <td>{s.levelId}</td>
+                <td>{Array.isArray(s.attendances) ? s.attendances.length : 0}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
       </table>
     </>
   );

@@ -17,4 +17,13 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.StudentId == id);
     }
+
+    public async Task<IEnumerable<Student>> GetAllAsync()
+    {
+        return await _context.Students
+            .Include(s => s.User)
+            .Include(s => s.Level)
+            .Include(s => s.Classes)
+            .ToListAsync();
+    }
 }

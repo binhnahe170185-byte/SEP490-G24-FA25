@@ -1,4 +1,5 @@
 using FJAP.Models;
+using FJAP.Models;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 
@@ -44,4 +45,6 @@ public class ClassService : IClassService
         await _classRepository.SaveChangesAsync();
         return true;
     }
+    public Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId) => _classRepository.GetSubjectsAsync(classId);
+    public Task UpdateStatusAsync(string classId, bool status) => _classRepository.UpdateStatusAsync(classId, status);
 }
