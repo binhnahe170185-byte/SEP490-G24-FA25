@@ -50,12 +50,13 @@ builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IMaterialRepository, MaterialRepository>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
-    
+builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
+
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-
+builder.Services.AddScoped<ISubjectService, SubjectService>();
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";
 builder.Services.AddCors(opt =>
