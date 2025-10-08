@@ -1,4 +1,4 @@
-import { api } from "../config/App"; // Thay vì: import http from "./http"
+import { api } from "../api/http";
 
 class SubjectList {
   // Lấy tất cả subjects
