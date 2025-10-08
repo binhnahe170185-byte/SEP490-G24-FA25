@@ -16,7 +16,9 @@ import StudentList from "../pages/student/studentTable/StudentList";
 import ManagerLayout from "../pages/layouts/manager-layout";
 import ClassPage from "../pages/manager";
 import ClassDetail from "../pages/manager/ClassDetail";
-
+import SubjectPage from "../pages/manager/SubjectManage/Index";
+import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
+import EditSubject from "../pages/manager/SubjectManage/EditSubject";
 // ================= axios instance =================
 const apiBase =
   process.env.REACT_APP_API_BASE?.trim() ||
@@ -235,7 +237,9 @@ export default function App() {
               <Route index element={<ClassPage />} />
               <Route path="class" element={<ClassPage />} />
               <Route path="class/:classId" element={<ClassDetail />} />
-              
+              <Route path="subject" element={<SubjectPage />} />
+              <Route path="subject/create" element={<CreateSubject />} />
+              <Route path="subject/edit/:subjectId" element={<EditSubject />} />
             </Route>
 
             {/* Fallback */}

@@ -159,10 +159,10 @@ public partial class FjapDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_grade_student1");
 
-            entity.HasOne(d => d.Subject).WithMany(p => p.Grades)
-                .HasForeignKey(d => d.SubjectId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_grade_subject1");
+            //entity.HasOne(d => d.Subject).WithMany(p => p.Grades)
+            //    .HasForeignKey(d => d.SubjectId)
+            //    .OnDelete(DeleteBehavior.ClientSetNull)
+            //    .HasConstraintName("fk_grade_subject1");
         });
 
         modelBuilder.Entity<GradeType>(entity =>
