@@ -13,5 +13,7 @@ public partial class Semester
 
     public DateOnly EndDate { get; set; }
 
+    public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
+
     public virtual ICollection<Subject> Subjects { get; set; } = new List<Subject>();
 }

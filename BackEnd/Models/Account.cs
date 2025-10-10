@@ -9,8 +9,6 @@ public partial class Account
 
     public string Email { get; set; } = null!;
 
-    public string Password { get; set; } = null!;
-
     public int UserId { get; set; }
 
     public virtual User User { get; set; } = null!;
