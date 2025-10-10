@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace FJAP.Models;
@@ -9,7 +9,19 @@ public partial class Class
 
     public string ClassName { get; set; } = null!;
 
+    public int SemesterId { get; set; }
+
+    public string? Status { get; set; }
+
+    public int LevelId { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
     public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
+
+    public virtual Level Level { get; set; } = null!;
+
+    public virtual Semester Semester { get; set; } = null!;
 
     public virtual ICollection<Subject> Subjects { get; set; } = new List<Subject>();
 

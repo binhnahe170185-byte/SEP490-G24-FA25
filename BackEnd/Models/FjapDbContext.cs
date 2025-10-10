@@ -79,9 +79,6 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.Email)
                 .HasMaxLength(100)
                 .HasColumnName("email");
-            entity.Property(e => e.Password)
-                .HasMaxLength(255)
-                .HasColumnName("password");
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
             entity.HasOne(d => d.User).WithMany(p => p.Accounts)
@@ -129,10 +126,34 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("class");
 
+            entity.HasIndex(e => e.LevelId, "fk_class_level1_idx");
+
+            entity.HasIndex(e => e.SemesterId, "fk_class_semester1_idx");
+
             entity.Property(e => e.ClassId).HasColumnName("class_id");
             entity.Property(e => e.ClassName)
                 .HasMaxLength(100)
                 .HasColumnName("class_name");
+            entity.Property(e => e.LevelId).HasColumnName("level_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Active'")
+                .HasColumnType("enum('Active','Inactive')");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Level).WithMany(p => p.Classes)
+                .HasForeignKey(d => d.LevelId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_class_level1");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.Classes)
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_class_semester1");
         });
 
         modelBuilder.Entity<Grade>(entity =>
@@ -159,10 +180,10 @@ public partial class FjapDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_grade_student1");
 
-            //entity.HasOne(d => d.Subject).WithMany(p => p.Grades)
-            //    .HasForeignKey(d => d.SubjectId)
-            //    .OnDelete(DeleteBehavior.ClientSetNull)
-            //    .HasConstraintName("fk_grade_subject1");
+            entity.HasOne(d => d.Subject).WithMany(p => p.Grades)
+                .HasForeignKey(d => d.SubjectId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_grade_subject1");
         });
 
         modelBuilder.Entity<GradeType>(entity =>
@@ -366,8 +387,6 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("material");
 
-            entity.HasIndex(e => e.LessonId, "fk_material_lesson1_idx");
-
             entity.HasIndex(e => e.UserId, "fk_material_user1_idx");
 
             entity.Property(e => e.MaterialId).HasColumnName("material_id");
@@ -379,7 +398,6 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.FilePath)
                 .HasMaxLength(255)
                 .HasColumnName("file_path");
-            entity.Property(e => e.LessonId).HasColumnName("lesson_id");
             entity.Property(e => e.MaterialDescription)
                 .HasColumnType("text")
                 .HasColumnName("material_description");
@@ -396,11 +414,6 @@ public partial class FjapDbContext : DbContext
                 .HasColumnName("update_at");
             entity.Property(e => e.UpdateBy).HasColumnName("update_by");
             entity.Property(e => e.UserId).HasColumnName("user_id");
-
-            entity.HasOne(d => d.Lesson).WithMany(p => p.Materials)
-                .HasForeignKey(d => d.LessonId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_material_lesson1");
 
             entity.HasOne(d => d.User).WithMany(p => p.Materials)
                 .HasForeignKey(d => d.UserId)
