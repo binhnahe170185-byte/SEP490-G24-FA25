@@ -30,7 +30,7 @@ namespace FJAP.Services
                 SemesterId = request.SemesterId,
                 LevelId = request.LevelId,
                 ClassId = request.ClassId,
-                Status = true,
+                Status = "Active",
                 CreatedAt = DateTime.Now
             };
 
@@ -67,9 +67,11 @@ namespace FJAP.Services
             return true;
         }
 
-        public Task UpdateStatusAsync(int id, bool status) 
-            => _subjectRepository.UpdateStatusAsync(id, status);
-
+        public async Task UpdateStatusAsync(int id, bool status)
+        {
+            var statusString = status ? "Active" : "Inactive";
+            await _subjectRepository.UpdateStatusAsync(id, statusString);
+        }
         public Task<SubjectFormOptions> GetFormOptionsAsync() 
             => _subjectRepository.GetFormOptionsAsync();
     }
