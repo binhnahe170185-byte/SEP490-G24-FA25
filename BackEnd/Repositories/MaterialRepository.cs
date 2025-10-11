@@ -13,18 +13,11 @@ public class MaterialRepository : GenericRepository<Material>, IMaterialReposito
     public async Task<Material?> GetDetailAsync(int id)
     {
         return await _context.Materials
-            .Include(m => m.Lesson)
-            .Include(m => m.User)
+           
+            .Include(m => m.UserId)
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.MaterialId == id);
     }
 
-    public async Task<IEnumerable<Material>> GetByLessonAsync(int lessonId)
-    {
-        return await _context.Materials
-            .Where(m => m.LessonId == lessonId)
-            .AsNoTracking()
-            .OrderByDescending(m => m.CreateAt)
-            .ToListAsync();
-    }
+ 
 }
