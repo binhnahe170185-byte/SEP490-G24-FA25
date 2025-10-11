@@ -79,9 +79,7 @@ export default function App() {
                 <Route path="class/:classId" element={<ClassDetail />} />
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
-                <Route
-                  path="subject/edit/:subjectId"
-                  element={<EditSubject />}
+                <Route path="subject/edit/:subjectId" element={<EditSubject />}
                 />
               </Route>
             </Route>

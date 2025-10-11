@@ -26,7 +26,7 @@ namespace FJAP.Repositories
                     SemesterId = s.SemesterId,
                     LevelId = s.LevelId,
                     ClassId = s.ClassId,
-                    SemesterName = s.Semester.Name,
+                    SemesterName = s.Semester.Name,  // ✅ Property là Name
                     LevelName = s.Level.LevelName,
                     ClassName = s.Class.ClassName
                 })
@@ -53,14 +53,14 @@ namespace FJAP.Repositories
                     SemesterId = s.SemesterId,
                     LevelId = s.LevelId,
                     ClassId = s.ClassId,
-                    SemesterName = s.Semester.Name,
+                    SemesterName = s.Semester.Name,  // ✅ Property là Name
                     LevelName = s.Level.LevelName,
                     ClassName = s.Class.ClassName
                 })
                 .ToListAsync();
         }
 
-        public async Task UpdateStatusAsync(int subjectId, bool status)
+        public async Task UpdateStatusAsync(int subjectId, string status)
         {
             var subject = await _context.Subjects.FindAsync(subjectId);
             if (subject == null) throw new Exception("Subject not found");
@@ -72,15 +72,27 @@ namespace FJAP.Repositories
         public async Task<SubjectFormOptions> GetFormOptionsAsync()
         {
             var semesters = await _context.Semesters
-                .Select(s => new LookupItem { Id = s.SemesterId, Name = s.Name })
+                .Select(s => new LookupItem 
+                { 
+                    Id = s.SemesterId, 
+                    Name = s.Name  // ✅ Property là Name
+                })
                 .ToListAsync();
 
             var levels = await _context.Levels
-                .Select(l => new LookupItem { Id = l.LevelId, Name = l.LevelName })
+                .Select(l => new LookupItem 
+                { 
+                    Id = l.LevelId, 
+                    Name = l.LevelName 
+                })
                 .ToListAsync();
 
             var classes = await _context.Classes
-                .Select(c => new LookupItem { Id = c.ClassId, Name = c.ClassName })
+                .Select(c => new LookupItem 
+                { 
+                    Id = c.ClassId, 
+                    Name = c.ClassName 
+                })
                 .ToListAsync();
 
             return new SubjectFormOptions
