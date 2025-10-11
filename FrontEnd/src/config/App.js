@@ -16,6 +16,11 @@ import StudentList from "../pages/student/studentTable/StudentList";
 import ManagerLayout from "../pages/layouts/manager-layout";
 import ClassPage from "../pages/manager";
 import ClassDetail from "../pages/manager/ClassDetail";
+import MaterialList from "../pages/manager/materials/MaterialList";
+import ClassList from "../pages/manager/ClassList"; // Thêm import cho ClassList
+
+
+
 
 // ================= axios instance =================
 const apiBase =
@@ -232,9 +237,12 @@ export default function App() {
                 </RequireAuth>
               }
             >
-              <Route index element={<ClassPage />} />
-              <Route path="class" element={<ClassPage />} />
+              {/* <Route index element={<ClassPage />} /> */}
+              {/*<Route path="class" element={<ClassPage />} />*/}
+              <Route index element={<ClassList />} />
+              <Route path="class" element={<ClassList />} />
               <Route path="class/:classId" element={<ClassDetail />} />
+              <Route path="materials" element={<MaterialList />} />
             </Route>
 
             {/* Fallback */}

@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
   BookOutlined,
+  FileOutlined
   
 } from '@ant-design/icons';
 
@@ -20,6 +21,11 @@ const ManagerSidebar = () => {
       key: '/manager/class',
       icon: <BookOutlined />,
       label: <Link to="/manager/class">List Class</Link>,
+    },
+        {
+      key: '/manager/materials', 
+      icon: <FileOutlined />, 
+      label: <Link to="/manager/materials">Materials</Link>, 
     },
     
   ];

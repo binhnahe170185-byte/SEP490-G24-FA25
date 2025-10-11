@@ -25,8 +25,6 @@ public partial class Lesson
 
     public virtual Lecture Lecture { get; set; } = null!;
 
-    public virtual ICollection<Material> Materials { get; set; } = new List<Material>();
-
     public virtual Room Room { get; set; } = null!;
 
     public virtual Timeslot Time { get; set; } = null!;

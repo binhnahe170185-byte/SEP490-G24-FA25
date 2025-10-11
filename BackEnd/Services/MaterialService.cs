@@ -20,11 +20,14 @@ public class MaterialService : IMaterialService
 
     public Task<Material?> GetDetailAsync(int id) => _materialRepository.GetDetailAsync(id);
 
-    public Task<IEnumerable<Material>> GetByLessonAsync(int lessonId) => _materialRepository.GetByLessonAsync(lessonId);
+    public async Task<IEnumerable<Material>> GetByLessonAsync(int lessonId)
+        => await _materialRepository.GetAllAsync(predicate: m => m.UserId == lessonId);
 
     public async Task<Material> CreateAsync(Material material)
     {
-        material.CreateAt ??= DateTime.UtcNow;
+        if (material.CreateAt == default)
+            material.CreateAt = DateTime.UtcNow;
+
         await _materialRepository.AddAsync(material);
         await _materialRepository.SaveChangesAsync();
         return material;
