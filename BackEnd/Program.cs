@@ -57,7 +57,11 @@ builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISubjectService, SubjectService>();
+<<<<<<< HEAD
 // ----- CORS -----
+=======
+// CORS
+>>>>>>> 179db62 (View list material, create api for subject)
 const string CorsPolicy = "AllowFrontend";
 builder.Services.AddCors(opt =>
 {
