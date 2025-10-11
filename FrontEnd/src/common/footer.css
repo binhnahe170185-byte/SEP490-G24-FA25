@@ -1,0 +1,99 @@
+
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #ddd;
+  padding: 25px 50px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  flex-wrap: wrap;
+}
+
+.footer-left {
+  flex: 5;
+  min-width: 220px;
+}
+
+.footer-right {
+  flex: 3;
+  min-width: 220px;
+}
+
+.footer-logo {
+  height: 40px;
+  margin-bottom: 10px;
+}
+
+.footer-desc {
+  line-height: 1.6;
+  margin: 0;
+}
+
+.footer-col {
+  min-width: 220px;
+  display: flex;
+  gap: 32px; /* khoảng cách giữa 2 cột */
+}
+
+.footer-col h4 {
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.contact-icon {
+  font-size: 18px;
+  width: 28px;
+  text-align: center;
+}
+
+.contact-l, .contact-r {
+  flex: 1;
+}
+
+.contact-l {
+    margin-right: -200px;
+}
+
+.social-icons {
+  flex: 2;
+  display: flex;
+  flex-direction: column; /* sắp theo chiều dọc */
+  align-items: center;
+  gap: 14px; /* khoảng cách giữa các icon */
+  margin-top: 10px;
+  min-width: 36px;
+  width: 36px;
+}
+
+.social-icons img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.social-icons img:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .footer-container {
+    flex-direction: column;
+    padding: 20px;
+  }
+  .footer-left, .footer-col {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+}
