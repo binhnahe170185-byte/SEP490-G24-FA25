@@ -10,7 +10,6 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import AuthProvider, { useAuth } from "../pages/login/AuthContext";
 import LoginPage from "../pages/login/LoginPage";
-
 import StudentList from "../pages/student/studentTable/StudentList";
 import ManagerLayout from "../pages/layouts/manager-layout";
 import ClassPage from "../pages/manager";
@@ -19,7 +18,7 @@ import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
 import Header from "../common/Header"; // ⬅️ tách Header ra file riêng nếu muốn, hoặc giữ inline (xem mục 2)
-
+import Footer from "../common/footer";
 function RequireAuth({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -60,6 +59,8 @@ export default function App() {
           <Routes>
             {/* Public: không có Header */}
             <Route path="/login" element={<LoginPage />} />
+            {/* tôi để tạm footer ở đây ae có thể gõ url để xem (huylq)*/}
+            <Route path="/footer" element={<Footer />} />
 
             {/* Protected: có Header */}
             <Route element={<ProtectedLayout />}>
@@ -79,8 +80,7 @@ export default function App() {
                 <Route path="class/:classId" element={<ClassDetail />} />
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
-                <Route path="subject/edit/:subjectId" element={<EditSubject />}
-                />
+                <Route path="subject/edit/:subjectId" element={<EditSubject />} />
               </Route>
             </Route>
 
@@ -88,6 +88,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
+
       </AuthProvider>
     </GoogleOAuthProvider>
   );
