@@ -31,5 +31,7 @@ public partial class Subject
 
     public virtual Level Level { get; set; } = null!;
 
+    public virtual ICollection<Material> Materials { get; set; } = new List<Material>();
+
     public virtual Semester Semester { get; set; } = null!;
 }

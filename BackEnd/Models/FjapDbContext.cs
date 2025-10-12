@@ -58,7 +58,7 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
-
+  
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -387,7 +387,9 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("material");
 
-            entity.HasIndex(e => e.UserId, "fk_material_user1_idx");
+            entity.HasIndex(e => e.SubjectId, "idx_material_subject_id");
+
+            entity.HasIndex(e => e.UserId, "idx_material_user_id");
 
             entity.Property(e => e.MaterialId).HasColumnName("material_id");
             entity.Property(e => e.CreateAt)
@@ -404,6 +406,7 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Active'")
                 .HasColumnType("enum('Active','Inactive')");
+            entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.Title)
                 .HasMaxLength(255)
                 .HasColumnName("title");
@@ -415,10 +418,15 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.UpdateBy).HasColumnName("update_by");
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
+            entity.HasOne(d => d.Subject).WithMany(p => p.Materials)
+                .HasForeignKey(d => d.SubjectId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_material_subject");
+
             entity.HasOne(d => d.User).WithMany(p => p.Materials)
                 .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_material_user1");
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_material_user");
         });
 
         modelBuilder.Entity<News>(entity =>
