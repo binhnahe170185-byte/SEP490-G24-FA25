@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-using System.Threading.Tasks;
->>>>>>> 179db62 (View list material, create api for subject)
 using FJAP.Models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +10,6 @@ namespace FJAP.Repositories
         {
         }
 
-<<<<<<< HEAD
         public async Task<SubjectDto?> GetByIdWithDetailsAsync(int id)
         {
             return await _context.Subjects
@@ -106,14 +101,6 @@ namespace FJAP.Repositories
                 Levels = levels,
                 Classes = classes
             };
-=======
-        public async Task<Subject?> GetDetailAsync(int id)
-        {
-            return await _context.Subjects
-                // .Include(s => s.YourNavigation) // TODO: include nếu cần
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.SubjectId == id); // TODO: đổi key nếu khác
->>>>>>> 179db62 (View list material, create api for subject)
         }
     }
 }

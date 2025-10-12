@@ -65,9 +65,9 @@ export async function deleteMaterial(id) {
 
 // ===================== SUBJECTS =====================
 
-// GET /api/Subjects  -> trả { code, data: [{ code, name } ...] }
+
 export async function getSubjects() {
-  const res = await api.get("/api/Subjects");
+  const res = await api.get("api/manager/subjects");
   const list = unwrap(res) || [];
   // đảm bảo luôn trả mảng [{code, name}]
   return Array.isArray(list) ? list : [];

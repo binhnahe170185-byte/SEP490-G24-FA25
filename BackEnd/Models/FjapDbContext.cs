@@ -58,12 +58,11 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
-<<<<<<< HEAD
-=======
+    public virtual DbSet<User1> Users1 { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseMySql("server=localhost;port=3306;database=fjap;user=root;password=123;sslmode=None;allowpublickeyretrieval=True", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.4.0-mysql"));
->>>>>>> 179db62 (View list material, create api for subject)
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -391,17 +390,11 @@ public partial class FjapDbContext : DbContext
         {
             entity.HasKey(e => e.MaterialId).HasName("PRIMARY");
 
-            entity
-                .ToTable("material")
-                .UseCollation("utf8mb4_unicode_ci");
+            entity.ToTable("material");
 
-<<<<<<< HEAD
-            entity.HasIndex(e => e.UserId, "fk_material_user1_idx");
-=======
             entity.HasIndex(e => e.SubjectId, "idx_material_subject_id");
 
-            entity.HasIndex(e => e.Title, "idx_material_title");
->>>>>>> 179db62 (View list material, create api for subject)
+            entity.HasIndex(e => e.UserId, "idx_material_user_id");
 
             entity.Property(e => e.MaterialId).HasColumnName("material_id");
             entity.Property(e => e.CreateAt)
@@ -410,18 +403,17 @@ public partial class FjapDbContext : DbContext
                 .HasColumnName("create_at");
             entity.Property(e => e.CreateBy).HasColumnName("create_by");
             entity.Property(e => e.FilePath)
-                .HasMaxLength(300)
+                .HasMaxLength(255)
                 .HasColumnName("file_path");
             entity.Property(e => e.MaterialDescription)
                 .HasColumnType("text")
                 .HasColumnName("material_description");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Active'")
-                .HasColumnType("enum('Active','Inactive')")
-                .HasColumnName("status");
+                .HasColumnType("enum('Active','Inactive')");
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.Title)
-                .HasMaxLength(200)
+                .HasMaxLength(255)
                 .HasColumnName("title");
             entity.Property(e => e.UpdateAt)
                 .ValueGeneratedOnAddOrUpdate()
@@ -431,17 +423,15 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.UpdateBy).HasColumnName("update_by");
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
-<<<<<<< HEAD
-            entity.HasOne(d => d.User).WithMany(p => p.Materials)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_material_user1");
-=======
             entity.HasOne(d => d.Subject).WithMany(p => p.Materials)
                 .HasForeignKey(d => d.SubjectId)
-                .OnDelete(DeleteBehavior.SetNull)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_material_subject");
->>>>>>> 179db62 (View list material, create api for subject)
+
+            entity.HasOne(d => d.User).WithMany(p => p.Materials)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_material_user");
         });
 
         modelBuilder.Entity<News>(entity =>
@@ -715,6 +705,43 @@ public partial class FjapDbContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_user_role1");
+        });
+
+        modelBuilder.Entity<User1>(entity =>
+        {
+            entity.HasKey(e => e.UserId).HasName("PRIMARY");
+
+            entity.ToTable("users");
+
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Dob).HasColumnName("dob");
+            entity.Property(e => e.Email)
+                .HasMaxLength(255)
+                .HasColumnName("email");
+            entity.Property(e => e.FullName)
+                .HasMaxLength(255)
+                .HasColumnName("full_name")
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
+            entity.Property(e => e.Gender)
+                .HasColumnType("bit(1)")
+                .HasColumnName("gender");
+            entity.Property(e => e.Image)
+                .HasMaxLength(255)
+                .HasColumnName("image");
+            entity.Property(e => e.IsActive)
+                .HasColumnType("bit(1)")
+                .HasColumnName("is_active");
+            entity.Property(e => e.Password)
+                .HasMaxLength(255)
+                .HasColumnName("password");
+            entity.Property(e => e.Phone)
+                .HasMaxLength(10)
+                .HasColumnName("phone");
+            entity.Property(e => e.Point).HasColumnName("point");
+            entity.Property(e => e.Username)
+                .HasMaxLength(255)
+                .HasColumnName("username");
         });
 
         OnModelCreatingPartial(modelBuilder);
