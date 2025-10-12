@@ -1,10 +1,6 @@
 // src/pages/layouts/manager-layout/index.js
 import React from "react";
-<<<<<<< HEAD
 import { Outlet } from "react-router-dom";
-=======
-import { Outlet } from "react-router-dom"; // 👈 thêm dòng này
->>>>>>> 179db62 (View list material, create api for subject)
 import Header from "./manager-header";
 import ManagerSidebar from "./manager-sidebar";
 
@@ -47,12 +43,7 @@ const ManagerLayout = ({ children }) => {
           <ManagerSidebar />
         </aside>
 
-<<<<<<< HEAD
         <main style={mainStyles}>{bodyContent}</main>
-=======
-        {/* 👇 ưu tiên children (giữ tương thích cũ), nếu không có thì render Outlet */}
-        <main style={mainStyles}>{children ?? <Outlet />}</main>
->>>>>>> 179db62 (View list material, create api for subject)
       </div>
     </div>
   );

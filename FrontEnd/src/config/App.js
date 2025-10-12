@@ -15,19 +15,11 @@ import StudentList from "../pages/student/studentTable/StudentList";
 import ManagerLayout from "../pages/layouts/manager-layout";
 import ClassPage from "../pages/manager";
 import ClassDetail from "../pages/manager/ClassDetail";
-<<<<<<< HEAD
 import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
 import Header from "../common/Header"; // ⬅️ tách Header ra file riêng nếu muốn, hoặc giữ inline (xem mục 2)
-=======
 import MaterialList from "../pages/manager/materials/MaterialList";
-import ClassList from "../pages/manager/ClassList"; // Thêm import cho ClassList
-
-
-
->>>>>>> 179db62 (View list material, create api for subject)
-
 function RequireAuth({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -80,7 +72,6 @@ export default function App() {
                   <RequireManager>
                     <ManagerLayout />
                   </RequireManager>
-<<<<<<< HEAD
                 }
               >
                 <Route index element={<ClassPage />} />
@@ -88,20 +79,9 @@ export default function App() {
                 <Route path="class/:classId" element={<ClassDetail />} />
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
-                <Route path="subject/edit/:subjectId" element={<EditSubject />}
-                />
+                <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                  <Route path="materials" element={<MaterialList />} />
               </Route>
-=======
-                </RequireAuth>
-              }
-            >
-              {/* <Route index element={<ClassPage />} /> */}
-              {/*<Route path="class" element={<ClassPage />} />*/}
-              <Route index element={<ClassList />} />
-              <Route path="class" element={<ClassList />} />
-              <Route path="class/:classId" element={<ClassDetail />} />
-              <Route path="materials" element={<MaterialList />} />
->>>>>>> 179db62 (View list material, create api for subject)
             </Route>
 
             {/* Default: chưa login thì sẽ bị chặn và đẩy về /login */}

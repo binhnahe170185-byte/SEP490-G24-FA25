@@ -4,12 +4,8 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
   BookOutlined,
-<<<<<<< HEAD
   ReadOutlined,
-=======
-  FileOutlined
-  
->>>>>>> 179db62 (View list material, create api for subject)
+  FileOutlined,
 } from '@ant-design/icons';
 
 const ManagerSidebar = () => {
@@ -26,7 +22,6 @@ const ManagerSidebar = () => {
       icon: <BookOutlined />,
       label: <Link to="/manager/class">List Class</Link>,
     },
-<<<<<<< HEAD
     {
       key: "/manager/subject",
       icon: <ReadOutlined />,
@@ -37,14 +32,11 @@ const ManagerSidebar = () => {
       icon: <ReadOutlined />,
       label: <Link to="/manager/subject/create">Create Subject</Link>,
     },
-=======
-        {
+            {
       key: '/manager/materials', 
       icon: <FileOutlined />, 
       label: <Link to="/manager/materials">Materials</Link>, 
     },
-    
->>>>>>> 179db62 (View list material, create api for subject)
   ];
 
   return (
