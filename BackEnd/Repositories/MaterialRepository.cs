@@ -18,11 +18,5 @@ public class MaterialRepository : GenericRepository<Material>, IMaterialReposito
             .FirstOrDefaultAsync(m => m.MaterialId == id);
     }
 
-    public async Task<IEnumerable<Material>> GetByLessonAsync(int lessonId)
-    {
-        return await _context.Materials
-            .AsNoTracking()
-            .OrderByDescending(m => m.CreateAt)
-            .ToListAsync();
-    }
+ 
 }
