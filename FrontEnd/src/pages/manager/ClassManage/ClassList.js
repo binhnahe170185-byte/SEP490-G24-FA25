@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button, Input, Select, Space, Table, Tooltip, Switch, message } from "antd";
 import { EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import ClassListApi from "../../api/ClassList";
+import ClassListApi from "../../../api/ClassList";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Statuses" },

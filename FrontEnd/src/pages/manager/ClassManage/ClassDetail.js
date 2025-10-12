@@ -6,7 +6,7 @@ import {
   UploadOutlined,
   UserAddOutlined,
 } from "@ant-design/icons";
-import ClassListApi from "../../api/ClassList";
+import ClassListApi from "../../../api/ClassList"
 
 const wrapperStyle = {
   display: "flex",
