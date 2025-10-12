@@ -1,33 +1,59 @@
-
 import React, { Component } from "react";
 import "./footer.css";
-import { FacebookFilled, LinkedinOutlined, TwitterOutlined } from '@ant-design/icons';
-import { PrinterOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import {
+    FacebookFilled,
+    LinkedinOutlined,
+    TwitterOutlined,
+} from "@ant-design/icons";
+import {
+    PrinterOutlined,
+    PhoneOutlined,
+    MailOutlined,
+    EnvironmentOutlined,
+    ClockCircleOutlined,
+} from "@ant-design/icons";
 
 class Footer extends Component {
     render() {
         return (
             <div className="footer-container">
                 <div className="social-icons">
-                    <a href="https://www.linkedin.com/company/fptjapanholdings/?originalSubdomain=jp"
-                        target="_blank" rel="noopener noreferrer">
+                    <a
+                        href="https://www.linkedin.com/company/fptjapanholdings/?originalSubdomain=jp"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <LinkedinOutlined style={{ color: "#333", fontSize: "24px" }} />
                     </a>
-                    <a href="https://x.com/FPT_FJA?s=21" target="_blank" rel="noopener noreferrer">
+                    <a
+                        href="https://x.com/FPT_FJA?s=21"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <TwitterOutlined style={{ color: "#333", fontSize: "24px" }} />
                     </a>
-                    <a href="https://www.facebook.com/FPTJapanAcademy" target="_blank" rel="noopener noreferrer">
+                    <a
+                        href="https://www.facebook.com/FPTJapanAcademy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <FacebookFilled style={{ color: "#333", fontSize: "24px" }} />
-
                     </a>
                 </div>
 
-                {/* Cột trái: logo + mô tả */}
+                {/* Cột giữa: logo + mô tả */}
                 <div className="footer-left">
-                    <img src="/FJAP.png" alt="FPT Japan Academy" className="footer-logo" />
+                    <img
+                        src="/FJAP.png"
+                        alt="FPT Japan Academy"
+                        className="footer-logo"
+                    />
                     <p className="footer-desc">
-                        FPT Japan Academy — FPT Japan Academy was established, sponsored, and developed by FPT Japan Holdings<br />
-                        one of the Top 10 foreign technology companies, with over 3,500 employees and more than 450 major clients in Japan.
+                        FPT Japan Academy — FPT Japan Academy was established, sponsored,
+                        and developed by FPT Japan Holdings
+                        <br />
+                        one of the Top 10 foreign technology companies, with over 3,500
+                        employees and more than 450 major clients in Japan.
                     </p>
                 </div>
                 <div className="footer-right" display="flex">
@@ -63,7 +89,6 @@ class Footer extends Component {
                         </div>
                     </div>
                 </div>
-
             </div>
         );
     }

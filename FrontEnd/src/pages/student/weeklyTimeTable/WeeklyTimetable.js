@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from "react";
 import dayjsLib from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import { Button, Select, Divider } from "antd";
+import { Button, Select, Divider, Card, Typography } from "antd";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import "./WeeklyTimetable.css";
 
 dayjsLib.extend(isoWeek);
-const h = React.createElement;
 const dayjs = (d) => dayjsLib(d);
 
 const STATUS = {
@@ -26,7 +25,7 @@ const MOCK_ITEMS = [
     status: "done",
     slot: 4,
     weekday: 1,
-    date: "2025-10-30",
+    date: "2025-10-01",
   },
   {
     code: "PRM392",
@@ -93,31 +92,43 @@ const MOCK_ITEMS = [
   },
 ];
 
-function ClassChip(props) {
-  const s = STATUS[props.status] || STATUS.pending;
-  return h(
-    "div",
-    { className: "class-chip", style: { borderColor: s.color } },
-    h("div", { className: "class-code" }, props.code),
-    h("div", { className: "class-meta" }, [
-      h("span", null, "🕒 " + props.time),
-      h("span", null, "🏫 " + props.room),
-    ])
+function ClassChip({ code, time, room, status }) {
+  const s = STATUS[status] || STATUS.pending;
+  return (
+    <Card
+      size="small"
+      bordered
+      style={{
+        borderColor: s.color,
+        marginBottom: 4,
+        background: "#fafcff",
+      }}
+      bodyStyle={{ padding: 8 }}
+    >
+      <Typography.Text strong>{code}</Typography.Text>
+      <div style={{ fontSize: 12 }}>
+        <span>🕒 {time}</span> <span>🏫 {room}</span>
+      </div>
+      <div style={{ color: s.color, fontSize: 12 }}>{s.text}</div>
+    </Card>
   );
 }
 
 export default function WeeklyTimetable(props) {
   const [anchorDate, setAnchorDate] = useState(dayjs().isoWeekday(1));
   const [year, setYear] = useState(anchorDate.year());
+  const [weekNumber, setWeekNumber] = useState(anchorDate.isoWeek());
   const data = props.items || MOCK_ITEMS;
 
+  // Tính toán tuần hiện tại
   const week = useMemo(() => {
-    const start = dayjs(anchorDate).year(year).isoWeekday(1);
+    const start = dayjs(anchorDate).year(year).isoWeek(weekNumber).isoWeekday(1);
     const end = start.add(6, "day");
     const days = Array.from({ length: 7 }, (_, i) => start.add(i, "day"));
     return { start, end, days };
-  }, [anchorDate, year]);
+  }, [anchorDate, year, weekNumber]);
 
+  // Lọc các item trong tuần
   const weekItems = useMemo(() => {
     const startStr = week.start.startOf("day");
     const endStr = week.end.endOf("day");
@@ -129,6 +140,7 @@ export default function WeeklyTimetable(props) {
     });
   }, [data, week.start, week.end]);
 
+  // Map cell
   const cellMap = useMemo(() => {
     const map = new Map();
     for (const it of weekItems) {
@@ -139,6 +151,7 @@ export default function WeeklyTimetable(props) {
     return map;
   }, [weekItems]);
 
+  // Năm và tuần
   const yearOptions = Array.from(
     { length: 6 },
     (_, i) => dayjs().year() - 1 + i
@@ -147,109 +160,118 @@ export default function WeeklyTimetable(props) {
     label: String(y),
   }));
 
-  const goPrevWeek = () => setAnchorDate((d) => dayjs(d).subtract(1, "week"));
-  const goNextWeek = () => setAnchorDate((d) => dayjs(d).add(1, "week"));
-  const weekLabel = `${week.start.format("DD/MM")} - ${week.end.format(
-    "DD/MM"
-  )}`;
+  const weekOptions = useMemo(() => {
+    // Tạo tuần từ 1 đến 52 cho năm hiện tại
+    const weeks = [];
+    for (let i = 1; i <= 52; i++) {
+      const start = dayjs().year(year).isoWeek(i).isoWeekday(1);
+      const end = start.add(6, "day");
+      weeks.push({
+        value: i,
+        label: `${start.format("DD/MM")} - ${end.format("DD/MM")}`,
+      });
+    }
+    return weeks;
+  }, [year]);
 
-  return h(
-    "div",
-    { className: "weekly-container" },
-    // Header
-    h(
-      "div",
-      { className: "weekly-header" },
-      h("div", { className: "weekly-title" }, "Thời khóa biểu từng tuần"),
-      h(
-        "div",
-        { className: "weekly-controls" },
-        h(Select, {
-          style: { width: 100 },
-          value: year,
-          options: yearOptions,
-          onChange: setYear,
-        }),
-        h(Button, { icon: h(LeftOutlined), onClick: goPrevWeek }),
-        h("div", { className: "week-label" }, weekLabel),
-        h(Button, { icon: h(RightOutlined), onClick: goNextWeek })
-      )
-    ),
-    h(Divider, { style: { margin: "12px 0" } }),
+  // Chuyển tuần/năm
+  const handleYearChange = (y) => {
+    setYear(y);
+    setAnchorDate((d) => dayjs(d).year(y).isoWeek(weekNumber));
+  };
+  const handleWeekChange = (w) => {
+    setWeekNumber(w);
+    setAnchorDate((d) => dayjs(d).year(year).isoWeek(w));
+  };
 
-    // Grid header
-    h(
-      "div",
-      { className: "weekly-grid weekly-grid-header" },
-      h("div", { className: "cell header-cell" }, "SLOT"),
-      ...week.days.map((d, idx) =>
-        h(
-          "div",
-          { key: idx, className: "cell header-cell" },
-          h("div", null, WEEKDAY_HEADERS[idx]),
-          h("div", { className: "day-label" }, d.format("DD/MM"))
-        )
-      )
-    ),
+  const goPrevWeek = () => {
+    setAnchorDate((d) => {
+      const newDate = dayjs(d).subtract(1, "week");
+      setWeekNumber(newDate.isoWeek());
+      return newDate;
+    });
+  };
+  const goNextWeek = () => {
+    setAnchorDate((d) => {
+      const newDate = dayjs(d).add(1, "week");
+      setWeekNumber(newDate.isoWeek());
+      return newDate;
+    });
+  };
 
-    // Grid body
-    h(
-      "div",
-      { className: "weekly-grid" },
-      ...SLOTS.flatMap((slotLabel, rowIdx) => {
-        const row = [];
-        row.push(
-          h(
-            "div",
-            { key: "slot-" + rowIdx, className: "cell slot-cell" },
-            slotLabel
-          )
-        );
-        for (let wd = 1; wd <= 7; wd++) {
-          const key = `${rowIdx + 1}|${wd}`;
-          const items = cellMap.get(key) || [];
-          row.push(
-            h(
-              "div",
-              { key: "c-" + rowIdx + "-" + wd, className: "cell" },
-              items.map((it, i) =>
-                h(ClassChip, {
-                  key: i,
-                  code: it.code,
-                  time: it.time,
-                  room: it.room,
-                  status: it.status,
-                })
-              )
-            )
-          );
-        }
-        return row;
-      })
-    ),
 
-    // Legend
-    h(
-      "div",
-      { className: "weekly-legend" },
-      h(
-        "span",
-        null,
-        h("i", { className: "legend-dot pending" }),
-        STATUS.pending.text
-      ),
-      h(
-        "span",
-        null,
-        h("i", { className: "legend-dot done" }),
-        STATUS.done.text
-      ),
-      h(
-        "span",
-        null,
-        h("i", { className: "legend-dot absent" }),
-        STATUS.absent.text
-      )
-    )
+
+  return (
+    <div className="weekly-container">
+      {/* Header */}
+      <div className="weekly-header">
+        <Typography.Title level={4} className="weekly-title">
+          Weekly timetable
+        </Typography.Title>
+        <div className="weekly-controls">
+          <Select style={{ width: 100 }} value={year} options={yearOptions} onChange={handleYearChange} />
+          <Button icon={<LeftOutlined />} onClick={goPrevWeek} />
+          <Select
+            style={{ width: 160 }}
+            value={weekNumber}
+            options={weekOptions}
+            onChange={handleWeekChange}
+          />
+          <Button icon={<RightOutlined />} onClick={goNextWeek} />
+        </div>
+      </div>
+      <Divider style={{ margin: "12px 0" }} />
+
+      <div className="weekly-grid">
+        {/* Header row */}
+        <div className="cell header-cell">SLOT</div>
+        {week.days.map((d, idx) => (
+          <div key={idx} className="cell header-cell">
+            <div>{WEEKDAY_HEADERS[idx]}</div>
+            <div className="day-label">{d.format("DD/MM")}</div>
+          </div>
+        ))}
+
+        {/* Body rows */}
+        {SLOTS.map((slotLabel, rowIdx) => (
+          <React.Fragment key={rowIdx}>
+            <div className="cell slot-cell">{slotLabel}</div>
+            {week.days.map((_, wdIdx) => {
+              const key = `${rowIdx + 1}|${wdIdx + 1}`;
+              const items = cellMap.get(key) || [];
+              return (
+                <div key={wdIdx} className="cell">
+                  {items.map((it, i) => (
+                    <ClassChip
+                      key={i}
+                      code={it.code}
+                      time={it.time}
+                      room={it.room}
+                      status={it.status}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="weekly-legend">
+        <span>
+          <i className="legend-dot pending" />
+          {STATUS.pending.text}
+        </span>
+        <span>
+          <i className="legend-dot done" />
+          {STATUS.done.text}
+        </span>
+        <span>
+          <i className="legend-dot absent" />
+          {STATUS.absent.text}
+        </span>
+      </div>
+    </div>
   );
 }
