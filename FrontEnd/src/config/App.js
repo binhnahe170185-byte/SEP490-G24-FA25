@@ -13,13 +13,13 @@ import LoginPage from "../pages/login/LoginPage";
 import StudentList from "../pages/student/studentTable/StudentList";
 import WeeklyTimetable from "../pages/student/weeklyTimeTable/WeeklyTimetable";
 import ManagerLayout from "../pages/layouts/manager-layout";
-import ClassPage from "../pages/manager";
-import ClassDetail from "../pages/manager/ClassDetail";
+import ClassPage from "../pages/manager/ClassManage";
+import ClassDetail from "../pages/manager/ClassManage/ClassDetail";
 import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
-import Header from "../common/Header";
-import Footer from "../common/footer";
+import Header from "../common/Header"; // ⬅️ tách Header ra file riêng nếu muốn, hoặc giữ inline (xem mục 2)
+import MaterialList from "../pages/manager/materials/MaterialList";
 function RequireAuth({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -81,10 +81,8 @@ export default function App() {
                 <Route path="class/:classId" element={<ClassDetail />} />
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
-                <Route
-                  path="subject/edit/:subjectId"
-                  element={<EditSubject />}
-                />
+                <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                  <Route path="materials" element={<MaterialList />} />
               </Route>
             </Route>
 

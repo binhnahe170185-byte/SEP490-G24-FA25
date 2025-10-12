@@ -58,7 +58,7 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
-
+  
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -387,7 +387,9 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("material");
 
-            entity.HasIndex(e => e.UserId, "fk_material_user1_idx");
+            entity.HasIndex(e => e.SubjectId, "idx_material_subject_id");
+
+            entity.HasIndex(e => e.UserId, "idx_material_user_id");
 
             entity.Property(e => e.MaterialId).HasColumnName("material_id");
             entity.Property(e => e.CreateAt)
@@ -404,6 +406,7 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Active'")
                 .HasColumnType("enum('Active','Inactive')");
+            entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.Title)
                 .HasMaxLength(255)
                 .HasColumnName("title");
@@ -415,10 +418,15 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.UpdateBy).HasColumnName("update_by");
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
+            entity.HasOne(d => d.Subject).WithMany(p => p.Materials)
+                .HasForeignKey(d => d.SubjectId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_material_subject");
+
             entity.HasOne(d => d.User).WithMany(p => p.Materials)
                 .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_material_user1");
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_material_user");
         });
 
         modelBuilder.Entity<News>(entity =>
@@ -692,6 +700,43 @@ public partial class FjapDbContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_user_role1");
+        });
+
+        modelBuilder.Entity<User1>(entity =>
+        {
+            entity.HasKey(e => e.UserId).HasName("PRIMARY");
+
+            entity.ToTable("users");
+
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Dob).HasColumnName("dob");
+            entity.Property(e => e.Email)
+                .HasMaxLength(255)
+                .HasColumnName("email");
+            entity.Property(e => e.FullName)
+                .HasMaxLength(255)
+                .HasColumnName("full_name")
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
+            entity.Property(e => e.Gender)
+                .HasColumnType("bit(1)")
+                .HasColumnName("gender");
+            entity.Property(e => e.Image)
+                .HasMaxLength(255)
+                .HasColumnName("image");
+            entity.Property(e => e.IsActive)
+                .HasColumnType("bit(1)")
+                .HasColumnName("is_active");
+            entity.Property(e => e.Password)
+                .HasMaxLength(255)
+                .HasColumnName("password");
+            entity.Property(e => e.Phone)
+                .HasMaxLength(10)
+                .HasColumnName("phone");
+            entity.Property(e => e.Point).HasColumnName("point");
+            entity.Property(e => e.Username)
+                .HasMaxLength(255)
+                .HasColumnName("username");
         });
 
         OnModelCreatingPartial(modelBuilder);
