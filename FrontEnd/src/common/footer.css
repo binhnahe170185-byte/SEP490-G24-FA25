@@ -14,6 +14,7 @@
 .footer-left {
   flex: 5;
   min-width: 220px;
+  margin-left: 80px;
 }
 
 .footer-right {
@@ -60,6 +61,8 @@
 
 .contact-l {
     margin-right: -200px;
+}.contact-r {
+    margin-right: -40px;
 }
 
 .social-icons {
@@ -69,8 +72,7 @@
   align-items: center;
   gap: 14px; /* khoảng cách giữa các icon */
   margin-top: 10px;
-  min-width: 36px;
-  width: 36px;
+  max-width: 60px;
 }
 
 .social-icons img {
