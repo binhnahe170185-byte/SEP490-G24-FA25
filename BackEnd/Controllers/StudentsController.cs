@@ -15,6 +15,17 @@ public class StudentsController : ControllerBase
         _studentService = studentService;
     }
 
+    [HttpGet("{id:int}/lesson")]
+    [ProducesResponseType(typeof(IEnumerable<Lesson>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAllLessonByStudentId(int id)
+    {
+        var Lesson = await _studentService.GetLessonsByStudentIdAsync(id);
+        if (Lesson == null) return NotFound();
+        return Ok(new { code = 200, data = Lesson });
+    }
+   
+   
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<Student>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()

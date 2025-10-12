@@ -11,13 +11,14 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import AuthProvider, { useAuth } from "../pages/login/AuthContext";
 import LoginPage from "../pages/login/LoginPage";
 import StudentList from "../pages/student/studentTable/StudentList";
+import WeeklyTimetable from "../pages/student/weeklyTimeTable/WeeklyTimetable";
 import ManagerLayout from "../pages/layouts/manager-layout";
 import ClassPage from "../pages/manager";
 import ClassDetail from "../pages/manager/ClassDetail";
 import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
-import Header from "../common/Header"; // ⬅️ tách Header ra file riêng nếu muốn, hoặc giữ inline (xem mục 2)
+import Header from "../common/Header";
 import Footer from "../common/footer";
 function RequireAuth({ children }) {
   const { user } = useAuth();
@@ -66,7 +67,7 @@ export default function App() {
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/studentTable" element={<StudentList />} />
-
+              <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
               <Route
                 path="/manager"
                 element={
@@ -80,7 +81,10 @@ export default function App() {
                 <Route path="class/:classId" element={<ClassDetail />} />
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
-                <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                <Route
+                  path="subject/edit/:subjectId"
+                  element={<EditSubject />}
+                />
               </Route>
             </Route>
 
@@ -88,7 +92,6 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
-
       </AuthProvider>
     </GoogleOAuthProvider>
   );
