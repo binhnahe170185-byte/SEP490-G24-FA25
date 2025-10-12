@@ -1,3 +1,4 @@
+// src/pages/layouts/manager-layout/index.js
 import React from "react";
 import { Outlet } from "react-router-dom";
 import Header from "./manager-header";
