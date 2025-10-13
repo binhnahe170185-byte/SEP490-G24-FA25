@@ -19,6 +19,7 @@ import ClassDetail from "../pages/manager/ClassDetail";
 import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
+import AdminPage from "../pages/admin/AdminPage";
 // ================= axios instance =================
 const apiBase =
   process.env.REACT_APP_API_BASE?.trim() ||
@@ -137,39 +138,39 @@ function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
- async function onGoogleSuccess(res) {
-  try {
-    const { data } = await api.post("/api/auth/login", {
-      credential: res.credential,
-    });
+  async function onGoogleSuccess(res) {
+    try {
+      const { data } = await api.post("/api/auth/login", {
+        credential: res.credential,
+      });
 
-    // BE trả về: { email, name, picture, token, (maybe) roleId/role_id }
-    const token = data?.token;
-    if (!token) throw new Error("Missing token");
+      // BE trả về: { email, name, picture, token, (maybe) roleId/role_id }
+      const token = data?.token;
+      if (!token) throw new Error("Missing token");
 
-    const profile =
-      data?.profile ??
-      {
-        email: data.email ?? "",
-        name: data.name ?? "",
-        picture: data.picture ?? null,
-        roleId: data.roleId ?? data.role_id ?? 1, // tùy BE
-      };
+      const profile =
+        data?.profile ??
+        {
+          email: data.email ?? "",
+          name: data.name ?? "",
+          picture: data.picture ?? null,
+          roleId: data.roleId ?? data.role_id ?? 1, // tùy BE
+        };
 
-    // Lưu & set context
-    login({ token, profile });
-    // dọn rác cũ nếu từng lưu sai
-    if (!profile) localStorage.removeItem("profile");
+      // Lưu & set context
+      login({ token, profile });
+      // dọn rác cũ nếu từng lưu sai
+      if (!profile) localStorage.removeItem("profile");
 
-    // Điều hướng
-    // Nếu có trang Manager cần roleId=2:
-    // Number(profile.roleId) === 2 ? navigate("/manager", { replace: true }) :
-    navigate("/studentTable", { replace: true });
-  } catch (e) {
-    console.error(e);
-    alert("Đăng nhập thất bại");
+      // Điều hướng
+      // Nếu có trang Manager cần roleId=2:
+      // Number(profile.roleId) === 2 ? navigate("/manager", { replace: true }) :
+      navigate("/studentTable", { replace: true });
+    } catch (e) {
+      console.error(e);
+      alert("Đăng nhập thất bại");
+    }
   }
-}
 
 
   return (
@@ -222,6 +223,21 @@ export default function App() {
                 </RequireAuth>
               }
             />
+
+
+            {/* <Route
+              path="/admin"
+              element={
+                <RequireAuth>
+                  <AdminPage />
+                </RequireAuth>
+              }
+            /> */}
+
+<Route path="/admin" element={<AdminPage />} />
+
+
+
 
             {/* Protected: Manager (roleId === 2) */}
             <Route
