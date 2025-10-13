@@ -18,7 +18,7 @@ class ClassList {
     const response = await api.patch(`/api/manager/classes/${classId}/status`, {
       status,
     });
-    return response.data;
+    return response.data?.data ?? response.data;
   }
 }
 
