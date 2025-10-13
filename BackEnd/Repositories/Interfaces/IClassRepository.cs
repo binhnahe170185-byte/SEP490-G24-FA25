@@ -8,5 +8,5 @@ public interface IClassRepository : IGenericRepository<Class>
 
     Task<IEnumerable<Class>> GetAllAsync();
     Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId);
-    Task UpdateStatusAsync(string classId, bool status);
+    Task<Class> UpdateStatusAsync(string classId, bool status);
 }

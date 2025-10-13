@@ -1,5 +1,4 @@
 using FJAP.Models;
-using FJAP.Models;
 
 namespace FJAP.Services.Interfaces;
 
@@ -12,5 +11,5 @@ public interface IClassService
     Task<bool> UpdateAsync(Class item);
     Task<bool> DeleteAsync(int id);
     Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId);
-    Task UpdateStatusAsync(string classId, bool status);
+    Task<Class> UpdateStatusAsync(string classId, bool status);
 }
