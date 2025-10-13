@@ -23,11 +23,11 @@ public partial class Material
 
     public int? UpdateBy { get; set; }
 
-    public int LessonId { get; set; }
+    public int? UserId { get; set; }
 
-    public int UserId { get; set; }
+    public int SubjectId { get; set; }
 
-    public virtual Lesson Lesson { get; set; } = null!;
+    public virtual Subject Subject { get; set; } = null!;
 
-    public virtual User User { get; set; } = null!;
+    public virtual User? User { get; set; }
 }

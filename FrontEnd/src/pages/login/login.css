@@ -1,0 +1,90 @@
+/* Layout wrapper */
+.lp {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr; /* trái / phải */
+  min-height: 100vh;
+  background: #f6f7fb;
+}
+
+/* LEFT column */
+.lp-left {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.lp-card {
+  width: min(440px, 92%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  padding: 28px 28px 24px;
+  border: 1px solid #eee;
+}
+
+
+.lp-title {
+  margin: 8px 0 4px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+}
+
+.lp-subtitle {
+  margin: 0 0 20px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+.lp-actions {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 6px;
+  justify-items: center;
+}
+
+/* NOTE under button */
+.lp-note {
+  margin-top: 10px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 12px;
+}
+.lp-note a {
+  color: #6b7280;
+  text-decoration: underline;
+}
+
+/* RIGHT column (hero image) */
+.lp-right {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-left: 1px solid #eee;
+}
+
+/* subtle overlay to make image edges softer */
+.lp-right::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .lp { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 820px) {
+  .lp { grid-template-columns: 1fr; }
+  .lp-right {
+    order: -1;              /* ảnh lên trên khi mobile */
+    height: 38vh;
+    border-left: none;
+    border-bottom: 1px solid #eee;
+  }
+  .lp-card { width: min(520px, 94%); }
+}

@@ -1,21 +1,20 @@
-// App.js
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
-  Link,
-  useNavigate,
+  Outlet,
 } from "react-router-dom";
-import axios from "axios";
-import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
-// ======= Pages / Layouts =======
+import AuthProvider, { useAuth } from "../pages/login/AuthContext";
+import LoginPage from "../pages/login/LoginPage";
 import StudentList from "../pages/student/studentTable/StudentList";
+import WeeklyTimetable from "../pages/student/weeklyTimeTable/WeeklyTimetable";
 import ManagerLayout from "../pages/layouts/manager-layout";
-import ClassPage from "../pages/manager";
-import ClassDetail from "../pages/manager/ClassDetail";
+import ClassPage from "../pages/manager/ClassManage";
+import ClassDetail from "../pages/manager/ClassManage/ClassDetail";
 import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
@@ -46,81 +45,28 @@ function safeParse(raw) {
   } catch {
     return null;
   }
+import Header from "../common/Header"; //
+import Footer from "../common/footer";
+import MaterialList from "../pages/manager/materials/MaterialList";
+function RequireAuth({ children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+function RequireManager({ children }) {
+  const { user } = useAuth();
+  if (!user || Number(user.roleId) !== 2) return <Navigate to="/" replace />;
+  return children;
 }
 
-function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-
-  // Khởi tạo từ localStorage (an toàn, không crash)
-  useEffect(() => {
-    const token = localStorage.getItem("token") || null;
-    const profile = safeParse(localStorage.getItem("profile"));
-    if (token && profile) {
-      setAuthToken(token);
-      setUser({ ...profile, token });
-    } else {
-      localStorage.removeItem("token");
-      localStorage.removeItem("profile");
-      setAuthToken(null);
-      setUser(null);
-    }
-  }, []);
-
-  const login = ({ token, profile }) => {
-    setAuthToken(token);
-    setUser({ ...profile, token });
-    localStorage.setItem("token", token);
-    localStorage.setItem("profile", JSON.stringify(profile));
-  };
-
-  const logout = () => {
-    setAuthToken(null);
-    setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("profile");
-  };
-
+function ProtectedLayout() {
+  // Chỉ render khi đã đăng nhập
   return (
-    <AuthCtx.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthCtx.Provider>
-  );
-}
-
-// =============== UI helpers ===============
-function Header() {
-  const { user, logout } = useAuth();
-  return (
-    <div
-      style={{
-        padding: 12,
-        borderBottom: "1px solid #eee",
-        display: "flex",
-        gap: 16,
-        alignItems: "center",
-      }}
-    >
-      <Link to="/">Trang chủ</Link>
-      <Link to="/studentTable">Student Table</Link>
-      <Link to="/manager">Manager</Link>
-      <div style={{ marginLeft: "auto" }}>
-        {user ? (
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            {user.picture && (
-              <img
-                src={user.picture}
-                alt=""
-                style={{ width: 28, height: 28, borderRadius: 14 }}
-              />
-            )}
-            <span>{user.name || user.email}</span>
-            <button onClick={logout}>Đăng xuất</button>
-          </div>
-        ) : (
-          <Link to="/login">Đăng nhập</Link>
-        )}
-      </div>
-    </div>
+    <RequireAuth>
+      <Header />
+      <Outlet />
+      <Footer />
+    </RequireAuth>
   );
 }
 
@@ -208,10 +154,8 @@ export default function App() {
     <GoogleOAuthProvider clientId={clientId}>
       <AuthProvider>
         <Router>
-          <Header />
           <Routes>
-            {/* Public */}
-            <Route path="/" element={<Home />} />
+            {/* Public: không có Header */}
             <Route path="/login" element={<LoginPage />} />
 
             {/* Protected: Student */}
@@ -244,21 +188,36 @@ export default function App() {
               path="/manager"
               element={
                 <RequireAuth>
+            {/* tôi để tạm footer ở đây ae có thể gõ url để xem (huylq)*/}
+            <Route path="/footer" element={<Footer />} />
+
+            {/* Protected: có Header */}
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/studentTable" element={<StudentList />} />
+              <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
+              <Route
+                path="/manager"
+                element={
                   <RequireManager>
                     <ManagerLayout />
                   </RequireManager>
-                </RequireAuth>
-              }
-            >
-              <Route index element={<ClassPage />} />
-              <Route path="class" element={<ClassPage />} />
-              <Route path="class/:classId" element={<ClassDetail />} />
-              <Route path="subject" element={<SubjectPage />} />
-              <Route path="subject/create" element={<CreateSubject />} />
-              <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                }
+              >
+                <Route index element={<ClassPage />} />
+                <Route path="class" element={<ClassPage />} />
+                <Route path="class/:classId" element={<ClassDetail />} />
+                <Route path="subject" element={<SubjectPage />} />
+                <Route path="subject/create" element={<CreateSubject />} />
+                <Route
+                  path="subject/edit/:subjectId"
+                  element={<EditSubject />}
+                />
+                <Route path="materials" element={<MaterialList />} />
+              </Route>
             </Route>
 
-            {/* Fallback */}
+            {/* Default: chưa login thì sẽ bị chặn và đẩy về /login */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
