@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Text.Json.Serialization;
 
-namespace FJAP.Models;
-
-public partial class Role
+namespace FJAP.Models
 {
-    public int RoleId { get; set; }
+    public partial class Role
+    {
+        public int RoleId { get; set; }
+        public string RoleName { get; set; } = null!;
 
-    public string RoleName { get; set; } = null!;
-
-    public virtual ICollection<User> Users { get; set; } = new List<User>();
+        // CHẶN vòng Role.Users -> User.Role -> ...
+        [JsonIgnore]
+        public virtual ICollection<User> Users { get; set; } = new List<User>();
+    }
 }
