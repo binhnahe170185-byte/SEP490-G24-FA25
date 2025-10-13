@@ -47,13 +47,15 @@ public class ClassService : IClassService
         await _classRepository.SaveChangesAsync();
         return true;
     }
-    public Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId) => _classRepository.GetSubjectsAsync(classId);
+
+    public Task<Class?> GetSubjectsAsync(string classId) => _classRepository.GetSubjectsAsync(classId);
+
+    public Task<Dictionary<int, int>> GetSubjectEnrollmentCountsAsync(int classId)
+        => _classRepository.GetSubjectEnrollmentCountsAsync(classId);
 
     public async Task<Class> UpdateStatusAsync(string classId, bool status)
-{
-    var updatedClass = await _classRepository.UpdateStatusAsync(classId, status);
-    return updatedClass;
-}
-
-
+    {
+        var updatedClass = await _classRepository.UpdateStatusAsync(classId, status);
+        return updatedClass;
+    }
 }
