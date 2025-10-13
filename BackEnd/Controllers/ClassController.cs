@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using FJAP.Models;
 using FJAP.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -18,8 +21,64 @@ public class ClassController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var data = await _classService.GetAllAsync();
-        return Ok(new { code = 200, data });
+        var items = await _classService.GetAllAsync();
+
+        var result = items.Select(cls =>
+        {
+            var semesterStart = cls.Semester?.StartDate.ToDateTime(TimeOnly.MinValue);
+            var semesterEnd = cls.Semester?.EndDate.ToDateTime(TimeOnly.MinValue);
+            var semesterName = cls.Semester?.Name;
+            var levelName = cls.Level?.LevelName;
+
+            var semesterDetail = cls.Semester == null
+                ? null
+                : new
+                {
+                    id = cls.Semester.SemesterId,
+                    name = cls.Semester.Name,
+                    startDate = semesterStart,
+                    endDate = semesterEnd
+                };
+
+            var levelDetail = cls.Level == null
+                ? null
+                : new
+                {
+                    id = cls.Level.LevelId,
+                    name = cls.Level.LevelName
+                };
+
+            return new
+            {
+                class_id = cls.ClassId.ToString(),
+                classId = cls.ClassId,
+                class_name = cls.ClassName,
+                className = cls.ClassName,
+                status = cls.Status,
+                updated_at = cls.UpdatedAt,
+                updatedAt = cls.UpdatedAt,
+                semester = semesterName,
+                semester_name = semesterName,
+                semesterName = semesterName,
+                semester_id = cls.SemesterId,
+                semesterId = cls.SemesterId,
+                semester_start_date = semesterStart,
+                semesterStartDate = semesterStart,
+                semester_end_date = semesterEnd,
+                semesterEndDate = semesterEnd,
+                semester_detail = semesterDetail,
+                semesterDetail = semesterDetail,
+                level = levelName,
+                level_name = levelName,
+                levelName = levelName,
+                level_id = cls.Level?.LevelId ?? cls.LevelId,
+                levelId = cls.LevelId,
+                level_detail = levelDetail,
+                levelDetail = levelDetail
+            };
+        }).ToList();
+
+        return Ok(new { code = 200, data = result });
     }
 
     [HttpGet("{id:int}")]
@@ -68,12 +127,75 @@ public class ClassController : ControllerBase
         var rows = await _classService.GetSubjectsAsync(classId);
         return Ok(new { code = 200, message = "Success", data = rows });
     }
-        
+
     [HttpPatch("{classId}/status")]
     public async Task<IActionResult> UpdateStatus(string classId, [FromBody] UpdateClassStatusRequest request)
     {
-        await _classService.UpdateStatusAsync(classId, request.Status);
-        return Ok(new { code = 200, message = "Class status updated" });
+        try
+        {
+            var updated = await _classService.UpdateStatusAsync(classId, request.Status);
+
+            var semesterStart = updated.Semester?.StartDate.ToDateTime(TimeOnly.MinValue);
+            var semesterEnd = updated.Semester?.EndDate.ToDateTime(TimeOnly.MinValue);
+            var semesterName = updated.Semester?.Name;
+            var levelName = updated.Level?.LevelName;
+
+            var semesterDetail = updated.Semester == null
+                ? null
+                : new
+                {
+                    id = updated.Semester.SemesterId,
+                    name = updated.Semester.Name,
+                    startDate = semesterStart,
+                    endDate = semesterEnd
+                };
+
+            var levelDetail = updated.Level == null
+                ? null
+                : new
+                {
+                    id = updated.Level.LevelId,
+                    name = updated.Level.LevelName
+                };
+
+            return Ok(new
+            {
+                code = 200,
+                message = "Class status updated",
+                data = new
+                {
+                    class_id = updated.ClassId.ToString(),
+                    classId = updated.ClassId,
+                    class_name = updated.ClassName,
+                    className = updated.ClassName,
+                    status = updated.Status,
+                    updated_at = updated.UpdatedAt,
+                    updatedAt = updated.UpdatedAt,
+                    semester = semesterName,
+                    semester_name = semesterName,
+                    semesterName = semesterName,
+                    semester_id = updated.SemesterId,
+                    semesterId = updated.SemesterId,
+                    semester_start_date = semesterStart,
+                    semesterStartDate = semesterStart,
+                    semester_end_date = semesterEnd,
+                    semesterEndDate = semesterEnd,
+                    level = levelName,
+                    level_name = levelName,
+                    levelName = levelName,
+                    level_id = updated.Level?.LevelId ?? updated.LevelId,
+                    levelId = updated.LevelId,
+                    semester_detail = semesterDetail,
+                    semesterDetail = semesterDetail,
+                    level_detail = levelDetail,
+                    levelDetail = levelDetail
+                }
+            });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { code = 404, message = "Class not found" });
+        }
     }
 }
 

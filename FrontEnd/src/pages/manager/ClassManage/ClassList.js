@@ -35,6 +35,7 @@ export default function ClassList() {
     search: "",
     semester: "all",
     status: "all",
+    level: "all",
   });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 8 });
   const { current: currentPage, pageSize } = pagination;
@@ -55,26 +56,113 @@ export default function ClassList() {
         item.ClassName ??
         item.name ??
         "-";
-      const semester =
+      const semesterSource =
+        item.semester_detail ??
+        item.semesterDetail ??
         item.semester ??
         item.Semester ??
         item.semester_name ??
         item.semesterName ??
         item.SemesterName ??
+        null;
+      const semesterDetails =
+        semesterSource &&
+        typeof semesterSource === "object" &&
+        !Array.isArray(semesterSource)
+          ? semesterSource
+          : null;
+      const semester =
+        (semesterDetails &&
+          (semesterDetails.name ??
+            semesterDetails.Name ??
+            semesterDetails.semester_name ??
+            semesterDetails.semesterName ??
+            semesterDetails.SemesterName)) ??
+        (typeof semesterSource === "string" ? semesterSource : null) ??
+        item.semester_name ??
+        item.semesterName ??
         "-";
-      const startDate =
+      const semesterId =
+        (semesterDetails &&
+          (semesterDetails.semester_id ??
+            semesterDetails.semesterId ??
+            semesterDetails.SemesterId ??
+            semesterDetails.id)) ??
+        item.semester_id ??
+        item.semesterId ??
+        item.SemesterId ??
+        null;
+      const startDateSource =
         item.start_date ??
         item.startDate ??
         item.StartDate ??
         item.begin_date ??
         item.BeginDate ??
+        item.semester_start_date ??
+        item.semesterStartDate ??
+        item.semester_start ??
+        item.semesterStart ??
+        (semesterDetails &&
+          (semesterDetails.start_date ??
+            semesterDetails.startDate ??
+            semesterDetails.StartDate ??
+            semesterDetails.begin_date ??
+            semesterDetails.BeginDate)) ??
         null;
-      const endDate =
+      const endDateSource =
         item.end_date ??
         item.endDate ??
         item.EndDate ??
         item.finish_date ??
         item.FinishDate ??
+        item.semester_end ??
+        item.semesterEnd ??
+        (semesterDetails &&
+          (semesterDetails.end_date ??
+            semesterDetails.endDate ??
+            semesterDetails.EndDate ??
+            semesterDetails.finish_date ??
+            semesterDetails.FinishDate)) ??
+        item.semester_end_date ??
+        item.semesterEndDate ??
+        null;
+      const levelSource =
+        item.level_detail ??
+        item.levelDetail ??
+        item.level ??
+        item.Level ??
+        item.level_name ??
+        item.levelName ??
+        item.LevelName ??
+        null;
+      const levelDetails =
+        levelSource &&
+        typeof levelSource === "object" &&
+        !Array.isArray(levelSource)
+          ? levelSource
+          : null;
+      const level =
+        (levelDetails &&
+          (levelDetails.level_name ??
+            levelDetails.levelName ??
+            levelDetails.LevelName ??
+            levelDetails.name ??
+            levelDetails.Name ??
+            levelDetails?.name)) ??
+        (typeof levelSource === "string" ? levelSource : null) ??
+        item.level_name ??
+        item.levelName ??
+        "-";
+      const levelId =
+        (levelDetails &&
+          (levelDetails.level_id ??
+            levelDetails.levelId ??
+            levelDetails.LevelId ??
+            levelDetails.id)) ??
+        (levelDetails && levelDetails.id) ??
+        item.level_id ??
+        item.levelId ??
+        item.LevelId ??
         null;
       const rawStatus =
         item.status ??
@@ -84,20 +172,45 @@ export default function ClassList() {
         item.isActive ??
         item.IsActive ??
         null;
+      const updatedAt =
+        item.updated_at ??
+        item.updatedAt ??
+        item.UpdatedAt ??
+        item.update_at ??
+        item.updateAt ??
+        item.UpdateAt ??
+        item.last_updated ??
+        item.lastUpdated ??
+        item.modified_at ??
+        item.modifiedAt ??
+        null;
       const statusBool = parseStatus(rawStatus);
       const statusLabel =
         typeof rawStatus === "string"
           ? rawStatus
           : toStatusLabel(statusBool);
 
+      const classIdValue =
+        classId ??
+        (typeof item.id !== "undefined" ? item.id : null);
+      const classIdString =
+        classIdValue !== null && classIdValue !== undefined
+          ? classIdValue.toString()
+          : `CL${String(index + 1).padStart(3, "0")}`;
+
       return {
-        class_id: classId ?? `CL${String(index + 1).padStart(3, "0")}`,
+        class_id: classIdString,
+        classId: classIdValue,
         class_name: className,
         semester,
-        start_date: startDate,
-        end_date: endDate,
+        semester_id: semesterId,
+        start_date: startDateSource,
+        end_date: endDateSource,
+        level,
+        level_id: levelId,
         status: statusBool,
         statusLabel,
+        updated_at: updatedAt,
       };
     });
 
@@ -105,31 +218,59 @@ export default function ClassList() {
     ClassListApi.getAll()
       .then((data) => {
         console.log("✅ Data backend:", data);
-        setClasses(normalizeClasses(data ?? []));
+        const normalized = normalizeClasses(data ?? []);
+        normalized.sort((a, b) => {
+          const dateA = new Date(a.updated_at ?? 0).getTime();
+          const dateB = new Date(b.updated_at ?? 0).getTime();
+          if (Number.isNaN(dateA) && Number.isNaN(dateB)) {
+            return 0;
+          }
+          if (Number.isNaN(dateA)) {
+            return 1;
+          }
+          if (Number.isNaN(dateB)) {
+            return -1;
+          }
+          if (dateA === dateB) {
+            return (b.class_id ?? "").localeCompare(a.class_id ?? "");
+          }
+          return dateB - dateA;
+        });
+        setClasses(normalized);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
   const filterOptions = useMemo(() => {
-    const seen = new Set();
+    const semesterSeen = new Set();
+    const levelSeen = new Set();
     const semesters = [];
+    const levels = [];
 
     classes.forEach((item) => {
-      const value = item.semester;
-      if (!value || value === "-") {
-        return;
+      const semesterValue = item.semester;
+      if (semesterValue && semesterValue !== "-") {
+        const key = semesterValue.toString().toLowerCase();
+        if (!semesterSeen.has(key)) {
+          semesterSeen.add(key);
+          semesters.push(semesterValue);
+        }
       }
 
-      const key = value.toString().toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        semesters.push(value);
+      const levelValue = item.level;
+      if (levelValue && levelValue !== "-") {
+        const key = levelValue.toString().toLowerCase();
+        if (!levelSeen.has(key)) {
+          levelSeen.add(key);
+          levels.push(levelValue);
+        }
       }
     });
 
     return {
       semesters,
+      levels,
     };
   }, [classes]);
 
@@ -151,9 +292,11 @@ export default function ClassList() {
           item.class_id,
           item.class_name,
           item.semester,
+          item.level,
           formatDate(item.start_date),
           formatDate(item.end_date),
           item.statusLabel,
+          formatDateTime(item.updated_at),
         ];
 
         matchesSearch = candidates
@@ -168,12 +311,14 @@ export default function ClassList() {
 
     const matchesSemester =
       filters.semester === "all" || item.semester === filters.semester;
+    const matchesLevel =
+      filters.level === "all" || item.level === filters.level;
     const matchesStatus =
       filters.status === "all" ||
       (filters.status === "active" && item.status) ||
       (filters.status === "inactive" && !item.status);
 
-    return matchesSemester && matchesStatus;
+    return matchesSemester && matchesLevel && matchesStatus;
   });
 
   useEffect(() => {
@@ -197,36 +342,102 @@ export default function ClassList() {
     setPagination((prev) => ({ ...prev, current: page, pageSize }));
   };
 
-  const paginatedClasses = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredClasses.slice(start, start + pageSize);
-  }, [filteredClasses, currentPage, pageSize]);
-
   const handleStatusToggle = async (record, checked) => {
+    const targetClassId = (record.classId ?? record.class_id)?.toString();
+    if (!targetClassId) {
+      message.error("Missing class identifier");
+      return;
+    }
+
     const previousStatus = record.status;
-    setUpdatingStatusId(record.class_id);
+    const previousUpdatedAt = record.updated_at;
+    setUpdatingStatusId(targetClassId);
     setClasses((prev) =>
       prev.map((item) =>
-        item.class_id === record.class_id
+        item.class_id === targetClassId
           ? { ...item, status: checked, statusLabel: toStatusLabel(checked) }
           : item
       )
     );
 
     try {
-      await ClassListApi.updateStatus(record.class_id, checked);
+      const updated = await ClassListApi.updateStatus(targetClassId, checked);
+      setClasses((prev) =>
+        prev
+          .map((item) => {
+            if (item.class_id !== targetClassId) {
+              return item;
+            }
+
+            const fallbackUpdatedAt =
+              (updated && (updated.updated_at ?? updated.updatedAt)) ||
+              new Date().toISOString();
+            const mergedSource = updated
+              ? { ...item, ...updated, updated_at: fallbackUpdatedAt }
+            : {
+                ...item,
+                status: checked,
+                statusLabel: toStatusLabel(checked),
+                updated_at: fallbackUpdatedAt,
+              };
+          const normalizedList = normalizeClasses([mergedSource]);
+          const normalized =
+            normalizedList && normalizedList.length ? normalizedList[0] : null;
+
+          if (normalized) {
+            return {
+              ...item,
+              ...normalized,
+              updated_at: normalized.updated_at ?? fallbackUpdatedAt,
+            };
+          }
+
+          return {
+            ...item,
+            status: checked,
+            statusLabel: toStatusLabel(checked),
+            updated_at: fallbackUpdatedAt,
+          };
+          })
+          .sort((a, b) => {
+            const dateA = new Date(a.updated_at ?? 0).getTime();
+            const dateB = new Date(b.updated_at ?? 0).getTime();
+            if (Number.isNaN(dateA) && Number.isNaN(dateB)) {
+              return 0;
+            }
+            if (Number.isNaN(dateA)) {
+              return 1;
+            }
+            if (Number.isNaN(dateB)) {
+              return -1;
+            }
+            if (dateA === dateB) {
+              return (b.class_id ?? "").localeCompare(a.class_id ?? "");
+            }
+            return dateB - dateA;
+          })
+      );
+
+      const successName =
+        updated?.class_name ??
+        updated?.className ??
+        record.class_name ??
+        record.classId ?? targetClassId;
       message.success(
-        `${record.class_name} is now ${checked ? "Active" : "Inactive"}`
+        `${successName ?? targetClassId} is now ${
+          checked ? "Active" : "Inactive"
+        }`
       );
     } catch (error) {
       message.error("Failed to update class status");
       setClasses((prev) =>
         prev.map((item) =>
-          item.class_id === record.class_id
+          item.class_id === targetClassId
             ? {
                 ...item,
                 status: previousStatus,
                 statusLabel: toStatusLabel(previousStatus),
+                updated_at: previousUpdatedAt,
               }
             : item
         )
@@ -237,13 +448,14 @@ export default function ClassList() {
   };
 
   const handleView = (record) => {
-    if (!record?.class_id) {
+    const destinationId = record?.classId ?? record?.class_id;
+    if (!destinationId) {
       return;
     }
 
-    navigate(`/manager/class/${record.class_id}`,
+    navigate(`/manager/class/${destinationId}`,
       {
-        state: { className: record.class_name ?? record.class_id }
+        state: { className: record.class_name ?? destinationId }
       });
   };
 
@@ -272,6 +484,12 @@ export default function ClassList() {
     },
     { title: "Semester", dataIndex: "semester", key: "semester" },
     {
+      title: "Level",
+      dataIndex: "level",
+      key: "level",
+      render: (value) => value ?? "-",
+    },
+    {
       title: "Start Date",
       dataIndex: "start_date",
       key: "start_date",
@@ -284,6 +502,12 @@ export default function ClassList() {
       render: (value) => formatDate(value),
     },
     {
+      title: "Updated At",
+      dataIndex: "updated_at",
+      key: "updated_at",
+      render: (value) => formatDateTime(value),
+    },
+    {
       title: "Status",
       key: "status",
       align: "center",
@@ -293,7 +517,9 @@ export default function ClassList() {
           unCheckedChildren="Inactive"
           checked={record.status}
           onChange={(checked) => handleStatusToggle(record, checked)}
-          loading={updatingStatusId === record.class_id}
+          loading={
+            updatingStatusId === (record.classId ?? record.class_id)?.toString()
+          }
         />
       ),
     },
@@ -345,6 +571,19 @@ export default function ClassList() {
           />
 
           <Select
+            value={filters.level}
+            onChange={(value) => handleFilterChange("level", value)}
+            options={[
+              { value: "all", label: "All Levels" },
+              ...filterOptions.levels.map((value) => ({
+                value,
+                label: value,
+              })),
+            ]}
+            style={{ minWidth: 160 }}
+          />
+
+          <Select
             value={filters.status}
             onChange={(value) => handleFilterChange("status", value)}
             options={STATUS_FILTER_OPTIONS}
@@ -365,7 +604,7 @@ export default function ClassList() {
       <h2 style={{ marginBottom: 16 }}>Manage Class</h2>
       <Table
         columns={columns}
-        dataSource={paginatedClasses}
+        dataSource={filteredClasses}
         rowKey="class_id"
         loading={loading}
         pagination={{
@@ -383,17 +622,68 @@ export default function ClassList() {
   );
 }
 
-const formatDate = (value) => {
+const toDateInstance = (value) => {
   if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const direct = new Date(value);
+    return Number.isNaN(direct.getTime()) ? null : direct;
+  }
+
+  if (typeof value === "object") {
+    if (typeof value.toDate === "function") {
+      const derived = value.toDate();
+      if (derived instanceof Date && !Number.isNaN(derived.getTime())) {
+        return derived;
+      }
+    }
+
+    const hasYmd =
+      typeof value.year === "number" &&
+      typeof value.month === "number" &&
+      typeof value.day === "number";
+    if (hasYmd) {
+      const date = new Date(value.year, value.month - 1, value.day);
+      if (!Number.isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
+    if ("seconds" in value || "nanoseconds" in value) {
+      const seconds = typeof value.seconds === "number" ? value.seconds : 0;
+      const nanos = typeof value.nanoseconds === "number" ? value.nanoseconds : 0;
+      const date = new Date(seconds * 1000 + nanos / 1e6);
+      if (!Number.isNaN(date.getTime())) {
+        return date;
+      }
+    }
+  }
+
+  return null;
+};
+
+const formatDate = (value) => {
+  const date = toDateInstance(value);
+  if (!date) {
     return "-";
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
+  return date.toLocaleDateString();
+};
+
+const formatDateTime = (value) => {
+  const date = toDateInstance(value);
+  if (!date) {
+    return "-";
   }
 
-  return date.toLocaleDateString();
+  return date.toLocaleString();
 };
 
 const toolbarContainerStyle = {

@@ -1,4 +1,7 @@
-﻿using FJAP.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using FJAP.Models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +24,8 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
     public async Task<IEnumerable<Class>> GetAllAsync()
     {
         return await _context.Classes
+            .Include(c => c.Semester)
+            .Include(c => c.Level)
             .Include(c => c.Subjects)
             .Include(c => c.Students)
             .ToListAsync();
@@ -41,10 +46,22 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             .ToListAsync();
     }
 
-    public async Task UpdateStatusAsync(string classId, bool status)
+    public async Task<Class> UpdateStatusAsync(string classId, bool status)
     {
-        var cls = await _context.Classes.FirstOrDefaultAsync(c => c.ClassId.ToString() == classId);
-        if (cls == null) throw new Exception("Class not found");
+        var cls = await _context.Classes
+            .Include(c => c.Semester)
+            .Include(c => c.Level)
+            .FirstOrDefaultAsync(c => c.ClassId.ToString() == classId);
+
+        if (cls == null)
+        {
+            throw new KeyNotFoundException("Class not found");
+        }
+
+        cls.Status = status ? "Active" : "Inactive";
+        cls.UpdatedAt = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
+        return cls;
     }
 }
