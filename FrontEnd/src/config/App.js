@@ -1,12 +1,15 @@
-import React from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
   Outlet,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
-import { GoogleOAuthProvider } from "@react-oauth/google";
+import axios from "axios";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 import AuthProvider, { useAuth } from "../pages/login/AuthContext";
 import LoginPage from "../pages/login/LoginPage";
@@ -19,12 +22,14 @@ import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
 import AdminPage from "../pages/admin/AdminPage";
+import Header from "../common/Header";
+import Footer from "../common/footer";
+import MaterialList from "../pages/manager/materials/MaterialList";
+
 // ================= axios instance =================
 const apiBase =
   process.env.REACT_APP_API_BASE?.trim() ||
-  (window.location.origin.includes("localhost")
-    ? "http://localhost:5000" // fallback local BE
-    : "/");
+  (window.location.origin.includes("localhost") ? "http://localhost:5000" : "/");
 
 export const api = axios.create({ baseURL: apiBase });
 
@@ -33,26 +38,13 @@ export function setAuthToken(token) {
   else delete api.defaults.headers.common["Authorization"];
 }
 
-// ================= Auth Context =================
-const AuthCtx = createContext(null);
-export const useAuth = () => useContext(AuthCtx);
-
-function safeParse(raw) {
-  if (!raw) return null;
-  if (raw === "undefined" || raw === "null") return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-import Header from "../common/Header"; //
-import Footer from "../common/footer";
-import MaterialList from "../pages/manager/materials/MaterialList";
+// =============== Helpers & Guards ===============
 function RequireAuth({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
+
 function RequireManager({ children }) {
   const { user } = useAuth();
   if (!user || Number(user.roleId) !== 2) return <Navigate to="/" replace />;
@@ -79,8 +71,8 @@ function Home() {
   );
 }
 
-// =============== Login with Google ===============
-function LoginPage() {
+// =============== Login with Google (component uses AuthContext login) ===============
+function LoginWrapper() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -90,7 +82,6 @@ function LoginPage() {
         credential: res.credential,
       });
 
-      // BE trả về: { email, name, picture, token, (maybe) roleId/role_id }
       const token = data?.token;
       if (!token) throw new Error("Missing token");
 
@@ -100,24 +91,17 @@ function LoginPage() {
           email: data.email ?? "",
           name: data.name ?? "",
           picture: data.picture ?? null,
-          roleId: data.roleId ?? data.role_id ?? 1, // tùy BE
+          roleId: data.roleId ?? data.role_id ?? 1,
         };
 
-      // Lưu & set context
       login({ token, profile });
-      // dọn rác cũ nếu từng lưu sai
       if (!profile) localStorage.removeItem("profile");
-
-      // Điều hướng
-      // Nếu có trang Manager cần roleId=2:
-      // Number(profile.roleId) === 2 ? navigate("/manager", { replace: true }) :
       navigate("/studentTable", { replace: true });
     } catch (e) {
       console.error(e);
       alert("Đăng nhập thất bại");
     }
   }
-
 
   return (
     <div
@@ -133,19 +117,6 @@ function LoginPage() {
   );
 }
 
-// =============== Route guards ===============
-function RequireAuth({ children }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
-}
-
-function RequireManager({ children }) {
-  const { user } = useAuth();
-  if (!user || Number(user.roleId) !== 2) return <Navigate to="/" replace />;
-  return children;
-}
-
 // =============== App Root ===============
 export default function App() {
   const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
@@ -155,49 +126,19 @@ export default function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            {/* Public: không có Header */}
-            <Route path="/login" element={<LoginPage />} />
+            {/* Public */}
+            <Route path="/login" element={<LoginWrapper />} />
+            <Route path="/admin" element={<AdminPage />} />
 
-            {/* Protected: Student */}
-            <Route
-              path="/studentTable"
-              element={
-                <RequireAuth>
-                  <StudentList />
-                </RequireAuth>
-              }
-            />
-
-
-            {/* <Route
-              path="/admin"
-              element={
-                <RequireAuth>
-                  <AdminPage />
-                </RequireAuth>
-              }
-            /> */}
-
-<Route path="/admin" element={<AdminPage />} />
-
-
-
-
-            {/* Protected: Manager (roleId === 2) */}
-            <Route
-              path="/manager"
-              element={
-                <RequireAuth>
-            {/* tôi để tạm footer ở đây ae có thể gõ url để xem (huylq)*/}
-            <Route path="/footer" element={<Footer />} />
-
-            {/* Protected: có Header */}
+            {/* Protected area (Header + Footer) */}
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/studentTable" element={<StudentList />} />
               <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
+
+              {/* Manager nested routes under /manager */}
               <Route
-                path="/manager"
+                path="/manager/*"
                 element={
                   <RequireManager>
                     <ManagerLayout />
@@ -209,15 +150,12 @@ export default function App() {
                 <Route path="class/:classId" element={<ClassDetail />} />
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
-                <Route
-                  path="subject/edit/:subjectId"
-                  element={<EditSubject />}
-                />
+                <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                 <Route path="materials" element={<MaterialList />} />
               </Route>
             </Route>
 
-            {/* Default: chưa login thì sẽ bị chặn và đẩy về /login */}
+            {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
