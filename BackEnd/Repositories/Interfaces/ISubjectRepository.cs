@@ -6,7 +6,7 @@ namespace FJAP.Repositories.Interfaces
     {
         Task<SubjectDto?> GetByIdWithDetailsAsync(int id);
         Task<IEnumerable<SubjectDto>> GetAllWithDetailsAsync();
-        Task UpdateStatusAsync(int subjectId, bool status);
+        Task UpdateStatusAsync(int subjectId, string status);
         Task<SubjectFormOptions> GetFormOptionsAsync();
     }
 }

@@ -1,54 +1,22 @@
-import { api } from "../config/App"; // Thay vì: import http from "./http"
+import { api } from "../api/http";
 
 class SubjectList {
   // Lấy tất cả subjects
   static async getAll() {
     const response = await api.get("/api/manager/subjects");
-    return response.data;
-  }
-
-  // Lấy subjects với thông tin chi tiết (JOIN)
-  static async getDetails() {
-    const response = await api.get("/api/manager/subjects/details");
-    return response.data;
+    return response.data?.data || response.data;
   }
 
   // Lấy subject theo ID
   static async getById(subjectId) {
     const response = await api.get(`/api/manager/subjects/${subjectId}`);
-    return response.data;
-  }
-
-  // Lấy subject theo code
-  static async getByCode(subjectCode) {
-    const response = await api.get(`/api/manager/subjects/code/${subjectCode}`);
-    return response.data;
-  }
-
-  // Lấy subjects theo class ID
-  static async getByClassId(classId) {
-    const response = await api.get(`/api/manager/subjects/class/${classId}`);
-    return response.data;
-  }
-
-  // Lấy subjects theo semester ID
-  static async getBySemesterId(semesterId) {
-    const response = await api.get(
-      `/api/manager/subjects/semester/${semesterId}`
-    );
-    return response.data;
-  }
-
-  // Lấy subjects theo level ID
-  static async getByLevelId(levelId) {
-    const response = await api.get(`/api/manager/subjects/level/${levelId}`);
-    return response.data;
+    return response.data?.data || response.data;
   }
 
   // Tạo subject mới
   static async create(subjectData) {
     const response = await api.post("/api/manager/subjects", subjectData);
-    return response.data;
+    return response.data?.data || response.data;
   }
 
   // Cập nhật subject
@@ -75,10 +43,9 @@ class SubjectList {
     return response.data;
   }
 
-  // Lấy options cho form
   static async getFormOptions() {
     const response = await api.get("/api/manager/subjects/options");
-    return response.data;
+    return response.data?.data || response.data;
   }
 }
 

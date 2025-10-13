@@ -14,6 +14,9 @@ public class StudentService : IStudentService
         _studentRepository = studentRepository;
     }
 
+    public async Task<IEnumerable<Lesson>> GetLessonsByStudentIdAsync(int id)
+        => await _studentRepository.GetLessonsByStudentIdAsync(id);
+
     public async Task<IEnumerable<Student>> GetAllAsync()
         => await _studentRepository.GetAllAsync(orderBy: q => q.OrderBy(s => s.StudentId));
 
