@@ -1,12 +1,15 @@
-import React from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
   Outlet,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
-import { GoogleOAuthProvider } from "@react-oauth/google";
+import axios from "axios";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 import AuthProvider, { useAuth } from "../pages/login/AuthContext";
 import LoginPage from "../pages/login/LoginPage";
@@ -75,7 +78,7 @@ export default function App() {
               <Route path="/admin" element={<AdminPage />} />
 
               <Route
-                path="/manager"
+                path="/manager/*"
                 element={
                   <RequireManager>
                     <ManagerLayout />
