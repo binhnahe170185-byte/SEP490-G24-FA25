@@ -1,4 +1,4 @@
-using FJAP.Models;
+﻿using FJAP.Models;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 
@@ -14,14 +14,17 @@ public class MaterialService : IMaterialService
     }
 
     public async Task<IEnumerable<Material>> GetAllAsync()
-        => await _materialRepository.GetAllAsync(orderBy: q => q.OrderByDescending(m => m.CreateAt));
+    => await _materialRepository.GetAllAsync(
+           orderBy: q => q.OrderByDescending(m => m.CreateAt),
+           includeProperties: "Subject",       
+           noTracking: true);
 
     public Task<Material?> GetByIdAsync(int id) => _materialRepository.GetByIdAsync(id);
 
     public Task<Material?> GetDetailAsync(int id) => _materialRepository.GetDetailAsync(id);
 
-    public async Task<IEnumerable<Material>> GetByLessonAsync(int lessonId)
-        => await _materialRepository.GetAllAsync(predicate: m => m.UserId == lessonId);
+    //public async Task<IEnumerable<Material>> GetByLessonAsync(int lessonId)
+    //    => await _materialRepository.GetAllAsync(predicate: m => m.UserId == lessonId);
 
     public async Task<Material> CreateAsync(Material material)
     {

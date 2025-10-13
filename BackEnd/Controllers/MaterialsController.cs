@@ -1,6 +1,7 @@
 using FJAP.Models;
 using FJAP.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
 
 namespace FJAP.Controllers;
 
@@ -18,7 +19,22 @@ public class MaterialsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var data = await _materialService.GetAllAsync();
+        var list = await _materialService.GetAllAsync();
+        var data = list.Select(m => new {
+            m.MaterialId,
+            m.Title,
+            m.FilePath,
+            m.MaterialDescription,
+            m.CreateAt,
+            m.UpdateAt,
+            m.Status,
+            m.CreateBy,
+            m.UpdateBy,
+            m.UserId,
+            m.SubjectId,
+            subjectCode = m.Subject.SubjectCode   // <-- tên môn
+        });
+
         return Ok(new { code = 200, data });
     }
 
@@ -38,12 +54,12 @@ public class MaterialsController : ControllerBase
         return Ok(new { code = 200, data = item });
     }
 
-    [HttpGet("lesson/{lessonId:int}")]
-    public async Task<IActionResult> GetByLesson(int lessonId)
-    {
-        var list = await _materialService.GetByLessonAsync(lessonId);
-        return Ok(new { code = 200, data = list });
-    }
+    //[HttpGet("lesson/{lessonId:int}")]
+    //public async Task<IActionResult> GetByLesson(int lessonId)
+    //{
+    //    var list = await _materialService.GetByLessonAsync(lessonId);
+    //    return Ok(new { code = 200, data = list });
+    //}
 
     [HttpPost]
     public async Task<IActionResult> Create(Material request)
