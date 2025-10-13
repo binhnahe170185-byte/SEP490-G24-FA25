@@ -13,8 +13,8 @@ import LoginPage from "../pages/login/LoginPage";
 
 import StudentList from "../pages/student/studentTable/StudentList";
 import ManagerLayout from "../pages/layouts/manager-layout";
-import ClassPage from "../pages/manager";
-import ClassDetail from "../pages/manager/ClassDetail";
+import ClassPage from "../pages/manager/ClassManage";
+import ClassDetail from "../pages/manager/ClassManage/ClassDetail";
 import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
