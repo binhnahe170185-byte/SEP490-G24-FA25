@@ -9,7 +9,7 @@ class ClassList {
 
   // Lấy chi tiết class theo id
   static async getDetail(classId) {
-    const response = await api.get(`/api/manager/classes`);
+    const response = await api.get(`/api/manager/classes/${classId}/subjects`);
     return response.data?.data ?? response.data;
   }
 

@@ -21,38 +21,28 @@ import ClassDetail from "../pages/manager/ClassManage/ClassDetail";
 import SubjectPage from "../pages/manager/SubjectManage/Index";
 import CreateSubject from "../pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../pages/manager/SubjectManage/EditSubject";
+import MaterialList from "../pages/manager/materials/MaterialList";
 import AdminPage from "../pages/admin/AdminPage";
 import Header from "../common/Header";
 import Footer from "../common/footer";
-import MaterialList from "../pages/manager/materials/MaterialList";
 
-// ================= axios instance =================
-const apiBase =
-  process.env.REACT_APP_API_BASE?.trim() ||
-  (window.location.origin.includes("localhost") ? "http://localhost:5000" : "/");
-
-export const api = axios.create({ baseURL: apiBase });
-
-export function setAuthToken(token) {
-  if (token) api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  else delete api.defaults.headers.common["Authorization"];
-}
-
-// =============== Helpers & Guards ===============
 function RequireAuth({ children }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
   return children;
 }
 
 function RequireManager({ children }) {
   const { user } = useAuth();
-  if (!user || Number(user.roleId) !== 2) return <Navigate to="/" replace />;
+  if (!user || Number(user.roleId) !== 2) {
+    return <Navigate to="/" replace />;
+  }
   return children;
 }
 
 function ProtectedLayout() {
-  // Chỉ render khi đã đăng nhập
   return (
     <RequireAuth>
       <Header />
@@ -71,53 +61,6 @@ function Home() {
   );
 }
 
-// =============== Login with Google (component uses AuthContext login) ===============
-function LoginWrapper() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  async function onGoogleSuccess(res) {
-    try {
-      const { data } = await api.post("/api/auth/login", {
-        credential: res.credential,
-      });
-
-      const token = data?.token;
-      if (!token) throw new Error("Missing token");
-
-      const profile =
-        data?.profile ??
-        {
-          email: data.email ?? "",
-          name: data.name ?? "",
-          picture: data.picture ?? null,
-          roleId: data.roleId ?? data.role_id ?? 1,
-        };
-
-      login({ token, profile });
-      if (!profile) localStorage.removeItem("profile");
-      navigate("/studentTable", { replace: true });
-    } catch (e) {
-      console.error(e);
-      alert("Đăng nhập thất bại");
-    }
-  }
-
-  return (
-    <div
-      style={{ display: "grid", placeItems: "center", minHeight: "60vh", gap: 16 }}
-    >
-      <h2>Đăng nhập</h2>
-      <GoogleLogin
-        onSuccess={onGoogleSuccess}
-        onError={() => alert("Google Login Error")}
-        useOneTap
-      />
-    </div>
-  );
-}
-
-// =============== App Root ===============
 export default function App() {
   const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
@@ -126,17 +69,14 @@ export default function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            {/* Public */}
-            <Route path="/login" element={<LoginWrapper />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/login" element={<LoginPage />} />
 
-            {/* Protected area (Header + Footer) */}
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/studentTable" element={<StudentList />} />
               <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
+              <Route path="/admin" element={<AdminPage />} />
 
-              {/* Manager nested routes under /manager */}
               <Route
                 path="/manager/*"
                 element={
@@ -155,7 +95,6 @@ export default function App() {
               </Route>
             </Route>
 
-            {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>

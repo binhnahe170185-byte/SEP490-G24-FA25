@@ -10,6 +10,7 @@ public interface IClassService
     Task<Class> CreateAsync(Class item);
     Task<bool> UpdateAsync(Class item);
     Task<bool> DeleteAsync(int id);
-    Task<IEnumerable<ClassSubjectDetail>> GetSubjectsAsync(string classId);
+    Task<Class?> GetSubjectsAsync(string classId);
+    Task<Dictionary<int, int>> GetSubjectEnrollmentCountsAsync(int classId);
     Task<Class> UpdateStatusAsync(string classId, bool status);
 }
