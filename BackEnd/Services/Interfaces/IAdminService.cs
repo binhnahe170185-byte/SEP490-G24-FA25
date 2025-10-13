@@ -9,4 +9,7 @@ public interface IAdminService
     Task<User> CreateAsync(User user);
     Task<bool> UpdateAsync(User user);
     Task<bool> DeleteAsync(int id);
+
+    // Import từ Excel (.xlsx/.xls)
+    Task<(int inserted, int skipped, List<string> errors)> ImportExcelAsync(Stream stream);
 }

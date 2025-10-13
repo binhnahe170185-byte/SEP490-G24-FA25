@@ -1,4 +1,5 @@
-﻿using FJAP.Models;
+﻿using System.Linq.Expressions;
+using FJAP.Models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,7 @@ public class AdminRepository : IAdminRepository
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
         return await _context.Users
+            .Include(u => u.Semester)  
             .AsNoTracking()
             .OrderBy(u => u.UserId)
             .ToListAsync();
@@ -23,7 +25,23 @@ public class AdminRepository : IAdminRepository
 
     public async Task<User?> GetByIdAsync(int id)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.UserId == id);
+        return await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.UserId == id);
+    }
+
+    // ⬇️ NEW: kiểm tra tồn tại với điều kiện bất kỳ (dùng cho email)
+    public async Task<bool> ExistsAsync(Expression<Func<User, bool>> predicate)
+    {
+        return await _context.Users.AnyAsync(predicate);
+    }
+
+    // ⬇️ NEW: lấy theo email (nếu cần dùng nơi khác)
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        return await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == email);
     }
 
     public async Task AddAsync(User user)
