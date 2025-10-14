@@ -19,10 +19,10 @@ import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
 import MaterialList from "../vn.fpt.edu.pages/manager/materials/MaterialList";
+import StudentGradeReport from "../vn.fpt.edu.pages/manager/GradeManage/StudentGradeReport";
 import AdminPage from "../vn.fpt.edu.pages/admin/AdminPage";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
-
 function RequireAuth({ children }) {
   const { user } = useAuth();
   if (!user) {
@@ -71,6 +71,7 @@ export default function App() {
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/studentTable" element={<StudentList />} />
+              <Route path="/student/grades" element={<StudentGradeReport />} />
               <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
               <Route path="/admin" element={<AdminPage />} />
 

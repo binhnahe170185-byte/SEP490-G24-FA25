@@ -24,6 +24,7 @@ export default function Header() {
     >
       <Link to="/">Trang chủ</Link>
       <Link to="/studentTable">Student Table</Link>
+      <Link to="/student/grades">My Grades</Link>
       <Link to="/manager">Manager</Link>
       <Link to="/weeklyTimetable">Weekly Timetable</Link>
       <div style={{ marginLeft: "auto" }}>
