@@ -22,6 +22,9 @@ const normalizeUsersFromDb = (list = []) =>
     email: u.email ?? "",
     role: pickRole(u.roleId ?? u.role_id),
     status: typeof u.isActive !== "undefined" ? !!u.isActive : true, // nếu chưa có is_active thì cho true
+    semester: u.semester ?? u.semester_name ?? u.semesterName ?? "-",
+    level: u.level ?? u.level_name ?? u.levelName ?? "-",
+    phone: u.phone ?? u.phone_number ?? u.phoneNumber ?? "-",
   }));
 
 export default function UserList() {
@@ -43,15 +46,7 @@ export default function UserList() {
 
         const list = Array.isArray(data?.data) ? data.data : [];
 
-        const usersFromDb = list.map((u) => ({
-          id: u.userId,
-          name: `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim(),
-          email: u.email ?? "-",
-          role: ROLE_MAP[u.roleId] ?? `Role #${u.roleId}`,
-          status: true, // chưa có cột active nên gán mặc định
-        }));
-
-        setUsers(usersFromDb);
+        setUsers(normalizeUsersFromDb(list));
       })
       .catch((err) => {
         console.error("❌ API error:", err);
@@ -83,6 +78,26 @@ export default function UserList() {
       return matchSearch && matchRole && matchSemester && matchLevel;
     });
   }, [users, filters, searchTerm]);
+
+  const semesterOptions = useMemo(() => {
+    const unique = new Set();
+    users.forEach((u) => {
+      if (u.semester && u.semester !== "-") {
+        unique.add(u.semester);
+      }
+    });
+    return Array.from(unique);
+  }, [users]);
+
+  const levelOptions = useMemo(() => {
+    const unique = new Set();
+    users.forEach((u) => {
+      if (u.level && u.level !== "-") {
+        unique.add(u.level);
+      }
+    });
+    return Array.from(unique);
+  }, [users]);
 
   const handleFilterChange = (field, value) =>
     setFilters((prev) => ({ ...prev, [field]: value }));
