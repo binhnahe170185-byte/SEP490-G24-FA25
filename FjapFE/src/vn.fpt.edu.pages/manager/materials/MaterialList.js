@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./material.css";
 import { getMaterials, getSubjects } from "../../../vn.fpt.edu.api/Material";
 import FilterBar from "./components/FilterBar";
@@ -36,15 +36,17 @@ export default function MaterialList() {
 
   const params = useMemo(() => ({ page, pageSize: PAGE_SIZE, search: searchDebounced, subject, status }), [page, searchDebounced, subject, status]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getMaterials(params);
       setRows(data.items);
       setTotal(data.total);
-    } finally { setLoading(false); }
-  }
-  useEffect(() => { load(); }, [params]);
+    } finally {
+      setLoading(false);
+    }
+  }, [params]);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="mtl-page">
