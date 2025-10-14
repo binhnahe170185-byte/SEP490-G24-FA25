@@ -50,8 +50,16 @@ public class MaterialService : IMaterialService
     {
         var existing = await _materialRepository.GetByIdAsync(id);
         if (existing == null) return false;
-        _materialRepository.Remove(existing);
-        await _materialRepository.SaveChangesAsync();
+
+        // Soft delete
+        if (!string.Equals(existing.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
+        {
+            existing.Status = "Inactive";
+            existing.UpdateAt = DateTime.UtcNow;
+            _materialRepository.Update(existing);
+            await _materialRepository.SaveChangesAsync();
+        }
         return true;
     }
+
 }
