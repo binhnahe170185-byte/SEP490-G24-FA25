@@ -142,7 +142,7 @@ export default function SubjectList() {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
   const handleCreateSubject = () => {
-    navigate("/manager/subjects/create");
+    navigate("/manager/subject/create");
   };
 
   const handlePageChange = (page, pageSize) => {
@@ -192,7 +192,7 @@ export default function SubjectList() {
       return;
     }
 
-    navigate(`/manager/subjects/${record.subjectId}`, {
+    navigate(`/manager/subject/${record.subjectId}`, {
       state: { subjectName: record.subjectName ?? record.subjectId },
     });
   };
@@ -202,7 +202,7 @@ export default function SubjectList() {
       return;
     }
 
-    navigate(`/manager/subjects/edit/${record.subjectId}`, {
+    navigate(`/manager/subject/edit/${record.subjectId}`, {
       state: { subject: record },
     });
   };
