@@ -27,11 +27,6 @@ const ManagerSidebar = () => {
       icon: <ReadOutlined />,
       label: <Link to="/manager/subject">List Subject</Link>,
     },
-    {
-      key: "/manager/subject/create",
-      icon: <ReadOutlined />,
-      label: <Link to="/manager/subject/create">Create Subject</Link>,
-    },
             {
       key: '/manager/materials', 
       icon: <FileOutlined />, 
