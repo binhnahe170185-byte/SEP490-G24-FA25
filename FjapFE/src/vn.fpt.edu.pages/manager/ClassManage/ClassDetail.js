@@ -7,7 +7,35 @@ import {
   UserAddOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
-import ClassListApi from "../../../vn.fpt.edu.api/ClassList"
+import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
+
+const normalizeSubjects = (rows = [], fallbackClassId, fallbackClassName) =>
+  rows.map((item, index) => {
+    const subjectId = item.subject_id ?? item.subjectId ?? index;
+    const classIdValue = item.class_id ?? item.classId ?? fallbackClassId;
+    const classNameValue = item.class_name ?? item.className ?? fallbackClassName;
+    const levelName =
+      item.level_name ??
+      item.levelName ??
+      (item.subject_level !== undefined && item.subject_level !== null
+        ? item.subject_level.toString()
+        : "-");
+
+    return {
+      key: subjectId ?? `${classIdValue ?? fallbackClassId}-${index}`,
+      class_id: classIdValue,
+      class_name: classNameValue,
+      subject_id: subjectId,
+      subject_code: item.subject_code ?? item.subjectCode ?? "-",
+      subject_name: item.subject_name ?? item.subjectName ?? "-",
+      subject_level: item.subject_level ?? item.subjectLevel ?? null,
+      level_name: levelName,
+      lecture_name: item.lecture_name ?? item.lectureName ?? "-",
+      lecture_email: item.lecture_email ?? item.lectureEmail ?? null,
+      lecture_mail: item.lecture_email ?? item.lectureEmail ?? null,
+      total_students: item.total_students ?? item.totalStudents ?? 0,
+    };
+  });
 
 const wrapperStyle = {
   display: "flex",
@@ -51,31 +79,6 @@ export default function ClassDetail() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const normalizeSubjects = (rows = []) =>
-    rows.map((item, index) => {
-      const subjectId = item.subject_id ?? item.subjectId ?? index;
-      const levelName =
-        item.level_name ??
-        item.levelName ??
-        (item.subject_level !== undefined && item.subject_level !== null
-          ? item.subject_level.toString()
-          : "-");
-      return {
-        key: subjectId ?? `${classId}-${index}`,
-        class_id: item.class_id ?? item.classId ?? classId,
-        class_name: item.class_name ?? item.className ?? className,
-        subject_id: subjectId,
-        subject_code: item.subject_code ?? item.subjectCode ?? "-",
-        subject_name: item.subject_name ?? item.subjectName ?? "-",
-        subject_level: item.subject_level ?? item.subjectLevel ?? null,
-        level_name: levelName,
-        lecture_name: item.lecture_name ?? item.lectureName ?? "-",
-        lecture_email: item.lecture_email ?? item.lectureEmail ?? null,
-        lecture_mail: item.lecture_email ?? item.lectureEmail ?? null,
-        total_students: item.total_students ?? item.totalStudents ?? 0,
-      };
-    });
-
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -84,7 +87,7 @@ export default function ClassDetail() {
       .then((data) => {
         if (!isMounted) return;
         const rows = Array.isArray(data) ? data : [];
-        const normalized = normalizeSubjects(rows);
+        const normalized = normalizeSubjects(rows, classId, className);
         setSubjects(normalized);
         if (normalized.length > 0 && !location.state?.className) {
           setClassName(normalized[0].class_name ?? initialClassName);
@@ -103,7 +106,7 @@ export default function ClassDetail() {
     return () => {
       isMounted = false;
     };
-  }, [classId, initialClassName, location.state?.className]);
+  }, [classId, className, initialClassName, location.state?.className]);
 
   const filteredSubjects = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
