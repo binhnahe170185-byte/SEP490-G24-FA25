@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input, Select, Space, Table, Tooltip, Switch, message } from "antd";
-import { EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
+import ClassFormModal from "./ClassFormModel";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -28,6 +29,201 @@ const parseStatus = (raw) => {
   const normalized = raw.toString().trim().toLowerCase();
   return ["1", "true", "show", "active", "enabled", "on"].includes(normalized);
 };
+
+const normalizeClasses = (list = []) =>
+  list.map((item, index) => {
+    const classId =
+      item.class_id ??
+      item.classId ??
+      item.ClassId ??
+      item.id ??
+      null;
+    const className =
+      item.class_name ??
+      item.className ??
+      item.ClassName ??
+      item.name ??
+      "-";
+    const semesterSource =
+      item.semester_detail ??
+      item.semesterDetail ??
+      item.semester ??
+      item.Semester ??
+      item.semester_name ??
+      item.semesterName ??
+      item.SemesterName ??
+      null;
+    const semesterDetails =
+      semesterSource &&
+      typeof semesterSource === "object" &&
+      !Array.isArray(semesterSource)
+        ? semesterSource
+        : null;
+    const semester =
+      (semesterDetails &&
+        (semesterDetails.name ??
+          semesterDetails.Name ??
+          semesterDetails.semester_name ??
+          semesterDetails.semesterName ??
+          semesterDetails.SemesterName)) ??
+      (typeof semesterSource === "string" ? semesterSource : null) ??
+      item.semester_name ??
+      item.semesterName ??
+      "-";
+    const semesterId =
+      (semesterDetails &&
+        (semesterDetails.semester_id ??
+          semesterDetails.semesterId ??
+          semesterDetails.SemesterId ??
+          semesterDetails.id)) ??
+      item.semester_id ??
+      item.semesterId ??
+      item.SemesterId ??
+      null;
+    const startDateSource =
+      item.start_date ??
+      item.startDate ??
+      item.StartDate ??
+      item.begin_date ??
+      item.BeginDate ??
+      item.semester_start_date ??
+      item.semesterStartDate ??
+      item.semester_start ??
+      item.semesterStart ??
+      (semesterDetails &&
+        (semesterDetails.start_date ??
+          semesterDetails.startDate ??
+          semesterDetails.StartDate ??
+          semesterDetails.begin_date ??
+          semesterDetails.BeginDate)) ??
+      null;
+    const endDateSource =
+      item.end_date ??
+      item.endDate ??
+      item.EndDate ??
+      item.finish_date ??
+      item.FinishDate ??
+      item.semester_end ??
+      item.semesterEnd ??
+      (semesterDetails &&
+        (semesterDetails.end_date ??
+          semesterDetails.endDate ??
+          semesterDetails.EndDate ??
+          semesterDetails.finish_date ??
+          semesterDetails.FinishDate)) ??
+      item.semester_end_date ??
+      item.semesterEndDate ??
+      null;
+    const levelSource =
+      item.level_detail ??
+      item.levelDetail ??
+      item.level ??
+      item.Level ??
+      item.level_name ??
+      item.levelName ??
+      item.LevelName ??
+      null;
+    const levelDetails =
+      levelSource &&
+      typeof levelSource === "object" &&
+      !Array.isArray(levelSource)
+        ? levelSource
+        : null;
+    const level =
+      (levelDetails &&
+        (levelDetails.level_name ??
+          levelDetails.levelName ??
+          levelDetails.LevelName ??
+          levelDetails.name ??
+          levelDetails.Name ??
+          levelDetails?.name)) ??
+      (typeof levelSource === "string" ? levelSource : null) ??
+      item.level_name ??
+      item.levelName ??
+      "-";
+    const levelId =
+      (levelDetails &&
+        (levelDetails.level_id ??
+          levelDetails.levelId ??
+          levelDetails.LevelId ??
+          levelDetails.id)) ??
+      (levelDetails && levelDetails.id) ??
+      item.level_id ??
+      item.levelId ??
+      item.LevelId ??
+      null;
+    const rawStatus =
+      item.status ??
+      item.Status ??
+      item.state ??
+      item.State ??
+      item.isActive ??
+      item.IsActive ??
+      null;
+    const updatedAt =
+      item.updated_at ??
+      item.updatedAt ??
+      item.UpdatedAt ??
+      item.update_at ??
+      item.updateAt ??
+      item.UpdateAt ??
+      item.last_updated ??
+      item.lastUpdated ??
+      item.modified_at ??
+      item.modifiedAt ??
+      null;
+    const statusBool = parseStatus(rawStatus);
+    const statusLabel =
+      typeof rawStatus === "string"
+        ? rawStatus
+        : toStatusLabel(statusBool);
+
+    const classIdValue =
+      classId ??
+      (typeof item.id !== "undefined" ? item.id : null);
+    const classIdString =
+      classIdValue !== null && classIdValue !== undefined
+        ? classIdValue.toString()
+        : `CL${String(index + 1).padStart(3, "0")}`;
+
+    return {
+      class_id: classIdString,
+      classId: classIdValue,
+      class_name: className,
+      semester,
+      semester_id: semesterId,
+      start_date: startDateSource,
+      end_date: endDateSource,
+      level,
+      level_id: levelId,
+      status: statusBool,
+      statusLabel,
+      updated_at: updatedAt,
+    };
+  });
+
+const buildClassRows = (data = []) => {
+  const normalized = normalizeClasses(data ?? []);
+  normalized.sort((a, b) => {
+    const dateA = new Date(a.updated_at ?? 0).getTime();
+    const dateB = new Date(b.updated_at ?? 0).getTime();
+    if (Number.isNaN(dateA) && Number.isNaN(dateB)) {
+      return 0;
+    }
+    if (Number.isNaN(dateA)) {
+      return 1;
+    }
+    if (Number.isNaN(dateB)) {
+      return -1;
+    }
+    if (dateA === dateB) {
+      return (b.class_id ?? "").localeCompare(a.class_id ?? "");
+    }
+    return dateB - dateA;
+  });
+  return normalized;
+};
+
 export default function ClassList() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,207 +236,32 @@ export default function ClassList() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 8 });
   const { current: currentPage, pageSize } = pagination;
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [formModalConfig, setFormModalConfig] = useState({
+    open: false,
+    mode: "create",
+    classId: null,
+    initialValues: null,
+  });
   const navigate = useNavigate();
 
-  const normalizeClasses = (list = []) =>
-    list.map((item, index) => {
-      const classId =
-        item.class_id ??
-        item.classId ??
-        item.ClassId ??
-        item.id ??
-        null;
-      const className =
-        item.class_name ??
-        item.className ??
-        item.ClassName ??
-        item.name ??
-        "-";
-      const semesterSource =
-        item.semester_detail ??
-        item.semesterDetail ??
-        item.semester ??
-        item.Semester ??
-        item.semester_name ??
-        item.semesterName ??
-        item.SemesterName ??
-        null;
-      const semesterDetails =
-        semesterSource &&
-        typeof semesterSource === "object" &&
-        !Array.isArray(semesterSource)
-          ? semesterSource
-          : null;
-      const semester =
-        (semesterDetails &&
-          (semesterDetails.name ??
-            semesterDetails.Name ??
-            semesterDetails.semester_name ??
-            semesterDetails.semesterName ??
-            semesterDetails.SemesterName)) ??
-        (typeof semesterSource === "string" ? semesterSource : null) ??
-        item.semester_name ??
-        item.semesterName ??
-        "-";
-      const semesterId =
-        (semesterDetails &&
-          (semesterDetails.semester_id ??
-            semesterDetails.semesterId ??
-            semesterDetails.SemesterId ??
-            semesterDetails.id)) ??
-        item.semester_id ??
-        item.semesterId ??
-        item.SemesterId ??
-        null;
-      const startDateSource =
-        item.start_date ??
-        item.startDate ??
-        item.StartDate ??
-        item.begin_date ??
-        item.BeginDate ??
-        item.semester_start_date ??
-        item.semesterStartDate ??
-        item.semester_start ??
-        item.semesterStart ??
-        (semesterDetails &&
-          (semesterDetails.start_date ??
-            semesterDetails.startDate ??
-            semesterDetails.StartDate ??
-            semesterDetails.begin_date ??
-            semesterDetails.BeginDate)) ??
-        null;
-      const endDateSource =
-        item.end_date ??
-        item.endDate ??
-        item.EndDate ??
-        item.finish_date ??
-        item.FinishDate ??
-        item.semester_end ??
-        item.semesterEnd ??
-        (semesterDetails &&
-          (semesterDetails.end_date ??
-            semesterDetails.endDate ??
-            semesterDetails.EndDate ??
-            semesterDetails.finish_date ??
-            semesterDetails.FinishDate)) ??
-        item.semester_end_date ??
-        item.semesterEndDate ??
-        null;
-      const levelSource =
-        item.level_detail ??
-        item.levelDetail ??
-        item.level ??
-        item.Level ??
-        item.level_name ??
-        item.levelName ??
-        item.LevelName ??
-        null;
-      const levelDetails =
-        levelSource &&
-        typeof levelSource === "object" &&
-        !Array.isArray(levelSource)
-          ? levelSource
-          : null;
-      const level =
-        (levelDetails &&
-          (levelDetails.level_name ??
-            levelDetails.levelName ??
-            levelDetails.LevelName ??
-            levelDetails.name ??
-            levelDetails.Name ??
-            levelDetails?.name)) ??
-        (typeof levelSource === "string" ? levelSource : null) ??
-        item.level_name ??
-        item.levelName ??
-        "-";
-      const levelId =
-        (levelDetails &&
-          (levelDetails.level_id ??
-            levelDetails.levelId ??
-            levelDetails.LevelId ??
-            levelDetails.id)) ??
-        (levelDetails && levelDetails.id) ??
-        item.level_id ??
-        item.levelId ??
-        item.LevelId ??
-        null;
-      const rawStatus =
-        item.status ??
-        item.Status ??
-        item.state ??
-        item.State ??
-        item.isActive ??
-        item.IsActive ??
-        null;
-      const updatedAt =
-        item.updated_at ??
-        item.updatedAt ??
-        item.UpdatedAt ??
-        item.update_at ??
-        item.updateAt ??
-        item.UpdateAt ??
-        item.last_updated ??
-        item.lastUpdated ??
-        item.modified_at ??
-        item.modifiedAt ??
-        null;
-      const statusBool = parseStatus(rawStatus);
-      const statusLabel =
-        typeof rawStatus === "string"
-          ? rawStatus
-          : toStatusLabel(statusBool);
-
-      const classIdValue =
-        classId ??
-        (typeof item.id !== "undefined" ? item.id : null);
-      const classIdString =
-        classIdValue !== null && classIdValue !== undefined
-          ? classIdValue.toString()
-          : `CL${String(index + 1).padStart(3, "0")}`;
-
-      return {
-        class_id: classIdString,
-        classId: classIdValue,
-        class_name: className,
-        semester,
-        semester_id: semesterId,
-        start_date: startDateSource,
-        end_date: endDateSource,
-        level,
-        level_id: levelId,
-        status: statusBool,
-        statusLabel,
-        updated_at: updatedAt,
-      };
-    });
-
-  useEffect(() => {
+  const loadClasses = useCallback(() => {
+    setLoading(true);
     ClassListApi.getAll()
       .then((data) => {
         console.log("✅ Data backend:", data);
-        const normalized = normalizeClasses(data ?? []);
-        normalized.sort((a, b) => {
-          const dateA = new Date(a.updated_at ?? 0).getTime();
-          const dateB = new Date(b.updated_at ?? 0).getTime();
-          if (Number.isNaN(dateA) && Number.isNaN(dateB)) {
-            return 0;
-          }
-          if (Number.isNaN(dateA)) {
-            return 1;
-          }
-          if (Number.isNaN(dateB)) {
-            return -1;
-          }
-          if (dateA === dateB) {
-            return (b.class_id ?? "").localeCompare(a.class_id ?? "");
-          }
-          return dateB - dateA;
-        });
-        setClasses(normalized);
-        setLoading(false);
+        setClasses(buildClassRows(data ?? []));
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        console.error("❌ Error fetching classes:", error);
+        message.error("Failed to load class list");
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+
+  useEffect(() => {
+    loadClasses();
+  }, [loadClasses]);
 
   const filterOptions = useMemo(() => {
     const semesterSeen = new Set();
@@ -334,8 +355,58 @@ export default function ClassList() {
     setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
+  const handleCloseFormModal = useCallback(() => {
+    setFormModalConfig({
+      open: false,
+      mode: "create",
+      classId: null,
+      initialValues: null,
+    });
+  }, []);
+
+  const handleFormModalSuccess = useCallback(() => {
+    handleCloseFormModal();
+    loadClasses();
+  }, [handleCloseFormModal, loadClasses]);
+
   const handleCreateClass = () => {
-    console.log("Create new class");
+    setFormModalConfig({
+      open: true,
+      mode: "create",
+      classId: null,
+      initialValues: null,
+    });
+  };
+
+  const handleEditClass = (record) => {
+    const targetId = record?.classId ?? record?.class_id;
+    if (!targetId) {
+      message.error("Class identifier is missing for editing");
+      return;
+    }
+
+    setFormModalConfig({
+      open: true,
+      mode: "edit",
+      classId: targetId,
+      initialValues: {
+        name: record.class_name ?? "",
+        levelId:
+          record.level_id ??
+          record.levelId ??
+          record.level ??
+          record.levelName ??
+          null,
+        levelName: record.level ?? record.levelName ?? "",
+        semesterId:
+          record.semester_id ??
+          record.semesterId ??
+          record.semester ??
+          record.semesterName ??
+          null,
+        semesterName: record.semester ?? record.semesterName ?? "",
+      },
+    });
   };
 
   const handlePageChange = (page, pageSize) => {
@@ -459,14 +530,6 @@ export default function ClassList() {
       });
   };
 
-  const actionButtonStyle = {
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    padding: 0,
-    color: "#4a5568",
-  };
-
   const columns = [
     {
       title: "No.",
@@ -528,14 +591,19 @@ export default function ClassList() {
       key: "actions",
       render: (_, record) => (
         <Space size="middle">
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleEditClass(record)}
+            />
+          </Tooltip>
           <Tooltip title="View">
-            <button
-              type="button"
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
               onClick={() => handleView(record)}
-              style={actionButtonStyle}
-            >
-              <EyeOutlined />
-            </button>
+            />
           </Tooltip>
         </Space>
       ),
@@ -615,6 +683,16 @@ export default function ClassList() {
           onChange: handlePageChange,
         }}
         bordered
+      />
+      <ClassFormModal
+        open={formModalConfig.open}
+        mode={formModalConfig.mode}
+        classId={formModalConfig.classId}
+        initialValues={formModalConfig.initialValues ?? {}}
+        onCancel={handleCloseFormModal}
+        onSuccess={handleFormModalSuccess}
+        fallbackLevels={filterOptions.levels}
+        fallbackSemesters={filterOptions.semesters}
       />
     </>
 
