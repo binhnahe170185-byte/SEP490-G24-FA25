@@ -1,4 +1,4 @@
-using FJAP.Models;
+using FJAP.vn.fpt.edu.models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;

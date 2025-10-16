@@ -1,5 +1,5 @@
 ﻿using System.Linq.Expressions;
-using FJAP.Models;
+using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +17,11 @@ public class AdminRepository : IAdminRepository
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
         return await _context.Users
-            .Include(u => u.Semester)  
+            .Include(u => u.Role)
+            .Include(u => u.Students)
+                .ThenInclude(s => s.Semester)
+            .Include(u => u.Students)
+                .ThenInclude(s => s.Level)
             .AsNoTracking()
             .OrderBy(u => u.UserId)
             .ToListAsync();

@@ -1,4 +1,4 @@
-using FJAP.Models;
+using FJAP.vn.fpt.edu.models;
 
 namespace FJAP.Repositories.Interfaces
 {
