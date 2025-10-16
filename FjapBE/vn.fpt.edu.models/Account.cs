@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FJAP.Models;
+namespace FJAP.vn.fpt.edu.models;
 
 public partial class Account
 {

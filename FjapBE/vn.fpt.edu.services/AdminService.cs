@@ -1,4 +1,4 @@
-﻿using FJAP.Models;
+﻿using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 using ClosedXML.Excel;

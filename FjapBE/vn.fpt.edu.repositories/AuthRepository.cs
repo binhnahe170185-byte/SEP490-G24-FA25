@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using FJAP.Models;
+using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;

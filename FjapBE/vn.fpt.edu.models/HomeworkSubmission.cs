@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FJAP.Models;
+namespace FJAP.vn.fpt.edu.models;
 
 public partial class HomeworkSubmission
 {
@@ -22,4 +22,6 @@ public partial class HomeworkSubmission
     public int HomeworkId { get; set; }
 
     public virtual Homework Homework { get; set; } = null!;
+
+    public virtual Student Student { get; set; } = null!;
 }

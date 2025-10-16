@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
-namespace FJAP.Models;
+namespace FJAP.vn.fpt.edu.models;
 
 public partial class FjapDbContext : DbContext
 {
@@ -60,7 +60,7 @@ public partial class FjapDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseMySql("server=localhost;database=fjap;user=root;password=123456", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.22-mysql"));
+        => optionsBuilder.UseMySql("server=localhost;database=fjap;user=root;password=123456", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.29-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,9 +74,9 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("account");
 
-            entity.HasIndex(e => e.Email, "email").IsUnique();
+            entity.HasIndex(e => e.UserId, "idx_account_user");
 
-            entity.HasIndex(e => e.UserId, "fk_account_user_idx");
+            entity.HasIndex(e => e.Email, "uk_account_email").IsUnique();
 
             entity.Property(e => e.AccountId).HasColumnName("account_id");
             entity.Property(e => e.Email)
@@ -96,9 +96,9 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("attendance");
 
-            entity.HasIndex(e => e.LessonId, "fk_attendance_lesson1_idx");
+            entity.HasIndex(e => e.LessonId, "idx_att_lesson");
 
-            entity.HasIndex(e => e.StudentId, "fk_attendance_student1_idx");
+            entity.HasIndex(e => e.StudentId, "idx_att_student");
 
             entity.Property(e => e.AttendanceId).HasColumnName("attendance_id");
             entity.Property(e => e.LessonId).HasColumnName("lesson_id");
@@ -114,13 +114,11 @@ public partial class FjapDbContext : DbContext
 
             entity.HasOne(d => d.Lesson).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.LessonId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_attendance_lesson1");
+                .HasConstraintName("fk_attendance_lesson");
 
             entity.HasOne(d => d.Student).WithMany(p => p.Attendances)
                 .HasForeignKey(d => d.StudentId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_attendance_student1");
+                .HasConstraintName("fk_attendance_student");
         });
 
         modelBuilder.Entity<Class>(entity =>
@@ -129,9 +127,9 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("class");
 
-            entity.HasIndex(e => e.LevelId, "fk_class_level1_idx");
+            entity.HasIndex(e => e.LevelId, "idx_class_level");
 
-            entity.HasIndex(e => e.SemesterId, "fk_class_semester1_idx");
+            entity.HasIndex(e => e.SemesterId, "idx_class_semester");
 
             entity.Property(e => e.ClassId).HasColumnName("class_id");
             entity.Property(e => e.ClassName)
@@ -151,12 +149,12 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.Level).WithMany(p => p.Classes)
                 .HasForeignKey(d => d.LevelId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_class_level1");
+                .HasConstraintName("fk_class_level");
 
             entity.HasOne(d => d.Semester).WithMany(p => p.Classes)
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_class_semester1");
+                .HasConstraintName("fk_class_semester");
         });
 
         modelBuilder.Entity<Grade>(entity =>
@@ -165,13 +163,11 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("grade");
 
-            entity.HasIndex(e => e.StudentId, "fk_grade_student1_idx");
+            entity.HasIndex(e => e.StudentId, "idx_grade_student");
 
-            entity.HasIndex(e => e.SubjectId, "fk_grade_subject1_idx");
+            entity.HasIndex(e => e.SubjectId, "idx_grade_subject");
 
-            entity.Property(e => e.GradeId)
-                .ValueGeneratedNever()
-                .HasColumnName("grade_id");
+            entity.Property(e => e.GradeId).HasColumnName("grade_id");
             entity.Property(e => e.StudentId).HasColumnName("student_id");
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.UserId)
@@ -180,13 +176,11 @@ public partial class FjapDbContext : DbContext
 
             entity.HasOne(d => d.Student).WithMany(p => p.Grades)
                 .HasForeignKey(d => d.StudentId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_grade_student1");
+                .HasConstraintName("fk_grade_student");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Grades)
                 .HasForeignKey(d => d.SubjectId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_grade_subject1");
+                .HasConstraintName("fk_grade_subject");
         });
 
         modelBuilder.Entity<GradeType>(entity =>
@@ -195,7 +189,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("grade_type");
 
-            entity.HasIndex(e => e.GradeId, "fk_grade_type_grade1_idx");
+            entity.HasIndex(e => e.GradeId, "idx_grade_type_grade");
 
             entity.Property(e => e.GradeTypeId).HasColumnName("grade_type_id");
             entity.Property(e => e.Comment)
@@ -218,8 +212,7 @@ public partial class FjapDbContext : DbContext
 
             entity.HasOne(d => d.Grade).WithMany(p => p.GradeTypes)
                 .HasForeignKey(d => d.GradeId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_grade_type_grade1");
+                .HasConstraintName("fk_grade_type_grade");
         });
 
         modelBuilder.Entity<Homework>(entity =>
@@ -228,7 +221,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("homework");
 
-            entity.HasIndex(e => e.LessonId, "lession_id_idx");
+            entity.HasIndex(e => e.LessonId, "idx_homework_lesson");
 
             entity.Property(e => e.HomeworkId).HasColumnName("homework_id");
             entity.Property(e => e.Content)
@@ -252,8 +245,7 @@ public partial class FjapDbContext : DbContext
 
             entity.HasOne(d => d.Lesson).WithMany(p => p.Homeworks)
                 .HasForeignKey(d => d.LessonId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("lession_id");
+                .HasConstraintName("fk_homework_lesson");
         });
 
         modelBuilder.Entity<HomeworkSubmission>(entity =>
@@ -262,7 +254,9 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("homework_submission");
 
-            entity.HasIndex(e => e.HomeworkId, "fk_homework_submission_homework1_idx");
+            entity.HasIndex(e => e.HomeworkId, "idx_hws_homework");
+
+            entity.HasIndex(e => e.StudentId, "idx_hws_student");
 
             entity.Property(e => e.HomeworkSubmissionId).HasColumnName("homework_submission_id");
             entity.Property(e => e.Comment)
@@ -287,8 +281,11 @@ public partial class FjapDbContext : DbContext
 
             entity.HasOne(d => d.Homework).WithMany(p => p.HomeworkSubmissions)
                 .HasForeignKey(d => d.HomeworkId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_homework_submission_homework1");
+                .HasConstraintName("fk_hws_homework");
+
+            entity.HasOne(d => d.Student).WithMany(p => p.HomeworkSubmissions)
+                .HasForeignKey(d => d.StudentId)
+                .HasConstraintName("fk_hws_student");
         });
 
         modelBuilder.Entity<HomeworkType>(entity =>
@@ -297,7 +294,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("homework_type");
 
-            entity.HasIndex(e => e.HomeworkId, "fk_homework_type_homework1_idx");
+            entity.HasIndex(e => e.HomeworkId, "idx_hwtype_homework");
 
             entity.Property(e => e.HomeworkTypeId).HasColumnName("homework_type_id");
             entity.Property(e => e.HomeworkId).HasColumnName("homework_id");
@@ -307,8 +304,7 @@ public partial class FjapDbContext : DbContext
 
             entity.HasOne(d => d.Homework).WithMany(p => p.HomeworkTypes)
                 .HasForeignKey(d => d.HomeworkId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_homework_type_homework1");
+                .HasConstraintName("fk_hwtype_homework");
         });
 
         modelBuilder.Entity<Lecture>(entity =>
@@ -317,7 +313,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("lecture");
 
-            entity.HasIndex(e => e.UserId, "fk_lecture_user1_idx");
+            entity.HasIndex(e => e.UserId, "idx_lecture_user");
 
             entity.Property(e => e.LectureId).HasColumnName("lecture_id");
             entity.Property(e => e.UserId).HasColumnName("user_id");
@@ -325,7 +321,7 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.Lectures)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_lecture_user1");
+                .HasConstraintName("fk_lecture_user");
         });
 
         modelBuilder.Entity<Lesson>(entity =>
@@ -334,13 +330,13 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("lesson");
 
-            entity.HasIndex(e => e.ClassId, "fk_lesson_class1_idx");
+            entity.HasIndex(e => e.ClassId, "idx_lesson_class");
 
-            entity.HasIndex(e => e.LectureId, "fk_lesson_lecture1_idx");
+            entity.HasIndex(e => e.LectureId, "idx_lesson_lecture");
 
-            entity.HasIndex(e => e.RoomId, "fk_lesson_room1_idx");
+            entity.HasIndex(e => e.RoomId, "idx_lesson_room");
 
-            entity.HasIndex(e => e.TimeId, "fk_lesson_timeslot1_idx");
+            entity.HasIndex(e => e.TimeId, "idx_lesson_time");
 
             entity.Property(e => e.LessonId).HasColumnName("lesson_id");
             entity.Property(e => e.ClassId).HasColumnName("class_id");
@@ -352,22 +348,22 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.Class).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_lesson_class1");
+                .HasConstraintName("fk_lesson_class");
 
             entity.HasOne(d => d.Lecture).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.LectureId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_lesson_lecture1");
+                .HasConstraintName("fk_lesson_lecture");
 
             entity.HasOne(d => d.Room).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.RoomId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_lesson_room1");
+                .HasConstraintName("fk_lesson_room");
 
             entity.HasOne(d => d.Time).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.TimeId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_lesson_timeslot1");
+                .HasConstraintName("fk_lesson_timeslot");
         });
 
         modelBuilder.Entity<Level>(entity =>
@@ -376,7 +372,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("level");
 
-            entity.HasIndex(e => e.LevelName, "level_name").IsUnique();
+            entity.HasIndex(e => e.LevelName, "uk_level_name").IsUnique();
 
             entity.Property(e => e.LevelId).HasColumnName("level_id");
             entity.Property(e => e.LevelName)
@@ -390,9 +386,9 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("material");
 
-            entity.HasIndex(e => e.SubjectId, "idx_material_subject_id");
+            entity.HasIndex(e => e.SubjectId, "idx_material_subject");
 
-            entity.HasIndex(e => e.UserId, "idx_material_user_id");
+            entity.HasIndex(e => e.UserId, "idx_material_user");
 
             entity.Property(e => e.MaterialId).HasColumnName("material_id");
             entity.Property(e => e.CreateAt)
@@ -438,7 +434,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("news");
 
-            entity.HasIndex(e => e.UserId, "fk_news_user1_idx");
+            entity.HasIndex(e => e.UserId, "idx_news_user");
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Content)
@@ -461,7 +457,7 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.News)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_news_user1");
+                .HasConstraintName("fk_news_user");
         });
 
         modelBuilder.Entity<Notification>(entity =>
@@ -470,7 +466,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("notifications");
 
-            entity.HasIndex(e => e.UserId, "fk_notifications_user1_idx");
+            entity.HasIndex(e => e.UserId, "idx_notif_user");
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Content)
@@ -489,7 +485,7 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.Notifications)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_notifications_user1");
+                .HasConstraintName("fk_notifications_user");
         });
 
         modelBuilder.Entity<Role>(entity =>
@@ -498,7 +494,7 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("role");
 
-            entity.HasIndex(e => e.RoleName, "role_name").IsUnique();
+            entity.HasIndex(e => e.RoleName, "uk_role_name").IsUnique();
 
             entity.Property(e => e.RoleId).HasColumnName("role_id");
             entity.Property(e => e.RoleName)
@@ -512,12 +508,15 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("room");
 
-            entity.HasIndex(e => e.RoomName, "RoomName").IsUnique();
+            entity.HasIndex(e => e.RoomName, "uk_room_name").IsUnique();
 
             entity.Property(e => e.RoomId).HasColumnName("room_id");
             entity.Property(e => e.RoomName)
                 .HasMaxLength(100)
                 .HasColumnName("room_name");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Active'")
+                .HasColumnType("enum('Active','Inactive')");
         });
 
         modelBuilder.Entity<Semester>(entity =>
@@ -540,14 +539,18 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("student");
 
-            entity.HasIndex(e => e.LevelId, "fk_student_level1_idx");
+            entity.HasIndex(e => e.LevelId, "idx_student_level");
 
-            entity.HasIndex(e => e.UserId, "fk_student_user1_idx");
+            entity.HasIndex(e => e.SemesterId, "idx_student_semester");
 
-            entity.HasIndex(e => e.StudentCode, "student_code").IsUnique();
+            entity.HasIndex(e => e.UserId, "idx_student_user");
+
+            entity.HasIndex(e => e.StudentCode, "uk_student_code").IsUnique();
 
             entity.Property(e => e.StudentId).HasColumnName("student_id");
+            entity.Property(e => e.EnrollmentDate).HasColumnName("enrollment_date");
             entity.Property(e => e.LevelId).HasColumnName("level_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Active'")
                 .HasColumnType("enum('Active','Inactive')")
@@ -560,32 +563,35 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.Level).WithMany(p => p.Students)
                 .HasForeignKey(d => d.LevelId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_student_level1");
+                .HasConstraintName("fk_student_level");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.Students)
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_student_semester");
 
             entity.HasOne(d => d.User).WithMany(p => p.Students)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_student_user1");
+                .HasConstraintName("fk_student_user");
 
             entity.HasMany(d => d.Classes).WithMany(p => p.Students)
                 .UsingEntity<Dictionary<string, object>>(
                     "Enrollment",
                     r => r.HasOne<Class>().WithMany()
                         .HasForeignKey("ClassId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("fk_enrollment_class1"),
+                        .HasConstraintName("fk_enrollment_class"),
                     l => l.HasOne<Student>().WithMany()
                         .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("fk_enrollment_student1"),
+                        .HasConstraintName("fk_enrollment_student"),
                     j =>
                     {
                         j.HasKey("StudentId", "ClassId")
                             .HasName("PRIMARY")
                             .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
                         j.ToTable("enrollment");
-                        j.HasIndex(new[] { "ClassId" }, "fk_enrollment_class1_idx");
-                        j.HasIndex(new[] { "StudentId" }, "fk_enrollment_student1_idx");
+                        j.HasIndex(new[] { "ClassId" }, "idx_enroll_class");
+                        j.HasIndex(new[] { "StudentId" }, "idx_enroll_student");
                         j.IndexerProperty<int>("StudentId").HasColumnName("student_id");
                         j.IndexerProperty<int>("ClassId").HasColumnName("class_id");
                     });
@@ -597,13 +603,13 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("subject");
 
-            entity.HasIndex(e => e.ClassId, "fk_subject_class1_idx");
+            entity.HasIndex(e => e.ClassId, "idx_subject_class");
 
-            entity.HasIndex(e => e.LevelId, "fk_subject_level1_idx");
+            entity.HasIndex(e => e.LevelId, "idx_subject_level");
 
-            entity.HasIndex(e => e.SemesterId, "fk_subject_semester1_idx");
+            entity.HasIndex(e => e.SemesterId, "idx_subject_semester");
 
-            entity.HasIndex(e => e.SubjectCode, "subject_code").IsUnique();
+            entity.HasIndex(e => e.SubjectCode, "uk_subject_code").IsUnique();
 
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.ClassId).HasColumnName("class_id");
@@ -634,17 +640,17 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.Class).WithMany(p => p.Subjects)
                 .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_subject_class1");
+                .HasConstraintName("fk_subject_class");
 
             entity.HasOne(d => d.Level).WithMany(p => p.Subjects)
                 .HasForeignKey(d => d.LevelId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_subject_level1");
+                .HasConstraintName("fk_subject_level");
 
             entity.HasOne(d => d.Semester).WithMany(p => p.Subjects)
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_subject_semester1");
+                .HasConstraintName("fk_subject_semester");
         });
 
         modelBuilder.Entity<Timeslot>(entity =>
@@ -668,15 +674,11 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("user");
 
-            entity.HasIndex(e => e.Email, "email_UNIQUE").IsUnique();
+            entity.HasIndex(e => e.RoleId, "idx_user_role");
 
-            entity.HasIndex(e => e.LevelId, "fk_user_level1_idx");
+            entity.HasIndex(e => e.Email, "uk_user_email").IsUnique();
 
-            entity.HasIndex(e => e.RoleId, "fk_user_role1_idx");
-
-            entity.HasIndex(e => e.SemesterId, "fk_user_semester1_idx");
-
-            entity.HasIndex(e => e.PhoneNumber, "phone_number_UNIQUE").IsUnique();
+            entity.HasIndex(e => e.PhoneNumber, "uk_user_phone").IsUnique();
 
             entity.Property(e => e.UserId).HasColumnName("user_id");
             entity.Property(e => e.Address)
@@ -689,7 +691,6 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.Email)
                 .HasMaxLength(100)
                 .HasColumnName("email");
-            entity.Property(e => e.EnrollmentDate).HasColumnName("enrollment_date");
             entity.Property(e => e.FirstName)
                 .HasMaxLength(50)
                 .HasColumnName("first_name");
@@ -699,27 +700,19 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.LastName)
                 .HasMaxLength(50)
                 .HasColumnName("last_name");
-            entity.Property(e => e.LevelId).HasColumnName("level_id");
             entity.Property(e => e.PhoneNumber)
                 .HasMaxLength(20)
                 .HasColumnName("phone_number");
             entity.Property(e => e.RoleId).HasColumnName("role_id");
-            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
-
-            entity.HasOne(d => d.Level).WithMany(p => p.Users)
-                .HasForeignKey(d => d.LevelId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("fk_user_level1");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Active'")
+                .HasColumnType("enum('Active','Inactive')")
+                .HasColumnName("status");
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_user_role1");
-
-            entity.HasOne(d => d.Semester).WithMany(p => p.Users)
-                .HasForeignKey(d => d.SemesterId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("fk_user_semester1");
+                .HasConstraintName("fk_user_role");
         });
 
         OnModelCreatingPartial(modelBuilder);

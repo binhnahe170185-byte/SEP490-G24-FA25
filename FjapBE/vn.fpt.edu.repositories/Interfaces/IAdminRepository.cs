@@ -1,6 +1,6 @@
 ﻿// Infrastructure/Extensions/IAdminRepository.cs
 using System.Linq.Expressions;
-using FJAP.Models;
+using FJAP.vn.fpt.edu.models;
 
 namespace FJAP.Repositories.Interfaces;
 

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FJAP.Models
+namespace FJAP.vn.fpt.edu.models
 {
     // DTO để hiển thị thông tin Subject với navigation properties
     public class SubjectDto

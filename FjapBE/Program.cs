@@ -1,7 +1,7 @@
 using System.Text;
 using System.Security.Claims;
 using Dapper;
-using FJAP.Models;
+using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services;
