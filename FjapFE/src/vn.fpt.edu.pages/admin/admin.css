@@ -1,0 +1,21 @@
+/* sidebar menu theming */
+.fjap-sider-menu .ant-menu-item-selected,
+.fjap-sider-menu .ant-menu-submenu-title.ant-menu-item-selected {
+  background: #cce6ff !important;   /* COLORS.menuSelectedBg */
+  color: #0f2a5a !important;         /* COLORS.menuText */
+  border-radius: 8px;
+}
+
+.fjap-sider-menu .ant-menu-item:hover,
+.fjap-sider-menu .ant-menu-submenu-title:hover {
+  background: #e7f2ff !important;    /* COLORS.menuHoverBg */
+  color: #0f2a5a !important;
+  border-radius: 8px;
+}
+
+/* group title */
+.fjap-sider-menu .ant-menu-item-group-title {
+  color: #0071c5; /* brand blue */
+  font-weight: 700;
+  letter-spacing: .3px;
+}
