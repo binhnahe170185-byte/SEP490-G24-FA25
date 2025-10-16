@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿// Infrastructure/Extensions/AdminRepository.cs
+using System.Linq.Expressions;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -16,13 +17,14 @@ public class AdminRepository : IAdminRepository
 
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
+        // Lấy kèm Role + Student (Level, Semester)
         return await _context.Users
+            .AsNoTracking()
             .Include(u => u.Role)
             .Include(u => u.Students)
                 .ThenInclude(s => s.Semester)
             .Include(u => u.Students)
                 .ThenInclude(s => s.Level)
-            .AsNoTracking()
             .OrderBy(u => u.UserId)
             .ToListAsync();
     }
@@ -34,13 +36,9 @@ public class AdminRepository : IAdminRepository
             .FirstOrDefaultAsync(u => u.UserId == id);
     }
 
-    // ⬇️ NEW: kiểm tra tồn tại với điều kiện bất kỳ (dùng cho email)
     public async Task<bool> ExistsAsync(Expression<Func<User, bool>> predicate)
-    {
-        return await _context.Users.AnyAsync(predicate);
-    }
+        => await _context.Users.AnyAsync(predicate);
 
-    // ⬇️ NEW: lấy theo email (nếu cần dùng nơi khác)
     public async Task<User?> GetByEmailAsync(string email)
     {
         return await _context.Users
@@ -53,10 +51,10 @@ public class AdminRepository : IAdminRepository
         await _context.Users.AddAsync(user);
     }
 
-    public async Task UpdateAsync(User user)
+    public Task UpdateAsync(User user)
     {
         _context.Users.Update(user);
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     public async Task DeleteAsync(int id)
@@ -69,7 +67,5 @@ public class AdminRepository : IAdminRepository
     }
 
     public async Task SaveChangesAsync()
-    {
-        await _context.SaveChangesAsync();
-    }
+        => await _context.SaveChangesAsync();
 }

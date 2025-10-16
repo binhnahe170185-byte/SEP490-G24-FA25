@@ -67,13 +67,15 @@ export default function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+
 
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/studentTable" element={<StudentList />} />
               <Route path="/student/grades" element={<StudentGradeReport />} />
               <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
-              <Route path="/admin" element={<AdminPage />} />
+              {/* <Route path="/admin" element={<AdminPage />} /> */}
 
               <Route
                 path="/manager/*"
