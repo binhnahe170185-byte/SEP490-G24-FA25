@@ -1,4 +1,4 @@
-﻿using FJAP.Models;
+﻿using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;

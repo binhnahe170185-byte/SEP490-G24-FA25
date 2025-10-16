@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using FJAP.Models;
+using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 

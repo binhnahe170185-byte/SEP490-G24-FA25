@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FJAP.Models;
+namespace FJAP.vn.fpt.edu.models;
 
 public partial class Student
 {
@@ -15,11 +15,19 @@ public partial class Student
 
     public int LevelId { get; set; }
 
+    public int? SemesterId { get; set; }
+
+    public DateOnly EnrollmentDate { get; set; }
+
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
 
     public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
 
+    public virtual ICollection<HomeworkSubmission> HomeworkSubmissions { get; set; } = new List<HomeworkSubmission>();
+
     public virtual Level Level { get; set; } = null!;
+
+    public virtual Semester? Semester { get; set; }
 
     public virtual User User { get; set; } = null!;
 
