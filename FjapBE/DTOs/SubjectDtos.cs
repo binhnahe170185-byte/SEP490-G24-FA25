@@ -1,9 +1,10 @@
-using System;
+// File: FJAP.vn.fpt.edu.models/SubjectDtos.cs (Tên file có thể khác)
+
 using System.Collections.Generic;
 
 namespace FJAP.vn.fpt.edu.models
 {
-    // DTO để hiển thị thông tin Subject với navigation properties
+    // DTO để hiển thị thông tin Subject
     public class SubjectDto
     {
         public int SubjectId { get; set; }
@@ -13,14 +14,10 @@ namespace FJAP.vn.fpt.edu.models
         public string? Description { get; set; }
         public decimal? PassMark { get; set; }
         public DateTime? CreatedAt { get; set; }
-        public int SemesterId { get; set; }
+        
+        // Chỉ còn lại LevelId và LevelName
         public int LevelId { get; set; }
-        public int ClassId { get; set; }
-
-        // Navigation properties names
-        public string? SemesterName { get; set; }
         public string? LevelName { get; set; }
-        public string? ClassName { get; set; }
     }
 
     // DTO để tạo mới Subject
@@ -30,9 +27,9 @@ namespace FJAP.vn.fpt.edu.models
         public string SubjectName { get; set; } = string.Empty;
         public string? Description { get; set; }
         public decimal? PassMark { get; set; } = 5.0m;
-        public int SemesterId { get; set; } = 1;
-        public int LevelId { get; set; } = 1;
-        public int ClassId { get; set; } = 1;
+        
+        // Chỉ cần LevelId để tạo mới
+        public int LevelId { get; set; }
     }
 
     // DTO để cập nhật Subject
@@ -42,9 +39,9 @@ namespace FJAP.vn.fpt.edu.models
         public string SubjectName { get; set; } = string.Empty;
         public string? Description { get; set; }
         public decimal? PassMark { get; set; }
-        public int SemesterId { get; set; } = 1;
-        public int LevelId { get; set; } = 1;
-        public int ClassId { get; set; } = 1;
+        
+        // Chỉ cần LevelId để cập nhật
+        public int LevelId { get; set; }
     }
 
     // DTO cho dropdown/select options
@@ -54,11 +51,9 @@ namespace FJAP.vn.fpt.edu.models
         public string Name { get; set; } = string.Empty;
     }
 
-    // DTO cho form options (Semesters, Levels, Classes)
+    // DTO cho form options (bây giờ chỉ cần Levels)
     public class SubjectFormOptions
     {
-        public List<LookupItem> Semesters { get; set; } = new();
         public List<LookupItem> Levels { get; set; } = new();
-        public List<LookupItem> Classes { get; set; } = new();
     }
 }
