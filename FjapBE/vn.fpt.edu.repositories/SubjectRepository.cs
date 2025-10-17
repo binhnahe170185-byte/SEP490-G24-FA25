@@ -1,6 +1,10 @@
+
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FJAP.Repositories
 {
@@ -23,12 +27,9 @@ namespace FJAP.Repositories
                     Description = s.Description,
                     PassMark = s.PassMark,
                     CreatedAt = s.CreatedAt,
-                    SemesterId = s.SemesterId,
                     LevelId = s.LevelId,
-                    ClassId = s.ClassId,
-                    SemesterName = s.Semester.Name,  // ✅ Property là Name
-                    LevelName = s.Level.LevelName,
-                    ClassName = s.Class.ClassName
+                    // Lấy LevelName từ bảng Level liên quan
+                    LevelName = s.Level.LevelName 
                 })
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
@@ -37,9 +38,8 @@ namespace FJAP.Repositories
         public async Task<IEnumerable<SubjectDto>> GetAllWithDetailsAsync()
         {
             return await _context.Subjects
-                .Include(s => s.Semester)
-                .Include(s => s.Level)
-                .Include(s => s.Class)
+                // Chỉ cần Include Level
+                .Include(s => s.Level) 
                 .OrderByDescending(s => s.CreatedAt)
                 .Select(s => new SubjectDto
                 {
@@ -50,12 +50,8 @@ namespace FJAP.Repositories
                     Description = s.Description,
                     PassMark = s.PassMark,
                     CreatedAt = s.CreatedAt,
-                    SemesterId = s.SemesterId,
                     LevelId = s.LevelId,
-                    ClassId = s.ClassId,
-                    SemesterName = s.Semester.Name,  // ✅ Property là Name
-                    LevelName = s.Level.LevelName,
-                    ClassName = s.Class.ClassName
+                    LevelName = s.Level.LevelName
                 })
                 .ToListAsync();
         }
@@ -63,22 +59,14 @@ namespace FJAP.Repositories
         public async Task UpdateStatusAsync(int subjectId, string status)
         {
             var subject = await _context.Subjects.FindAsync(subjectId);
-            if (subject == null) throw new Exception("Subject not found");
+            if (subject == null) throw new KeyNotFoundException("Subject not found");
             
             subject.Status = status;
-            await _context.SaveChangesAsync();
+            // SaveChanges sẽ được gọi ở Service layer hoặc Unit of Work
         }
 
         public async Task<SubjectFormOptions> GetFormOptionsAsync()
         {
-            var semesters = await _context.Semesters
-                .Select(s => new LookupItem 
-                { 
-                    Id = s.SemesterId, 
-                    Name = s.Name  // ✅ Property là Name
-                })
-                .ToListAsync();
-
             var levels = await _context.Levels
                 .Select(l => new LookupItem 
                 { 
@@ -87,19 +75,10 @@ namespace FJAP.Repositories
                 })
                 .ToListAsync();
 
-            var classes = await _context.Classes
-                .Select(c => new LookupItem 
-                { 
-                    Id = c.ClassId, 
-                    Name = c.ClassName 
-                })
-                .ToListAsync();
-
             return new SubjectFormOptions
             {
-                Semesters = semesters,
-                Levels = levels,
-                Classes = classes
+                // Chỉ trả về danh sách Levels
+                Levels = levels 
             };
         }
     }
