@@ -26,7 +26,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         return await _context.Classes
             .Include(c => c.Semester)
             .Include(c => c.Level)
-            .Include(c => c.Subjects)
+            //.Include(c => c.Subjects)
             .Include(c => c.Students)
             .ToListAsync();
     }
@@ -41,10 +41,10 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         var normalizedId = classId.Trim();
 
         IQueryable<Class> BuildQuery() => _context.Classes
-            .Include(c => c.Subjects)
-                .ThenInclude(s => s.Level)
-            .Include(c => c.Subjects)
-                .ThenInclude(s => s.Grades)
+            //.Include(c => c.Subjects)
+                //.ThenInclude(s => s.Level)
+            //.Include(c => c.Subjects)
+            //    .ThenInclude(s => s.Grades)
             .Include(c => c.Students)
             .Include(c => c.Lessons)
                 .ThenInclude(l => l.Lecture)
@@ -92,7 +92,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
     public async Task<Dictionary<int, int>> GetSubjectEnrollmentCountsAsync(int classId)
     {
         var subjectIds = await _context.Subjects
-            .Where(s => s.ClassId == classId)
+            //.Where(s => s.ClassId == classId)
             .Select(s => s.SubjectId)
             .ToListAsync();
 

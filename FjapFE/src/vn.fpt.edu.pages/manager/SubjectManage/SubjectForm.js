@@ -1,25 +1,28 @@
+// Suggested path: src/vn.fpt.edu.pages/manager/SubjectManage/SubjectForm.js
 import React, { useState, useEffect, useCallback } from "react";
 import { Form, Input, InputNumber, Select, Button, Card, message, Spin } from "antd";
 import { SaveOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import SubjectListApi from "../../../vn.fpt.edu.api/SubjectList";
 
 const { TextArea } = Input;
 
-export default function SubjectForm({ mode = "create", subjectId = null }) {
+// This component can be used for both Create and Edit pages
+export default function SubjectForm({ mode = "create" }) {
+  const { subjectId } = useParams(); // Get subjectId from URL for the Edit page
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Options state now only needs 'levels'
   const [options, setOptions] = useState({
-    semesters: [],
     levels: [],
-    classes: [],
   });
   const navigate = useNavigate();
 
   const isEditMode = mode === "edit";
 
-  // Wrap loadSubjectData với useCallback
+  // Fetch data for the subject being edited
   const loadSubjectData = useCallback(async () => {
     if (!subjectId) return;
     
@@ -31,9 +34,8 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
         subjectName: data.subjectName,
         description: data.description,
         passMark: data.passMark,
-        semesterId: data.semesterId,
+        // Remove semesterId and classId, keeping only levelId
         levelId: data.levelId,
-        classId: data.classId,
       });
     } catch (error) {
       console.error("Failed to load subject:", error);
@@ -44,13 +46,13 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
     }
   }, [subjectId, form, navigate]);
 
+  // Fetch the list of Levels for the dropdown
   const loadFormOptions = async () => {
     try {
       const data = await SubjectListApi.getFormOptions();
+      // The API now only returns 'levels'
       setOptions({
-        semesters: data.semesters || [],
         levels: data.levels || [],
-        classes: data.classes || [],
       });
     } catch (error) {
       console.error("Failed to load form options:", error);
@@ -58,23 +60,23 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
     }
   };
 
-  // Load form options và subject data
   useEffect(() => {
     loadFormOptions();
-    if (isEditMode && subjectId) {
+    if (isEditMode) {
       loadSubjectData();
     }
-  }, [isEditMode, subjectId, loadSubjectData]);
+  }, [isEditMode, loadSubjectData]);
 
+  // Handle form submission (Save/Update)
   const handleSubmit = async (values) => {
     setSubmitting(true);
     try {
       if (isEditMode) {
         await SubjectListApi.update(subjectId, values);
-        message.success("Subject updated successfully");
+        message.success("Subject updated successfully!");
       } else {
         await SubjectListApi.create(values);
-        message.success("Subject created successfully");
+        message.success("Subject created successfully!");
       }
       navigate("/manager/subject");
     } catch (error) {
@@ -90,7 +92,7 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
     navigate("/manager/subject");
   };
 
-  if (loading) {
+  if (loading && isEditMode) {
     return (
       <div style={{ textAlign: "center", padding: "50px" }}>
         <Spin size="large" />
@@ -110,7 +112,7 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
           <span>{isEditMode ? "Edit Subject" : "Create New Subject"}</span>
         </div>
       }
-      style={{ maxWidth: 800, margin: "0 auto" }}
+      style={{ maxWidth: 800, margin: "24px auto" }}
     >
       <Form
         form={form}
@@ -122,28 +124,28 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
           label="Subject Code"
           name="subjectCode"
           rules={[
-            { required: true, message: "Please enter subject code" },
-            { max: 20, message: "Subject code must be at most 20 characters" },
+            { required: true, message: "Please enter the subject code" },
+            { max: 20, message: "Subject code cannot exceed 20 characters" },
           ]}
         >
-          <Input placeholder="e.g., MATH101" />
+          <Input placeholder="e.g., SWP391" />
         </Form.Item>
 
         <Form.Item
           label="Subject Name"
           name="subjectName"
           rules={[
-            { required: true, message: "Please enter subject name" },
-            { max: 100, message: "Subject name must be at most 100 characters" },
+            { required: true, message: "Please enter the subject name" },
+            { max: 100, message: "Subject name cannot exceed 100 characters" },
           ]}
         >
-          <Input placeholder="e.g., Mathematics Fundamentals" />
+          <Input placeholder="e.g., Software Engineering" />
         </Form.Item>
 
         <Form.Item label="Description" name="description">
           <TextArea
             rows={4}
-            placeholder="Enter subject description..."
+            placeholder="Enter a detailed description for the subject..."
             maxLength={500}
             showCount
           />
@@ -152,9 +154,10 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
         <Form.Item
           label="Pass Mark"
           name="passMark"
+          initialValue={5.0}
           rules={[
-            { required: true, message: "Please enter pass mark" },
-            { type: "number", min: 0, max: 10, message: "Pass mark must be between 0 and 10" },
+            { required: true, message: "Please enter the pass mark" },
+            { type: "number", min: 0, max: 10, message: "Mark must be between 0 and 10" },
           ]}
         >
           <InputNumber
@@ -166,48 +169,24 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
           />
         </Form.Item>
 
-        <Form.Item
-          label="Semester"
-          name="semesterId"
-          rules={[{ required: true, message: "Please select semester" }]}
-        >
-          <Select
-            placeholder="Select semester"
-            options={options.semesters.map((item) => ({
-              value: item.id,
-              label: item.name,
-            }))}
-          />
-        </Form.Item>
-
+        {/* --- KEEPING THE LEVEL SELECTION --- */}
         <Form.Item
           label="Level"
           name="levelId"
-          rules={[{ required: true, message: "Please select level" }]}
+          rules={[{ required: true, message: "Please select a level" }]}
         >
           <Select
-            placeholder="Select level"
+            placeholder="Select a level"
             options={options.levels.map((item) => ({
               value: item.id,
               label: item.name,
             }))}
+            allowClear
           />
         </Form.Item>
 
-        <Form.Item
-          label="Class"
-          name="classId"
-          rules={[{ required: true, message: "Please select class" }]}
-        >
-          <Select
-            placeholder="Select class"
-            options={options.classes.map((item) => ({
-              value: item.id,
-              label: item.name,
-            }))}
-          />
-        </Form.Item>
-
+        {/* --- SEMESTER AND CLASS SELECTIONS HAVE BEEN REMOVED --- */}
+        
         <Form.Item style={{ marginTop: 32 }}>
           <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
             <Button onClick={handleCancel}>Cancel</Button>
@@ -217,7 +196,7 @@ export default function SubjectForm({ mode = "create", subjectId = null }) {
               icon={<SaveOutlined />}
               loading={submitting}
             >
-              {isEditMode ? "Update Subject" : "Create Subject"}
+              {isEditMode ? "Update" : "Create"}
             </Button>
           </div>
         </Form.Item>
