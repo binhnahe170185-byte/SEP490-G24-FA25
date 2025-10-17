@@ -20,6 +20,7 @@ import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubje
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
 import MaterialList from "../vn.fpt.edu.pages/manager/materials/MaterialList";
 import StudentGradeReport from "../vn.fpt.edu.pages/manager/GradeManage/StudentGradeReport";
+import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDetail";
 import AdminPage from "../vn.fpt.edu.pages/admin/AdminPage";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
@@ -91,6 +92,7 @@ export default function App() {
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
                 <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
                 <Route path="materials" element={<MaterialList />} />
               </Route>
             </Route>
