@@ -3,11 +3,11 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { Button, Input, Space, Table, Tooltip } from "antd";
 import {
   TeamOutlined,
-  UploadOutlined,
   UserAddOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
+import AddStudentsPopup from "./AddStudent";
 
 const normalizeSubjects = (rows = [], fallbackClassId, fallbackClassName) =>
   rows.map((item, index) => {
@@ -78,6 +78,7 @@ export default function ClassDetail() {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -135,12 +136,12 @@ export default function ClassDetail() {
     console.log("View students", record);
   };
 
-  const handleImportStudents = (record) => {
-    console.log("Import students", record);
+  const handleAddStudent = () => {
+    setShowAddStudentModal(true);
   };
 
-  const handleAddStudent = (record) => {
-    console.log("Add student", record);
+  const handleCloseAddStudent = () => {
+    setShowAddStudentModal(false);
   };
 
   const columns = [
@@ -201,16 +202,10 @@ export default function ClassDetail() {
               onClick={() => handleViewStudents(record)}
             />
           </Tooltip>
-          <Tooltip title="Import students">
-            <Button
-              icon={<UploadOutlined />}
-              onClick={() => handleImportStudents(record)}
-            />
-          </Tooltip>
           <Tooltip title="Add student">
             <Button
               icon={<UserAddOutlined />}
-              onClick={() => handleAddStudent(record)}
+              onClick={handleAddStudent}
             />
           </Tooltip>
         </Space>
@@ -262,6 +257,11 @@ export default function ClassDetail() {
           ← Back to class list
         </Link>
       </div>
+      <AddStudentsPopup
+        open={showAddStudentModal}
+        onClose={handleCloseAddStudent}
+        classId={classId}
+      />
     </section>
   );
 }
