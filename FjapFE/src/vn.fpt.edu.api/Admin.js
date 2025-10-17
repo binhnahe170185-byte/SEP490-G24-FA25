@@ -1,62 +1,55 @@
-// src/api/Admin.js
 import { api } from "./http";
 
-// Lọc param rác
+// lọc param rỗng
 const clean = (o = {}) =>
   Object.fromEntries(
     Object.entries(o).filter(([_, v]) => v !== undefined && v !== null && v !== "")
   );
 
-// Chuẩn hoá body -> { total, items }
+// unwrap các dạng {code:200,data:{...}} | {data:{...}} | {...}
+const unwrap = (res) => res?.data?.data ?? res?.data ?? res;
+
+// trả { total, items }
 const extractPaged = (body) => {
-  // các dạng hỗ trợ:
-  // { total, items }, { data: { total, items } }, { data: [...] }, [...], { items: [...] }, { result: [...] }
-  if (body?.total !== undefined && Array.isArray(body?.items)) {
+  if (body?.total !== undefined && Array.isArray(body?.items))
     return { total: body.total, items: body.items };
-  }
-  if (body?.data?.total !== undefined && Array.isArray(body?.data?.items)) {
+  if (body?.data?.total !== undefined && Array.isArray(body?.data?.items))
     return { total: body.data.total, items: body.data.items };
-  }
   if (Array.isArray(body)) return { total: body.length, items: body };
   if (Array.isArray(body?.data)) return { total: body.data.length, items: body.data };
   if (Array.isArray(body?.items)) return { total: body.items.length, items: body.items };
   if (Array.isArray(body?.result)) return { total: body.result.length, items: body.result };
-  if (Array.isArray(body?.data?.items)) return { total: body.data.items.length, items: body.data.items };
+  if (Array.isArray(body?.data?.items))
+    return { total: body.data.items.length, items: body.data.items };
   return { total: 0, items: [] };
 };
 
 const AdminApi = {
-  // GET /api/Admin/users?search=&role=&status=&semesterId=&page=&pageSize=
-  // -> TRẢ VỀ { total, items }
+  // GET /api/Admin/users
   getUsers: (params = {}) =>
     api.get("/api/Admin/users", { params: clean(params) }).then((res) => {
-      const body = res?.data !== undefined ? res.data : res;
+      const body = res?.data ?? res;
       const { total, items } = extractPaged(body);
-      if (!Array.isArray(items) || items.length === 0) {
-        // eslint-disable-next-line no-console
-        console.warn("[AdminApi.getUsers] Empty items. Body =", body);
-      }
       return { total, items };
     }),
 
-  // GET /api/Admin/users/enrollment-semesters
-  // -> [{ semesterId, name }]
+  // GET /api/Admin/users/enrollment-semesters -> [{ semesterId, name }]
   getEnrollmentSemesters: () =>
-    api.get("/api/Admin/users/enrollment-semesters").then((res) => res.data ?? []),
+    api.get("/api/Admin/users/enrollment-semesters").then((res) => res?.data ?? []),
 
-  getUserById: (id) => api.get(`/api/Admin/users/${id}`),
-  createUser: (payload) => api.post("/api/Admin/users", payload),
-  updateUser: (id, payload) => api.put(`/api/Admin/users/${id}`, payload),
-  deleteUser: (id) => api.delete(`/api/Admin/users/${id}`),
+  // DETAIL / CRUD
+  getUserById: (id) => api.get(`/api/Admin/users/${id}`).then(unwrap),
+  createUser: (payload) => api.post("/api/Admin/users", payload).then(unwrap),
+  updateUser: (id, payload) => api.put(`/api/Admin/users/${id}`, payload).then(unwrap),
+  deleteUser: (id) => api.delete(`/api/Admin/users/${id}`).then(unwrap),
 
-  // (Tùy dự án) nếu BE có endpoint này
   setUserStatus: (id, isActive) =>
-    api.patch(`/api/Admin/users/${id}/status`, { isActive }),
+    api.patch(`/api/Admin/users/${id}/status`, { isActive }).then(unwrap),
 
   importUsers: (file) => {
     const form = new FormData();
     form.append("file", file);
-    return api.post("/api/Admin/users/import", form); // axios tự set boundary
+    return api.post("/api/Admin/users/import", form).then(unwrap);
   },
 };
 
