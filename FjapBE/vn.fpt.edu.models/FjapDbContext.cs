@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using FJAP.vn.fpt.edu.models;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
@@ -53,6 +54,8 @@ public partial class FjapDbContext : DbContext
     public virtual DbSet<Student> Students { get; set; }
 
     public virtual DbSet<Subject> Subjects { get; set; }
+
+    public virtual DbSet<SubjectGradeType> SubjectGradeTypes { get; set; }
 
     public virtual DbSet<Timeslot> Timeslots { get; set; }
 
@@ -127,6 +130,8 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("class");
 
+            entity.HasIndex(e => e.SubjectId, "fk_class_subject1_idx");
+
             entity.HasIndex(e => e.LevelId, "idx_class_level");
 
             entity.HasIndex(e => e.SemesterId, "idx_class_semester");
@@ -140,6 +145,7 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Active'")
                 .HasColumnType("enum('Active','Inactive')");
+            entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.UpdatedAt)
                 .ValueGeneratedOnAddOrUpdate()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
@@ -155,6 +161,11 @@ public partial class FjapDbContext : DbContext
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_class_semester");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.Classes)
+                .HasForeignKey(d => d.SubjectId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_class_subject1");
         });
 
         modelBuilder.Entity<Grade>(entity =>
@@ -167,12 +178,28 @@ public partial class FjapDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "idx_grade_subject");
 
+            entity.HasIndex(e => new { e.StudentId, e.SubjectId }, "uk_student_subject").IsUnique();
+
             entity.Property(e => e.GradeId).HasColumnName("grade_id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.FinalScore)
+                .HasPrecision(5, 2)
+                .HasComment("Điểm tổng kết (tự động tính)")
+                .HasColumnName("final_score");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'In Progress'")
+                .HasColumnType("enum('In Progress','Completed','Failed')")
+                .HasColumnName("status");
             entity.Property(e => e.StudentId).HasColumnName("student_id");
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
-            entity.Property(e => e.UserId)
-                .HasMaxLength(45)
-                .HasColumnName("user_id");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
 
             entity.HasOne(d => d.Student).WithMany(p => p.Grades)
                 .HasForeignKey(d => d.StudentId)
@@ -189,30 +216,44 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("grade_type");
 
-            entity.HasIndex(e => e.GradeId, "idx_grade_type_grade");
+            entity.HasIndex(e => e.GradeId, "idx_gt_grade");
+
+            entity.HasIndex(e => e.GradedBy, "idx_gt_grader");
+
+            entity.HasIndex(e => e.SubjectGradeTypeId, "idx_gt_sgt");
+
+            entity.HasIndex(e => new { e.GradeId, e.SubjectGradeTypeId }, "uk_grade_detail").IsUnique();
 
             entity.Property(e => e.GradeTypeId).HasColumnName("grade_type_id");
             entity.Property(e => e.Comment)
+                .HasComment("Nhận xét của giảng viên")
                 .HasColumnType("text")
                 .HasColumnName("comment");
             entity.Property(e => e.GradeId).HasColumnName("grade_id");
-            entity.Property(e => e.GradeTypeName)
-                .HasMaxLength(100)
-                .HasColumnName("grade_type_name");
+            entity.Property(e => e.GradedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("graded_at");
+            entity.Property(e => e.GradedBy)
+                .HasComment("Lecturer ID đã chấm")
+                .HasColumnName("graded_by");
             entity.Property(e => e.Score)
                 .HasPrecision(5, 2)
+                .HasComment("Điểm thực tế của sinh viên")
                 .HasColumnName("score");
             entity.Property(e => e.Status)
-                .HasDefaultValueSql("'Active'")
-                .HasColumnType("enum('Active','Inactive')")
+                .HasDefaultValueSql("'Pending'")
+                .HasColumnType("enum('Pending','Graded','Revised')")
                 .HasColumnName("status");
-            entity.Property(e => e.Weight)
-                .HasPrecision(5, 2)
-                .HasColumnName("weight");
+            entity.Property(e => e.SubjectGradeTypeId).HasColumnName("subject_grade_type_id");
 
             entity.HasOne(d => d.Grade).WithMany(p => p.GradeTypes)
                 .HasForeignKey(d => d.GradeId)
                 .HasConstraintName("fk_grade_type_grade");
+
+            entity.HasOne(d => d.SubjectGradeType).WithMany(p => p.GradeTypes)
+                .HasForeignKey(d => d.SubjectGradeTypeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_grade_type_sgt");
         });
 
         modelBuilder.Entity<Homework>(entity =>
@@ -603,16 +644,11 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("subject");
 
-            entity.HasIndex(e => e.ClassId, "idx_subject_class");
-
             entity.HasIndex(e => e.LevelId, "idx_subject_level");
-
-            entity.HasIndex(e => e.SemesterId, "idx_subject_semester");
 
             entity.HasIndex(e => e.SubjectCode, "uk_subject_code").IsUnique();
 
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
-            entity.Property(e => e.ClassId).HasColumnName("class_id");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime")
@@ -625,7 +661,6 @@ public partial class FjapDbContext : DbContext
                 .HasPrecision(5, 2)
                 .HasDefaultValueSql("'0.00'")
                 .HasColumnName("pass_mark");
-            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Active'")
                 .HasColumnType("enum('Active','Inactive')")
@@ -637,20 +672,57 @@ public partial class FjapDbContext : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("subject_name");
 
-            entity.HasOne(d => d.Class).WithMany(p => p.Subjects)
-                .HasForeignKey(d => d.ClassId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_subject_class");
-
             entity.HasOne(d => d.Level).WithMany(p => p.Subjects)
                 .HasForeignKey(d => d.LevelId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_subject_level");
+        });
 
-            entity.HasOne(d => d.Semester).WithMany(p => p.Subjects)
-                .HasForeignKey(d => d.SemesterId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_subject_semester");
+        modelBuilder.Entity<SubjectGradeType>(entity =>
+        {
+            entity.HasKey(e => e.SubjectGradeTypeId).HasName("PRIMARY");
+
+            entity.ToTable("subject_grade_type");
+
+            entity.HasIndex(e => e.SubjectId, "idx_sgt_subject");
+
+            entity.HasIndex(e => new { e.SubjectId, e.GradeTypeName }, "uk_subject_grade_type").IsUnique();
+
+            entity.Property(e => e.SubjectGradeTypeId).HasColumnName("subject_grade_type_id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy)
+                .HasComment("Manager ID tạo cấu hình")
+                .HasColumnName("created_by");
+            entity.Property(e => e.GradeTypeName)
+                .HasMaxLength(100)
+                .HasComment("Quiz, Assignment, Midterm, Final, etc.")
+                .HasColumnName("grade_type_name");
+            entity.Property(e => e.MaxScore)
+                .HasPrecision(5, 2)
+                .HasDefaultValueSql("'10.00'")
+                .HasComment("Điểm tối đa (thường là 10)")
+                .HasColumnName("max_score");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Active'")
+                .HasColumnType("enum('Active','Inactive')")
+                .HasColumnName("status");
+            entity.Property(e => e.SubjectId).HasColumnName("subject_id");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.Weight)
+                .HasPrecision(5, 2)
+                .HasComment("Tỷ trọng % (0-100)")
+                .HasColumnName("weight");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.SubjectGradeTypes)
+                .HasForeignKey(d => d.SubjectId)
+                .HasConstraintName("fk_sgt_subject");
         });
 
         modelBuilder.Entity<Timeslot>(entity =>
