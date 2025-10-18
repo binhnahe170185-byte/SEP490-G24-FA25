@@ -19,9 +19,13 @@ public partial class Subject
 
     public DateTime? CreatedAt { get; set; }
 
+    public int SemesterId { get; set; }
+
     public int LevelId { get; set; }
 
-    public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
+    public int ClassId { get; set; }
+
+    public virtual Class Class { get; set; } = null!;
 
     public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
 
@@ -29,5 +33,5 @@ public partial class Subject
 
     public virtual ICollection<Material> Materials { get; set; } = new List<Material>();
 
-    public virtual ICollection<SubjectGradeType> SubjectGradeTypes { get; set; } = new List<SubjectGradeType>();
+    public virtual Semester Semester { get; set; } = null!;
 }

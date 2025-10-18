@@ -36,6 +36,7 @@ const roleIdFromKey = (key) => {
 const ADMIN_MENU = [
   { type: "group", label: "USER MANAGEMENT", children: [
       { key: "users:list", icon: <TeamOutlined/>, label: "View List User", children: [
+          { key: "users:list:all", label: "All" },
           { key: "users:list:admin", label: "View List Admin" },
           { key: "users:list:manager", label: "View List Manager" },
           { key: "users:list:lecturer", label: "View List Lecturer" },
@@ -50,12 +51,12 @@ const ADMIN_MENU = [
       { key: "users:import", icon: <UploadOutlined/>, label: "Import User List" },
       { key: "users:edit",   icon: <EditOutlined/>,   label: "Edit User" },
   ]},
-  { type: "group", label: "ROOM MANAGEMENT", children: [
+  { type: "group", label: "ROOMS", children: [
       { key: "rooms:list",   icon: <AppstoreOutlined/>, label: "View List Rooms" },
       { key: "rooms:add",    icon: <UserAddOutlined/>,  label: "Add Room" },
       { key: "rooms:status", icon: <SettingOutlined/>,  label: "Edit Room's Status" },
   ]},
-  { type: "group", label: "SEMESTER MANAGEMENT", children: [
+  { type: "group", label: "SEMESTERS", children: [
       { key: "sem:list", icon: <CalendarOutlined/>, label: "View List Semesters" },
       { key: "sem:add",  icon: <UserAddOutlined/>,  label: "Add Semester" },
       { key: "sem:edit", icon: <EditOutlined/>,     label: "Edit Semester" },
@@ -67,44 +68,28 @@ export default function AdminPage() {
   const [activeKey, setActiveKey] = useState("users:list:all");
 
   const renderContent = () => {
-  if (activeKey.startsWith("users:list")) {
-    const roleId = roleIdFromKey(activeKey);
-    const titleMap = {
-      undefined: "View List User",
-      1: "View List Admin",
-      2: "View List Manager",
-      3: "View List Lecturer",
-      4: "View List Student",
-    };
-    // 👇 gán key để mỗi trang là một instance riêng (state filter tách biệt)
-    return (
-      <UsersList
-        key={`users-list-${roleId ?? "all"}`}
-        fixedRole={roleId}
-        title={titleMap[roleId] || "View List User"}
-      />
-    );
-  }
-
-  if (activeKey.startsWith("users:add")) {
-    const roleId = roleIdFromKey(activeKey);
-    const titleMap = { 1: "Add Admin", 2: "Add Manager", 3: "Add Lecturer", 4: "Add Student" };
+    if (activeKey.startsWith("users:list")) {
+      const roleId = roleIdFromKey(activeKey);
+      const titleMap = { undefined: "View List User", 1:"View List Admin", 2:"View List Manager", 3:"View List Lecturer", 4:"View List Student" };
+      return <UsersList fixedRole={roleId} title={titleMap[roleId]} />;
+    }
+    if (activeKey.startsWith("users:add")) {
+      const roleId = roleIdFromKey(activeKey);
+      const titleMap = { 1:"Add Admin", 2:"Add Manager", 3:"Add Lecturer", 4:"Add Student" };
+      return (
+        <Card style={{ borderRadius: 12 }}>
+          <Title level={4} style={{ margin: 0 }}>{titleMap[roleId] || "Add User"}</Title>
+          <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user theo role — sẽ gắn sau)</div>
+        </Card>
+      );
+    }
     return (
       <Card style={{ borderRadius: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>{titleMap[roleId] || "Add User"}</Title>
-        <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user theo role — sẽ gắn sau)</div>
+        <Title level={4} style={{ margin: 0 }}>{activeKey}</Title>
+        <div style={{ color: "#64748b", marginTop: 8 }}>(Placeholder)</div>
       </Card>
     );
-  }
-
-  return (
-    <Card style={{ borderRadius: 12 }}>
-      <Title level={4} style={{ margin: 0 }}>{activeKey}</Title>
-      <div style={{ color: "#64748b", marginTop: 8 }}>(Placeholder)</div>
-    </Card>
-  );
-};
-
+  };
 
   return (
     <Layout style={{ minHeight: "100vh", background: COLORS.lightBg }}>
