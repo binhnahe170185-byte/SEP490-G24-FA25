@@ -429,7 +429,7 @@ export default function SubjectList() {
           onChange: handlePageChange,
         }}
         bordered
-        scroll={{ x: 1200 }}
+        scroll={{ x: 800 }}
       />
     </>
   );
