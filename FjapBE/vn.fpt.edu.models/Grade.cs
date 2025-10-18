@@ -7,20 +7,11 @@ public partial class Grade
 {
     public int GradeId { get; set; }
 
+    public string? UserId { get; set; }
+
     public int StudentId { get; set; }
 
     public int SubjectId { get; set; }
-
-    /// <summary>
-    /// Điểm tổng kết (tự động tính)
-    /// </summary>
-    public decimal? FinalScore { get; set; }
-
-    public string? Status { get; set; }
-
-    public DateTime? CreatedAt { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
 
     public virtual ICollection<GradeType> GradeTypes { get; set; } = new List<GradeType>();
 

@@ -27,7 +27,9 @@ namespace FJAP.Services
                 SubjectName = request.SubjectName,
                 Description = request.Description,
                 PassMark = request.PassMark,
+                SemesterId = request.SemesterId,
                 LevelId = request.LevelId,
+                ClassId = request.ClassId,
                 Status = "Active",
                 CreatedAt = DateTime.Now
             };
@@ -46,7 +48,9 @@ namespace FJAP.Services
             existing.SubjectName = request.SubjectName;
             existing.Description = request.Description;
             existing.PassMark = request.PassMark;
+            existing.SemesterId = request.SemesterId;
             existing.LevelId = request.LevelId;
+            existing.ClassId = request.ClassId;
 
             _subjectRepository.Update(existing);
             await _subjectRepository.SaveChangesAsync();

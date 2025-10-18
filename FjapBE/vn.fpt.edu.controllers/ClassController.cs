@@ -122,81 +122,81 @@ public class ClassController : ControllerBase
     }
 
     [HttpGet("{classId}/subjects")]
-    //public async Task<IActionResult> GetSubjects(string classId)
-    //{
-    //    var cls = await _classService.GetSubjectsAsync(classId);
-    //    if (cls == null || cls.Subjects == null || cls.Subjects.Count == 0)
-    //    {
-    //        return Ok(new { code = 200, message = "Success", data = Array.Empty<object>() });
-    //    }
+    public async Task<IActionResult> GetSubjects(string classId)
+    {
+        var cls = await _classService.GetSubjectsAsync(classId);
+        if (cls == null || cls.Subjects == null || cls.Subjects.Count == 0)
+        {
+            return Ok(new { code = 200, message = "Success", data = Array.Empty<object>() });
+        }
 
-    //    var subjects = cls.Subjects.OrderBy(s => s.SubjectName).ToList();
-    //    var studentCount = cls.Students?.Count ?? 0;
+        var subjects = cls.Subjects.OrderBy(s => s.SubjectName).ToList();
+        var studentCount = cls.Students?.Count ?? 0;
 
-    //    var lecturerDetails = cls.Lessons?
-    //        .Where(l => l.Lecture?.User != null)
-    //        .GroupBy(l => l.LectureId)
-    //        .Select(group =>
-    //        {
-    //            var lecture = group.First().Lecture;
-    //            var user = lecture?.User;
-    //            var parts = new List<string>();
-    //            if (!string.IsNullOrWhiteSpace(user?.FirstName))
-    //            {
-    //                parts.Add(user.FirstName.Trim());
-    //            }
-    //            if (!string.IsNullOrWhiteSpace(user?.LastName))
-    //            {
-    //                parts.Add(user.LastName.Trim());
-    //            }
+        var lecturerDetails = cls.Lessons?
+            .Where(l => l.Lecture?.User != null)
+            .GroupBy(l => l.LectureId)
+            .Select(group =>
+            {
+                var lecture = group.First().Lecture;
+                var user = lecture?.User;
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(user?.FirstName))
+                {
+                    parts.Add(user.FirstName.Trim());
+                }
+                if (!string.IsNullOrWhiteSpace(user?.LastName))
+                {
+                    parts.Add(user.LastName.Trim());
+                }
 
-    //            var fullName = parts.Count > 0 ? string.Join(" ", parts).Trim() : null;
-    //            var displayName = string.IsNullOrWhiteSpace(fullName)
-    //                ? user?.Email ?? $"Lecture #{group.Key}"
-    //                : fullName;
+                var fullName = parts.Count > 0 ? string.Join(" ", parts).Trim() : null;
+                var displayName = string.IsNullOrWhiteSpace(fullName)
+                    ? user?.Email ?? $"Lecture #{group.Key}"
+                    : fullName;
 
-    //            return (Name: displayName, Email: user?.Email);
-    //        })
-    //        .ToList() ?? new List<(string Name, string Email)>();
+                return (Name: displayName, Email: user?.Email);
+            })
+            .ToList() ?? new List<(string Name, string Email)>();
 
-    //    var lectureNames = lecturerDetails
-    //        .Select(l => l.Name)
-    //        .Where(name => !string.IsNullOrWhiteSpace(name))
-    //        .Distinct()
-    //        .ToList();
+        var lectureNames = lecturerDetails
+            .Select(l => l.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct()
+            .ToList();
 
-    //    var lectureEmails = lecturerDetails
-    //        .Select(l => l.Email)
-    //        .Where(email => !string.IsNullOrWhiteSpace(email))
-    //        .Distinct()
-    //        .ToList();
+        var lectureEmails = lecturerDetails
+            .Select(l => l.Email)
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .Distinct()
+            .ToList();
 
-    //    var lectureNameString = lectureNames.Count > 0 ? string.Join(", ", lectureNames) : null;
-    //    var lectureEmailString = lectureEmails.Count > 0 ? string.Join(", ", lectureEmails) : null;
-    //    var enrollmentCounts = await _classService.GetSubjectEnrollmentCountsAsync(cls.ClassId);
-    //    var totalStudentsInClass = cls.Students?.Select(s => s.StudentId).Distinct().Count() ?? 0;
+        var lectureNameString = lectureNames.Count > 0 ? string.Join(", ", lectureNames) : null;
+        var lectureEmailString = lectureEmails.Count > 0 ? string.Join(", ", lectureEmails) : null;
+        var enrollmentCounts = await _classService.GetSubjectEnrollmentCountsAsync(cls.ClassId);
+        var totalStudentsInClass = cls.Students?.Select(s => s.StudentId).Distinct().Count() ?? 0;
 
-    //    var result = subjects
-    //        .Select(s => new
-    //        {
-    //            class_id = s.ClassId.ToString(),
-    //            classId = s.ClassId,
-    //            class_name = cls.ClassName,
-    //            subject_id = s.SubjectId,
-    //            subject_code = s.SubjectCode,
-    //            subject_name = s.SubjectName,
-    //            subject_level = s.Level?.LevelName ?? s.LevelId.ToString(),
-    //            level_name = s.Level?.LevelName,
-    //            lecture_name = lectureNameString,
-    //            lecture_email = lectureEmailString,
-    //            total_students = enrollmentCounts.TryGetValue(s.SubjectId, out var count) && count > 0
-    //                ? count
-    //                : totalStudentsInClass
-    //        })
-    //        .ToList();
+        var result = subjects
+            .Select(s => new
+            {
+                class_id = s.ClassId.ToString(),
+                classId = s.ClassId,
+                class_name = cls.ClassName,
+                subject_id = s.SubjectId,
+                subject_code = s.SubjectCode,
+                subject_name = s.SubjectName,
+                subject_level = s.Level?.LevelName ?? s.LevelId.ToString(),
+                level_name = s.Level?.LevelName,
+                lecture_name = lectureNameString,
+                lecture_email = lectureEmailString,
+                total_students = enrollmentCounts.TryGetValue(s.SubjectId, out var count) && count > 0
+                    ? count
+                    : totalStudentsInClass
+            })
+            .ToList();
 
-    //    return Ok(new { code = 200, message = "Success", data = result });
-    //}
+        return Ok(new { code = 200, message = "Success", data = result });
+    }
 
     [HttpPatch("{classId}/status")]
     public async Task<IActionResult> UpdateStatus(string classId, [FromBody] UpdateClassStatusRequest request)
