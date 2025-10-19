@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useCallback, useState } from "react";
+// đường dẫn tương đối tới http.js (trong src)
 import { setAuthToken } from "../../vn.fpt.edu.api/http";
 
 const AuthCtx = createContext(null);
@@ -13,39 +14,42 @@ function safeParse(raw) {
   }
 }
 
-export default function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token") || null;
-    const profile = safeParse(localStorage.getItem("profile"));
-    if (token && profile) {
+// khởi tạo đồng bộ từ localStorage để tránh trạng thái "null" trước khi useEffect chạy
+const initUser = (() => {
+  const token = localStorage.getItem("token");
+  const profile = safeParse(localStorage.getItem("profile"));
+  if (token && profile) {
+    try {
       setAuthToken(token);
-      setUser({ ...profile, token });
-    } else {
-      localStorage.removeItem("token");
-      localStorage.removeItem("profile");
-      setAuthToken(null);
-      setUser(null);
+    } catch (e) {
+      // ignore
     }
-  }, []);
+    return { ...profile, token };
+  }
+  return null;
+})();
 
-  const login = ({ token, profile }) => {
+export default function AuthProvider({ children }) {
+  const [user, setUser] = useState(initUser);
+  // flag để component bảo vệ route biết đang khởi tạo hay không
+  const [initializing] = useState(false);
+
+  const login = useCallback(({ token, profile }) => {
     setAuthToken(token);
-    setUser({ ...profile, token });
     localStorage.setItem("token", token);
     localStorage.setItem("profile", JSON.stringify(profile));
-  };
+    setUser({ ...profile, token });
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setAuthToken(null);
-    setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("profile");
-  };
+    setUser(null);
+  }, []);
 
   return (
-    <AuthCtx.Provider value={{ user, login, logout }}>
+    <AuthCtx.Provider value={{ user, login, logout, initializing }}>
       {children}
     </AuthCtx.Provider>
   );

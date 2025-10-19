@@ -25,13 +25,12 @@ import AdminPage from "../vn.fpt.edu.pages/admin/AdminPage";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 function RequireAuth({ children }) {
-  const { user } = useAuth();
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  const { user, initializing } = useAuth();
+  // nếu vẫn đang khởi tạo (tùy implementation) thì render loading hoặc null để tránh redirect false
+  if (initializing) return null;
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 }
-
 function RequireManager({ children }) {
   const { user } = useAuth();
   if (!user || Number(user.roleId) !== 2) {

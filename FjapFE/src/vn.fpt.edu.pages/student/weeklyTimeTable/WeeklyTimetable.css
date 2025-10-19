@@ -1,60 +1,28 @@
-.weekly-grid {
-  display: grid;
-  grid-template-columns: 100px repeat(7, 1fr);
-  gap: 0;
-}
-.cell {
-  border: 1px solid #bfbfbf;
-  min-height: 56px;
-  padding: 6px;
+/* căn giữa trang với 2 khoảng trắng  */
+.weekly-page-wrapper {
+  padding: 24px 0;
   background: #fff;
+}
+.weekly-container {
+  max-width: 1100px; /* width table */
+  margin: 0 auto;    /* căn giữa màn */
+  padding: 16px;
   box-sizing: border-box;
-}
-.header-cell {
-  background: #f5f5f5;
-  font-weight: bold;
-  text-align: center;
-}
-.slot-cell {
-  background: #f0f0f0;
-  font-weight: bold;
-  text-align: center;
-}
-
-.class-chip {
-  margin-bottom: 2px;
 }
 .weekly-header {
   display: flex;
   align-items: center;
   gap: 16px;
+  justify-content: flex-start;
 }
+.weekly-title { flex: 0 0 auto; }
+.weekly-controls { flex: 1 1 auto; display:flex; justify-content:flex-end; }
 
-.week-label {
-  font-size: 15px;
-  font-weight: bold;
-}
-.weekly-legend {
-  margin-top: 12px;
-  font-size: 13px;
-  display: flex;
-  gap: 16px;
-}
-.legend-dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 6px;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-.legend-dot.pending { background: #3b82f6; }
-.legend-dot.done { background: #22c55e; }
-.legend-dot.absent { background: #ef4444; }
+.legend-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+.legend-dot.pending { background:#3b82f6; } .legend-dot.done { background:#22c55e; } .legend-dot.absent { background:#ef4444; }
 
-.weekly-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: -15px;
-}
+/* tuỳ chỉnh giao diện bảng antd */
+.ant-table-thead > tr > th { background:#fafafa; text-align:center; }
+.ant-table-tbody > tr > td { vertical-align: top; padding:12px; }
+/* bo góc table */
+.ant-table { border-radius: 12px; overflow: hidden; border: 1px solid #efefef; }
