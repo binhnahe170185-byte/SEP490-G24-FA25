@@ -1,4 +1,3 @@
-
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -28,18 +27,23 @@ namespace FJAP.Repositories
                     PassMark = s.PassMark,
                     CreatedAt = s.CreatedAt,
                     LevelId = s.LevelId,
-                    // Lấy LevelName từ bảng Level liên quan
-                    LevelName = s.Level.LevelName 
+                    LevelName = s.Level.LevelName,
+                    GradeTypes = s.SubjectGradeTypes.Select(sgt => new GradeTypeDto
+                    {
+                        SubjectGradeTypeId = sgt.SubjectGradeTypeId,
+                        GradeTypeName = sgt.GradeTypeName,
+                        Weight = sgt.Weight
+                    }).ToList()
                 })
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
         }
 
+        // Các hàm còn lại giữ nguyên, không cần sửa
         public async Task<IEnumerable<SubjectDto>> GetAllWithDetailsAsync()
         {
             return await _context.Subjects
-                // Chỉ cần Include Level
-                .Include(s => s.Level) 
+                .Include(s => s.Level)
                 .OrderByDescending(s => s.CreatedAt)
                 .Select(s => new SubjectDto
                 {
@@ -47,9 +51,7 @@ namespace FJAP.Repositories
                     SubjectCode = s.SubjectCode,
                     SubjectName = s.SubjectName,
                     Status = s.Status,
-                    Description = s.Description,
-                    PassMark = s.PassMark,
-                    CreatedAt = s.CreatedAt,
+                    // Bỏ các trường không cần thiết cho danh sách
                     LevelId = s.LevelId,
                     LevelName = s.Level.LevelName
                 })
@@ -60,25 +62,23 @@ namespace FJAP.Repositories
         {
             var subject = await _context.Subjects.FindAsync(subjectId);
             if (subject == null) throw new KeyNotFoundException("Subject not found");
-            
+
             subject.Status = status;
-            // SaveChanges sẽ được gọi ở Service layer hoặc Unit of Work
         }
 
         public async Task<SubjectFormOptions> GetFormOptionsAsync()
         {
             var levels = await _context.Levels
-                .Select(l => new LookupItem 
-                { 
-                    Id = l.LevelId, 
-                    Name = l.LevelName 
+                .Select(l => new LookupItem
+                {
+                    Id = l.LevelId,
+                    Name = l.LevelName
                 })
                 .ToListAsync();
 
             return new SubjectFormOptions
             {
-                // Chỉ trả về danh sách Levels
-                Levels = levels 
+                Levels = levels
             };
         }
     }
