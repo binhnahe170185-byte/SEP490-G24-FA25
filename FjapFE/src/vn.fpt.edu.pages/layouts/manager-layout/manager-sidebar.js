@@ -32,6 +32,11 @@ const ManagerSidebar = () => {
       icon: <FileOutlined />, 
       label: <Link to="/manager/materials">Materials</Link>, 
     },
+    {
+      key: "/manager/grades",
+      icon: <ReadOutlined />,
+      label: <Link to="/manager/grades">List Grades</Link>,
+    },
   ];
 
   return (

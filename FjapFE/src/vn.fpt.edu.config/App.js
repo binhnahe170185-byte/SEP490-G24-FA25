@@ -19,11 +19,14 @@ import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
 import MaterialList from "../vn.fpt.edu.pages/manager/materials/MaterialList";
-import StudentGradeReport from "../vn.fpt.edu.pages/manager/GradeManage/StudentGradeReport";
+import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
 import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDetail";
 import AdminPage from "../vn.fpt.edu.pages/admin/AdminPage";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
+import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage";
+import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
+import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
 function RequireAuth({ children }) {
   const { user, initializing } = useAuth();
   // nếu vẫn đang khởi tạo (tùy implementation) thì render loading hoặc null để tránh redirect false
@@ -93,6 +96,9 @@ export default function App() {
                 <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                 <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
                 <Route path="materials" element={<MaterialList />} />
+                <Route path="grades" element={<GradeManage />} />
+                <Route path="grades/:courseId" element={<GradeDetails />} />
+                <Route path="grades/enter/:courseId" element={<GradeEntry />} />
               </Route>
             </Route>
 
