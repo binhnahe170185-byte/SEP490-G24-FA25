@@ -24,7 +24,7 @@ import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDeta
 import AdminPage from "../vn.fpt.edu.pages/admin/AdminPage";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
-import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage";
+import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
 function RequireAuth({ children }) {
