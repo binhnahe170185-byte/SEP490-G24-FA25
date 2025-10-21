@@ -26,8 +26,10 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         return await _context.Classes
             .Include(c => c.Semester)
             .Include(c => c.Level)
-            //.Include(c => c.Subjects)
+            .Include(c => c.Subject)
+                .ThenInclude(s => s.Level)
             .Include(c => c.Students)
+            .AsNoTracking()
             .ToListAsync();
     }
 
@@ -41,10 +43,8 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         var normalizedId = classId.Trim();
 
         IQueryable<Class> BuildQuery() => _context.Classes
-            //.Include(c => c.Subjects)
-                //.ThenInclude(s => s.Level)
-            //.Include(c => c.Subjects)
-            //    .ThenInclude(s => s.Grades)
+            .Include(c => c.Subject)
+                .ThenInclude(s => s.Level)
             .Include(c => c.Students)
             .Include(c => c.Lessons)
                 .ThenInclude(l => l.Lecture)
@@ -91,15 +91,10 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
 
     public async Task<Dictionary<int, int>> GetSubjectEnrollmentCountsAsync(int classId)
     {
-        var subjectIds = await _context.Subjects
-            //.Where(s => s.ClassId == classId)
-            .Select(s => s.SubjectId)
-            .ToListAsync();
-
-        if (subjectIds.Count == 0)
-        {
-            return new Dictionary<int, int>();
-        }
+        var subjectId = await _context.Classes
+            .Where(c => c.ClassId == classId)
+            .Select(c => c.SubjectId)
+            .FirstOrDefaultAsync();
 
         var enrollmentTotals = await _context.Database
             .SqlQueryRaw<EnrollmentCount>(
@@ -109,9 +104,34 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
 
         var totalStudents = enrollmentTotals.FirstOrDefault()?.total_students ?? 0;
 
-        return subjectIds.ToDictionary(id => id, _ => totalStudents);
+        if (subjectId == 0)
+        {
+            return new Dictionary<int, int>();
+        }
+
+        return new Dictionary<int, int> { [subjectId] = totalStudents };
+    }
+
+    public async Task<(List<Level> Levels, List<Semester> Semesters, List<Subject> Subjects)> GetFormOptionsAsync()
+    {
+        var levels = await _context.Levels
+            .AsNoTracking()
+            .OrderBy(l => l.LevelName)
+            .ToListAsync();
+
+        var semesters = await _context.Semesters
+            .AsNoTracking()
+            .OrderByDescending(s => s.StartDate)
+            .ToListAsync();
+
+        var subjects = await _context.Subjects
+            .Include(s => s.Level)
+            .AsNoTracking()
+            .OrderBy(s => s.SubjectName)
+            .ToListAsync();
+
+        return (levels, semesters, subjects);
     }
 
     private sealed record EnrollmentCount(int class_id, int total_students);
 }
-
