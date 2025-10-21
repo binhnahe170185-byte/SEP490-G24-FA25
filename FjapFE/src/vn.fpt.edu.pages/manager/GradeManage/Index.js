@@ -1,7 +1,3 @@
-import StudentGradeReport from "./StudentGradeReport";
+import GradeManage from "./GradeManage";
 
-const StudentGradeReport = () => {
-  return <StudentGradeReport />;
-};
-
-export default StudentGradeReport;
+export default GradeManage;
