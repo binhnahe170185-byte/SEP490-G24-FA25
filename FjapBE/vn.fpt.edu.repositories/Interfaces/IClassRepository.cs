@@ -10,4 +10,5 @@ public interface IClassRepository : IGenericRepository<Class>
     Task<Class?> GetSubjectsAsync(string classId);
     Task<Dictionary<int, int>> GetSubjectEnrollmentCountsAsync(int classId);
     Task<Class> UpdateStatusAsync(string classId, bool status);
+    Task<(List<Level> Levels, List<Semester> Semesters, List<Subject> Subjects)> GetFormOptionsAsync();
 }

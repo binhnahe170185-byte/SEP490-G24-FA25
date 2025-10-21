@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
@@ -17,9 +18,12 @@ public class ClassService : IClassService
     public async Task<IEnumerable<Class>> GetAllAsync()
         => await _classRepository.GetAllAsync(
             orderBy: q => q.OrderBy(c => c.ClassId),
-            includeProperties: "Semester,Level,Subjects,Students");
+            includeProperties: "Semester,Level,Subject,Students");
 
-    public Task<Class?> GetByIdAsync(int id) => _classRepository.GetByIdAsync(id);
+    public Task<Class?> GetByIdAsync(int id)
+        => _classRepository.FirstOrDefaultAsync(
+            cls => cls.ClassId == id,
+            includeProperties: "Semester,Level,Subject,Students");
 
     public Task<Class?> GetWithStudentsAsync(int id) => _classRepository.GetWithStudentsAsync(id);
 
@@ -58,4 +62,7 @@ public class ClassService : IClassService
         var updatedClass = await _classRepository.UpdateStatusAsync(classId, status);
         return updatedClass;
     }
+
+    public Task<(List<Level> Levels, List<Semester> Semesters, List<Subject> Subjects)> GetFormOptionsAsync()
+        => _classRepository.GetFormOptionsAsync();
 }

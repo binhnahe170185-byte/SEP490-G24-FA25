@@ -72,8 +72,31 @@ const normalizeSubjects = (subjects = []) =>
 
 const extractSubjectIds = (source) => {
   if (!Array.isArray(source)) {
+    if (
+      source === null ||
+      source === undefined ||
+      Number.isNaN(source)
+    ) {
+      return [];
+    }
+
+    if (typeof source === "string" || typeof source === "number") {
+      return [source];
+    }
+
+    if (typeof source === "object") {
+      const candidate =
+        source?.id ??
+        source?.subjectId ??
+        source?.subject_id ??
+        source?.value ??
+        null;
+      return candidate !== null && candidate !== undefined ? [candidate] : [];
+    }
+
     return [];
   }
+
   return source
     .map((item) => {
       if (typeof item === "string" || typeof item === "number") {
@@ -92,6 +115,9 @@ const normalizeClassDetail = (record = {}) => {
     record.subject_ids ??
     record.subjects ??
     record.classSubjects ??
+    record.subject ??
+    record.subjectId ??
+    record.subject_id ??
     record.subjectAssignments ??
     [];
 
@@ -126,6 +152,9 @@ const deriveInitialFormValues = (initialValues = {}) => {
     initialValues.subjectIds ??
     initialValues.subject_ids ??
     initialValues.subjects ??
+    initialValues.subject ??
+    initialValues.subjectId ??
+    initialValues.subject_id ??
     initialValues.classSubjects ??
     initialValues.subjectAssignments ??
     [];
