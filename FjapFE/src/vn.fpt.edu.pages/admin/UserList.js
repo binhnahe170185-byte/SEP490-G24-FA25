@@ -20,11 +20,11 @@ const normalize = (items = []) =>
     statusStr: u.status || "Active",
     status: (u.status || "Active") === "Active",
     dob: u.dob ?? "",
-       levelName: u.levelName ?? u.level ?? null,
-   semesterName: u.semesterName ?? u.semester ?? null,
-   enrollmentDate: u.enrollmentDate ?? null,
-  address: u.address ?? "",
-   avatar: u.avatar ?? null,
+    levelName: u.levelName ?? u.level ?? null,
+    semesterName: u.semesterName ?? u.semester ?? null,
+    enrollmentDate: u.enrollmentDate ?? null,
+    address: u.address ?? "",
+    avatar: u.avatar ?? null,
 
   }));
 
@@ -47,8 +47,8 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
   // MODAL hồ sơ (đặt đúng state)
   const [modal, setModal] = useState({ open: false, mode: "view", userId: null, initialUser: null });
-  const openView  = (record) => setModal({ open: true, mode: "view",  userId: record.id, initialUser: record });
- const openEdit  = (record) => setModal({ open: true, mode: "edit",  userId: record.id, initialUser: record });
+  const openView = (record) => setModal({ open: true, mode: "view", userId: record.id, initialUser: record });
+  const openEdit = (record) => setModal({ open: true, mode: "edit", userId: record.id, initialUser: record });
   const closeModal = () => setModal((d) => ({ ...d, open: false }));
 
   const applyUpdated = (updated) => {

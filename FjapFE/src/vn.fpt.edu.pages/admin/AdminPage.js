@@ -14,15 +14,15 @@ const { Title } = Typography;
 
 const COLORS = {
   brandOrange: "#ff6600",
-  brandBlue:   "#0071c5",
-  navy:        "#1e3a8a",
-  lightBg:     "#f5f5f5",
-  sider:           "#e9f2ff",
-  siderCollapsed:  "#dbeafe",
-  siderBorder:     "#cfe3ff",
-  menuSelectedBg:  "#cce6ff",
-  menuHoverBg:     "#e7f2ff",
-  menuText:        "#0f2a5a",
+  brandBlue: "#0071c5",
+  navy: "#1e3a8a",
+  lightBg: "#f5f5f5",
+  sider: "#e9f2ff",
+  siderCollapsed: "#dbeafe",
+  siderBorder: "#cfe3ff",
+  menuSelectedBg: "#cce6ff",
+  menuHoverBg: "#e7f2ff",
+  menuText: "#0f2a5a",
 };
 
 const roleIdFromKey = (key) => {
@@ -34,32 +34,42 @@ const roleIdFromKey = (key) => {
 };
 
 const ADMIN_MENU = [
-  { type: "group", label: "USER MANAGEMENT", children: [
-      { key: "users:list", icon: <TeamOutlined/>, label: "View List User", children: [
-          { key: "users:list:admin", label: "View List Admin" },
-          { key: "users:list:manager", label: "View List Manager" },
+  {
+    type: "group", label: "USER MANAGEMENT", children: [
+      {
+        key: "users:list", icon: <TeamOutlined />, label: "View List User", children: [
+          { key: "users:list:admin", label: "View List Head" },
+          { key: "users:list:manager", label: "View List Staff" },
           { key: "users:list:lecturer", label: "View List Lecturer" },
           { key: "users:list:student", label: "View List Student" },
-      ]},
-      { key: "users:add", icon: <UserAddOutlined/>, label: "Add User", children: [
+        ]
+      },
+      {
+        key: "users:add", icon: <UserAddOutlined />, label: "Add User", children: [
           { key: "users:add:admin", label: "Add Admin" },
           { key: "users:add:manager", label: "Add Manager" },
           { key: "users:add:lecturer", label: "Add Lecturer" },
           { key: "users:add:student", label: "Add Student" },
-      ]},
-      { key: "users:import", icon: <UploadOutlined/>, label: "Import User List" },
-      { key: "users:edit",   icon: <EditOutlined/>,   label: "Edit User" },
-  ]},
-  { type: "group", label: "ROOM MANAGEMENT", children: [
-      { key: "rooms:list",   icon: <AppstoreOutlined/>, label: "View List Rooms" },
-      { key: "rooms:add",    icon: <UserAddOutlined/>,  label: "Add Room" },
-      { key: "rooms:status", icon: <SettingOutlined/>,  label: "Edit Room's Status" },
-  ]},
-  { type: "group", label: "SEMESTER MANAGEMENT", children: [
-      { key: "sem:list", icon: <CalendarOutlined/>, label: "View List Semesters" },
-      { key: "sem:add",  icon: <UserAddOutlined/>,  label: "Add Semester" },
-      { key: "sem:edit", icon: <EditOutlined/>,     label: "Edit Semester" },
-  ]},
+        ]
+      },
+      { key: "users:import", icon: <UploadOutlined />, label: "Import User List" },
+      { key: "users:edit", icon: <EditOutlined />, label: "Edit User" },
+    ]
+  },
+  {
+    type: "group", label: "ROOM MANAGEMENT", children: [
+      { key: "rooms:list", icon: <AppstoreOutlined />, label: "View List Rooms" },
+      { key: "rooms:add", icon: <UserAddOutlined />, label: "Add Room" },
+      { key: "rooms:status", icon: <SettingOutlined />, label: "Edit Room's Status" },
+    ]
+  },
+  {
+    type: "group", label: "SEMESTER MANAGEMENT", children: [
+      { key: "sem:list", icon: <CalendarOutlined />, label: "View List Semesters" },
+      { key: "sem:add", icon: <UserAddOutlined />, label: "Add Semester" },
+      { key: "sem:edit", icon: <EditOutlined />, label: "Edit Semester" },
+    ]
+  },
 ];
 
 export default function AdminPage() {
@@ -67,43 +77,43 @@ export default function AdminPage() {
   const [activeKey, setActiveKey] = useState("users:list:all");
 
   const renderContent = () => {
-  if (activeKey.startsWith("users:list")) {
-    const roleId = roleIdFromKey(activeKey);
-    const titleMap = {
-      undefined: "View List User",
-      1: "View List Admin",
-      2: "View List Manager",
-      3: "View List Lecturer",
-      4: "View List Student",
-    };
-    // 👇 gán key để mỗi trang là một instance riêng (state filter tách biệt)
-    return (
-      <UsersList
-        key={`users-list-${roleId ?? "all"}`}
-        fixedRole={roleId}
-        title={titleMap[roleId] || "View List User"}
-      />
-    );
-  }
+    if (activeKey.startsWith("users:list")) {
+      const roleId = roleIdFromKey(activeKey);
+      const titleMap = {
+        undefined: "View List User",
+        1: "View List Admin",
+        2: "View List Manager",
+        3: "View List Lecturer",
+        4: "View List Student",
+      };
+      // 👇 gán key để mỗi trang là một instance riêng (state filter tách biệt)
+      return (
+        <UsersList
+          key={`users-list-${roleId ?? "all"}`}
+          fixedRole={roleId}
+          title={titleMap[roleId] || "View List User"}
+        />
+      );
+    }
 
-  if (activeKey.startsWith("users:add")) {
-    const roleId = roleIdFromKey(activeKey);
-    const titleMap = { 1: "Add Admin", 2: "Add Manager", 3: "Add Lecturer", 4: "Add Student" };
+    if (activeKey.startsWith("users:add")) {
+      const roleId = roleIdFromKey(activeKey);
+      const titleMap = { 1: "Add Admin", 2: "Add Manager", 3: "Add Lecturer", 4: "Add Student" };
+      return (
+        <Card style={{ borderRadius: 12 }}>
+          <Title level={4} style={{ margin: 0 }}>{titleMap[roleId] || "Add User"}</Title>
+          <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user theo role — sẽ gắn sau)</div>
+        </Card>
+      );
+    }
+
     return (
       <Card style={{ borderRadius: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>{titleMap[roleId] || "Add User"}</Title>
-        <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user theo role — sẽ gắn sau)</div>
+        <Title level={4} style={{ margin: 0 }}>{activeKey}</Title>
+        <div style={{ color: "#64748b", marginTop: 8 }}>(Placeholder)</div>
       </Card>
     );
-  }
-
-  return (
-    <Card style={{ borderRadius: 12 }}>
-      <Title level={4} style={{ margin: 0 }}>{activeKey}</Title>
-      <div style={{ color: "#64748b", marginTop: 8 }}>(Placeholder)</div>
-    </Card>
-  );
-};
+  };
 
 
   return (
@@ -114,23 +124,31 @@ export default function AdminPage() {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         width={260}
-        
+
         style={{
           background: collapsed ? COLORS.siderCollapsed : COLORS.sider,
           borderRight: `1px solid ${COLORS.siderBorder}`,
           transition: "all .25s ease",
-          position: "relative", // cần để nút cố định hoạt động
+          position: "relative",
         }}
       >
         {/* Logo */}
-        <div style={{
-          display: "flex", alignItems: "center",
-          justifyContent: collapsed ? "center" : "flex-start",
-          gap: 10, padding: "16px 20px",
-        }}>
-          <img src="/FJAP.png" alt="FPT Japan Academy" style={{ height: 44, borderRadius: 8 }} />
-          {!collapsed && <span style={{ fontWeight: 800, fontSize: 18, color: COLORS.navy }}>School Admin</span>}
+        {/* Logo */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",     // canh giữa theo chiều dọc
+            justifyContent: "center", // canh giữa theo chiều ngang
+            padding: "16px 0",        // khoảng cách trên dưới
+          }}
+        >
+          <img
+            src="/FJAP.png"
+            alt="FPT Japan Academy"
+            style={{ height: 44 }}
+          />
         </div>
+
 
         {/* Menu */}
         <Menu
@@ -160,7 +178,7 @@ export default function AdminPage() {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 8, height: 24, borderRadius: 2, background: COLORS.brandOrange }} />
-            <Title level={4} style={{ margin: 0, color: COLORS.navy }}>Admin Home</Title>
+            <Title level={4} style={{ margin: 0, color: COLORS.navy }}>Welcome to the Administration Management Page!</Title>
           </div>
           <Space>
             <Button icon={<BellOutlined />}>Notifications</Button>
