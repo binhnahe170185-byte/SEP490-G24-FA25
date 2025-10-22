@@ -26,6 +26,10 @@ export default function LoginPage() {
         name: data.name ?? "",
         picture: data.picture ?? null,
         roleId: data.roleId ?? data.role_id ?? 1,
+        accountId:
+          data.accountId ?? data.account_id ?? data.userId ?? data.user_id ?? null,
+        studentId: data.studentId ?? data.student_id ?? null,
+        lecturerId: data.lecturerId ?? data.lecturer_id ?? null,
       };
 
       login({ token, profile });
