@@ -2,10 +2,10 @@ import React, { useMemo } from "react";
 import { Table } from "antd";
 import ClassChip from "./ClassChip";
 
-export default function TimetableTable({ week, cellMap, slots, weekdayHeaders }) {
+export default function TimetableTable({ week, cellMap, slots, weekdayHeaders, loading }) {
     const columns = useMemo(() => {
         const cols = [
-            { title: "SLOT", dataIndex: "slotLabel", key: "slotLabel", width: 120, fixed: "left", render: v => <strong>{v}</strong> },
+            { title: "SLOT", dataIndex: "slotLabel", key: "slotLabel", width: 160, fixed: "left", render: v => <strong>{v}</strong> },
         ];
         week.days.forEach((d, idx) => {
             cols.push({
@@ -18,8 +18,8 @@ export default function TimetableTable({ week, cellMap, slots, weekdayHeaders })
                 dataIndex: `day${idx}`,
                 key: `day${idx}`,
                 render: (_, record) => {
-                    const slotIdx = record._slotIndex;
-                    const key = `${slotIdx + 1}|${idx + 1}`;
+                    const slotId = record._slotId;
+                    const key = `${slotId}|${idx + 1}`;
                     const items = cellMap.get(key) || [];
                     if (!items.length) return null;
                     return (
@@ -34,10 +34,10 @@ export default function TimetableTable({ week, cellMap, slots, weekdayHeaders })
     }, [week.days, cellMap, weekdayHeaders]);
 
     const dataSource = useMemo(() => {
-        return slots.map((label, idx) => ({
-            key: `slot-${idx + 1}`,
-            _slotIndex: idx,
-            slotLabel: label,
+        return slots.map((slot, idx) => ({
+            key: `slot-${slot.id ?? idx + 1}`,
+            _slotId: slot.id ?? idx + 1,
+            slotLabel: slot.label ?? `Slot ${slot.id ?? idx + 1}`,
             ...Array.from({ length: 7 }).reduce((acc, _, i) => ({ ...acc, [`day${i}`]: null }), {}),
         }));
     }, [slots]);
@@ -51,6 +51,7 @@ export default function TimetableTable({ week, cellMap, slots, weekdayHeaders })
             rowKey="key"
             scroll={{ x: "max-content" }}
             size="middle"
+            loading={loading}
         />
     );
 }

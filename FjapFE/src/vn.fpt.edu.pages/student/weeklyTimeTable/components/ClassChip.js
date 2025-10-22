@@ -8,13 +8,16 @@ const STATUS = {
 };
 
 export default function ClassChip({ item }) {
-    const s = STATUS[item.status] || STATUS.pending;
+    const s = STATUS[item?.status] || STATUS.pending;
+    const title = item?.code ?? "Lesson";
+    const timeText = item?.timeLabel ?? item?.time ?? (item?.slotId ? `Slot ${item.slotId}` : null);
+    const roomText = item?.roomLabel ?? item?.room ?? (item?.roomId ? `Room ${item.roomId}` : null);
     return (
         <Card size="small" bordered style={{ borderColor: s.color, background: "#fff" }} bodyStyle={{ padding: 8 }}>
-            <Typography.Text strong>{item.code}</Typography.Text>
+            <Typography.Text strong>{title}</Typography.Text>
             <div style={{ fontSize: 12, marginTop: 6 }}>
-                <div>🕒 {item.time}</div>
-                <div style={{ marginTop: 2 }}>🏫 {item.room}</div>
+                {timeText ? <div>🕒 {timeText}</div> : null}
+                {roomText ? <div style={{ marginTop: 2 }}>🏫 {roomText}</div> : null}
             </div>
         </Card>
     );

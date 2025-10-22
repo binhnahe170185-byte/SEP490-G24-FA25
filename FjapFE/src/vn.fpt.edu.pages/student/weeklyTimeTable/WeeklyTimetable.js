@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dayjsLib from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import { Divider, Typography } from "antd";
+import { Alert, Divider, Typography } from "antd";
 import FilterBar from "./components/FilterBar";
 import TimetableTable from "./components/TimetableTable";
 import Legend from "./components/Legend";
 import "./WeeklyTimetable.css";
-
+import { api } from "../../../vn.fpt.edu.api/http";
+import { useAuth } from "../../login/AuthContext";
 dayjsLib.extend(isoWeek);
 const dayjs = (d) => dayjsLib(d);
 
@@ -16,22 +17,161 @@ const STATUS = {
   absent: { color: "#ef4444", text: "Absent" },
 };
 
-const SLOTS = ["Slot 0", "Slot 1", "Slot 2", "Slot 3", "Slot 4", "Slot 5", "Slot 6", "Slot 7", "Slot 8", "Slot 9", "Slot 10", "Slot 11", "Slot 12"];
+const DEFAULT_SLOTS = Array.from({ length: 12 }, (_, idx) => ({
+  id: idx + 1,
+  label: `Slot ${idx + 1}`,
+}));
+
 const WEEKDAY_HEADERS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
-// mock data kept here for demo; in real app pass items via props or API
-const MOCK_ITEMS = [
-  { code: "JD326", time: "12:50-15:10", room: "DE-337", status: "done", slot: 4, weekday: 1, date: "2025-10-19" },
-  { code: "PRM392", time: "12:50-15:10", room: "DE-227", status: "done", slot: 4, weekday: 2, date: "2025-10-19" },
-  { code: "VNR202", time: "15:20-17:40", room: "AL-401", status: "absent", slot: 4, weekday: 3, date: "2025-10-19" },
-  { code: "SEP490", time: "18:00-20:20", room: "DE-C202", status: "done", slot: 5, weekday: 5, date: "2025-10-19" },
-];
+function formatTimeRange(start, end) {
+  const formatTime = (value) => {
+    if (!value) return null;
+    if (typeof value === "string") {
+      const [hh, mm] = value.split(":");
+      if (hh !== undefined && mm !== undefined) return `${hh}:${mm}`;
+      return value;
+    }
+    return value;
+  };
+
+  const startStr = formatTime(start);
+  const endStr = formatTime(end);
+  if (startStr && endStr) return `${startStr} - ${endStr}`;
+  if (startStr) return startStr;
+  if (endStr) return endStr;
+  return null;
+}
+
+function normalizeLesson(raw, fallbackId) {
+  if (!raw) return null;
+
+  const rawDate = raw.date ?? raw.lessonDate ?? raw.startDate ?? null;
+  const dateObj = rawDate ? dayjs(rawDate) : null;
+  const slotId = Number(
+    raw.slotId ??
+    raw.slot_id ??
+    raw.slot ??
+    raw.timeId ??
+    raw.time_id ??
+    raw.time?.timeId ??
+    raw.time?.time_id ??
+    0
+  );
+  const weekday = Number(
+    raw.weekday ?? raw.week_day ?? (dateObj ? dateObj.isoWeekday() : NaN)
+  );
+  const startTime = raw.time?.startTime ?? raw.time?.start_time;
+  const endTime = raw.time?.endTime ?? raw.time?.end_time;
+  const timeLabel = raw.timeLabel ?? formatTimeRange(startTime, endTime);
+  const classCode =
+    raw.code ??
+    raw.classCode ??
+    raw.class?.classCode ??
+    raw.class?.code ??
+    raw.class?.subject?.code ??
+    null;
+  const className =
+    raw.className ??
+    raw.class?.className ??
+    raw.class?.name ??
+    raw.class?.subject?.name ??
+    raw.class?.subject?.subjectName ??
+    null;
+  const roomName =
+    raw.roomLabel ??
+    raw.roomName ??
+    raw.room?.roomName ??
+    raw.room?.name ??
+    null;
+
+  const id =
+    raw.id ??
+    raw.lessonId ??
+    raw.lesson_id ??
+    (raw.classId ?? raw.class_id ?? "lesson") +
+    "-" +
+    (rawDate || fallbackId || Math.random().toString(36).slice(2));
+
+  return {
+    id,
+    lessonId: raw.lessonId ?? raw.lesson_id ?? null,
+    classId: raw.classId ?? raw.class_id ?? null,
+    date: rawDate ? dayjs(rawDate).format("YYYY-MM-DD") : rawDate,
+    rawDate,
+    weekday: Number.isFinite(weekday) && weekday > 0 ? weekday : dateObj?.isoWeekday() ?? null,
+    slotId: Number.isFinite(slotId) && slotId > 0 ? slotId : null,
+    status: raw.status ?? (raw.attendances && raw.attendances.length > 0 ? "done" : "pending"),
+    code:
+      classCode ??
+      className ??
+      (raw.classId ? `Class ${raw.classId}` : raw.lectureId ? `Lecture ${raw.lectureId}` : "Lesson"),
+    timeLabel: timeLabel ?? (Number.isFinite(slotId) && slotId > 0 ? `Slot ${slotId}` : null),
+    roomLabel:
+      roomName ??
+      (raw.roomId ?? raw.room_id ? `Room ${raw.roomId ?? raw.room_id}` : null),
+    roomId: raw.roomId ?? raw.room_id ?? null,
+    lectureId: raw.lectureId ?? raw.lecture_id ?? null,
+  };
+}
 
 export default function WeeklyTimetable({ items }) {
-  const data = items || MOCK_ITEMS;
+  const { user } = useAuth();
+  const [remoteItems, setRemoteItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [anchorDate, setAnchorDate] = useState(dayjs().isoWeekday(1));
   const [year, setYear] = useState(anchorDate.year());
   const [weekNumber, setWeekNumber] = useState(anchorDate.isoWeek());
+
+  const sourceItems = useMemo(() => {
+    return items ?? remoteItems;
+  }, [items, remoteItems]);
+
+  useEffect(() => {
+    if (items) return; // allow manual data injection for tests
+    if (!user?.studentId) {
+      setRemoteItems([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function fetchLessons() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data } = await api.get(`/api/Students/${user.studentId}/lesson`);
+        const rows = Array.isArray(data?.data) ? data.data : [];
+        const normalized = rows
+          .map((row, idx) => normalizeLesson(row, idx))
+          .filter(Boolean);
+        if (!cancelled) {
+          setRemoteItems(normalized);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          setRemoteItems([]);
+          setError("Không thể tải thời khóa biểu. Vui lòng thử lại sau.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchLessons();
+    return () => {
+      cancelled = true;
+    };
+  }, [items, user?.studentId]);
+
+  const normalizedItems = useMemo(() => {
+    return (Array.isArray(sourceItems) ? sourceItems : [])
+      .map((row, idx) => normalizeLesson(row, idx))
+      .filter(Boolean);
+  }, [sourceItems]);
 
   const week = useMemo(() => {
     const start = dayjs(anchorDate).year(year).isoWeek(weekNumber).isoWeekday(1);
@@ -43,16 +183,32 @@ export default function WeeklyTimetable({ items }) {
   const weekItems = useMemo(() => {
     const startStr = week.start.startOf("day");
     const endStr = week.end.endOf("day");
-    return data.filter((it) => {
-      const d = dayjs(it.date);
+    return normalizedItems.filter((it) => {
+      if (!it?.date && !it?.rawDate) return false;
+      const d = dayjs(it.date ?? it.rawDate);
       return d.isAfter(startStr.subtract(1, "ms")) && d.isBefore(endStr.add(1, "ms"));
     });
-  }, [data, week.start, week.end]);
+  }, [normalizedItems, week.start, week.end]);
 
+  const slots = useMemo(() => {
+    const map = new Map();
+    weekItems.forEach((item) => {
+      if (!item?.slotId) return;
+      if (!map.has(item.slotId)) {
+        const label = item.timeLabel ?? `Slot ${item.slotId}`;
+        map.set(item.slotId, { id: item.slotId, label });
+      }
+    });
+    if (!map.size) return DEFAULT_SLOTS;
+    return Array.from(map.values()).sort((a, b) => a.id - b.id);
+  }, [weekItems]);
+
+  // build cellMap: sử dụng weekday từ date
   const cellMap = useMemo(() => {
     const map = new Map();
     for (const it of weekItems) {
-      const key = `${it.slot}|${it.weekday}`;
+      if (!it?.slotId || !it?.weekday) continue;
+      const key = `${it.slotId}|${it.weekday}`;
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(it);
     }
@@ -95,12 +251,31 @@ export default function WeeklyTimetable({ items }) {
         </div>
 
         <Divider style={{ margin: "12px 0" }} />
+        {!user?.studentId && !items ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Tài khoản hiện tại không có thông tin sinh viên."
+            description="Vui lòng đăng nhập bằng tài khoản sinh viên để xem thời khóa biểu."
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
 
+        {error ? (
+          <Alert
+            type="error"
+            showIcon
+            message="Đã xảy ra lỗi"
+            description={error}
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
         <TimetableTable
           week={week}
           cellMap={cellMap}
-          slots={SLOTS}
+          slots={slots}
           weekdayHeaders={WEEKDAY_HEADERS}
+          loading={loading}
         />
 
         <Legend status={STATUS} />
