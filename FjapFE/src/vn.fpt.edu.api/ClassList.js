@@ -33,6 +33,11 @@ class ClassList {
     return response.data?.data ?? response.data;
   }
 
+  static async delete(classId) {
+    const response = await api.delete(`/api/manager/classes/${classId}`);
+    return response.data?.data ?? response.data;
+  }
+
   // Update status class
   static async updateStatus(classId, status) {
     const response = await api.patch(`/api/manager/classes/${classId}/status`, {

@@ -4,6 +4,7 @@ import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-de
 import { useNavigate } from "react-router-dom";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import ClassFormModal from "./ClassFormModel";
+import DeleteClassFormModal from "./DeleteClassFormModal";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -605,6 +606,11 @@ export default function ClassList() {
               onClick={() => handleView(record)}
             />
           </Tooltip>
+          <DeleteClassFormModal
+            classId={record.classId ?? record.class_id}
+            className={record.class_name}
+            onDeleted={loadClasses}
+          />
         </Space>
       ),
     },

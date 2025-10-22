@@ -70,43 +70,40 @@ const normalizeSubjects = (subjects = []) =>
     };
   });
 
-const extractSubjectIds = (source) => {
-  if (!Array.isArray(source)) {
-    if (
-      source === null ||
-      source === undefined ||
-      Number.isNaN(source)
-    ) {
-      return [];
+const extractSubjectId = (source) => {
+  const readValue = (candidate) => {
+    if (candidate === null || candidate === undefined || Number.isNaN(candidate)) {
+      return undefined;
     }
 
-    if (typeof source === "string" || typeof source === "number") {
-      return [source];
+    if (typeof candidate === "string" || typeof candidate === "number") {
+      return candidate;
     }
 
-    if (typeof source === "object") {
-      const candidate =
-        source?.id ??
-        source?.subjectId ??
-        source?.subject_id ??
-        source?.value ??
-        null;
-      return candidate !== null && candidate !== undefined ? [candidate] : [];
+    if (typeof candidate === "object") {
+      return (
+        candidate?.id ??
+        candidate?.subjectId ??
+        candidate?.subject_id ??
+        candidate?.value ??
+        undefined
+      );
     }
 
-    return [];
+    return undefined;
+  };
+
+  if (Array.isArray(source)) {
+    for (let index = 0; index < source.length; index += 1) {
+      const value = readValue(source[index]);
+      if (value !== undefined) {
+        return value;
+      }
+    }
+    return undefined;
   }
 
-  return source
-    .map((item) => {
-      if (typeof item === "string" || typeof item === "number") {
-        return item;
-      }
-      return (
-        item?.id ?? item?.subjectId ?? item?.subject_id ?? item?.value ?? null
-      );
-    })
-    .filter((value) => value !== null && value !== undefined);
+  return readValue(source);
 };
 
 const normalizeClassDetail = (record = {}) => {
@@ -143,7 +140,7 @@ const normalizeClassDetail = (record = {}) => {
       record.level ??
       record.levelName ??
       undefined,
-    subjectIds: extractSubjectIds(subjectSource),
+    subjectId: extractSubjectId(subjectSource),
   };
 };
 
@@ -158,7 +155,7 @@ const deriveInitialFormValues = (initialValues = {}) => {
     initialValues.classSubjects ??
     initialValues.subjectAssignments ??
     [];
-  const subjectIds = extractSubjectIds(subjectSource);
+  const subjectId = extractSubjectId(subjectSource);
 
   return {
     name:
@@ -182,7 +179,7 @@ const deriveInitialFormValues = (initialValues = {}) => {
       initialValues.level ??
       initialValues.levelName ??
       undefined,
-    subjectIds: subjectIds.filter((value) => value !== null),
+    subjectId: subjectId ?? undefined,
   };
 };
 
@@ -323,12 +320,35 @@ export default function ClassFormModal({
         return;
       }
 
+      const subjectIdValue = Number(values.subjectId);
+      const levelIdValue = Number(values.levelId);
+      const semesterIdValue = Number(values.semesterId);
+
+      if (Number.isNaN(subjectIdValue)) {
+        message.error("Selected subject is invalid");
+        return;
+      }
+
+      if (Number.isNaN(levelIdValue) || Number.isNaN(semesterIdValue)) {
+        message.error("Selected level or semester is invalid");
+        return;
+      }
+
       const payload = {
-        name: trimmedName,
-        semesterId: values.semesterId,
-        levelId: values.levelId,
-        subjectIds: values.subjectIds ?? [],
+        className: trimmedName,
+        semesterId: semesterIdValue,
+        levelId: levelIdValue,
+        subjectId: subjectIdValue,
       };
+
+      if (isEditMode && classId) {
+        const numericId = Number(classId);
+        if (Number.isNaN(numericId)) {
+          message.error("Class identifier is invalid");
+          return;
+        }
+        payload.classId = numericId;
+      }
 
       setSubmitting(true);
       if (isEditMode && classId) {
@@ -356,7 +376,7 @@ export default function ClassFormModal({
 
   const handleLevelChange = (value) => {
     setCurrentLevel(value);
-    form.setFieldsValue({ subjectIds: [] });
+    form.setFieldsValue({ subjectId: undefined });
   };
 
   return (
@@ -426,23 +446,20 @@ export default function ClassFormModal({
           </Form.Item>
 
           <Form.Item
-            label="Assign Subjects"
-            name="subjectIds"
+            label="Assign Subject"
+            name="subjectId"
             rules={[
               {
                 required: true,
-                type: "array",
-                min: 1,
-                message: "Please choose at least one subject",
+                message: "Please choose a subject",
               },
             ]}
           >
             <Select
-              mode="multiple"
               placeholder={
                 currentLevel
-                  ? "Select subjects under the chosen level"
-                  : "Select a level before picking subjects"
+                  ? "Select a subject under the chosen level"
+                  : "Select a level before picking a subject"
               }
               disabled={!currentLevel}
               options={filteredSubjects.map((item) => ({
