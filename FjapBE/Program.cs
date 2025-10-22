@@ -20,7 +20,10 @@ var builder = WebApplication.CreateBuilder(args);
 // =================== Services ===================
 
 // Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+});
 
 // ----- DB (EF Core MySQL) -----
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")

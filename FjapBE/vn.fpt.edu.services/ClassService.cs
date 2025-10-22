@@ -29,6 +29,7 @@ public class ClassService : IClassService
 
     public async Task<Class> CreateAsync(Class item)
     {
+        item.UpdatedAt = DateTime.UtcNow;
         await _classRepository.AddAsync(item);
         await _classRepository.SaveChangesAsync();
         return item;
@@ -38,7 +39,15 @@ public class ClassService : IClassService
     {
         var existing = await _classRepository.GetByIdAsync(item.ClassId);
         if (existing == null) return false;
-        _classRepository.Update(item);
+
+        existing.ClassName = item.ClassName;
+        existing.SemesterId = item.SemesterId;
+        existing.LevelId = item.LevelId;
+        existing.SubjectId = item.SubjectId;
+        existing.Status = string.IsNullOrWhiteSpace(item.Status) ? existing.Status : item.Status;
+        existing.UpdatedAt = DateTime.UtcNow;
+
+        _classRepository.Update(existing);
         await _classRepository.SaveChangesAsync();
         return true;
     }
