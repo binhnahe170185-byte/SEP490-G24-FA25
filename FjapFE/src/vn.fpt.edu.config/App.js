@@ -13,6 +13,7 @@ import LoginPage from "../vn.fpt.edu.pages/login/LoginPage";
 import StudentList from "../vn.fpt.edu.pages/student/studentTable/StudentList";
 import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyTimetable";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
+import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import ClassPage from "../vn.fpt.edu.pages/manager/ClassManage";
 import ClassDetail from "../vn.fpt.edu.pages/manager/ClassManage/ClassDetail";
 import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
@@ -37,6 +38,16 @@ function RequireAuth({ children }) {
 function RequireManager({ children }) {
   const { user } = useAuth();
   if (!user || Number(user.roleId) !== 2) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
+function RequireStaffAcademic({ children }) {
+  const { user } = useAuth();
+  // assuming staffAcademic roleId is 3 (lecturer) or another value; adapt if different
+  // allow roleId 3 (lecturer/staffAcademic), roleId 2 (manager) and roleId 6 (Administration_Staff)
+  if (!user || (Number(user.roleId) !== 3 && Number(user.roleId) !== 2 && Number(user.roleId) !== 6)) {
     return <Navigate to="/" replace />;
   }
   return children;
@@ -99,6 +110,19 @@ export default function App() {
                 <Route path="grades" element={<GradeManage />} />
                 <Route path="grades/:courseId" element={<GradeDetails />} />
                 <Route path="grades/enter/:courseId" element={<GradeEntry />} />
+              </Route>
+
+              <Route
+                path="/staffAcademic/*"
+                element={
+                  <RequireStaffAcademic>
+                    <StaffAcademicLayout />
+                  </RequireStaffAcademic>
+                }
+              >
+                <Route path="dashboard" element={<div style={{ padding: 16 }}><h3>Staff Academic Dashboard (placeholder)</h3></div>} />
+                <Route path="classes" element={<div style={{ padding: 16 }}><h3>Classes (placeholder)</h3></div>} />
+                <Route path="subjects" element={<div style={{ padding: 16 }}><h3>Subjects (placeholder)</h3></div>} />
               </Route>
             </Route>
 
