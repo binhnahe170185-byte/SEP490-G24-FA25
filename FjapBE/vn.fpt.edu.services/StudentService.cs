@@ -1,7 +1,8 @@
-using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
+using FJAP.vn.fpt.edu.models;
 using Microsoft.EntityFrameworkCore;
+using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.Services;
 
@@ -14,7 +15,7 @@ public class StudentService : IStudentService
         _studentRepository = studentRepository;
     }
 
-    public async Task<IEnumerable<Lesson>> GetLessonsByStudentIdAsync(int id)
+    public async Task<IEnumerable<LessonDto>> GetLessonsByStudentIdAsync(int id)
         => await _studentRepository.GetLessonsByStudentIdAsync(id);
 
     public async Task<IEnumerable<Student>> GetAllAsync()

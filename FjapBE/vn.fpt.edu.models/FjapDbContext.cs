@@ -1,7 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
+using System;
+using System.Collections.Generic;
+using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.vn.fpt.edu.models;
 
@@ -15,7 +18,7 @@ public partial class FjapDbContext : DbContext
         : base(options)
     {
     }
-
+    public DbSet<LessonDto> LessonDtos => Set<LessonDto>();
     public virtual DbSet<Account> Accounts { get; set; }
 
     public virtual DbSet<Attendance> Attendances { get; set; }
@@ -71,6 +74,8 @@ public partial class FjapDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<LessonDto>().HasNoKey().ToView(null);
 
         modelBuilder.Entity<Account>(entity =>
         {

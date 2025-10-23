@@ -1,4 +1,5 @@
 using FJAP.vn.fpt.edu.models;
+using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.Services.Interfaces;
 
@@ -10,5 +11,5 @@ public interface IStudentService
     Task<Student> CreateAsync(Student student);
     Task<bool> UpdateAsync(Student student);
     Task<bool> DeleteAsync(int id);
-    Task<IEnumerable<Lesson>> GetLessonsByStudentIdAsync(int id);
+    Task<IEnumerable<LessonDto>> GetLessonsByStudentIdAsync(int id);
 }

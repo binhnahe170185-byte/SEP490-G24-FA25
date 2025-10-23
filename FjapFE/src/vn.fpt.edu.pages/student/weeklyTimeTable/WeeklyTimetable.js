@@ -43,6 +43,7 @@ function formatTimeRange(start, end) {
   return null;
 }
 
+
 function normalizeLesson(raw, fallbackId) {
   if (!raw) return null;
 
@@ -61,16 +62,28 @@ function normalizeLesson(raw, fallbackId) {
   const weekday = Number(
     raw.weekday ?? raw.week_day ?? (dateObj ? dateObj.isoWeekday() : NaN)
   );
-  const startTime = raw.time?.startTime ?? raw.time?.start_time;
-  const endTime = raw.time?.endTime ?? raw.time?.end_time;
+
+  const startTime = raw.time?.startTime ?? raw.time?.start_time ?? raw.startTime ?? raw.start_time ?? null;
+  const endTime = raw.time?.endTime ?? raw.time?.end_time ?? raw.endTime ?? raw.end_time ?? null;
+
   const timeLabel = raw.timeLabel ?? formatTimeRange(startTime, endTime);
+
+  // --- subjectCode extraction (try many possible shapes)
+  const subjectCode =
+    raw.subjectCode ??
+    raw.subject?.code ??
+    raw.subject?.subjectCode ??
+    raw.class?.subject?.code ??
+    raw.class?.subject?.subjectCode ??
+    raw.class?.subjectCode ??
+    null;
+
   const classCode =
-    raw.code ??
     raw.classCode ??
     raw.class?.classCode ??
     raw.class?.code ??
-    raw.class?.subject?.code ??
     null;
+
   const className =
     raw.className ??
     raw.class?.className ??
@@ -78,6 +91,7 @@ function normalizeLesson(raw, fallbackId) {
     raw.class?.subject?.name ??
     raw.class?.subject?.subjectName ??
     null;
+
   const roomName =
     raw.roomLabel ??
     raw.roomName ??
@@ -102,18 +116,25 @@ function normalizeLesson(raw, fallbackId) {
     weekday: Number.isFinite(weekday) && weekday > 0 ? weekday : dateObj?.isoWeekday() ?? null,
     slotId: Number.isFinite(slotId) && slotId > 0 ? slotId : null,
     status: raw.status ?? (raw.attendances && raw.attendances.length > 0 ? "done" : "pending"),
+    // expose subjectCode separately and prefer it for display
+    subjectCode: subjectCode ?? null,
     code:
+      subjectCode ??
       classCode ??
       className ??
       (raw.classId ? `Class ${raw.classId}` : raw.lectureId ? `Lecture ${raw.lectureId}` : "Lesson"),
     timeLabel: timeLabel ?? (Number.isFinite(slotId) && slotId > 0 ? `Slot ${slotId}` : null),
+    startTime: startTime ?? null,
+    endTime: endTime ?? null,
     roomLabel:
       roomName ??
       (raw.roomId ?? raw.room_id ? `Room ${raw.roomId ?? raw.room_id}` : null),
     roomId: raw.roomId ?? raw.room_id ?? null,
     lectureId: raw.lectureId ?? raw.lecture_id ?? null,
+    raw,
   };
 }
+
 
 export default function WeeklyTimetable({ items }) {
   const { user } = useAuth();
@@ -152,7 +173,7 @@ export default function WeeklyTimetable({ items }) {
         console.error(err);
         if (!cancelled) {
           setRemoteItems([]);
-          setError("Không thể tải thời khóa biểu. Vui lòng thử lại sau.");
+          setError("Unable to load timetable. Please try again later.");
         }
       } finally {
         if (!cancelled) {
@@ -191,16 +212,11 @@ export default function WeeklyTimetable({ items }) {
   }, [normalizedItems, week.start, week.end]);
 
   const slots = useMemo(() => {
-    const map = new Map();
-    weekItems.forEach((item) => {
-      if (!item?.slotId) return;
-      if (!map.has(item.slotId)) {
-        const label = item.timeLabel ?? `Slot ${item.slotId}`;
-        map.set(item.slotId, { id: item.slotId, label });
-      }
-    });
-    if (!map.size) return DEFAULT_SLOTS;
-    return Array.from(map.values()).sort((a, b) => a.id - b.id);
+    // keep DEFAULT_SLOTS length/order but always use the simple label "Slot N"
+    return DEFAULT_SLOTS.map((s, idx) => ({
+      id: s.id,
+      label: `Slot ${s.id}`, // always default label
+    }));
   }, [weekItems]);
 
   // build cellMap: sử dụng weekday từ date
@@ -265,7 +281,7 @@ export default function WeeklyTimetable({ items }) {
           <Alert
             type="error"
             showIcon
-            message="Đã xảy ra lỗi"
+            message="An error occurred while loading timetable."
             description={error}
             style={{ marginBottom: 16 }}
           />

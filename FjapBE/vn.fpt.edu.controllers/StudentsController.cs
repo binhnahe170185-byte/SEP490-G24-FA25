@@ -1,6 +1,7 @@
-﻿using FJAP.vn.fpt.edu.models;
-using FJAP.Services.Interfaces;
+﻿using FJAP.Services.Interfaces;
+using FJAP.vn.fpt.edu.models;
 using Microsoft.AspNetCore.Mvc;
+using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.Controllers;
 
@@ -16,13 +17,13 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("{id:int}/lesson")]
-    [ProducesResponseType(typeof(IEnumerable<Lesson>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<LessonDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetAllLessonByStudentId(int id)
     {
-        var Lesson = await _studentService.GetLessonsByStudentIdAsync(id);
-        if (Lesson == null) return NotFound();
-        return Ok(new { code = 200, data = Lesson });
+        var LessonDto = await _studentService.GetLessonsByStudentIdAsync(id);
+        if (LessonDto == null) return NotFound();
+        return Ok(new { code = 200, data = LessonDto });
     }
    
    

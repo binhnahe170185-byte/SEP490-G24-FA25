@@ -27,29 +27,55 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             .Include(s => s.Classes)
             .ToListAsync();
     }
-    // hàm cần sửa 
-    // hiện tại chạy ok 
-    public async Task<IEnumerable<Lesson>> GetLessonsByStudentIdAsync(int studentId)
+    // get ra dữ liệu của lesson dựa vào studentId
+    public async Task<IEnumerable<LessonDto>> GetLessonsByStudentIdAsync(int studentId)
     {
-        var lessons = await _context.Lessons
-            .FromSqlInterpolated($@"
-            SELECT 
-                l.lesson_id,
-                l.class_id,
-                l.date,
-                l.room_id,
-                l.time_id,
-                l.lecture_id,
-                0 AS SubjectId  
-            FROM fjap.lesson AS l
-            JOIN fjap.class AS c ON c.class_id = l.class_id
-            JOIN fjap.enrollment AS e ON e.class_id = c.class_id
-            WHERE e.student_id = {studentId}
-        ")
+        FormattableString sql = $@"
+        SELECT 
+            l.lesson_id   AS LessonId,
+            l.class_id    AS ClassId,
+            c.class_name  AS ClassName,
+            l.date        AS Date,
+            r.room_name   AS RoomName,
+            l.time_id     AS TimeId,
+            l.lecture_id  AS LectureId,
+            t.start_time  AS StartTime,
+            t.end_time    AS EndTime,
+            s.subject_code AS SubjectCode
+        FROM fjap.lesson   AS l
+        JOIN fjap.class    AS c ON c.class_id  = l.class_id
+        JOIN fjap.subject  AS s ON s.class_id  = l.class_id
+        JOIN fjap.room     AS r ON r.room_id   = l.room_id
+        JOIN fjap.enrollment AS e ON e.class_id = c.class_id
+        JOIN fjap.timeslot AS t ON t.time_id   = l.time_id
+        WHERE e.student_id = {studentId}";
+
+        var lessons = await _context
+            .Set<LessonDto>()
+            .FromSqlInterpolated(sql)
             .AsNoTracking()
             .ToListAsync();
 
         return lessons;
+    }
+
+    public class LessonDto
+    {
+        public int LessonId { get; set; }
+        public int ClassId { get; set; }
+        public string ClassName { get; set; } = "";
+
+        public DateOnly Date { get; set; }
+
+        public string RoomName { get; set; } = "";
+
+        public int TimeId { get; set; }
+        public int LectureId { get; set; }
+
+        public TimeOnly StartTime { get; set; }
+        public TimeOnly EndTime { get; set; }
+
+        public string SubjectCode { get; set; } = "";
     }
 
 
