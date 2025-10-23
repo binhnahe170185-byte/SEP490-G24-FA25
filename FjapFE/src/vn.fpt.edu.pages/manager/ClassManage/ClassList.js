@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Input, Select, Space, Table, Tooltip, Switch, message } from "antd";
+import { Button, Input, Select, Space, Table, Tooltip, Switch } from "antd";
 import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import ClassFormModal from "./ClassFormModel";
 import DeleteClassFormModal from "./DeleteClassFormModal";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -244,6 +245,8 @@ export default function ClassList() {
     initialValues: null,
   });
   const navigate = useNavigate();
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } =
+    useNotify();
 
   const loadClasses = useCallback(() => {
     setLoading(true);
@@ -254,7 +257,11 @@ export default function ClassList() {
       })
       .catch((error) => {
         console.error("❌ Error fetching classes:", error);
-        message.error("Failed to load class list");
+        notifyError(
+          "class-list-load",
+          "Load failed",
+          "Unable to load class list."
+        );
       })
       .finally(() => setLoading(false));
   }, []);
@@ -382,7 +389,11 @@ export default function ClassList() {
   const handleEditClass = (record) => {
     const targetId = record?.classId ?? record?.class_id;
     if (!targetId) {
-      message.error("Class identifier is missing for editing");
+      notifyError(
+        "class-edit-missing-id",
+        "Edit failed",
+        "Class identifier is missing."
+      );
       return;
     }
 
@@ -417,9 +428,21 @@ export default function ClassList() {
   const handleStatusToggle = async (record, checked) => {
     const targetClassId = (record.classId ?? record.class_id)?.toString();
     if (!targetClassId) {
-      message.error("Missing class identifier");
+      notifyError(
+        "class-status-missing-id",
+        "Status update failed",
+        "Class identifier is missing."
+      );
       return;
     }
+
+    const notifyKey = `class-status-${targetClassId}`;
+    const classLabel = record.class_name ?? targetClassId;
+    notifyPending(
+      notifyKey,
+      "Updating class status",
+      `Setting ${classLabel} to ${checked ? "Active" : "Inactive"}...`
+    );
 
     const previousStatus = record.status;
     const previousUpdatedAt = record.updated_at;
@@ -495,13 +518,23 @@ export default function ClassList() {
         updated?.className ??
         record.class_name ??
         record.classId ?? targetClassId;
-      message.success(
+      notifySuccess(
+        notifyKey,
+        "Status updated",
         `${successName ?? targetClassId} is now ${
           checked ? "Active" : "Inactive"
-        }`
+        }.`
       );
     } catch (error) {
-      message.error("Failed to update class status");
+      const errorMessage =
+        error?.response?.data?.message ??
+        error?.message ??
+        "Failed to update class status.";
+      notifyError(
+        notifyKey,
+        "Status update failed",
+        errorMessage
+      );
       setClasses((prev) =>
         prev.map((item) =>
           item.class_id === targetClassId

@@ -1,24 +1,37 @@
 import React, { useCallback, useState } from "react";
-import { Button, Modal, Tooltip, message } from "antd";
+import { Button, Modal, Tooltip } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
 const DeleteClassFormModal = ({ classId, className, onDeleted }) => {
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } =
+    useNotify();
 
   const handleConfirmDelete = useCallback(async () => {
     if (!classId) {
-      message.error("Missing class identifier");
+      notifyError(
+        "delete-class-missing",
+        "Delete failed",
+        "Class identifier is missing."
+      );
       return;
     }
 
+    const key = `delete-class-${classId}`;
+    notifyPending(
+      key,
+      "Deleting class",
+      `Removing ${className ?? `Class #${classId}`}...`
+    );
     setDeleting(true);
     try {
       const response = await ClassListApi.delete(classId);
       const successMessage =
         response?.message ?? response?.data?.message ?? "Class deleted";
-      message.success(successMessage);
+      notifySuccess(key, "Class deleted", successMessage);
       setOpen(false);
       onDeleted?.();
     } catch (error) {
@@ -26,11 +39,15 @@ const DeleteClassFormModal = ({ classId, className, onDeleted }) => {
         error?.response?.data?.message ??
         error?.message ??
         "Failed to delete class";
-      message.error(errorMessage);
+      notifyError(
+        key,
+        "Delete failed",
+        errorMessage
+      );
     } finally {
       setDeleting(false);
     }
-  }, [classId, onDeleted]);
+  }, [classId, className, onDeleted, notifyError, notifyPending, notifySuccess]);
 
   return (
     <>

@@ -27,6 +27,7 @@ import Footer from "../vn.fpt.edu.common/footer";
 import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
+import { NotificationProvider } from "../vn.fpt.edu.common/notifications";
 function RequireAuth({ children }) {
   const { user, initializing } = useAuth();
   // nếu vẫn đang khởi tạo (tùy implementation) thì render loading hoặc null để tránh redirect false
@@ -67,8 +68,9 @@ export default function App() {
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <AuthProvider>
-        <Router>
-          <Routes>
+        <NotificationProvider>
+          <Router>
+            <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminPage />} />
 
@@ -103,8 +105,9 @@ export default function App() {
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
+            </Routes>
+          </Router>
+        </NotificationProvider>
       </AuthProvider>
     </GoogleOAuthProvider>
   );
