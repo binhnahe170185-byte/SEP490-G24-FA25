@@ -10,7 +10,6 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import AuthProvider, { useAuth } from "../vn.fpt.edu.pages/login/AuthContext";
 import LoginPage from "../vn.fpt.edu.pages/login/LoginPage";
-import StudentList from "../vn.fpt.edu.pages/student/studentTable/StudentList";
 import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyTimetable";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import ClassPage from "../vn.fpt.edu.pages/manager/ClassManage";
@@ -71,40 +70,39 @@ export default function App() {
         <NotificationProvider>
           <Router>
             <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
 
 
-            <Route element={<ProtectedLayout />}>
-              <Route path="/" element={<Home />} />
-              <Route path="/studentTable" element={<StudentList />} />
-              <Route path="/student/grades" element={<StudentGradeReport />} />
-              <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
-              {/* <Route path="/admin" element={<AdminPage />} /> */}
+              <Route element={<ProtectedLayout />}>
+                <Route path="/" element={<Home />} />
+                <Route path="/student/grades" element={<StudentGradeReport />} />
+                <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
+                {/* <Route path="/admin" element={<AdminPage />} /> */}
 
-              <Route
-                path="/manager/*"
-                element={
-                  <RequireManager>
-                    <ManagerLayout />
-                  </RequireManager>
-                }
-              >
-                <Route index element={<ClassPage />} />
-                <Route path="class" element={<ClassPage />} />
-                <Route path="class/:classId" element={<ClassDetail />} />
-                <Route path="subject" element={<SubjectPage />} />
-                <Route path="subject/create" element={<CreateSubject />} />
-                <Route path="subject/edit/:subjectId" element={<EditSubject />} />
-                <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
-                <Route path="materials" element={<MaterialList />} />
-                <Route path="grades" element={<GradeManage />} />
-                <Route path="grades/:courseId" element={<GradeDetails />} />
-                <Route path="grades/enter/:courseId" element={<GradeEntry />} />
+                <Route
+                  path="/manager/*"
+                  element={
+                    <RequireManager>
+                      <ManagerLayout />
+                    </RequireManager>
+                  }
+                >
+                  <Route index element={<ClassPage />} />
+                  <Route path="class" element={<ClassPage />} />
+                  <Route path="class/:classId" element={<ClassDetail />} />
+                  <Route path="subject" element={<SubjectPage />} />
+                  <Route path="subject/create" element={<CreateSubject />} />
+                  <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                  <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
+                  <Route path="materials" element={<MaterialList />} />
+                  <Route path="grades" element={<GradeManage />} />
+                  <Route path="grades/:courseId" element={<GradeDetails />} />
+                  <Route path="grades/enter/:courseId" element={<GradeEntry />} />
+                </Route>
               </Route>
-            </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
         </NotificationProvider>
