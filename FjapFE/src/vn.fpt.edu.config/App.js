@@ -9,6 +9,7 @@ import {
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import AuthProvider, { useAuth } from "../vn.fpt.edu.pages/login/AuthContext";
+import { useLocation } from "react-router-dom";
 import LoginPage from "../vn.fpt.edu.pages/login/LoginPage";
 import StudentList from "../vn.fpt.edu.pages/student/studentTable/StudentList";
 import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyTimetable";
@@ -54,9 +55,12 @@ function RequireStaffAcademic({ children }) {
 }
 
 function ProtectedLayout() {
+  const location = useLocation();
+  const hideHeader = location.pathname.startsWith("/staffAcademic");
+
   return (
     <RequireAuth>
-      <Header />
+      {!hideHeader && <Header />}
       <Outlet />
       <Footer />
     </RequireAuth>

@@ -42,7 +42,7 @@ const Header = ({ title }) => {
             marginRight: 10,
           }}
         />
-        <span style={{ fontWeight: "bold", fontSize: 18 }}>{title}</span>
+        {title ? <span style={{ fontWeight: "bold", fontSize: 18 }}>{title}</span> : null}
       </div>
 
       {/* Avatar */}

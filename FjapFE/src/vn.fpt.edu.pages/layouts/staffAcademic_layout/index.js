@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
-import Header from "../manager-layout/manager-header";
+import StaffHeader from "./staff-header";
 import StaffAcademicSidebar from "./staffAcademic-sidebar";
 
 const layoutStyles = {
@@ -35,7 +35,7 @@ const StaffAcademicLayout = ({ children }) => {
 
   return (
     <div style={layoutStyles}>
-      <Header title="Staff Academic" />
+  <StaffHeader />
 
       <div style={bodyStyles}>
         <aside style={sidebarStyles}>

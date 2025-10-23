@@ -14,14 +14,17 @@ public class MaterialService : IMaterialService
     }
 
     public async Task<IEnumerable<Material>> GetAllAsync()
-        => await _materialRepository.GetAllAsync(orderBy: q => q.OrderByDescending(m => m.CreateAt));
+    => await _materialRepository.GetAllAsync(
+           orderBy: q => q.OrderByDescending(m => m.CreateAt),
+           includeProperties: "Subject",       
+           noTracking: true);
 
     public Task<Material?> GetByIdAsync(int id) => _materialRepository.GetByIdAsync(id);
 
     public Task<Material?> GetDetailAsync(int id) => _materialRepository.GetDetailAsync(id);
 
-    public async Task<IEnumerable<Material>> GetByLessonAsync(int lessonId)
-        => await _materialRepository.GetAllAsync(predicate: m => m.UserId == lessonId);
+    //public async Task<IEnumerable<Material>> GetByLessonAsync(int lessonId)
+    //    => await _materialRepository.GetAllAsync(predicate: m => m.UserId == lessonId);
 
     public async Task<Material> CreateAsync(Material material)
     {
@@ -47,8 +50,16 @@ public class MaterialService : IMaterialService
     {
         var existing = await _materialRepository.GetByIdAsync(id);
         if (existing == null) return false;
-        _materialRepository.Remove(existing);
-        await _materialRepository.SaveChangesAsync();
+
+        // Soft delete
+        if (!string.Equals(existing.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
+        {
+            existing.Status = "Inactive";
+            existing.UpdateAt = DateTime.UtcNow;
+            _materialRepository.Update(existing);
+            await _materialRepository.SaveChangesAsync();
+        }
         return true;
     }
+
 }
