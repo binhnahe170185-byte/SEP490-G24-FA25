@@ -29,20 +29,12 @@ const StaffAcademicSidebar = () => {
         <Link to="/staffAcademic/dashboard">Dashboard</Link>
       </Item>
 
-      <SubMenu key="materials" icon={<BookOutlined />} title="Materials">
-        <Item key="/staffAcademic/materials/list">
-          <Link to="/staffAcademic/materials/list">List of Materials</Link>
-        </Item>
-        <Item key="/staffAcademic/materials/detail">
-          <Link to="/staffAcademic/materials/detail">View Material Detail</Link>
-        </Item>
-        <Item key="/staffAcademic/materials/add">
-          <Link to="/staffAcademic/materials/add">Add Material</Link>
-        </Item>
-        <Item key="/staffAcademic/materials/edit">
-          <Link to="/staffAcademic/materials/edit">Edit Material</Link>
-        </Item>
-      </SubMenu>
+      <Item key="/staffAcademic/materials" icon={<BookOutlined />}>
+        <Link to="/staffAcademic/materials">Materials</Link>
+      </Item>
+
+
+  
 
       <SubMenu key="classes" icon={<ReadOutlined />} title="Classes">
         <Item key="/staffAcademic/classes/list">
