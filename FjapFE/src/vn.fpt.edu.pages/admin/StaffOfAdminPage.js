@@ -26,10 +26,11 @@ const COLORS = {
 };
 
 const roleIdFromKey = (key) => {
-  if (key.endsWith(":admin")) return 1;
-  if (key.endsWith(":manager")) return 2;
-  if (key.endsWith(":lecturer")) return 3;
-  if (key.endsWith(":student")) return 4;
+  if (key.endsWith(":admin")) return 1; // Admin
+  if (key.endsWith(":head")) return [5, 2]; // Head roles: 5 (Academic_Head), 2 (Administration_Head)
+  if (key.endsWith(":staff")) return [7, 6]; // Staff roles: 7 (Academic_Staff), 6 (Administration_Staff)
+  if (key.endsWith(":lecturer")) return 3; // Lecturer role: 3
+  if (key.endsWith(":student")) return 4; // Student role: 4
   return undefined;
 };
 
@@ -38,8 +39,9 @@ const ADMIN_MENU = [
     type: "group", label: "USER MANAGEMENT", children: [
       {
         key: "users:list", icon: <TeamOutlined />, label: "View List User", children: [
-          { key: "users:list:admin", label: "View List Head" },
-          { key: "users:list:manager", label: "View List Staff" },
+          { key: "users:list:admin", label: "View List Admin" },
+          { key: "users:list:head", label: "View List Head" },
+          { key: "users:list:staff", label: "View List Staff" },
           { key: "users:list:lecturer", label: "View List Lecturer" },
           { key: "users:list:student", label: "View List Student" },
         ]
@@ -72,9 +74,9 @@ const ADMIN_MENU = [
   },
 ];
 
-export default function AdminPage() {
+export default function StaffOfAdminPage() {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeKey, setActiveKey] = useState("users:list:all");
+  const [activeKey, setActiveKey] = useState("users:list:head");
 
   const renderContent = () => {
     if (activeKey.startsWith("users:list")) {
@@ -82,16 +84,18 @@ export default function AdminPage() {
       const titleMap = {
         undefined: "View List User",
         1: "View List Admin",
-        2: "View List Manager",
+        "5,2": "View List Head",
+        "7,6": "View List Staff", 
         3: "View List Lecturer",
         4: "View List Student",
       };
       // 👇 gán key để mỗi trang là một instance riêng (state filter tách biệt)
+      const roleKey = Array.isArray(roleId) ? roleId.join(',') : roleId;
       return (
         <UsersList
-          key={`users-list-${roleId ?? "all"}`}
+          key={`users-list-${roleKey ?? "all"}`}
           fixedRole={roleId}
-          title={titleMap[roleId] || "View List User"}
+          title={titleMap[roleKey] || "View List User"}
         />
       );
     }

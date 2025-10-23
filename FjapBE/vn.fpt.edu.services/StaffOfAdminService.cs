@@ -7,12 +7,12 @@ using System.Globalization;
 
 namespace FJAP.Services;
 
-public class AdminService : IAdminService
+public class StaffOfAdminService : IStaffOfAdminService
 {
-    private readonly IAdminRepository _adminRepository;
+    private readonly IStaffOfAdminRepository _adminRepository;
     private readonly FjapDbContext _db; // cần để validate role/enum khi import
 
-    public AdminService(IAdminRepository adminRepository, FjapDbContext db)
+    public StaffOfAdminService(IStaffOfAdminRepository adminRepository, FjapDbContext db)
     {
         _adminRepository = adminRepository;
         _db = db;

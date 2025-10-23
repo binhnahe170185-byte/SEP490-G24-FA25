@@ -21,7 +21,7 @@ import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
 import MaterialList from "../vn.fpt.edu.pages/manager/materials/MaterialList";
 import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
 import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDetail";
-import AdminPage from "../vn.fpt.edu.pages/admin/AdminPage";
+import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
@@ -72,7 +72,7 @@ export default function App() {
           <Router>
             <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
 
 
             <Route element={<ProtectedLayout />}>

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using FJAP.vn.fpt.edu.models;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
@@ -22,6 +21,8 @@ public partial class FjapDbContext : DbContext
     public virtual DbSet<Attendance> Attendances { get; set; }
 
     public virtual DbSet<Class> Classes { get; set; }
+
+    public virtual DbSet<Department> Departments { get; set; }
 
     public virtual DbSet<Grade> Grades { get; set; }
 
@@ -63,7 +64,7 @@ public partial class FjapDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseMySql("server=localhost;database=fjap;user=root;password=123456", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.29-mysql"));
+        => optionsBuilder.UseMySql("server=127.0.0.1;port=3306;database=fjap;user=root;password=123456;sslmode=None;allowpublickeyretrieval=True", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.22-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -166,6 +167,18 @@ public partial class FjapDbContext : DbContext
                 .HasForeignKey(d => d.SubjectId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_class_subject1");
+        });
+
+        modelBuilder.Entity<Department>(entity =>
+        {
+            entity.HasKey(e => e.DepartmentId).HasName("PRIMARY");
+
+            entity.ToTable("department");
+
+            entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+            entity.Property(e => e.DepartmentName)
+                .HasMaxLength(45)
+                .HasColumnName("department_name");
         });
 
         modelBuilder.Entity<Grade>(entity =>
@@ -746,6 +759,8 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("user");
 
+            entity.HasIndex(e => e.DepartmentId, "fk_user_department1_idx");
+
             entity.HasIndex(e => e.RoleId, "idx_user_role");
 
             entity.HasIndex(e => e.Email, "uk_user_email").IsUnique();
@@ -759,6 +774,7 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.Avatar)
                 .HasMaxLength(255)
                 .HasColumnName("avatar");
+            entity.Property(e => e.DepartmentId).HasColumnName("department_id");
             entity.Property(e => e.Dob).HasColumnName("dob");
             entity.Property(e => e.Email)
                 .HasMaxLength(100)
@@ -780,6 +796,10 @@ public partial class FjapDbContext : DbContext
                 .HasDefaultValueSql("'Active'")
                 .HasColumnType("enum('Active','Inactive')")
                 .HasColumnName("status");
+
+            entity.HasOne(d => d.Department).WithMany(p => p.Users)
+                .HasForeignKey(d => d.DepartmentId)
+                .HasConstraintName("fk_user_department1");
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
                 .HasForeignKey(d => d.RoleId)

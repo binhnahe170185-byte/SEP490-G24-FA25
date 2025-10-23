@@ -2,7 +2,7 @@
 
 namespace FJAP.Services.Interfaces;
 
-public interface IAdminService
+public interface IStaffOfAdminService
 {
     Task<IEnumerable<User>> GetAllAsync();
     Task<User?> GetByIdAsync(int id);
