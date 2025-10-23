@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Form, Input, Modal, Select, Spin, message } from "antd";
+import { Form, Input, Modal, Select, Spin } from "antd";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
 const normalizeLevels = (levels = []) =>
   levels.map((item, index) => ({
@@ -193,6 +194,8 @@ export default function ClassFormModal({
   fallbackLevels = [],
   fallbackSemesters = [],
 }) {
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } =
+    useNotify();
   const [form] = Form.useForm();
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [options, setOptions] = useState({
@@ -243,10 +246,14 @@ export default function ClassFormModal({
           semesters: normalizeSemesters(fallbackSemesters),
           subjects: [],
         });
-        message.error("Unable to load form options");
+        notifyError(
+          "class-form-load-options",
+          "Load failed",
+          "Unable to load class form options."
+        );
       })
       .finally(() => setLoadingOptions(false));
-  }, [open, fallbackLevels, fallbackSemesters]);
+  }, [open, fallbackLevels, fallbackSemesters, notifyError]);
 
   useEffect(() => {
     if (!open) {
@@ -272,11 +279,15 @@ export default function ClassFormModal({
       })
       .catch((error) => {
         console.error("Failed to load class detail:", error);
-        message.error("Unable to load class details");
+        notifyError(
+          `class-form-load-${classId}`,
+          "Load failed",
+          "Unable to load class details."
+        );
         onCancel?.();
       })
       .finally(() => setLoadingRecord(false));
-  }, [open, isEditMode, classId, form, onCancel]);
+  }, [open, isEditMode, classId, form, onCancel, notifyError]);
 
   useEffect(() => {
     if (!open) {
@@ -302,6 +313,8 @@ export default function ClassFormModal({
   const isLoading = loadingOptions || loadingRecord;
 
   const handleSubmit = async () => {
+    let notifyKey = null;
+    const actionType = isEditMode ? "update" : "create";
     try {
       const values = await form.validateFields();
       const trimmedName = values.name.trim();
@@ -316,7 +329,11 @@ export default function ClassFormModal({
       }
 
       if (isEditMode && !classId) {
-        message.error("Missing class identifier");
+        notifyError(
+          "class-update-missing-id",
+          "Update failed",
+          "Class identifier is missing."
+        );
         return;
       }
 
@@ -325,12 +342,20 @@ export default function ClassFormModal({
       const semesterIdValue = Number(values.semesterId);
 
       if (Number.isNaN(subjectIdValue)) {
-        message.error("Selected subject is invalid");
+        notifyError(
+          "class-form-invalid-subject",
+          "Invalid subject",
+          "Please choose a valid subject."
+        );
         return;
       }
 
       if (Number.isNaN(levelIdValue) || Number.isNaN(semesterIdValue)) {
-        message.error("Selected level or semester is invalid");
+        notifyError(
+          "class-form-invalid-level",
+          "Invalid selection",
+          "Please choose a valid level and semester."
+        );
         return;
       }
 
@@ -344,19 +369,38 @@ export default function ClassFormModal({
       if (isEditMode && classId) {
         const numericId = Number(classId);
         if (Number.isNaN(numericId)) {
-          message.error("Class identifier is invalid");
+          notifyError(
+            "class-update-invalid-id",
+            "Update failed",
+            "Class identifier is invalid."
+          );
           return;
         }
         payload.classId = numericId;
       }
 
+      notifyKey = `class-${actionType}-${isEditMode ? classId : Date.now()}`;
+      notifyPending(
+        notifyKey,
+        isEditMode ? "Updating class" : "Creating class",
+        `Processing ${trimmedName}...`
+      );
+
       setSubmitting(true);
       if (isEditMode && classId) {
         await ClassListApi.update(classId, payload);
-        message.success("Class updated successfully");
+        notifySuccess(
+          notifyKey,
+          "Class updated",
+          `${trimmedName} updated successfully.`
+        );
       } else {
         await ClassListApi.create(payload);
-        message.success("Class created successfully");
+        notifySuccess(
+          notifyKey,
+          "Class created",
+          `${trimmedName} created successfully.`
+        );
       }
       onSuccess?.(payload);
     } catch (error) {
@@ -368,7 +412,11 @@ export default function ClassFormModal({
         error?.response?.data?.message ??
         error?.message ??
         "Unable to save class";
-      message.error(errorMessage);
+      notifyError(
+        notifyKey ?? `class-${actionType}-error`,
+        "Save failed",
+        errorMessage
+      );
     } finally {
       setSubmitting(false);
     }
