@@ -25,31 +25,35 @@ const extractPaged = (body) => {
 };
 
 const AdminApi = {
-  // GET /api/Admin/users
+  // GET /api/StaffOfAdmin/users
   getUsers: (params = {}) =>
-    api.get("/api/Admin/users", { params: clean(params) }).then((res) => {
+    api.get("/api/StaffOfAdmin/users", { params: clean(params) }).then((res) => {
       const body = res?.data ?? res;
       const { total, items } = extractPaged(body);
       return { total, items };
     }),
 
-  // GET /api/Admin/users/enrollment-semesters -> [{ semesterId, name }]
+  // GET /api/StaffOfAdmin/users/enrollment-semesters -> [{ semesterId, name }]
   getEnrollmentSemesters: () =>
-    api.get("/api/Admin/users/enrollment-semesters").then((res) => res?.data ?? []),
+    api.get("/api/StaffOfAdmin/users/enrollment-semesters").then((res) => res?.data ?? []),
+
+  // GET /api/StaffOfAdmin/departments -> [{ departmentId, name }]
+  getDepartments: () =>
+    api.get("/api/StaffOfAdmin/departments").then((res) => res?.data ?? []),
 
   // DETAIL / CRUD
-  getUserById: (id) => api.get(`/api/Admin/users/${id}`).then(unwrap),
-  createUser: (payload) => api.post("/api/Admin/users", payload).then(unwrap),
-  updateUser: (id, payload) => api.put(`/api/Admin/users/${id}`, payload).then(unwrap),
-  deleteUser: (id) => api.delete(`/api/Admin/users/${id}`).then(unwrap),
+  getUserById: (id) => api.get(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
+  createUser: (payload) => api.post("/api/StaffOfAdmin/users", payload).then(unwrap),
+  updateUser: (id, payload) => api.put(`/api/StaffOfAdmin/users/${id}`, payload).then(unwrap),
+  deleteUser: (id) => api.delete(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
 
   setUserStatus: (id, isActive) =>
-    api.patch(`/api/Admin/users/${id}/status`, { isActive }).then(unwrap),
+    api.patch(`/api/StaffOfAdmin/users/${id}/status`, { isActive }).then(unwrap),
 
   importUsers: (file) => {
     const form = new FormData();
     form.append("file", file);
-    return api.post("/api/Admin/users/import", form).then(unwrap);
+    return api.post("/api/StaffOfAdmin/users/import", form).then(unwrap);
   },
 };
 

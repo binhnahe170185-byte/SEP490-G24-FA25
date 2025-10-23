@@ -4,7 +4,7 @@ using FJAP.vn.fpt.edu.models;
 
 namespace FJAP.Repositories.Interfaces;
 
-public interface IAdminRepository
+public interface IStaffOfAdminRepository
 {
     Task<IEnumerable<User>> GetAllUsersAsync();
     Task<User?> GetByIdAsync(int id);

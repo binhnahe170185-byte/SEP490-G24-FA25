@@ -6,11 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FJAP.Repositories;
 
-public class AdminRepository : IAdminRepository
+public class StaffOfAdminRepository : IStaffOfAdminRepository
 {
     private readonly FjapDbContext _context;
 
-    public AdminRepository(FjapDbContext context)
+    public StaffOfAdminRepository(FjapDbContext context)
     {
         _context = context;
     }

@@ -61,8 +61,8 @@ builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISubjectService, SubjectService>();
 
-builder.Services.AddScoped<IAdminRepository, AdminRepository>();
-builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IStaffOfAdminRepository, StaffOfAdminRepository>();
+builder.Services.AddScoped<IStaffOfAdminService, StaffOfAdminService>();
 
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";

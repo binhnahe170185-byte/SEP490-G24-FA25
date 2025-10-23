@@ -7,12 +7,12 @@ namespace FJAP.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AdminController : ControllerBase
+public class StaffOfAdminController : ControllerBase
 {
-    private readonly IAdminService _adminService;
+    private readonly IStaffOfAdminService _adminService;
     private readonly FjapDbContext _db;
 
-    public AdminController(IAdminService adminService, FjapDbContext dbContext)
+    public StaffOfAdminController(IStaffOfAdminService adminService, FjapDbContext dbContext)
     {
         _adminService = adminService;
         _db = dbContext;
@@ -24,18 +24,22 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetUsers(
         [FromQuery] string? search,
         [FromQuery] int? role,
+        [FromQuery] string? roles,
         [FromQuery] string? status,
         [FromQuery] int? semesterId,
+        [FromQuery] int? departmentId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
         if (page <= 0) page = 1;
         if (pageSize <= 0 || pageSize > 100) pageSize = 20;
 
-        // LEFT JOIN student/level/semester theo schema mới
+        // LEFT JOIN student/level/semester/department theo schema mới
         var baseQuery =
             from u in _db.Users.AsNoTracking()
             join r in _db.Roles.AsNoTracking() on u.RoleId equals r.RoleId
+            join d in _db.Departments.AsNoTracking() on u.DepartmentId equals d.DepartmentId into dgrp
+            from d in dgrp.DefaultIfEmpty()
             join s in _db.Students.AsNoTracking() on u.UserId equals s.UserId into sgrp
             from s in sgrp.DefaultIfEmpty()
             join l in _db.Levels.AsNoTracking() on s.LevelId equals l.LevelId into lgrp
@@ -56,6 +60,8 @@ public class AdminController : ControllerBase
                 u.Status,        // user.status
                 RoleId = u.RoleId,
                 RoleName = r.RoleName,
+                DepartmentId = (int?)u.DepartmentId,
+                DepartmentName = d != null ? d.DepartmentName : null,
 
                 // Student-only:
                 StudentId = (int?)s.StudentId,
@@ -75,9 +81,19 @@ public class AdminController : ControllerBase
                 (x.FirstName + " " + x.LastName + " " + x.Email + " " + (x.PhoneNumber ?? "") + " " + (x.StudentCode ?? ""))
                 .Contains(term));
         }
-        if (role is int roleId) baseQuery = baseQuery.Where(x => x.RoleId == roleId);
+        // Handle role filtering - support both single role and multiple roles
+        if (!string.IsNullOrWhiteSpace(roles))
+        {
+            var roleIds = roles.Split(',').Select(int.Parse).ToList();
+            baseQuery = baseQuery.Where(x => roleIds.Contains(x.RoleId));
+        }
+        else if (role is int roleId)
+        {
+            baseQuery = baseQuery.Where(x => x.RoleId == roleId);
+        }
         if (!string.IsNullOrWhiteSpace(status)) baseQuery = baseQuery.Where(x => x.Status == status);
         if (semesterId is int sid) baseQuery = baseQuery.Where(x => x.SemesterId == sid);
+        if (departmentId is int did) baseQuery = baseQuery.Where(x => x.DepartmentId == did);
 
         var total = await baseQuery.CountAsync();
 
@@ -101,6 +117,8 @@ public class AdminController : ControllerBase
             status = x.Status,             // user Active/Inactive
             roleId = x.RoleId,
             roleName = x.RoleName,
+            departmentId = x.DepartmentId,
+            departmentName = x.DepartmentName,
             // Student:
             studentId = x.StudentId,
             studentCode = x.StudentCode,
@@ -188,5 +206,18 @@ public class AdminController : ControllerBase
         .ToListAsync();
 
         return Ok(data.Select(x => new { semesterId = x.SemesterId, name = x.Name }));
+    }
+
+    // ===================== Helper: lấy danh sách Departments cho filter =====================
+    [HttpGet("departments")]
+    public async Task<IActionResult> GetDepartments()
+    {
+        var data = await _db.Departments
+            .AsNoTracking()
+            .OrderBy(x => x.DepartmentName)
+            .Select(x => new { departmentId = x.DepartmentId, name = x.DepartmentName })
+            .ToListAsync();
+
+        return Ok(data);
     }
 }

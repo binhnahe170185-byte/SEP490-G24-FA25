@@ -41,9 +41,11 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     role: fixedRole ?? null,
     status: null,       // "Active" | "Inactive" | null
     semesterId: null,   // chỉ dùng cho Student
+    departmentId: "", // chỉ dùng cho Staff
   });
 
   const [semesterOptions, setSemesterOptions] = useState([]);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
 
   // MODAL hồ sơ (đặt đúng state)
   const [modal, setModal] = useState({ open: false, mode: "view", userId: null, initialUser: null });
@@ -78,7 +80,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
   // reset filter khi đổi trang (role)
   useEffect(() => {
-    setFilters({ search: "", role: fixedRole ?? null, status: null, semesterId: null });
+    setFilters({ search: "", role: fixedRole ?? null, status: null, semesterId: null, departmentId: null });
     setPage(1);
   }, [fixedRole]);
 
@@ -100,28 +102,81 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     }
   }, [fixedRole]);
 
-  const buildParams = () => ({
-    search: filters.search || undefined,
-    role: typeof (fixedRole ?? filters.role) === "number" ? (fixedRole ?? filters.role) : undefined,
-    status: filters.status || undefined,
-    semesterId: fixedRole === 4 ? (filters.semesterId || undefined) : undefined,
-    page,
-    pageSize,
-  });
+  // tải departments khi là Staff (roles 7, 6) hoặc Lecturer (role 3)
+  useEffect(() => {
+    const shouldLoadDepartments = 
+      (Array.isArray(fixedRole) && (fixedRole.includes(7) || fixedRole.includes(6))) || // Staff roles 7,6
+      fixedRole === 3; // Lecturer
+    
+    if (shouldLoadDepartments) {
+      (async () => {
+        try {
+          const data = await AdminApi.getDepartments();
+          const opts = [{ value: "", label: "All departments" }, ...data.map((d) => ({ value: d.departmentId, label: d.name }))];
+          setDepartmentOptions(opts);
+        } catch (error) {
+          console.error("Error loading departments:", error);
+          setDepartmentOptions([{ value: "", label: "All departments" }]);
+        }
+      })();
+    } else {
+      setDepartmentOptions([]);
+      setFilters((p) => ({ ...p, departmentId: "" }));
+    }
+  }, [fixedRole]);
+
+  const buildParams = () => {
+    const params = {
+      search: filters.search || undefined,
+      status: filters.status || undefined,
+      page,
+      pageSize,
+    };
+
+    // Handle role filtering
+    if (Array.isArray(fixedRole)) {
+      // For array roles (head: [2,5], staff: [7,6,3])
+      params.roles = fixedRole.join(',');
+    } else if (typeof fixedRole === "number") {
+      // For single role
+      params.role = fixedRole;
+    } else if (typeof filters.role === "number") {
+      params.role = filters.role;
+    }
+
+    // Add semester filter for students
+    if (fixedRole === 4) {
+      params.semesterId = filters.semesterId || undefined;
+    }
+
+    // Add department filter for staff and lecturer
+    const shouldFilterByDepartment = 
+      (Array.isArray(fixedRole) && (fixedRole.includes(7) || fixedRole.includes(6))) || // Staff roles 7,6
+      fixedRole === 3; // Lecturer
+    
+    if (shouldFilterByDepartment) {
+      params.departmentId = filters.departmentId && filters.departmentId !== "" ? filters.departmentId : undefined;
+    }
+
+    return params;
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const { total, items } = await AdminApi.getUsers(buildParams());
+      const params = buildParams();
+      console.log("Fetching users with params:", params);
+      const { total, items } = await AdminApi.getUsers(params);
+      console.log("Users data received:", { total, items });
       setTotal(total);
       setUsers(normalize(items));
     } catch (e) {
-      console.error(e);
+      console.error("Error fetching users:", e);
       message.error("Không thể tải dữ liệu người dùng");
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.status, filters.semesterId, fixedRole, page, pageSize]);
+  }, [filters.search, filters.status, filters.semesterId, filters.departmentId, fixedRole, page, pageSize]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -232,6 +287,28 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
             allowClear
             style={{ width: 200 }}
             options={semesterOptions}
+          />
+        )}
+
+        {(Array.isArray(fixedRole) && (fixedRole.includes(7) || fixedRole.includes(6))) && (
+          <Select
+            placeholder="All departments"
+            value={filters.departmentId}
+            onChange={(v) => onChangeFilter("departmentId", v ?? null)}
+            allowClear
+            style={{ width: 200 }}
+            options={departmentOptions}
+          />
+        )}
+
+        {fixedRole === 3 && (
+          <Select
+            placeholder="All departments"
+            value={filters.departmentId}
+            onChange={(v) => onChangeFilter("departmentId", v ?? null)}
+            allowClear
+            style={{ width: 200 }}
+            options={departmentOptions}
           />
         )}
 
