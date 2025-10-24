@@ -9,15 +9,18 @@ import {
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import AuthProvider, { useAuth } from "../vn.fpt.edu.pages/login/AuthContext";
+import { useLocation } from "react-router-dom";
 import LoginPage from "../vn.fpt.edu.pages/login/LoginPage";
 import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyTimetable";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
+import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import ClassPage from "../vn.fpt.edu.pages/manager/ClassManage";
 import ClassDetail from "../vn.fpt.edu.pages/manager/ClassManage/ClassDetail";
 import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
 import MaterialList from "../vn.fpt.edu.pages/manager/materials/MaterialList";
+import StaffMaterialList from "../vn.fpt.edu.pages/staff/materials/MaterialList";
 import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
 import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDetail";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
@@ -42,10 +45,23 @@ function RequireManager({ children }) {
   return children;
 }
 
+function RequireStaffAcademic({ children }) {
+  const { user } = useAuth();
+  // assuming staffAcademic roleId is 3 (lecturer) or another value; adapt if different
+  // allow roleId 3 (lecturer/staffAcademic), roleId 2 (manager) and roleId 6 (Administration_Staff)
+  if (!user || (Number(user.roleId) !== 3 && Number(user.roleId) !== 2 && Number(user.roleId) !== 6)) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
 function ProtectedLayout() {
+  const location = useLocation();
+  const hideHeader = location.pathname.startsWith("/staffAcademic");
+
   return (
     <RequireAuth>
-      <Header />
+      {!hideHeader && <Header />}
       <Outlet />
       <Footer />
     </RequireAuth>
@@ -80,27 +96,41 @@ export default function App() {
                 <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
                 {/* <Route path="/admin" element={<AdminPage />} /> */}
 
-                <Route
-                  path="/manager/*"
-                  element={
-                    <RequireManager>
-                      <ManagerLayout />
-                    </RequireManager>
-                  }
-                >
-                  <Route index element={<ClassPage />} />
-                  <Route path="class" element={<ClassPage />} />
-                  <Route path="class/:classId" element={<ClassDetail />} />
-                  <Route path="subject" element={<SubjectPage />} />
-                  <Route path="subject/create" element={<CreateSubject />} />
-                  <Route path="subject/edit/:subjectId" element={<EditSubject />} />
-                  <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
-                  <Route path="materials" element={<MaterialList />} />
-                  <Route path="grades" element={<GradeManage />} />
-                  <Route path="grades/:courseId" element={<GradeDetails />} />
-                  <Route path="grades/enter/:courseId" element={<GradeEntry />} />
-                </Route>
+              <Route
+                path="/manager/*"
+                element={
+                  <RequireManager>
+                    <ManagerLayout />
+                  </RequireManager>
+                }
+              >
+                <Route index element={<ClassPage />} />
+                <Route path="class" element={<ClassPage />} />
+                <Route path="class/:classId" element={<ClassDetail />} />
+                <Route path="subject" element={<SubjectPage />} />
+                <Route path="subject/create" element={<CreateSubject />} />
+                <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
+                <Route path="materials" element={<MaterialList />} />
+                <Route path="grades" element={<GradeManage />} />
+                <Route path="grades/:courseId" element={<GradeDetails />} />
+                <Route path="grades/enter/:courseId" element={<GradeEntry />} />
               </Route>
+
+              <Route
+                path="/staffAcademic/*"
+                element={
+                  <RequireStaffAcademic>
+                    <StaffAcademicLayout />
+                  </RequireStaffAcademic>
+                }
+              >
+                <Route path="dashboard" element={<div style={{ padding: 16 }}><h3>Staff Academic Dashboard (placeholder)</h3></div>} />
+                <Route path="classes" element={<div style={{ padding: 16 }}><h3>Classes (placeholder)</h3></div>} />
+                <Route path="subjects" element={<div style={{ padding: 16 }}><h3>Subjects (placeholder)</h3></div>} />
+                <Route path="materials" element={<StaffMaterialList />} />
+              </Route>
+            </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
