@@ -13,7 +13,8 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
 
   const handleOk = async () => {
     const values = await form.validateFields();
-    onSave({ ...record, ...values, updated: new Date().toISOString().slice(0,10) });
+    // pass raw values to parent; parent will call API with record.id
+    onSave(values);
     form.resetFields();
   };
 

@@ -9,17 +9,8 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
 
   const handleOk = async () => {
     const values = await form.validateFields();
-    const newItem = {
-      id: `MAT${Math.floor(Math.random() * 9000) + 1000}`,
-      name: values.name,
-      subject: values.subject,
-      creator: 'You',
-      created: new Date().toISOString().slice(0,10),
-      updated: new Date().toISOString().slice(0,10),
-      link: values.link || '',
-      status: values.status,
-    };
-    onCreate(newItem);
+    // pass raw form values to parent; parent will call API
+    onCreate(values);
     form.resetFields();
   };
 
