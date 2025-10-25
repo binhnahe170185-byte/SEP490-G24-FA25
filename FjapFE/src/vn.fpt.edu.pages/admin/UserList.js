@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Button, Input, Select, Space, Table, Tooltip, message, Switch, Card } from "antd";
-import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, UserAddOutlined } from "@ant-design/icons";
+import { Button, Input, Select, Space, Table, Tooltip, message, Switch, Card, Modal } from "antd";
+import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, UserAddOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import AdminApi from "../../vn.fpt.edu.api/Admin";
 import UserProfileModal from "./UserProfileModal"; // đúng tên component
 
@@ -52,6 +52,14 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
   const openView = (record) => setModal({ open: true, mode: "view", userId: record.id, initialUser: record });
   const openEdit = (record) => setModal({ open: true, mode: "edit", userId: record.id, initialUser: record });
   const closeModal = () => setModal((d) => ({ ...d, open: false }));
+
+  // MODAL confirm status change
+  const [confirmModal, setConfirmModal] = useState({ 
+    open: false, 
+    record: null, 
+    checked: false, 
+    userName: "" 
+  });
 
   const applyUpdated = (updated) => {
     if (!updated?.userId) return;
@@ -166,13 +174,30 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     try {
       const params = buildParams();
       console.log("Fetching users with params:", params);
-      const { total, items } = await AdminApi.getUsers(params);
+      console.log("API URL:", "/api/StaffOfAdmin/users");
+      
+      const response = await AdminApi.getUsers(params);
+      console.log("Raw API response:", response);
+      
+      const { total, items } = response;
       console.log("Users data received:", { total, items });
-      setTotal(total);
+      
+      if (!items || !Array.isArray(items)) {
+        console.error("Invalid response format:", response);
+        message.error("Dữ liệu không hợp lệ");
+        return;
+      }
+      
+      setTotal(total || 0);
       setUsers(normalize(items));
     } catch (e) {
       console.error("Error fetching users:", e);
-      message.error("Không thể tải dữ liệu người dùng");
+      console.error("Error details:", {
+        message: e.message,
+        status: e.response?.status,
+        data: e.response?.data
+      });
+      message.error(`Không thể tải dữ liệu người dùng: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -185,10 +210,66 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
-  const toggle = (record, checked) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === record.id ? { ...u, status: checked, statusStr: checked ? "Active" : "Inactive" } : u))
-    );
+  const toggle = useCallback(async (record, checked) => {
+    const newStatus = checked ? "Active" : "Inactive";
+    const userName = `${record.firstName} ${record.lastName}`.trim() || record.email;
+    
+    console.log('Toggle called:', { record, checked, userName });
+    
+    // Mở modal confirm trước, không update UI ngay
+    setConfirmModal({
+      open: true,
+      record: record,
+      checked: checked,
+      userName: userName
+    });
+  }, []);
+
+  const handleConfirmStatusChange = async () => {
+    const { record, checked } = confirmModal;
+    const newStatus = checked ? "Active" : "Inactive";
+    
+    try {
+      console.log('Calling API to update status:', { userId: record.id, status: checked });
+      setLoading(true);
+      
+      // Sử dụng updateUser thay vì setUserStatus
+      const updateData = {
+        userId: record.id,
+        firstName: record.firstName,
+        lastName: record.lastName,
+        email: record.email,
+        phoneNumber: record.phone,
+        gender: record.gender,
+        address: record.address,
+        dob: record.dob,
+        roleId: record.roleId,
+        status: newStatus, // Gửi "Active" hoặc "Inactive"
+        departmentId: record.departmentId || null
+      };
+      
+      const response = await AdminApi.updateUser(record.id, updateData);
+      console.log('API Response:', response);
+      
+      // Update UI sau khi API thành công
+      setUsers((prev) =>
+        prev.map((u) => (u.id === record.id ? { ...u, status: checked, statusStr: newStatus } : u))
+      );
+      
+      message.success(`Account has been ${checked ? 'activated' : 'deactivated'} successfully`);
+      setConfirmModal({ open: false, record: null, checked: false, userName: "" });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      message.error("Failed to update account status");
+      setConfirmModal({ open: false, record: null, checked: false, userName: "" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelStatusChange = () => {
+    console.log('User cancelled status change');
+    setConfirmModal({ open: false, record: null, checked: false, userName: "" });
   };
 
   const columns = useMemo(
@@ -204,7 +285,21 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
         title: "Status",
         key: "status",
         render: (_, r) => (
-          <Switch checkedChildren="Active" unCheckedChildren="Inactive" checked={r.status} onChange={(c) => toggle(r, c)} />
+          fixedRole === 1 ? (
+            <span style={{ color: r.status ? "#52c41a" : "#ff4d4f" }}>
+              {r.status ? "Active" : "Inactive"}
+            </span>
+          ) : (
+            <Switch 
+              checkedChildren="Active" 
+              unCheckedChildren="Inactive" 
+              checked={r.status} 
+              onChange={(c) => {
+                console.log('Switch clicked:', { userId: r.id, checked: c, currentStatus: r.status });
+                toggle(r, c);
+              }}
+            />
+          )
         ),
       },
       { title: "DOB", dataIndex: "dob" },
@@ -215,12 +310,14 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
         render: (_, r) => (
           <Space>
             <Tooltip title="View profile"><Button size="small" icon={<EyeOutlined />} onClick={() => openView(r)} /></Tooltip>
-            <Tooltip title="Edit profile"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+            {fixedRole !== 1 && (
+              <Tooltip title="Edit profile"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+            )}
           </Space>
         ),
       },
     ],
-    [page, pageSize]
+    [page, pageSize, fixedRole, toggle]
   );
 
   const exportCsv = () => {
@@ -314,7 +411,9 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
         <Space style={{ marginLeft: "auto" }}>
           <Button icon={<FileExcelOutlined />} onClick={exportCsv}>Export CSV</Button>
-          <Button type="primary" icon={<UserAddOutlined />}>Add User</Button>
+          {fixedRole !== 1 && (
+            <Button type="primary" icon={<UserAddOutlined />}>Add User</Button>
+          )}
         </Space>
       </div>
 
@@ -341,6 +440,56 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
         onClose={closeModal}
         onSaved={applyUpdated}
       />
+
+      {/* Modal confirm status change */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ExclamationCircleOutlined style={{ color: '#faad14', fontSize: '18px' }} />
+            <span>Confirm Status Change</span>
+          </div>
+        }
+        open={confirmModal.open}
+        onOk={handleConfirmStatusChange}
+        onCancel={handleCancelStatusChange}
+        okText="Yes, Change Status"
+        cancelText="Cancel"
+        centered
+        confirmLoading={loading}
+        okButtonProps={{
+          type: 'primary',
+          danger: !confirmModal.checked,
+          style: {
+            backgroundColor: confirmModal.checked ? '#52c41a' : '#ff4d4f',
+            borderColor: confirmModal.checked ? '#52c41a' : '#ff4d4f'
+          }
+        }}
+        cancelButtonProps={{
+          style: { borderColor: '#d9d9d9' }
+        }}
+        width={400}
+      >
+        <div style={{ padding: '16px 0' }}>
+          <p style={{ margin: '0 0 16px 0', fontSize: '16px', lineHeight: '1.5' }}>
+            Are you sure you want to <strong style={{ color: confirmModal.checked ? '#52c41a' : '#ff4d4f' }}>
+              {confirmModal.checked ? 'activate' : 'deactivate'}
+            </strong> the account of <strong>{confirmModal.userName}</strong>?
+          </p>
+          <div style={{ 
+            padding: '12px', 
+            backgroundColor: confirmModal.checked ? '#f6ffed' : '#fff2f0', 
+            border: `1px solid ${confirmModal.checked ? '#b7eb8f' : '#ffccc7'}`,
+            borderRadius: '6px',
+            fontSize: '14px',
+            color: confirmModal.checked ? '#389e0d' : '#cf1322'
+          }}>
+            <strong>Current Status:</strong> {confirmModal.checked ? 'Inactive' : 'Active'} → 
+            <strong style={{ color: confirmModal.checked ? '#52c41a' : '#ff4d4f' }}>
+              {' '}{confirmModal.checked ? 'Active' : 'Inactive'}
+            </strong>
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }

@@ -160,6 +160,9 @@ public class StaffOfAdminController : ControllerBase
     [HttpPut("users/{id:int}")]
     public async Task<IActionResult> Update(int id, User request)
     {
+        Console.WriteLine($"PUT /api/StaffOfAdmin/users/{id}");
+        Console.WriteLine($"Request Status: '{request.Status}'");
+        
         if (id != request.UserId) return BadRequest();
         var ok = await _adminService.UpdateAsync(request);
         if (!ok) return NotFound();

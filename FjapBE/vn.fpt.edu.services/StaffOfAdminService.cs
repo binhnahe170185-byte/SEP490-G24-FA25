@@ -33,8 +33,10 @@ public class StaffOfAdminService : IStaffOfAdminService
 
     public async Task<bool> UpdateAsync(User user)
     {
-        var existing = await _adminRepository.GetByIdAsync(user.UserId);
+        var existing = await _adminRepository.GetByIdForUpdateAsync(user.UserId);
         if (existing == null) return false;
+
+        Console.WriteLine($"Updating user {user.UserId}: Status from '{existing.Status}' to '{user.Status}'");
 
         // map an toàn với schema mới
         existing.FirstName = user.FirstName;
@@ -46,9 +48,14 @@ public class StaffOfAdminService : IStaffOfAdminService
         existing.Address = user.Address;
         existing.Avatar = user.Avatar;
         existing.Dob = user.Dob;        // DateOnly
+        existing.Status = user.Status;    // Update status field
+
+        Console.WriteLine($"After update - Status: '{existing.Status}'");
 
         await _adminRepository.UpdateAsync(existing);
         await _adminRepository.SaveChangesAsync();
+        
+        Console.WriteLine("SaveChanges completed successfully");
         return true;
     }
 

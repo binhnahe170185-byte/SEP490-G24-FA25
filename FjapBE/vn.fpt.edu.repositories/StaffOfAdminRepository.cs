@@ -36,6 +36,12 @@ public class StaffOfAdminRepository : IStaffOfAdminRepository
             .FirstOrDefaultAsync(u => u.UserId == id);
     }
 
+    public async Task<User?> GetByIdForUpdateAsync(int id)
+    {
+        return await _context.Users
+            .FirstOrDefaultAsync(u => u.UserId == id);
+    }
+
     public async Task<bool> ExistsAsync(Expression<Func<User, bool>> predicate)
         => await _context.Users.AnyAsync(predicate);
 
