@@ -416,6 +416,72 @@ public class ClassController : ControllerBase
             return NotFound(new { code = 404, message = "Class not found" });
         }
     }
+    // Add these endpoints to ClassController.cs
+
+/// <summary>
+/// Lấy danh sách lớp kèm thông tin điểm để quản lý
+/// GET: api/manager/classes/with-grades
+/// </summary>
+[HttpGet("with-grades")]
+public async Task<IActionResult> GetClassesWithGrades([FromQuery] ClassGradeFilterRequest? filter)
+{
+    try
+    {
+        var classes = await _classService.GetClassesWithGradesAsync(filter);
+        
+        return Ok(new
+        {
+            code = 200,
+            message = "Success",
+            data = classes
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            code = 500,
+            message = $"Internal server error: {ex.Message}"
+        });
+    }
+}
+
+/// <summary>
+/// Lấy chi tiết lớp với danh sách sinh viên và điểm
+/// GET: api/manager/classes/{classId}/grade-details
+/// </summary>
+[HttpGet("{classId:int}/grade-details")]
+public async Task<IActionResult> GetClassGradeDetails(int classId)
+{
+    try
+    {
+        var details = await _classService.GetClassGradeDetailsAsync(classId);
+        
+        if (details == null)
+        {
+            return NotFound(new
+            {
+                code = 404,
+                message = $"Class with ID {classId} not found or has no subject assigned"
+            });
+        }
+
+        return Ok(new
+        {
+            code = 200,
+            message = "Success",
+            data = details
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            code = 500,
+            message = $"Internal server error: {ex.Message}"
+        });
+    }
+}
 }
 
 public class UpdateClassStatusRequest

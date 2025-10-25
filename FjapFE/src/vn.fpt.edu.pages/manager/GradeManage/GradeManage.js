@@ -1,4 +1,3 @@
-// GradeManage/GradeManage.js
 import React, { useState, useEffect, useCallback } from "react";
 import { Breadcrumb, Button, Spin, message } from "antd";
 import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
@@ -7,14 +6,16 @@ import ManagerGrades from "../../../vn.fpt.edu.api/ManagerGrades";
 import FilterBar from "./FilterBar";
 import CourseGrid from "./CourseGrid";
 
-function GradeManage() {  // ⚠️ Chú ý: function declaration
+function GradeManage() {
   const { user } = useAuth();
   const managerId = user?.managerId || "MOCK_MANAGER_123";
 
   const [filters, setFilters] = useState({
     semester: "All Semesters",
+    semesterId: null,
     status: "All Status",
     level: "All Levels",
+    levelId: null,
     search: ""
   });
 
@@ -25,52 +26,38 @@ function GradeManage() {  // ⚠️ Chú ý: function declaration
   const loadCourses = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await ManagerGrades.getCourses(managerId);
+      // Pass filters to API
+      const data = await ManagerGrades.getCourses(managerId, filters);
       setCourses(data);
       setFilteredCourses(data);
     } catch (error) {
       console.error("Failed to load courses:", error);
-      message.error("Failed to load courses");
+      message.error("Failed to load courses: " + (error.message || "Unknown error"));
     } finally {
       setLoading(false);
     }
-  }, [managerId]);
+  }, [managerId, filters]);
 
   useEffect(() => {
     loadCourses();
   }, [loadCourses]);
 
+  // Client-side filtering for better UX (backend already filters most)
   useEffect(() => {
     let filtered = [...courses];
 
-    if (filters.semester !== "All Semesters") {
-      filtered = filtered.filter(c => c.semester === filters.semester);
-    }
-
-    if (filters.status !== "All Status") {
-      if (filters.status === "100% Complete") {
-        filtered = filtered.filter(c => c.completionPercent === 100);
-      } else if (filters.status === "In Progress") {
-        filtered = filtered.filter(c => c.completionPercent > 0 && c.completionPercent < 100);
-      } else if (filters.status === "Not Started") {
-        filtered = filtered.filter(c => c.completionPercent === 0);
-      }
-    }
-
-    if (filters.level !== "All Levels") {
-      filtered = filtered.filter(c => c.level === filters.level);
-    }
-
+    // Additional client-side search if needed
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(c => 
-        c.courseCode.toLowerCase().includes(searchLower) ||
-        c.courseName.toLowerCase().includes(searchLower)
+        c.courseCode?.toLowerCase().includes(searchLower) ||
+        c.courseName?.toLowerCase().includes(searchLower) ||
+        c.className?.toLowerCase().includes(searchLower)
       );
     }
 
     setFilteredCourses(filtered);
-  }, [filters, courses]);
+  }, [filters.search, courses]);
 
   const handleExportAll = async () => {
     try {
@@ -81,7 +68,7 @@ function GradeManage() {  // ⚠️ Chú ý: function declaration
     } catch (error) {
       message.destroy();
       console.error("Failed to export grades:", error);
-      message.error("Failed to export grades");
+      message.error(error.message || "Failed to export grades");
     }
   };
 
@@ -136,4 +123,4 @@ function GradeManage() {  // ⚠️ Chú ý: function declaration
   );
 }
 
-export default GradeManage; // ✅ Phải có dòng này
+export default GradeManage;
