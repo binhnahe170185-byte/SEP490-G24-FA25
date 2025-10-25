@@ -8,6 +8,7 @@ public interface IStaffOfAdminRepository
 {
     Task<IEnumerable<User>> GetAllUsersAsync();
     Task<User?> GetByIdAsync(int id);
+    Task<User?> GetByIdForUpdateAsync(int id);
 
     // ⬇️ NEW: tiện cho import/check trùng
     Task<bool> ExistsAsync(Expression<Func<User, bool>> predicate);
