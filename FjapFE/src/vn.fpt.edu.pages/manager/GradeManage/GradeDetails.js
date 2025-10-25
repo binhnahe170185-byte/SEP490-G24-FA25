@@ -33,6 +33,7 @@ export default function GradeDetails() {
   
   const [courseDetails, setCourseDetails] = useState(null);
   const [students, setStudents] = useState([]);
+  const [gradeComponentWeights, setGradeComponentWeights] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const managerId = user?.managerId || "MOCK_MANAGER_123";
@@ -43,8 +44,34 @@ export default function GradeDetails() {
     try {
       setLoading(true);
       const data = await ManagerGrades.getCourseDetails(managerId, courseId);
+      console.log("GradeDetails - API Response:", data); // Debug log
+      console.log("GradeDetails - Students data:", data.students); // Debug log
+      
       setCourseDetails(data);
-      setStudents(data.students);
+      setGradeComponentWeights(data.gradeComponentWeights || []);
+      
+      // Map student data with dynamic grade components
+      const mappedStudents = data.students.map(s => {
+        const studentData = { ...s };
+        console.log("GradeDetails - Student:", s.studentName, "GradeComponentScores:", s.gradeComponentScores); // Debug log
+        
+        // Map existing grade components to dynamic dataIndex using GradeComponentScores
+        data.gradeComponentWeights?.forEach(weight => {
+          const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+          
+          // Find score from GradeComponentScores
+          const gradeComponentScore = s.gradeComponentScores?.find(gcs => 
+            gcs.subjectGradeTypeId === weight.subjectGradeTypeId
+          );
+          
+          console.log(`GradeDetails - Mapping ${weight.gradeTypeName} (${weight.subjectGradeTypeId}):`, gradeComponentScore?.score); // Debug log
+          studentData[dataIndex] = gradeComponentScore?.score || null;
+        });
+        
+        return studentData;
+      });
+      
+      setStudents(mappedStudents);
     } catch (error) {
       console.error("Failed to load course details:", error);
       message.error("Failed to load course details");
@@ -93,106 +120,95 @@ export default function GradeDetails() {
     }
   };
 
-  const columns = [
-    {
-      title: "No.",
-      key: "index",
-      width: 60,
-      render: (_, __, index) => index + 1,
-    },
-    {
-      title: "Student ID",
-      dataIndex: "studentId",
-      key: "studentId",
-      width: 120,
-    },
-    {
-      title: "Student Name",
-      dataIndex: "studentName",
-      key: "studentName",
-      width: 200,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      width: 220,
-    },
-    {
-      title: "Participation",
-      dataIndex: "participation",
-      key: "participation",
-      width: 120,
-      align: "center",
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "Assignment",
-      dataIndex: "assignment",
-      key: "assignment",
-      width: 120,
-      align: "center",
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "PT1",
-      dataIndex: "progressTest1",
-      key: "progressTest1",
-      width: 100,
-      align: "center",
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "PT2",
-      dataIndex: "progressTest2",
-      key: "progressTest2",
-      width: 100,
-      align: "center",
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "Final Exam",
-      dataIndex: "finalExam",
-      key: "finalExam",
-      width: 120,
-      align: "center",
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "Average",
-      dataIndex: "average",
-      key: "average",
-      width: 100,
-      align: "center",
-      render: (value) => (
-        <span style={{ fontWeight: 600, fontSize: 15 }}>
-          {value != null ? value.toFixed(1) : "-"}
-        </span>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 110,
-      align: "center",
-      render: (_, record) => {
-        const avg = parseFloat(record.average);
-        if (!avg || avg === 0) {
-          return <Tag color="default" icon={<ClockCircleOutlined />}>Incomplete</Tag>;
-        }
-        const isPassed = avg >= 5.0;
-        return (
-          <Tag 
-            color={isPassed ? "green" : "red"} 
-            icon={isPassed ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-          >
-            {isPassed ? "Passed" : "Failed"}
-          </Tag>
-        );
+  // Helper function to map grade type names to data indices
+  const getDataIndexForComponent = (gradeTypeName, subjectGradeTypeId) => {
+    // Create a unique dataIndex based on SubjectGradeTypeId to avoid conflicts
+    return `gradeComponent_${subjectGradeTypeId}`;
+  };
+
+  // Generate columns dynamically based on gradeComponentWeights
+  const generateColumns = () => {
+    const baseColumns = [
+      {
+        title: "No.",
+        key: "index",
+        width: 5,
+        render: (_, __, index) => index + 1,
       },
-    },
-  ];
+      {
+        title: "Student ID",
+        dataIndex: "studentId",
+        key: "studentId",
+        width: 120,
+      },
+      {
+        title: "Student Name",
+        dataIndex: "studentName",
+        key: "studentName",
+        width: 200,
+      },
+      {
+        title: "Email",
+        dataIndex: "email",
+        key: "email",
+        width: 220,
+      }
+    ];
+
+    // Add grade component columns dynamically
+    const gradeColumns = gradeComponentWeights.map(weight => {
+      const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+      return {
+        title: `${weight.gradeTypeName} (${weight.weight}%)`,
+        dataIndex: dataIndex,
+        key: dataIndex,
+        width: 150,
+        align: "center",
+        render: (value) => value != null ? value.toFixed(1) : "-",
+      };
+    });
+
+    const endColumns = [
+      {
+        title: "Average",
+        dataIndex: "average",
+        key: "average",
+        width: 100,
+        align: "center",
+        render: (value) => (
+          <span style={{ fontWeight: 600, fontSize: 15 }}>
+            {value != null ? value.toFixed(1) : "-"}
+          </span>
+        ),
+      },
+      {
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
+        width: 110,
+        align: "center",
+        render: (_, record) => {
+          const avg = parseFloat(record.average);
+          if (!avg || avg === 0) {
+            return <Tag color="default" icon={<ClockCircleOutlined />}>Incomplete</Tag>;
+          }
+          const isPassed = avg >= 5.0;
+          return (
+            <Tag 
+              color={isPassed ? "green" : "red"} 
+              icon={isPassed ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+            >
+              {isPassed ? "Passed" : "Failed"}
+            </Tag>
+          );
+        },
+      }
+    ];
+
+    return [...baseColumns, ...gradeColumns, ...endColumns];
+  };
+
+  const columns = generateColumns();
 
   if (loading) {
     return (

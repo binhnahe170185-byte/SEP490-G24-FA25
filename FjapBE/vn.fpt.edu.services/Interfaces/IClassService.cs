@@ -15,4 +15,6 @@ public interface IClassService
     Task<Dictionary<int, int>> GetSubjectEnrollmentCountsAsync(int classId);
     Task<Class> UpdateStatusAsync(string classId, bool status);
     Task<(List<Level> Levels, List<Semester> Semesters, List<Subject> Subjects)> GetFormOptionsAsync();
+    Task<IEnumerable<ClassGradeDto>> GetClassesWithGradesAsync(ClassGradeFilterRequest? filter = null);
+    Task<ClassGradeDetailDto?> GetClassGradeDetailsAsync(int classId);
 }

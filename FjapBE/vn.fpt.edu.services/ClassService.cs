@@ -74,4 +74,13 @@ public class ClassService : IClassService
 
     public Task<(List<Level> Levels, List<Semester> Semesters, List<Subject> Subjects)> GetFormOptionsAsync()
         => _classRepository.GetFormOptionsAsync();
+    public async Task<IEnumerable<ClassGradeDto>> GetClassesWithGradesAsync(ClassGradeFilterRequest? filter = null)
+    {
+        return await _classRepository.GetClassesWithGradesAsync(filter);
+    }
+
+    public async Task<ClassGradeDetailDto?> GetClassGradeDetailsAsync(int classId)
+    {
+        return await _classRepository.GetClassGradeDetailsAsync(classId);
+    }
 }
