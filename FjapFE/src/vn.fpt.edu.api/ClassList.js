@@ -23,6 +23,18 @@ class ClassList {
     return response.data?.data ?? response.data;
   }
 
+  static async getEligibleStudents(classId) {
+    const response = await api.get(`/api/manager/classes/${classId}/eligible-students`);
+    return response.data?.data ?? response.data;
+  }
+
+  static async addStudents(classId, studentIds) {
+    const response = await api.post(`/api/manager/classes/${classId}/students`, {
+      studentIds,
+    });
+    return response.data ?? response;
+  }
+
   static async getFormOptions() {
     const response = await api.get("/api/manager/classes/options");
     return response.data?.data ?? response.data;

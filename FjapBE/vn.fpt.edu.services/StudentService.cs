@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
@@ -49,4 +50,10 @@ public class StudentService : IStudentService
         await _studentRepository.SaveChangesAsync();
         return true;
     }
+
+    public Task<List<Student>> GetEligibleForClassAsync(int classId)
+        => _studentRepository.GetEligibleForClassAsync(classId);
+
+    public Task AddStudentsToClassAsync(int classId, IEnumerable<int> studentIds)
+        => _studentRepository.AddStudentsToClassAsync(classId, studentIds);
 }

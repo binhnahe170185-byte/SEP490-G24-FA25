@@ -11,7 +11,7 @@ import {
   Table,
   Typography,
 } from "antd";
-import { ArrowLeftOutlined, UserOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, UserAddOutlined, UserOutlined } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
@@ -196,9 +196,26 @@ const ClassStudents = () => {
           </Typography.Title>
         </Space>
         {classInfo && (
-          <Typography.Text type="secondary">
-            <Link to={`/manager/class/${classInfo.classId}`}>View class detail</Link>
-          </Typography.Text>
+          <Space>
+            <Typography.Text type="secondary">
+              <Link to={`/manager/class/${classInfo.classId}`}>View class detail</Link>
+            </Typography.Text>
+            <Button
+              type="primary"
+              icon={<UserAddOutlined />}
+              onClick={() =>
+                navigate(`/manager/class/${classInfo.classId}/add-students`, {
+                  state: {
+                    className: classInfo.className,
+                    subjectName: classInfo.subjectName,
+                    subjectCode: classInfo.subjectCode,
+                  },
+                })
+              }
+            >
+              Add students
+            </Button>
+          </Space>
         )}
       </div>
 

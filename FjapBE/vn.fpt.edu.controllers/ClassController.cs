@@ -12,10 +12,12 @@ namespace FJAP.Controllers;
 public class ClassController : ControllerBase
 {
     private readonly IClassService _classService;
+    private readonly IStudentService _studentService;
 
-    public ClassController(IClassService classService)
+    public ClassController(IClassService classService, IStudentService studentService)
     {
         _classService = classService;
+        _studentService = studentService;
     }
 
     [HttpGet]
@@ -316,6 +318,69 @@ public class ClassController : ControllerBase
         return Ok(new { code = 200, data = response });
     }
 
+    [HttpGet("{classId:int}/eligible-students")]
+    public async Task<IActionResult> GetEligibleStudents(int classId)
+    {
+        var cls = await _classService.GetByIdAsync(classId);
+        if (cls == null) return NotFound(new { code = 404, message = "Class not found" });
+
+        var students = await _studentService.GetEligibleForClassAsync(classId);
+
+        var data = students.Select(student =>
+        {
+            var user = student.User;
+            var firstName = user?.FirstName?.Trim() ?? string.Empty;
+            var lastName = user?.LastName?.Trim() ?? string.Empty;
+            var fullName = string.Join(" ", new[] { firstName, lastName }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+            return new
+            {
+                student_id = student.StudentId,
+                studentId = student.StudentId,
+                student_code = student.StudentCode,
+                studentCode = student.StudentCode,
+                level_id = student.LevelId,
+                levelId = student.LevelId,
+                first_name = firstName,
+                firstName,
+                last_name = lastName,
+                lastName,
+                full_name = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                fullName = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                email = user?.Email,
+                avatar = user?.Avatar
+            };
+        }).ToList();
+
+        return Ok(new { code = 200, data });
+    }
+
+    [HttpPost("{classId:int}/students")]
+    public async Task<IActionResult> AddStudents(int classId, [FromBody] AddStudentsRequest request)
+    {
+        if (request?.StudentIds == null || request.StudentIds.Count == 0)
+        {
+            return BadRequest(new { code = 400, message = "No students provided" });
+        }
+
+        var cls = await _classService.GetByIdAsync(classId);
+        if (cls == null)
+        {
+            return NotFound(new { code = 404, message = "Class not found" });
+        }
+
+        try
+        {
+            await _studentService.AddStudentsToClassAsync(classId, request.StudentIds);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { code = 404, message = "Class not found" });
+        }
+
+        return Ok(new { code = 200, message = "Students added to class" });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(Class request)
     {
@@ -588,6 +653,11 @@ public async Task<IActionResult> GetClassGradeDetails(int classId)
 public class UpdateClassStatusRequest
 {
     public bool Status { get; set; }
+}
+
+public class AddStudentsRequest
+{
+    public List<int> StudentIds { get; set; } = new();
 }
 
 
