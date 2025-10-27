@@ -21,7 +21,7 @@ import ClassAddStudents from "../vn.fpt.edu.pages/manager/ClassManage/ClassAddSt
 import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
-import MaterialList from "../vn.fpt.edu.pages/manager/materials/MaterialList";
+// import MaterialList from "../vn.fpt.edu.pages/manager/materials/MaterialList"; // Removed - materials moved to staff
 import StaffMaterialList from "../vn.fpt.edu.pages/staff/materials/MaterialList";
 import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
 import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDetail";
@@ -115,7 +115,7 @@ export default function App() {
                 <Route path="subject/create" element={<CreateSubject />} />
                 <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                 <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
-                <Route path="materials" element={<MaterialList />} />
+                {/* <Route path="materials" element={<MaterialList />} /> */} {/* Removed - materials moved to staff */}
                 <Route path="grades" element={<GradeManage />} />
                 <Route path="grades/:courseId" element={<GradeDetails />} />
                 <Route path="grades/enter/:courseId" element={<GradeEntry />} />

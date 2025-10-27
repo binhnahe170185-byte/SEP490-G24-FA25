@@ -41,29 +41,18 @@ export default function MaterialList() {
   const fetchMaterials = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getMaterials({ page: 1, pageSize: 100, search, subject: subjectFilter });
-      const items = res.items || [];
-      // If creator is an id (number), resolve to user email for display
-      try {
-        const creatorIds = Array.from(new Set(items.map((it) => it.creator).filter((c) => c !== null && c !== undefined && (typeof c === 'number' || (!isNaN(Number(c)) && String(c).trim() !== '')))));
-        if (creatorIds.length > 0) {
-          const userPromises = creatorIds.map((id) => AdminApi.getUserById(id).catch(() => null));
-          const users = await Promise.all(userPromises);
-          const map = Object.fromEntries(users.filter(Boolean).map((u) => [u.userId || u.id || u.user_id || u.id, u.email || u.emailAddress || u.userEmail || u.email]));
-          // replace creator id with email when found
-          items.forEach((it) => {
-            if (it.creator !== null && it.creator !== undefined) {
-              const key = it.creator;
-              const email = map[key];
-              if (email) it.creator = email;
-            }
-          });
-        }
-      } catch (e) {
-        // ignore user-resolving errors
-        console.warn('Failed to resolve creator emails', e);
+      // Tìm subjectCode từ subjectId để gửi đúng parameter cho backend
+      let subjectCode = null;
+      if (subjectFilter) {
+        const selectedSubject = subjects.find(s => (s.subjectId || s.id) === subjectFilter);
+        subjectCode = selectedSubject?.subjectCode || selectedSubject?.code;
+        console.log('MaterialList - Selected subject:', selectedSubject, 'subjectCode:', subjectCode);
       }
-
+      
+      const res = await getMaterials({ search, subject: subjectCode });
+      const items = res.items || [];
+      console.log('MaterialList - Materials loaded:', items);
+      console.log('MaterialList - Current subjectFilter:', subjectFilter, 'subjectCode sent:', subjectCode);
       setData(items);
     } catch (e) {
       console.error(e);
@@ -71,7 +60,7 @@ export default function MaterialList() {
     } finally {
       setLoading(false);
     }
-  }, [search, subjectFilter]);
+  }, [search, subjectFilter, subjects]);
 
   useEffect(() => {
     fetchMaterials();
@@ -81,9 +70,10 @@ export default function MaterialList() {
     (async () => {
       try {
         const s = await getSubjects();
+        console.log('MaterialList - Subjects loaded:', s);
         setSubjects(s || []);
       } catch (e) {
-        // ignore
+        console.error('Failed to load subjects in MaterialList:', e);
       }
     })();
   }, []);
@@ -107,40 +97,53 @@ export default function MaterialList() {
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space>
         <Button icon={<EyeOutlined />} onClick={() => setDetail(r)} />
-        <Button icon={<EditOutlined />} onClick={() => setEditing(r)} />
-        <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)} />
+        {r.status === 'active' && (
+          <Button icon={<EditOutlined />} onClick={() => setEditing(r)} />
+        )}
+        {r.status !== 'inActive' && (
+          <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)} />
+        )}
       </Space>
     )},
   ];
 
   const filtered = data.filter((d) => {
     if (search && !(`${d.title || d.name} ${d.id || d.materialId} ${d.subjectCode || d.subject}`.toLowerCase().includes(search.toLowerCase()))) return false;
-    if (subjectFilter && (d.subjectCode || d.subject) !== subjectFilter) return false;
-    return true;
+    return true; // Không cần filter ở frontend nữa vì đã filter ở backend
   });
 
   const handleCreate = async (values) => {
     try {
-      await createMaterial({ materialName: values.name || values.materialName, description: values.description, link: values.link, status: values.status });
-      message.success('Created');
+      await createMaterial({ 
+        title: values.name || values.materialName, 
+        description: values.description, 
+        fileUrl: values.link, 
+        subjectId: values.subject
+      });
+      message.success('Tạo thành công');
       setShowCreate(false);
       fetchMaterials();
     } catch (e) {
       console.error(e);
-      message.error('Create failed');
+      message.error('Tạo thất bại');
     }
   };
 
   const handleSave = async (values) => {
     try {
       const id = editing.id || editing.materialId;
-      await updateMaterial(id, { materialName: values.name || values.materialName, description: values.description, link: values.link, status: values.status });
-      message.success('Updated');
+      await updateMaterial(id, { 
+        title: values.name || values.materialName, 
+        description: values.description, 
+        fileUrl: values.link, 
+        subjectId: values.subject
+      });
+      message.success('Cập nhật thành công');
       setEditing(null);
       fetchMaterials();
     } catch (e) {
       console.error(e);
-      message.error('Update failed');
+      message.error('Cập nhật thất bại');
     }
   };
 
@@ -150,8 +153,22 @@ export default function MaterialList() {
         <Space style={{ width: '100%', marginBottom: 12, justifyContent: 'space-between' }}>
           <Space>
             <Input.Search placeholder="Search materials..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240 }} />
-            <Select placeholder="All Subjects" allowClear style={{ width: 160 }} value={subjectFilter} onChange={setSubjectFilter}>
-              {subjects.map((s) => <Option key={s.code || s.subjectCode || s.id} value={s.code || s.subjectCode || s.id}>{s.name || s.code || s.subjectCode}</Option>)}
+            <Select 
+              placeholder="All Subjects" 
+              allowClear 
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              style={{ width: 160 }} 
+              value={subjectFilter} 
+              onChange={setSubjectFilter}
+            >
+              {subjects.map((s) => (
+                <Option key={s.subjectId || s.id} value={s.subjectId || s.id}>
+                  {s.subjectCode || s.code}
+                </Option>
+              ))}
             </Select>
           </Space>
 
@@ -164,7 +181,7 @@ export default function MaterialList() {
         {/* Confirmation modal for delete (soft-delete) */}
         {deleting && (
           <Modal
-            title="Delete Material"
+            title="Deactivate Material"
             open={!!deleting}
             visible={!!deleting}
             onCancel={() => { if (!deletingInProgress) setDeleting(null); }}
@@ -191,7 +208,7 @@ export default function MaterialList() {
             okButtonProps={{ danger: true, loading: deletingInProgress, disabled: deletingInProgress }}
             cancelButtonProps={{ disabled: deletingInProgress }}
           >
-            <p>Are you sure you want to delete this material? This action cannot be undone.</p>
+            <p>Are you sure you want to deactivate this material? This will set the material status to Inactive.</p>
             {deleting.record && (
               <p style={{ marginTop: 8 }}><strong>{deleting.record.title || deleting.record.name}</strong></p>
             )}

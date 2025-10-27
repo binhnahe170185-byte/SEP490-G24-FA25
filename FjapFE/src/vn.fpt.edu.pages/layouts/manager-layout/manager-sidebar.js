@@ -5,7 +5,7 @@ import {
   DashboardOutlined,
   BookOutlined,
   ReadOutlined,
-  FileOutlined,
+  // FileOutlined, // Removed - materials moved to staff
 } from '@ant-design/icons';
 
 const ManagerSidebar = () => {
@@ -27,11 +27,11 @@ const ManagerSidebar = () => {
       icon: <ReadOutlined />,
       label: <Link to="/manager/subject">List Subject</Link>,
     },
-            {
-      key: '/manager/materials', 
-      icon: <FileOutlined />, 
-      label: <Link to="/manager/materials">Materials</Link>, 
-    },
+    // {
+    //   key: '/manager/materials', 
+    //   icon: <FileOutlined />, 
+    //   label: <Link to="/manager/materials">Materials</Link>, 
+    // }, // Removed - materials moved to staff
     {
       key: "/manager/grades",
       icon: <ReadOutlined />,
