@@ -120,4 +120,72 @@ namespace FJAP.vn.fpt.edu.models
         public decimal? Score { get; set; }
         public string? Comment { get; set; }
     }
+
+    // ==================== DTOs for Student Grade Views ====================
+    
+    /// <summary>
+    /// DTO cho semester của sinh viên
+    /// </summary>
+    public class StudentSemesterDto
+    {
+        public int SemesterId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho môn học và điểm của sinh viên trong một semester
+    /// </summary>
+    public class StudentCourseGradeDto
+    {
+        public int CourseId { get; set; }
+        public string SubjectCode { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public string ClassCode { get; set; } = string.Empty;
+        public decimal? Average { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string GradeStatus { get; set; } = string.Empty;
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int ClassId { get; set; }
+        public int SubjectId { get; set; }
+        public int GradeId { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho chi tiết điểm của sinh viên (dùng lại GradeDetailDto nhưng đơn giản hóa)
+    /// </summary>
+    public class StudentGradeDetailDto
+    {
+        public string SubjectCode { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+        public decimal? Average { get; set; }
+        public string Status { get; set; } = string.Empty;
+        
+        public List<StudentGradeComponentDto> GradeComponents { get; set; } = new();
+    }
+
+    /// <summary>
+    /// DTO cho thành phần điểm của sinh viên (đơn giản hóa từ GradeComponentDto)
+    /// </summary>
+    public class StudentGradeComponentDto
+    {
+        public string ComponentName { get; set; } = string.Empty;
+        public decimal Weight { get; set; }
+        public decimal? Value { get; set; }
+        public string? Comment { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho GPA của semester
+    /// </summary>
+    public class SemesterGPADto
+    {
+        public decimal GPA { get; set; }
+        public int TotalCourses { get; set; }
+        public int PassedCourses { get; set; }
+        public int FailedCourses { get; set; }
+    }
 }

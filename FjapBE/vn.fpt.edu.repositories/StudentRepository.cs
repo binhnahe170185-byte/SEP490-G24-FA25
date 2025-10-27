@@ -28,7 +28,7 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             .Include(s => s.Classes)
             .ToListAsync();
     }
-    // get ra d? li?u c?a lesson d?a v�o studentId
+    // get ra d? li?u c?a lesson d?a v�o studentId
     public async Task<IEnumerable<LessonDto>> GetLessonsByStudentIdAsync(int studentId)
     {
         FormattableString sql = $@"
@@ -130,5 +130,131 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
         }
 
         await _context.SaveChangesAsync();
+    }
+    /// Lấy danh sách semester mà sinh viên đã học
+    public async Task<IEnumerable<StudentSemesterDto>> GetStudentSemestersAsync(int studentId)
+    {
+        var semesters = await _context.Classes
+            .Where(c => c.Students.Any(s => s.StudentId == studentId))
+            .Include(c => c.Semester)
+            .Where(c => c.Semester != null)
+            .Select(c => c.Semester!)
+            .Distinct()
+            .OrderByDescending(s => s.StartDate)
+            .Select(s => new StudentSemesterDto
+            {
+                SemesterId = s.SemesterId,
+                Name = s.Name,
+                StartDate = s.StartDate.ToDateTime(TimeOnly.MinValue),
+                EndDate = s.EndDate.ToDateTime(TimeOnly.MinValue)
+            })
+            .ToListAsync();
+
+        return semesters;
+    }
+
+    /// Lấy danh sách môn học và điểm của sinh viên trong một semester
+    public async Task<IEnumerable<StudentCourseGradeDto>> GetStudentCoursesBySemesterAsync(int studentId, int semesterId)
+    {
+        var courses = await _context.Classes
+            .Include(c => c.Subject)
+            .Include(c => c.Semester)
+            .Where(c => c.SemesterId == semesterId && c.Students.Any(st => st.StudentId == studentId))
+            .Select(c => new
+            {
+                Class = c,
+                Grade = _context.Grades
+                    .FirstOrDefault(g => g.SubjectId == c.SubjectId && g.StudentId == studentId)
+            })
+            .Select(x => new StudentCourseGradeDto
+            {
+                CourseId = x.Class.ClassId,
+                SubjectCode = x.Class.Subject.SubjectCode,
+                SubjectName = x.Class.Subject.SubjectName,
+                ClassName = x.Class.ClassName,
+                ClassCode = x.Class.ClassName, // Dùng ClassName thay cho ClassCode
+                Average = x.Grade != null ? x.Grade.FinalScore : null,
+                Status = "Showing",
+                GradeStatus = x.Grade != null ? x.Grade.Status ?? "In Progress" : "Not Started",
+                // Lấy StartDate và EndDate từ Semester thay vì từ Class
+                StartDate = x.Class.Semester.StartDate.ToDateTime(TimeOnly.MinValue),
+                EndDate = x.Class.Semester.EndDate.ToDateTime(TimeOnly.MinValue),
+                ClassId = x.Class.ClassId,
+                SubjectId = x.Class.SubjectId,
+                GradeId = x.Grade != null ? x.Grade.GradeId : 0
+            })
+            .ToListAsync();
+
+        return courses;
+    }
+
+    /// Lấy chi tiết điểm của sinh viên cho một môn học cụ thể
+    public async Task<StudentGradeDetailDto?> GetStudentGradeDetailsAsync(int studentId, int classId)
+    {
+        var classInfo = await _context.Classes
+            .Include(c => c.Subject)
+            .FirstOrDefaultAsync(c => c.ClassId == classId);
+
+        if (classInfo == null) return null;
+
+        var grade = await _context.Grades
+            .Include(g => g.GradeTypes)
+                .ThenInclude(gt => gt.SubjectGradeType)
+            .FirstOrDefaultAsync(g => g.StudentId == studentId && g.SubjectId == classInfo.SubjectId);
+
+        if (grade == null) return null;
+
+        // Map từ GradeTypes collection sang DTO
+        var gradeComponents = grade.GradeTypes.Select(gt => new StudentGradeComponentDto
+        {
+            ComponentName = gt.SubjectGradeType.GradeTypeName,
+            Weight = gt.SubjectGradeType.Weight,
+            Value = gt.Score,
+            Comment = gt.Comment
+        }).ToList();
+
+        return new StudentGradeDetailDto
+        {
+            SubjectCode = classInfo.Subject.SubjectCode,
+            SubjectName = classInfo.Subject.SubjectName,
+            Average = grade.FinalScore,
+            Status = grade.Status ?? "In Progress",
+            GradeComponents = gradeComponents
+        };
+    }
+
+    /// lấy GPA của sinh viên trong một semester
+    public async Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId)
+    {
+        var courses = await GetStudentCoursesBySemesterAsync(studentId, semesterId);
+        var coursesList = courses.ToList();
+
+        if (!coursesList.Any())
+        {
+            return new SemesterGPADto
+            {
+                GPA = 0,
+                TotalCourses = 0,
+                PassedCourses = 0,
+                FailedCourses = 0
+            };
+        }
+
+        var completedCourses = coursesList.Where(c => c.Average.HasValue).ToList();
+        var totalCourses = completedCourses.Count;
+        var passedCourses = completedCourses.Count(c => c.Average >= 5.0m);
+        var failedCourses = totalCourses - passedCourses;
+
+        var average = completedCourses.Any() 
+            ? completedCourses.Average(c => c.Average ?? 0m) 
+            : 0m;
+
+        return new SemesterGPADto
+        {
+            GPA = average,
+            TotalCourses = totalCourses,
+            PassedCourses = passedCourses,
+            FailedCourses = failedCourses
+        };
     }
 }

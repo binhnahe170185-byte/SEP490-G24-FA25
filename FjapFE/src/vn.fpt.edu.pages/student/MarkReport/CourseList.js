@@ -9,7 +9,7 @@ export default function CourseList({ courses, selectedCourse, onSelectCourse, se
         <div>
           <div style={{ fontSize: 16, fontWeight: 600 }}>Select course</div>
           <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 400 }}>
-            {semester?.season} {semester?.year}
+            {semester?.name}
           </div>
         </div>
       }
@@ -49,7 +49,14 @@ export default function CourseList({ courses, selectedCourse, onSelectCourse, se
                     <CheckCircleOutlined /> {course.status}
                   </Tag>
                 )}
-                <Tag color={course.gradeStatus === "Passed" ? "success" : "error"} style={{ margin: 0 }}>
+                <Tag 
+                  color={
+                    course.gradeStatus === "Completed" ? "success" : 
+                    course.gradeStatus === "Failed" ? "error" : 
+                    "default"
+                  } 
+                  style={{ margin: 0 }}
+                >
                   {course.gradeStatus}
                 </Tag>
               </div>
@@ -58,7 +65,7 @@ export default function CourseList({ courses, selectedCourse, onSelectCourse, se
               </div>
               <div style={{ fontSize: 12, color: "#8c8c8c" }}>
                 <div>👥 {course.className} - {course.classCode}</div>
-                <div>📊 Average: {course.average.toFixed(1)}</div>
+                <div>📊 Average: {course.average !== null && course.average !== undefined ? course.average.toFixed(1) : "N/A"}</div>
                 {course.startDate && course.endDate && (
                   <div>📅 {new Date(course.startDate).toLocaleDateString()} - {new Date(course.endDate).toLocaleDateString()}</div>
                 )}

@@ -56,4 +56,16 @@ public class StudentService : IStudentService
 
     public Task AddStudentsToClassAsync(int classId, IEnumerable<int> studentIds)
         => _studentRepository.AddStudentsToClassAsync(classId, studentIds);
+
+    public async Task<IEnumerable<StudentSemesterDto>> GetStudentSemestersAsync(int studentId)
+        => await _studentRepository.GetStudentSemestersAsync(studentId);
+
+    public async Task<IEnumerable<StudentCourseGradeDto>> GetStudentCoursesBySemesterAsync(int studentId, int semesterId)
+        => await _studentRepository.GetStudentCoursesBySemesterAsync(studentId, semesterId);
+
+    public async Task<StudentGradeDetailDto?> GetStudentGradeDetailsAsync(int studentId, int classId)
+        => await _studentRepository.GetStudentGradeDetailsAsync(studentId, classId);
+
+    public async Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId)
+        => await _studentRepository.GetStudentSemesterGPAAsync(studentId, semesterId);
 }

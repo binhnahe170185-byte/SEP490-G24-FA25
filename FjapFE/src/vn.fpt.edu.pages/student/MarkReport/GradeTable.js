@@ -67,121 +67,32 @@ export default function GradeTable({ course, studentId }) {
 
     const data = [];
 
-    // Participation
-    if (gradeDetails.participation) {
-      data.push({
-        key: "participation-item",
-        category: "Participation",
-        item: gradeDetails.participation.componentName,
-        weight: gradeDetails.participation.weight,
-        value: gradeDetails.participation.value,
-        comment: gradeDetails.participation.comment || "",
-      });
-      data.push({
-        key: "participation-total",
-        category: "",
-        item: "Total",
-        weight: gradeDetails.participation.weight,
-        value: gradeDetails.participation.value,
-        comment: "",
-      });
-    }
-
-    // Assignment
-    if (gradeDetails.assignment) {
-      data.push({
-        key: "assignment-item",
-        category: "Assignment",
-        item: gradeDetails.assignment.componentName,
-        weight: gradeDetails.assignment.weight,
-        value: gradeDetails.assignment.value,
-        comment: gradeDetails.assignment.comment || "",
-      });
-      data.push({
-        key: "assignment-total",
-        category: "",
-        item: "Total",
-        weight: gradeDetails.assignment.weight,
-        value: gradeDetails.assignment.value,
-        comment: "",
-      });
-    }
-
-    // Progress tests
-    if (gradeDetails.progressTests?.length > 0) {
-      gradeDetails.progressTests.forEach((test, index) => {
+    // Use gradeComponents array from API
+    if (gradeDetails.gradeComponents && gradeDetails.gradeComponents.length > 0) {
+      gradeDetails.gradeComponents.forEach((component, index) => {
         data.push({
-          key: `progress-test-${index}`,
-          category: index === 0 ? "Progress tests" : "",
-          item: test.componentName,
-          weight: test.weight,
-          value: test.value,
-          comment: test.comment || "",
+          key: `component-${index}`,
+          category: "", 
+          item: component.componentName,
+          weight: component.weight,
+          value: component.value,
+          comment: component.comment || "",
         });
-      });
-      
-      const totalWeight = gradeDetails.progressTests.reduce((sum, test) => sum + test.weight, 0);
-      const totalValue = gradeDetails.progressTests.reduce((sum, test) => sum + (test.value || 0), 0) / gradeDetails.progressTests.length;
-      
-      data.push({
-        key: "progress-tests-total",
-        category: "",
-        item: "Total",
-        weight: totalWeight,
-        value: totalValue.toFixed(1),
-        comment: "",
-      });
-    }
-
-    // Final exam
-    if (gradeDetails.finalExam) {
-      data.push({
-        key: "final-exam-item",
-        category: "Final exam",
-        item: gradeDetails.finalExam.componentName,
-        weight: gradeDetails.finalExam.weight,
-        value: gradeDetails.finalExam.value,
-        comment: gradeDetails.finalExam.comment || "",
-      });
-      data.push({
-        key: "final-exam-total",
-        category: "",
-        item: "Total",
-        weight: gradeDetails.finalExam.weight,
-        value: gradeDetails.finalExam.value,
-        comment: "",
-      });
-    }
-
-    // Final exam Resit
-    if (gradeDetails.finalExamResit) {
-      data.push({
-        key: "final-exam-resit-item",
-        category: "Final exam Resit",
-        item: gradeDetails.finalExamResit.componentName,
-        weight: gradeDetails.finalExamResit.weight,
-        value: gradeDetails.finalExamResit.value,
-        comment: gradeDetails.finalExamResit.comment || "",
-      });
-      data.push({
-        key: "final-exam-resit-total",
-        category: "",
-        item: "Total",
-        weight: gradeDetails.finalExamResit.weight,
-        value: gradeDetails.finalExamResit.value,
-        comment: "",
       });
     }
 
     // Course total
-    data.push({
-      key: "course-average",
-      category: "Course total",
-      item: "Average",
-      weight: "",
-      value: gradeDetails.average.toFixed(1),
-      comment: "",
-    });
+    if (gradeDetails.average !== null && gradeDetails.average !== undefined) {
+      data.push({
+        key: "course-average",
+        category: "Course total",
+        item: "Average",
+        weight: "",
+        value: gradeDetails.average.toFixed(1),
+        comment: "",
+      });
+    }
+    
     data.push({
       key: "course-status",
       category: "",
@@ -225,7 +136,11 @@ export default function GradeTable({ course, studentId }) {
             </div>
           </div>
           <Tag 
-            color={gradeDetails.status === "Passed" ? "green" : "red"} 
+            color={
+              gradeDetails.status === "Completed" ? "green" : 
+              gradeDetails.status === "Failed" ? "red" : 
+              "default"
+            } 
             style={{ fontSize: 14, padding: "4px 12px" }}
           >
             {gradeDetails.status}
