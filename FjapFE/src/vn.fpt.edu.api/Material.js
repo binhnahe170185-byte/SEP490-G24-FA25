@@ -15,7 +15,7 @@ export async function getMaterials(params = {}) {
 
   const q = { search, subject, status };
 
-  const res = await api.get("/api/Materials", { params: q });
+  const res = await api.get("/api/materials", { params: q });
   const raw = unwrap(res) || [];
   let items = [];
   if (Array.isArray(raw)) {
@@ -37,24 +37,26 @@ export async function getMaterials(params = {}) {
       // title / name
       title: it.title || '',
       // description
-      description: it.materialDescription || '',
+      description: it.description || '',
       // file path
-      filePath: it.filePath || null,
+      filePath: it.fileUrl || null,
       // subject
       subjectId: it.subjectId || null,
       subjectCode: it.subjectCode || null,
       subjectName: it.subjectName || null,
       // creator
-      createBy: it.createBy || null,
-      createByName: it.createByName || null,
-      creator: it.creatorName || it.createByName || it.createBy || null,
-      updateBy: it.updateBy || null,
-      updateByName: it.updateByName || null,
+      createBy: it.createdBy || null,
+      createByName: it.creatorName || null,
+      creator: it.creatorEmail || it.creatorName || it.createdBy || null,
+      updateBy: it.updatedBy || null,
+      updateByName: it.updatedByName || null,
       // created/updated dates
-      createAt: it.createAt || null,
-      updateAt: it.updateAt || null,
-      createdDate: it.createAt || null,
-      created: it.createAt || null,
+      createAt: it.createdAt || null,
+      updateAt: it.updatedAt || null,
+      createdAt: it.createdAt || null,
+      updatedAt: it.updatedAt || null,
+      createdDate: it.createdAt || null,
+      created: it.createdAt || null,
       // status
       status: (it.status || '').toString(),
       // pass through original for anything else
@@ -67,7 +69,7 @@ export async function getMaterials(params = {}) {
 
 // DETAIL
 export async function getMaterialById(id) {
-  const res = await api.get(`/api/Materials/${id}/detail`);
+  const res = await api.get(`/api/materials/${id}/detail`);
   return unwrap(res) || {};
 }
 
@@ -76,15 +78,15 @@ export async function createMaterial(payload) {
   // Build a payload that matches backend expectations.
   const body = {
     title: payload.title || payload.materialName || payload.name || null,
-    materialDescription: payload.materialDescription || payload.description || null,
-    filePath: payload.filePath || payload.link || null,
+    description: payload.description || payload.materialDescription || null,
+    fileUrl: payload.fileUrl || payload.filePath || payload.link || null,
     subjectId: payload.subjectId || payload.subject || null,
-    status: payload.status || 'Active',
+    status: payload.status || 'active',
   };
 
   // remove undefined/null fields
   const cleanBody = Object.fromEntries(Object.entries(body).filter(([_, v]) => v !== undefined && v !== null));
-  const res = await api.post("/api/Materials", cleanBody);
+  const res = await api.post("/api/materials", cleanBody);
   return unwrap(res) || {};
 }
 
@@ -93,13 +95,13 @@ export async function updateMaterial(id, payload) {
   const body = {
     materialId: id,
     title: payload.title || payload.materialName || payload.name || null,
-    materialDescription: payload.materialDescription || payload.description || null,
-    filePath: payload.filePath || payload.link || null,
+    description: payload.description || payload.materialDescription || null,
+    fileUrl: payload.fileUrl || payload.filePath || payload.link || null,
     subjectId: payload.subjectId || payload.subject || null,
-    status: payload.status || 'Active',
+    status: payload.status || 'active',
   };
   const cleanBody = Object.fromEntries(Object.entries(body).filter(([_, v]) => v !== undefined && v !== null));
-  const res = await api.put(`/api/Materials/${id}`, cleanBody);
+  const res = await api.put(`/api/materials/${id}`, cleanBody);
   return unwrap(res) || {};
 }
 
@@ -107,7 +109,7 @@ export async function updateMaterial(id, payload) {
 // Soft-delete: set status to Inactive (so records remain in DB)
 export async function deleteMaterial(id) {
   try {
-    const res = await api.delete(`/api/Materials/${id}`);
+    const res = await api.delete(`/api/materials/${id}`);
     return unwrap(res) || {};
   } catch (err) {
     console.error('deleteMaterial error', err?.response || err);
@@ -119,8 +121,24 @@ export async function deleteMaterial(id) {
 
 
 export async function getSubjects() {
-  const res = await api.get("api/Subjects");
-  const list = unwrap(res) || [];
-  // đảm bảo luôn trả mảng [{subjectId, subjectCode, subjectName}]
-  return Array.isArray(list) ? list : [];
+  try {
+    // Sử dụng endpoint dropdown mới để lấy tất cả subjects active
+    const res = await api.get("/api/subjects/dropdown");
+    const list = unwrap(res) || [];
+    console.log('Subjects dropdown API response:', list);
+    // đảm bảo luôn trả mảng [{subjectId, subjectCode, subjectName}]
+    return Array.isArray(list) ? list : [];
+  } catch (error) {
+    console.error('Failed to get subjects from dropdown endpoint:', error);
+    // Fallback về endpoint chính
+    try {
+      const res = await api.get("/api/subjects");
+      const list = unwrap(res) || [];
+      console.log('Subjects fallback API response:', list);
+      return Array.isArray(list) ? list : [];
+    } catch (fallbackError) {
+      console.error('Failed to get subjects from fallback endpoint:', fallbackError);
+      return [];
+    }
+  }
 }

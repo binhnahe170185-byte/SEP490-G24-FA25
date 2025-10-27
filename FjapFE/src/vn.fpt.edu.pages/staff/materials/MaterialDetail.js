@@ -27,8 +27,8 @@ function formatDateDDMM(d) {
 export default function MaterialDetail({ visible, record, onClose }) {
   if (!record) return null;
 
-  const created = record.createdDate || record.created || record.__raw?.created_at || null;
-  const updated = record.updatedDate || record.updated || record.__raw?.updated_at || null;
+  const created = record.createdDate || record.created || record.createdAt || record.__raw?.created_at || null;
+  const updated = record.updatedDate || record.updated || record.updatedAt || record.__raw?.updated_at || null;
 
   return (
     <Modal title={`Detail Material ${record.id || record.materialId || ''}`} open={visible} onCancel={onClose} footer={null} width={820} bodyStyle={{ padding: 20 }}>
@@ -49,8 +49,8 @@ export default function MaterialDetail({ visible, record, onClose }) {
         </Descriptions.Item>
 
         <Descriptions.Item label="Link">
-          {record.link ? (
-            <a href={record.link} target="_blank" rel="noreferrer">
+          {record.filePath || record.link ? (
+            <a href={record.filePath || record.link} target="_blank" rel="noreferrer">
               <LinkOutlined style={{ marginRight: 6 }} /> Open in Drive
             </a>
           ) : '—'}
