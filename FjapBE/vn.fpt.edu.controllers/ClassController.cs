@@ -245,7 +245,75 @@ public class ClassController : ControllerBase
     {
         var item = await _classService.GetWithStudentsAsync(id);
         if (item == null) return NotFound();
-        return Ok(new { code = 200, data = item });
+
+        var subject = item.Subject;
+        var level = item.Level;
+        var semester = item.Semester;
+
+        var response = new
+        {
+            classId = item.ClassId,
+            className = item.ClassName,
+            subjectCode = subject?.SubjectCode,
+            subjectName = subject?.SubjectName,
+            subject = subject == null
+                ? null
+                : new
+                {
+                    id = subject.SubjectId,
+                    name = subject.SubjectName,
+                    subjectCode = subject.SubjectCode,
+                    subjectName = subject.SubjectName,
+                    levelId = subject.LevelId,
+                    levelName = subject.Level?.LevelName,
+                    status = subject.Status
+                },
+            level = level == null
+                ? null
+                : new
+                {
+                    id = level.LevelId,
+                    name = level.LevelName
+                },
+            semester = semester == null
+                ? null
+                : new
+                {
+                    id = semester.SemesterId,
+                    name = semester.Name,
+                    startDate = semester.StartDate,
+                    endDate = semester.EndDate
+                },
+            students = item.Students?
+                .Select(student =>
+                {
+                    var user = student.User;
+                    var firstName = user?.FirstName?.Trim();
+                    var lastName = user?.LastName?.Trim();
+                    var fullName = string.Join(" ", new[]
+                    {
+                        firstName,
+                        lastName
+                    }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+                    return new
+                    {
+                        studentId = student.StudentId,
+                        studentCode = student.StudentCode,
+                        student_code = student.StudentCode,
+                        semesterId = student.SemesterId,
+                        levelId = student.LevelId,
+                        first_name = firstName,
+                        last_name = lastName,
+                        fullName = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                        email = user?.Email,
+                        avatar = user?.Avatar
+                    };
+                })
+                .ToList()
+        };
+
+        return Ok(new { code = 200, data = response });
     }
 
     [HttpPost]

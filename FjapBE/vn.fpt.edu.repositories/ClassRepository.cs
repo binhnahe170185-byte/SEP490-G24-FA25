@@ -16,7 +16,12 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
     public async Task<Class?> GetWithStudentsAsync(int id)
     {
         return await _context.Classes
+            .Include(c => c.Subject)
+                .ThenInclude(s => s.Level)
+            .Include(c => c.Level)
+            .Include(c => c.Semester)
             .Include(c => c.Students)
+                .ThenInclude(s => s.User)
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.ClassId == id);
     }

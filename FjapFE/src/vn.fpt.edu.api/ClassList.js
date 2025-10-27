@@ -18,6 +18,11 @@ class ClassList {
     return response.data?.data ?? response.data;
   }
 
+  static async getStudents(classId) {
+    const response = await api.get(`/api/manager/classes/${classId}/students`);
+    return response.data?.data ?? response.data;
+  }
+
   static async getFormOptions() {
     const response = await api.get("/api/manager/classes/options");
     return response.data?.data ?? response.data;
