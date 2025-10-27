@@ -83,4 +83,7 @@ public class ClassService : IClassService
     {
         return await _classRepository.GetClassGradeDetailsAsync(classId);
     }
+
+    public Task<bool> HasDuplicateNameForSubjectAsync(string className, int subjectId, int? excludeClassId = null)
+        => _classRepository.ExistsWithNameAndSubjectAsync(className, subjectId, excludeClassId);
 }

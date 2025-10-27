@@ -13,4 +13,5 @@ public interface IClassRepository : IGenericRepository<Class>
     Task<(List<Level> Levels, List<Semester> Semesters, List<Subject> Subjects)> GetFormOptionsAsync();
     Task<List<ClassGradeDto>> GetClassesWithGradesAsync(ClassGradeFilterRequest? filter = null);
     Task<ClassGradeDetailDto?> GetClassGradeDetailsAsync(int classId);
+    Task<bool> ExistsWithNameAndSubjectAsync(string className, int subjectId, int? excludeClassId = null);
 }

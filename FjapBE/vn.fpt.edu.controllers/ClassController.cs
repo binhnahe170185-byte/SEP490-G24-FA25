@@ -251,6 +251,23 @@ public class ClassController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(Class request)
     {
+        if (request == null) return BadRequest(new { code = 400, message = "Invalid payload" });
+
+        if (request.SubjectId <= 0 || string.IsNullOrWhiteSpace(request.ClassName))
+        {
+            return BadRequest(new { code = 400, message = "Class name and subject are required" });
+        }
+
+        var duplicate = await _classService.HasDuplicateNameForSubjectAsync(request.ClassName, request.SubjectId);
+        if (duplicate)
+        {
+            return Conflict(new
+            {
+                code = 409,
+                message = $"Class '{request.ClassName}' is already assigned to this subject."
+            });
+        }
+
         var created = await _classService.CreateAsync(request);
         return CreatedAtAction(nameof(GetById), new { id = created.ClassId }, new { code = 201, data = created });
     }
@@ -259,6 +276,22 @@ public class ClassController : ControllerBase
     public async Task<IActionResult> Update(int id, Class request)
     {
         if (id != request.ClassId) return BadRequest();
+
+        if (request.SubjectId <= 0 || string.IsNullOrWhiteSpace(request.ClassName))
+        {
+            return BadRequest(new { code = 400, message = "Class name and subject are required" });
+        }
+
+        var duplicate = await _classService.HasDuplicateNameForSubjectAsync(request.ClassName, request.SubjectId, request.ClassId);
+        if (duplicate)
+        {
+            return Conflict(new
+            {
+                code = 409,
+                message = $"Class '{request.ClassName}' is already assigned to this subject."
+            });
+        }
+
         var ok = await _classService.UpdateAsync(request);
         if (!ok) return NotFound();
         return NoContent();

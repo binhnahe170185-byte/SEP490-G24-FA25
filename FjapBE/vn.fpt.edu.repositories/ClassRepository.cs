@@ -127,6 +127,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         var subjects = await _context.Subjects
             .Include(s => s.Level)
             .AsNoTracking()
+            .Where(s => s.Status != null && s.Status.ToLower() == "active")
             .OrderBy(s => s.SubjectName)
             .ToListAsync();
 
@@ -357,6 +358,27 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             Students = studentGrades,
             GradeComponentWeights = gradeComponentWeights
         };
+    }
+
+    public async Task<bool> ExistsWithNameAndSubjectAsync(string className, int subjectId, int? excludeClassId = null)
+    {
+        if (string.IsNullOrWhiteSpace(className))
+        {
+            return false;
+        }
+
+        var normalizedName = className.Trim();
+
+        var query = _context.Classes
+            .AsNoTracking()
+            .Where(c => c.SubjectId == subjectId && c.ClassName == normalizedName);
+
+        if (excludeClassId.HasValue)
+        {
+            query = query.Where(c => c.ClassId != excludeClassId.Value);
+        }
+
+        return await query.AnyAsync();
     }
 
     private static decimal? ExtractGradeComponent(List<GradeType> components, params string[] possibleNames)
