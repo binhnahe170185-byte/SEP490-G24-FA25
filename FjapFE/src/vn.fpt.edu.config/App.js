@@ -17,6 +17,7 @@ import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layou
 import ClassPage from "../vn.fpt.edu.pages/manager/ClassManage";
 import ClassDetail from "../vn.fpt.edu.pages/manager/ClassManage/ClassDetail";
 import ClassStudents from "../vn.fpt.edu.pages/manager/ClassManage/ClassStudents";
+import ClassAddStudents from "../vn.fpt.edu.pages/manager/ClassManage/ClassAddStudents";
 import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
@@ -109,6 +110,7 @@ export default function App() {
                 <Route path="class" element={<ClassPage />} />
                 <Route path="class/:classId" element={<ClassDetail />} />
                 <Route path="class/:classId/students" element={<ClassStudents />} />
+                <Route path="class/:classId/add-students" element={<ClassAddStudents />} />
                 <Route path="subject" element={<SubjectPage />} />
                 <Route path="subject/create" element={<CreateSubject />} />
                 <Route path="subject/edit/:subjectId" element={<EditSubject />} />

@@ -1,4 +1,5 @@
-﻿using FJAP.vn.fpt.edu.models;
+using System.Linq;
+using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -27,7 +28,7 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             .Include(s => s.Classes)
             .ToListAsync();
     }
-    // get ra dữ liệu của lesson dựa vào studentId
+    // get ra d? li?u c?a lesson d?a v�o studentId
     public async Task<IEnumerable<LessonDto>> GetLessonsByStudentIdAsync(int studentId)
     {
         FormattableString sql = $@"
@@ -78,6 +79,56 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
         public string SubjectCode { get; set; } = "";
     }
 
+    public async Task<List<Student>> GetEligibleForClassAsync(int classId)
+    {
+        var classInfo = await _context.Classes
+            .AsNoTracking()
+            .Select(c => new { c.ClassId, c.LevelId, c.SubjectId })
+            .FirstOrDefaultAsync(c => c.ClassId == classId);
 
+        if (classInfo == null)
+        {
+            return new List<Student>();
+        }
 
+        return await _context.Students
+            .Include(s => s.User)
+            .AsNoTracking()
+            .Where(s => s.LevelId == classInfo.LevelId)
+            .Where(s => !s.Classes.Any(cls => cls.SubjectId == classInfo.SubjectId))
+            .OrderBy(s => s.StudentId)
+            .ToListAsync();
+    }
+
+    public async Task AddStudentsToClassAsync(int classId, IEnumerable<int> studentIds)
+    {
+        var distinctIds = studentIds?.Distinct().ToList() ?? new List<int>();
+        if (distinctIds.Count == 0)
+        {
+            return;
+        }
+
+        var targetClass = await _context.Classes
+            .Include(c => c.Students)
+            .FirstOrDefaultAsync(c => c.ClassId == classId);
+
+        if (targetClass == null)
+        {
+            throw new KeyNotFoundException("Class not found");
+        }
+
+        var students = await _context.Students
+            .Where(s => distinctIds.Contains(s.StudentId))
+            .ToListAsync();
+
+        foreach (var student in students)
+        {
+            if (!targetClass.Students.Any(s => s.StudentId == student.StudentId))
+            {
+                targetClass.Students.Add(student);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
 }
