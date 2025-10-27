@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import { Button, Input, Space, Table, Tooltip } from "antd";
 import {
   TeamOutlined,
@@ -72,6 +72,7 @@ const filterBarStyle = {
 export default function ClassDetail() {
   const { classId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const initialClassName = (location.state && location.state.className) || classId;
 
   const [className, setClassName] = useState(initialClassName);
@@ -133,7 +134,17 @@ export default function ClassDetail() {
   }, [subjects, searchTerm]);
 
   const handleViewStudents = (record) => {
-    console.log("View students", record);
+    const destinationId = record?.classId ?? record?.class_id ?? classId;
+    if (!destinationId) {
+      return;
+    }
+
+    navigate(`/manager/class/${destinationId}/students`, {
+      state: {
+        className: record.class_name ?? record.className ?? className,
+        subjectName: record.subject_name ?? record.subjectName ?? "-",
+      },
+    });
   };
 
   const handleAddStudent = () => {
