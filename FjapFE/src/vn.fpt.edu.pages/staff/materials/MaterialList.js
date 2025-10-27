@@ -41,7 +41,7 @@ export default function MaterialList() {
   const fetchMaterials = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getMaterials({ page: 1, pageSize: 100, search, subject: subjectFilter });
+      const res = await getMaterials({ search, subject: subjectFilter });
       const items = res.items || [];
       // If creator is an id (number), resolve to user email for display
       try {
@@ -108,7 +108,9 @@ export default function MaterialList() {
       <Space>
         <Button icon={<EyeOutlined />} onClick={() => setDetail(r)} />
         <Button icon={<EditOutlined />} onClick={() => setEditing(r)} />
-        <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)} />
+        {r.status !== 'Inactive' && (
+          <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)} />
+        )}
       </Space>
     )},
   ];
@@ -121,7 +123,7 @@ export default function MaterialList() {
 
   const handleCreate = async (values) => {
     try {
-      await createMaterial({ materialName: values.name || values.materialName, description: values.description, link: values.link, status: values.status });
+      await createMaterial({ title: values.name || values.materialName, materialDescription: values.description, filePath: values.link, status: values.status });
       message.success('Created');
       setShowCreate(false);
       fetchMaterials();
@@ -134,7 +136,7 @@ export default function MaterialList() {
   const handleSave = async (values) => {
     try {
       const id = editing.id || editing.materialId;
-      await updateMaterial(id, { materialName: values.name || values.materialName, description: values.description, link: values.link, status: values.status });
+      await updateMaterial(id, { title: values.name || values.materialName, materialDescription: values.description, filePath: values.link, status: values.status });
       message.success('Updated');
       setEditing(null);
       fetchMaterials();
@@ -164,7 +166,7 @@ export default function MaterialList() {
         {/* Confirmation modal for delete (soft-delete) */}
         {deleting && (
           <Modal
-            title="Delete Material"
+            title="Deactivate Material"
             open={!!deleting}
             visible={!!deleting}
             onCancel={() => { if (!deletingInProgress) setDeleting(null); }}
@@ -191,7 +193,7 @@ export default function MaterialList() {
             okButtonProps={{ danger: true, loading: deletingInProgress, disabled: deletingInProgress }}
             cancelButtonProps={{ disabled: deletingInProgress }}
           >
-            <p>Are you sure you want to delete this material? This action cannot be undone.</p>
+            <p>Are you sure you want to deactivate this material? This will set the material status to Inactive.</p>
             {deleting.record && (
               <p style={{ marginTop: 8 }}><strong>{deleting.record.title || deleting.record.name}</strong></p>
             )}
