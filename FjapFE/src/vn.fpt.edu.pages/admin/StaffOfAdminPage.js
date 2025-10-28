@@ -7,6 +7,9 @@ import {
   BellOutlined, UserOutlined, LogoutOutlined,
 } from "@ant-design/icons";
 import UsersList from "./UserList";
+import SemesterList from "./SemesterList";
+import AddSemester from "./AddSemester";
+import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -109,6 +112,23 @@ export default function StaffOfAdminPage() {
           <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user theo role — sẽ gắn sau)</div>
         </Card>
       );
+    }
+
+    if (activeKey.startsWith("sem:")) {
+      if (activeKey === "sem:list") {
+        return <SemesterList title="Semester List" />;
+      }
+      if (activeKey === "sem:add") {
+        return <AddSemesterWithHolidays />;
+      }
+      if (activeKey === "sem:edit") {
+        return (
+          <Card style={{ borderRadius: 12 }}>
+            <Title level={4} style={{ margin: 0 }}>Edit Semester</Title>
+            <div style={{ color: "#64748b", marginTop: 8 }}>(Semester edit form — integrated into SemesterList)</div>
+          </Card>
+        );
+      }
     }
 
     return (

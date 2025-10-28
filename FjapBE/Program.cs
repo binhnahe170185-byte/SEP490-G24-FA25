@@ -63,6 +63,11 @@ builder.Services.AddScoped<ISubjectService, SubjectService>();
 
 builder.Services.AddScoped<IStaffOfAdminRepository, StaffOfAdminRepository>();
 builder.Services.AddScoped<IStaffOfAdminService, StaffOfAdminService>();
+builder.Services.AddScoped<ISemesterRepository, SemesterRepository>();
+builder.Services.AddScoped<ISemesterService, SemesterService>();
+builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
+builder.Services.AddScoped<IHolidayService, HolidayService>();
+
 builder.Services.AddScoped<IGradeRepository, GradeRepository>();
 builder.Services.AddScoped<IGradeService, GradeService>();
 // ----- CORS -----
