@@ -5,6 +5,7 @@ import { Alert, Divider, Typography } from "antd";
 import FilterBar from "./components/FilterBar";
 import TimetableTable from "./components/TimetableTable";
 import Legend from "./components/Legend";
+import LessonDetailModal from "./components/LessonDetailModal";
 import "./WeeklyTimetable.css";
 import { api } from "../../../vn.fpt.edu.api/http";
 import { useAuth } from "../../login/AuthContext";
@@ -17,7 +18,7 @@ const STATUS = {
   absent: { color: "#ef4444", text: "Absent" },
 };
 
-const DEFAULT_SLOTS = Array.from({ length: 12 }, (_, idx) => ({
+const DEFAULT_SLOTS = Array.from({ length: 8 }, (_, idx) => ({
   id: idx + 1,
   label: `Slot ${idx + 1}`,
 }));
@@ -144,6 +145,8 @@ export default function WeeklyTimetable({ items }) {
   const [anchorDate, setAnchorDate] = useState(dayjs().isoWeekday(1));
   const [year, setYear] = useState(anchorDate.year());
   const [weekNumber, setWeekNumber] = useState(anchorDate.isoWeek());
+  const [selectedLesson, setSelectedLesson] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const sourceItems = useMemo(() => {
     return items ?? remoteItems;
@@ -246,6 +249,16 @@ export default function WeeklyTimetable({ items }) {
     });
   };
 
+  const handleChipClick = (lesson) => {
+    setSelectedLesson(lesson);
+    setModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setSelectedLesson(null);
+  };
+
   const weekLabel = `${week.start.format("DD/MM")} - ${week.end.format("DD/MM")}`;
 
   return (
@@ -292,10 +305,17 @@ export default function WeeklyTimetable({ items }) {
           slots={slots}
           weekdayHeaders={WEEKDAY_HEADERS}
           loading={loading}
+          onChipClick={handleChipClick}
         />
 
         <Legend status={STATUS} />
       </div>
+
+      <LessonDetailModal
+        visible={modalVisible}
+        lesson={selectedLesson}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 }

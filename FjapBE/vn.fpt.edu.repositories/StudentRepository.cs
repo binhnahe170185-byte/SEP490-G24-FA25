@@ -45,7 +45,7 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             s.subject_code AS SubjectCode
         FROM fjap.lesson   AS l
         JOIN fjap.class    AS c ON c.class_id  = l.class_id
-        JOIN fjap.subject  AS s ON s.class_id  = l.class_id
+        JOIN fjap.subject  AS s ON s.subject_id  = c.subject_id
         JOIN fjap.room     AS r ON r.room_id   = l.room_id
         JOIN fjap.enrollment AS e ON e.class_id = c.class_id
         JOIN fjap.timeslot AS t ON t.time_id   = l.time_id

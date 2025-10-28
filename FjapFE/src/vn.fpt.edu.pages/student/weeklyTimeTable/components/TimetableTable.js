@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Table } from "antd";
 import ClassChip from "./ClassChip";
 
-export default function TimetableTable({ week, cellMap, slots, weekdayHeaders, loading }) {
+export default function TimetableTable({ week, cellMap, slots, weekdayHeaders, loading, onChipClick }) {
     const columns = useMemo(() => {
         const cols = [
             { title: "SLOT", dataIndex: "slotLabel", key: "slotLabel", width: 160, fixed: "left", render: v => <strong>{v}</strong> },
@@ -24,14 +24,14 @@ export default function TimetableTable({ week, cellMap, slots, weekdayHeaders, l
                     if (!items.length) return null;
                     return (
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            {items.map((it, i) => <ClassChip key={i} item={it} />)}
+                            {items.map((it, i) => <ClassChip key={i} item={it} onClick={onChipClick} />)}
                         </div>
                     );
                 },
             });
         });
         return cols;
-    }, [week.days, cellMap, weekdayHeaders]);
+    }, [week.days, cellMap, weekdayHeaders, onChipClick]);
 
     const dataSource = useMemo(() => {
         return slots.map((slot, idx) => ({
