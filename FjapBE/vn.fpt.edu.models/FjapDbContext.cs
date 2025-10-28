@@ -31,6 +31,8 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<GradeType> GradeTypes { get; set; }
 
+    public virtual DbSet<Holiday> Holidays { get; set; }
+
     public virtual DbSet<Homework> Homeworks { get; set; }
 
     public virtual DbSet<HomeworkSubmission> HomeworkSubmissions { get; set; }
@@ -590,6 +592,36 @@ public partial class FjapDbContext : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("name");
             entity.Property(e => e.StartDate).HasColumnName("start_date");
+        });
+
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.HasKey(e => e.HolidayId).HasName("PRIMARY");
+
+            entity.ToTable("holiday");
+
+            entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
+
+            entity.Property(e => e.HolidayId).HasColumnName("holiday_id");
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .HasColumnName("name");
+            entity.Property(e => e.Date).HasColumnName("date");
+            entity.Property(e => e.Type)
+                .HasMaxLength(50)
+                .HasColumnName("type");
+            entity.Property(e => e.Description)
+                .HasMaxLength(500)
+                .HasColumnName("description");
+            entity.Property(e => e.IsRecurring)
+                .HasDefaultValueSql("b'0'")
+                .HasColumnName("is_recurring");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+
+            entity.HasOne(d => d.Semester).WithMany()
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_holiday_semester");
         });
 
         modelBuilder.Entity<Student>(entity =>
