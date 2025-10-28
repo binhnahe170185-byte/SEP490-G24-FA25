@@ -28,6 +28,7 @@ export default function GradeEntry() {
   
   const [courseDetails, setCourseDetails] = useState(null);
   const [students, setStudents] = useState([]);
+  const [gradeComponentWeights, setGradeComponentWeights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingKey, setEditingKey] = useState('');
@@ -41,8 +42,35 @@ export default function GradeEntry() {
     try {
       setLoading(true);
       const data = await ManagerGrades.getCourseDetails(managerId, courseId);
+      console.log("API Response:", data); // Debug log
+      console.log("Students data:", data.students); // Debug log
+      console.log("Grade component weights:", data.gradeComponentWeights); // Debug log
+      
       setCourseDetails(data);
-      setStudents(data.students.map(s => ({ ...s, key: s.studentId })));
+      setGradeComponentWeights(data.gradeComponentWeights || []);
+      
+      // Map student data with dynamic grade components
+      const mappedStudents = data.students.map(s => {
+        const studentData = { ...s, key: s.studentId };
+        console.log("Student:", s.studentName, "GradeComponentScores:", s.gradeComponentScores); // Debug log
+        
+        // Map existing grade components to dynamic dataIndex using GradeComponentScores
+        data.gradeComponentWeights?.forEach(weight => {
+          const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+          
+          // Find score from GradeComponentScores
+          const gradeComponentScore = s.gradeComponentScores?.find(gcs => 
+            gcs.subjectGradeTypeId === weight.subjectGradeTypeId
+          );
+          
+          console.log(`Mapping ${weight.gradeTypeName} (${weight.subjectGradeTypeId}):`, gradeComponentScore?.score); // Debug log
+          studentData[dataIndex] = gradeComponentScore?.score || null;
+        });
+        
+        return studentData;
+      });
+      
+      setStudents(mappedStudents);
     } catch (error) {
       console.error("Failed to load course details:", error);
       message.error("Failed to load course details");
@@ -55,17 +83,27 @@ export default function GradeEntry() {
     loadData();
   }, [loadData]);
 
+  // Helper function to get weight for a grade component
+  const getWeightForComponent = (componentName) => {
+    const weight = gradeComponentWeights.find(w => 
+      w.gradeTypeName.toLowerCase().includes(componentName.toLowerCase()) ||
+      componentName.toLowerCase().includes(w.gradeTypeName.toLowerCase())
+    );
+    return weight ? weight.weight / 100 : 0; // Convert percentage to decimal
+  };
+
   const isEditing = (record) => record.key === editingKey;
 
   const edit = (record) => {
-    form.setFieldsValue({
-      participation: record.participation,
-      assignment: record.assignment,
-      progressTest1: record.progressTest1,
-      progressTest2: record.progressTest2,
-      finalExam: record.finalExam,
-      ...record,
+    const formValues = {};
+    
+    // Set values for dynamic grade components
+    gradeComponentWeights.forEach(weight => {
+      const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+      formValues[dataIndex] = record[dataIndex];
     });
+    
+    form.setFieldsValue(formValues);
     setEditingKey(record.key);
   };
 
@@ -82,22 +120,13 @@ export default function GradeEntry() {
       if (index > -1) {
         const item = newData[index];
         
-        // Calculate average
-        const weights = {
-          participation: 0.1,
-          assignment: 0.1,
-          progressTest1: 0.15,
-          progressTest2: 0.15,
-          finalExam: 0.5
-        };
-
-        const average = (
-          (row.participation || 0) * weights.participation +
-          (row.assignment || 0) * weights.assignment +
-          (row.progressTest1 || 0) * weights.progressTest1 +
-          (row.progressTest2 || 0) * weights.progressTest2 +
-          (row.finalExam || 0) * weights.finalExam
-        );
+        // Calculate average using weights from API
+        let average = 0;
+        gradeComponentWeights.forEach(weight => {
+          const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+          const score = row[dataIndex] || 0;
+          average += score * (weight.weight / 100);
+        });
 
         const status = average >= 5.0 ? "Passed" : "Failed";
 
@@ -108,20 +137,45 @@ export default function GradeEntry() {
           status
         };
 
+        // Update dynamic grade components in the item
+        gradeComponentWeights.forEach(weight => {
+          const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+          updatedItem[dataIndex] = row[dataIndex];
+        });
+
         newData.splice(index, 1, updatedItem);
+
+        // Prepare data for API - send dynamic grade components directly
+        const gradeComponents = [];
+        gradeComponentWeights.forEach(weight => {
+          const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+          const score = row[dataIndex];
+          
+          if (score !== null && score !== undefined) {
+            gradeComponents.push({
+              subjectGradeTypeId: weight.subjectGradeTypeId,
+              score: score,
+              comment: null
+            });
+          }
+        });
 
         // Save to API
         setSaving(true);
-        await ManagerGrades.updateStudentGrade(
+        await ManagerGrades.updateStudentGradeComponents(
           managerId, 
           courseId, 
           item.studentId, 
-          row
+          item.gradeId,
+          gradeComponents
         );
 
         setStudents(newData);
         setEditingKey('');
         message.success("Grade updated successfully");
+        
+        // Reload data to get updated values from server
+        await loadData();
       }
     } catch (errInfo) {
       console.log('Validate Failed:', errInfo);
@@ -176,114 +230,99 @@ export default function GradeEntry() {
     );
   };
 
-  const columns = [
-    {
-      title: "No.",
-      key: "index",
-      width: 60,
-      render: (_, __, index) => index + 1,
-    },
-    {
-      title: "Student ID",
-      dataIndex: "studentId",
-      key: "studentId",
-      width: 120,
-    },
-    {
-      title: "Student Name",
-      dataIndex: "studentName",
-      key: "studentName",
-      width: 200,
-    },
-    {
-      title: "Participation (10%)",
-      dataIndex: "participation",
-      key: "participation",
-      width: 150,
-      align: "center",
-      editable: true,
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "Assignment (10%)",
-      dataIndex: "assignment",
-      key: "assignment",
-      width: 140,
-      align: "center",
-      editable: true,
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "PT1 (15%)",
-      dataIndex: "progressTest1",
-      key: "progressTest1",
-      width: 120,
-      align: "center",
-      editable: true,
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "PT2 (15%)",
-      dataIndex: "progressTest2",
-      key: "progressTest2",
-      width: 120,
-      align: "center",
-      editable: true,
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "Final (50%)",
-      dataIndex: "finalExam",
-      key: "finalExam",
-      width: 130,
-      align: "center",
-      editable: true,
-      render: (value) => value != null ? value.toFixed(1) : "-",
-    },
-    {
-      title: "Average",
-      dataIndex: "average",
-      key: "average",
-      width: 100,
-      align: "center",
-      render: (value) => (
-        <span style={{ fontWeight: 600, fontSize: 15 }}>
-          {value != null ? value.toFixed(1) : "-"}
-        </span>
-      ),
-    },
-    {
-      title: "Action",
-      key: "action",
-      width: 150,
-      align: "center",
-      render: (_, record) => {
-        const editable = isEditing(record);
-        return editable ? (
-          <Space>
-            <Button 
-              type="link" 
-              onClick={() => save(record.key)}
-              loading={saving}
-            >
-              Save
-            </Button>
-            <Button type="link" onClick={cancel}>
-              Cancel
-            </Button>
-          </Space>
-        ) : (
-          <Button
-            type="link"
-            disabled={editingKey !== ''}
-            onClick={() => edit(record)}
-          >
-            Edit
-          </Button>
-        );
+  // Generate columns dynamically based on gradeComponentWeights
+  const generateColumns = () => {
+    const baseColumns = [
+      {
+        title: "No.",
+        key: "index",
+        width: 60,
+        render: (_, __, index) => index + 1,
       },
-    },
-  ];
+      {
+        title: "Student ID",
+        dataIndex: "studentId",
+        key: "studentId",
+        width: 120,
+      },
+      {
+        title: "Student Name",
+        dataIndex: "studentName",
+        key: "studentName",
+        width: 200,
+      }
+    ];
+
+    // Add grade component columns dynamically
+    const gradeColumns = gradeComponentWeights.map(weight => {
+      const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+      return {
+        title: `${weight.gradeTypeName} (${weight.weight}%)`,
+        dataIndex: dataIndex,
+        key: dataIndex,
+        width: 150,
+        align: "center",
+        editable: true,
+        render: (value) => value != null ? value.toFixed(1) : "-",
+      };
+    });
+
+    const endColumns = [
+      {
+        title: "Average",
+        dataIndex: "average",
+        key: "average",
+        width: 100,
+        align: "center",
+        render: (value) => (
+          <span style={{ fontWeight: 600, fontSize: 15 }}>
+            {value != null ? value.toFixed(1) : "-"}
+          </span>
+        ),
+      },
+      {
+        title: "Action",
+        key: "action",
+        width: 150,
+        align: "center",
+        render: (_, record) => {
+          const editable = isEditing(record);
+          return editable ? (
+            <Space>
+              <Button 
+                type="link" 
+                onClick={() => save(record.key)}
+                loading={saving}
+              >
+                Save
+              </Button>
+              <Button type="link" onClick={cancel}>
+                Cancel
+              </Button>
+            </Space>
+          ) : (
+            <Button
+              type="link"
+              disabled={editingKey !== ''}
+              onClick={() => edit(record)}
+            >
+              Edit
+            </Button>
+          );
+        },
+      }
+    ];
+
+    return [...baseColumns, ...gradeColumns, ...endColumns];
+  };
+
+  // Helper function to map grade type names to data indices
+  const getDataIndexForComponent = (gradeTypeName, subjectGradeTypeId) => {
+    // Create a unique dataIndex based on SubjectGradeTypeId to avoid conflicts
+    return `gradeComponent_${subjectGradeTypeId}`;
+  };
+
+  const columns = generateColumns();
 
   const mergedColumns = columns.map((col) => {
     if (!col.editable) {

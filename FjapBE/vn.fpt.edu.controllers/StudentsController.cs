@@ -25,6 +25,56 @@ public class StudentsController : ControllerBase
         if (LessonDto == null) return NotFound();
         return Ok(new { code = 200, data = LessonDto });
     }
+
+    /// <summary>
+    /// Lấy danh sách semester mà sinh viên đã học
+    /// GET: api/Students/{id}/semesters
+    /// </summary>
+    [HttpGet("{id:int}/semesters")]
+    [ProducesResponseType(typeof(IEnumerable<StudentSemesterDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudentSemesters(int id)
+    {
+        var semesters = await _studentService.GetStudentSemestersAsync(id);
+        return Ok(new { code = 200, data = semesters });
+    }
+
+    /// <summary>
+    /// Lấy danh sách môn học và điểm của sinh viên trong một semester
+    /// GET: api/Students/{id}/semesters/{semesterId}/courses
+    /// </summary>
+    [HttpGet("{id:int}/semesters/{semesterId:int}/courses")]
+    [ProducesResponseType(typeof(IEnumerable<StudentCourseGradeDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudentCoursesBySemester(int id, int semesterId)
+    {
+        var courses = await _studentService.GetStudentCoursesBySemesterAsync(id, semesterId);
+        return Ok(new { code = 200, data = courses });
+    }
+
+    /// <summary>
+    /// Lấy chi tiết điểm của sinh viên cho một môn học
+    /// GET: api/Students/{id}/courses/{classId}
+    /// </summary>
+    [HttpGet("{id:int}/courses/{classId:int}")]
+    [ProducesResponseType(typeof(StudentGradeDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStudentGradeDetails(int id, int classId)
+    {
+        var gradeDetails = await _studentService.GetStudentGradeDetailsAsync(id, classId);
+        if (gradeDetails == null) return NotFound(new { code = 404, message = "Grade details not found" });
+        return Ok(new { code = 200, data = gradeDetails });
+    }
+
+    /// <summary>
+    /// Lấy GPA của sinh viên trong một semester
+    /// GET: api/Students/{id}/semesters/{semesterId}/gpa
+    /// </summary>
+    [HttpGet("{id:int}/semesters/{semesterId:int}/gpa")]
+    [ProducesResponseType(typeof(SemesterGPADto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudentSemesterGPA(int id, int semesterId)
+    {
+        var gpa = await _studentService.GetStudentSemesterGPAAsync(id, semesterId);
+        return Ok(new { code = 200, data = gpa });
+    }
    
    
     [HttpGet]

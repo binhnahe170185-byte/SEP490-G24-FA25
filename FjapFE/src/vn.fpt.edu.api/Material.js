@@ -11,64 +11,134 @@ function unwrap(res) {
 
 // LIST
 export async function getMaterials(params = {}) {
-  const { page = 1, pageSize = 10, search = "", subject = "", status = "" } = params;
+  const { search = "", subject = "", status = "" } = params;
 
-  // Gửi các tham số filter. Nếu BE dùng tên khác (vd: subjectCode),
-  // ta map cả 2 để BE nào hỗ trợ tên nào thì nhận tên đó.
-  const q = { page, pageSize, search, status };
-  if (subject) {
-    q.subject = subject;        // FE filter hiện tại
-    q.subjectCode = subject;    // nếu BE nhận subjectCode
-    q.subject_id = subject;     // nếu BE nhận subject_id
+  const q = { search, subject, status };
+
+  const res = await api.get("/api/materials", { params: q });
+  const raw = unwrap(res) || [];
+  let items = [];
+  if (Array.isArray(raw)) {
+    items = raw;
+  } else if (Array.isArray(raw.items)) {
+    items = raw.items;
+  } else if (Array.isArray(raw.data)) {
+    items = raw.data;
+  } else {
+    items = [];
   }
 
-  const res = await api.get("/api/Materials", { params: q });
-  const items = unwrap(res) || [];
-  return { items, total: Array.isArray(items) ? items.length : 0 };
+  // Normalize item shape so frontend can rely on stable keys.
+  const normalized = (items || []).map((it) => {
+    return {
+      // id used by table rowKey; prefer numeric id fields
+      id: it.materialId || it.id || null,
+      materialId: it.materialId || it.id || null,
+      // title / name
+      title: it.title || '',
+      // description
+      description: it.description || '',
+      // file path
+      filePath: it.fileUrl || null,
+      // subject
+      subjectId: it.subjectId || null,
+      subjectCode: it.subjectCode || null,
+      subjectName: it.subjectName || null,
+      // creator
+      createBy: it.createdBy || null,
+      createByName: it.creatorName || null,
+      creator: it.creatorEmail || it.creatorName || it.createdBy || null,
+      updateBy: it.updatedBy || null,
+      updateByName: it.updatedByName || null,
+      // created/updated dates
+      createAt: it.createdAt || null,
+      updateAt: it.updatedAt || null,
+      createdAt: it.createdAt || null,
+      updatedAt: it.updatedAt || null,
+      createdDate: it.createdAt || null,
+      created: it.createdAt || null,
+      // status
+      status: (it.status || '').toString(),
+      // pass through original for anything else
+      __raw: it,
+    };
+  });
+
+  return { items: normalized, total: Array.isArray(normalized) ? normalized.length : 0 };
 }
 
 // DETAIL
 export async function getMaterialById(id) {
-  const res = await api.get(`/api/Materials/${id}`);
+  const res = await api.get(`/api/materials/${id}/detail`);
   return unwrap(res) || {};
 }
 
 // CREATE
 export async function createMaterial(payload) {
+  // Build a payload that matches backend expectations.
   const body = {
-    title: payload.materialName,
-    materialDescription: payload.description,
-    filePath: payload.link || null,
-    status: payload.status || "Active",
+    title: payload.title || payload.materialName || payload.name || null,
+    description: payload.description || payload.materialDescription || null,
+    fileUrl: payload.fileUrl || payload.filePath || payload.link || null,
+    subjectId: payload.subjectId || payload.subject || null,
+    status: payload.status || 'active',
   };
-  const res = await api.post("/api/Materials", body);
+
+  // remove undefined/null fields
+  const cleanBody = Object.fromEntries(Object.entries(body).filter(([_, v]) => v !== undefined && v !== null));
+  const res = await api.post("/api/materials", cleanBody);
   return unwrap(res) || {};
 }
 
 // UPDATE
 export async function updateMaterial(id, payload) {
   const body = {
-    title: payload.materialName,
-    materialDescription: payload.description,
-    filePath: payload.link || null,
-    status: payload.status || "Active",
+    materialId: id,
+    title: payload.title || payload.materialName || payload.name || null,
+    description: payload.description || payload.materialDescription || null,
+    fileUrl: payload.fileUrl || payload.filePath || payload.link || null,
+    subjectId: payload.subjectId || payload.subject || null,
+    status: payload.status || 'active',
   };
-  const res = await api.put(`/api/Materials/${id}`, body);
+  const cleanBody = Object.fromEntries(Object.entries(body).filter(([_, v]) => v !== undefined && v !== null));
+  const res = await api.put(`/api/materials/${id}`, cleanBody);
   return unwrap(res) || {};
 }
 
 // DELETE
+// Soft-delete: set status to Inactive (so records remain in DB)
 export async function deleteMaterial(id) {
-  const res = await api.delete(`/api/Materials/${id}`);
-  return unwrap(res) || {};
+  try {
+    const res = await api.delete(`/api/materials/${id}`);
+    return unwrap(res) || {};
+  } catch (err) {
+    console.error('deleteMaterial error', err?.response || err);
+    throw err;
+  }
 }
 
 // ===================== SUBJECTS =====================
 
 
 export async function getSubjects() {
-  const res = await api.get("api/manager/subjects");
-  const list = unwrap(res) || [];
-  // đảm bảo luôn trả mảng [{code, name}]
-  return Array.isArray(list) ? list : [];
+  try {
+    // Sử dụng endpoint dropdown mới để lấy tất cả subjects active
+    const res = await api.get("/api/subjects/dropdown");
+    const list = unwrap(res) || [];
+    console.log('Subjects dropdown API response:', list);
+    // đảm bảo luôn trả mảng [{subjectId, subjectCode, subjectName}]
+    return Array.isArray(list) ? list : [];
+  } catch (error) {
+    console.error('Failed to get subjects from dropdown endpoint:', error);
+    // Fallback về endpoint chính
+    try {
+      const res = await api.get("/api/subjects");
+      const list = unwrap(res) || [];
+      console.log('Subjects fallback API response:', list);
+      return Array.isArray(list) ? list : [];
+    } catch (fallbackError) {
+      console.error('Failed to get subjects from fallback endpoint:', fallbackError);
+      return [];
+    }
+  }
 }

@@ -16,15 +16,13 @@ export default function SemesterTabs({ semesters, selectedSemester, onSelectSeme
             borderRadius: 8,
             cursor: "pointer",
             textAlign: "center",
-            minWidth: 90,
-            whiteSpace: "pre-line",
+            minWidth: 120,
             fontSize: 14,
             fontWeight: selectedSemester?.semesterId === semester.semesterId ? 600 : 400,
             transition: "all 0.3s",
           }}
         >
-          <div style={{ fontWeight: 600 }}>{semester.year}</div>
-          <div style={{ fontSize: 12 }}>{semester.season}</div>
+          <div style={{ fontWeight: 600 }}>{semester.name}</div>
         </div>
       ))}
     </div>

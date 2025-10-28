@@ -12,10 +12,12 @@ namespace FJAP.Controllers;
 public class ClassController : ControllerBase
 {
     private readonly IClassService _classService;
+    private readonly IStudentService _studentService;
 
-    public ClassController(IClassService classService)
+    public ClassController(IClassService classService, IStudentService studentService)
     {
         _classService = classService;
+        _studentService = studentService;
     }
 
     [HttpGet]
@@ -245,12 +247,160 @@ public class ClassController : ControllerBase
     {
         var item = await _classService.GetWithStudentsAsync(id);
         if (item == null) return NotFound();
-        return Ok(new { code = 200, data = item });
+
+        var subject = item.Subject;
+        var level = item.Level;
+        var semester = item.Semester;
+
+        var response = new
+        {
+            classId = item.ClassId,
+            className = item.ClassName,
+            subjectCode = subject?.SubjectCode,
+            subjectName = subject?.SubjectName,
+            subject = subject == null
+                ? null
+                : new
+                {
+                    id = subject.SubjectId,
+                    name = subject.SubjectName,
+                    subjectCode = subject.SubjectCode,
+                    subjectName = subject.SubjectName,
+                    levelId = subject.LevelId,
+                    levelName = subject.Level?.LevelName,
+                    status = subject.Status
+                },
+            level = level == null
+                ? null
+                : new
+                {
+                    id = level.LevelId,
+                    name = level.LevelName
+                },
+            semester = semester == null
+                ? null
+                : new
+                {
+                    id = semester.SemesterId,
+                    name = semester.Name,
+                    startDate = semester.StartDate,
+                    endDate = semester.EndDate
+                },
+            students = item.Students?
+                .Select(student =>
+                {
+                    var user = student.User;
+                    var firstName = user?.FirstName?.Trim();
+                    var lastName = user?.LastName?.Trim();
+                    var fullName = string.Join(" ", new[]
+                    {
+                        firstName,
+                        lastName
+                    }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+                    return new
+                    {
+                        studentId = student.StudentId,
+                        studentCode = student.StudentCode,
+                        student_code = student.StudentCode,
+                        semesterId = student.SemesterId,
+                        levelId = student.LevelId,
+                        first_name = firstName,
+                        last_name = lastName,
+                        fullName = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                        email = user?.Email,
+                        avatar = user?.Avatar
+                    };
+                })
+                .ToList()
+        };
+
+        return Ok(new { code = 200, data = response });
+    }
+
+    [HttpGet("{classId:int}/eligible-students")]
+    public async Task<IActionResult> GetEligibleStudents(int classId)
+    {
+        var cls = await _classService.GetByIdAsync(classId);
+        if (cls == null) return NotFound(new { code = 404, message = "Class not found" });
+
+        var students = await _studentService.GetEligibleForClassAsync(classId);
+
+        var data = students.Select(student =>
+        {
+            var user = student.User;
+            var firstName = user?.FirstName?.Trim() ?? string.Empty;
+            var lastName = user?.LastName?.Trim() ?? string.Empty;
+            var fullName = string.Join(" ", new[] { firstName, lastName }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+            return new
+            {
+                student_id = student.StudentId,
+                studentId = student.StudentId,
+                student_code = student.StudentCode,
+                studentCode = student.StudentCode,
+                level_id = student.LevelId,
+                levelId = student.LevelId,
+                first_name = firstName,
+                firstName,
+                last_name = lastName,
+                lastName,
+                full_name = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                fullName = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                email = user?.Email,
+                avatar = user?.Avatar
+            };
+        }).ToList();
+
+        return Ok(new { code = 200, data });
+    }
+
+    [HttpPost("{classId:int}/students")]
+    public async Task<IActionResult> AddStudents(int classId, [FromBody] AddStudentsRequest request)
+    {
+        if (request?.StudentIds == null || request.StudentIds.Count == 0)
+        {
+            return BadRequest(new { code = 400, message = "No students provided" });
+        }
+
+        var cls = await _classService.GetByIdAsync(classId);
+        if (cls == null)
+        {
+            return NotFound(new { code = 404, message = "Class not found" });
+        }
+
+        try
+        {
+            await _studentService.AddStudentsToClassAsync(classId, request.StudentIds);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { code = 404, message = "Class not found" });
+        }
+
+        return Ok(new { code = 200, message = "Students added to class" });
     }
 
     [HttpPost]
     public async Task<IActionResult> Create(Class request)
     {
+        if (request == null) return BadRequest(new { code = 400, message = "Invalid payload" });
+
+        if (request.SubjectId <= 0 || string.IsNullOrWhiteSpace(request.ClassName))
+        {
+            return BadRequest(new { code = 400, message = "Class name and subject are required" });
+        }
+
+        var duplicate = await _classService.HasDuplicateNameForSubjectAsync(request.ClassName, request.SubjectId);
+        if (duplicate)
+        {
+            return Conflict(new
+            {
+                code = 409,
+                message = $"Class '{request.ClassName}' is already assigned to this subject."
+            });
+        }
+
         var created = await _classService.CreateAsync(request);
         return CreatedAtAction(nameof(GetById), new { id = created.ClassId }, new { code = 201, data = created });
     }
@@ -259,6 +409,22 @@ public class ClassController : ControllerBase
     public async Task<IActionResult> Update(int id, Class request)
     {
         if (id != request.ClassId) return BadRequest();
+
+        if (request.SubjectId <= 0 || string.IsNullOrWhiteSpace(request.ClassName))
+        {
+            return BadRequest(new { code = 400, message = "Class name and subject are required" });
+        }
+
+        var duplicate = await _classService.HasDuplicateNameForSubjectAsync(request.ClassName, request.SubjectId, request.ClassId);
+        if (duplicate)
+        {
+            return Conflict(new
+            {
+                code = 409,
+                message = $"Class '{request.ClassName}' is already assigned to this subject."
+            });
+        }
+
         var ok = await _classService.UpdateAsync(request);
         if (!ok) return NotFound();
         return NoContent();
@@ -416,11 +582,82 @@ public class ClassController : ControllerBase
             return NotFound(new { code = 404, message = "Class not found" });
         }
     }
+    // Add these endpoints to ClassController.cs
+
+/// <summary>
+/// Lấy danh sách lớp kèm thông tin điểm để quản lý
+/// GET: api/manager/classes/with-grades
+/// </summary>
+[HttpGet("with-grades")]
+public async Task<IActionResult> GetClassesWithGrades([FromQuery] ClassGradeFilterRequest? filter)
+{
+    try
+    {
+        var classes = await _classService.GetClassesWithGradesAsync(filter);
+        
+        return Ok(new
+        {
+            code = 200,
+            message = "Success",
+            data = classes
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            code = 500,
+            message = $"Internal server error: {ex.Message}"
+        });
+    }
+}
+
+/// <summary>
+/// Lấy chi tiết lớp với danh sách sinh viên và điểm
+/// GET: api/manager/classes/{classId}/grade-details
+/// </summary>
+[HttpGet("{classId:int}/grade-details")]
+public async Task<IActionResult> GetClassGradeDetails(int classId)
+{
+    try
+    {
+        var details = await _classService.GetClassGradeDetailsAsync(classId);
+        
+        if (details == null)
+        {
+            return NotFound(new
+            {
+                code = 404,
+                message = $"Class with ID {classId} not found or has no subject assigned"
+            });
+        }
+
+        return Ok(new
+        {
+            code = 200,
+            message = "Success",
+            data = details
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            code = 500,
+            message = $"Internal server error: {ex.Message}"
+        });
+    }
+}
 }
 
 public class UpdateClassStatusRequest
 {
     public bool Status { get; set; }
+}
+
+public class AddStudentsRequest
+{
+    public List<int> StudentIds { get; set; } = new();
 }
 
 

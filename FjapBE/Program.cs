@@ -68,6 +68,8 @@ builder.Services.AddScoped<ISemesterService, SemesterService>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<IHolidayService, HolidayService>();
 
+builder.Services.AddScoped<IGradeRepository, GradeRepository>();
+builder.Services.AddScoped<IGradeService, GradeService>();
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";
 builder.Services.AddCors(opt =>

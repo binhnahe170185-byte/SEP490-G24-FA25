@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import { Button, Input, Space, Table, Tooltip } from "antd";
 import {
   TeamOutlined,
@@ -7,7 +7,6 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
-import AddStudentsPopup from "./AddStudent";
 
 const normalizeSubjects = (rows = [], fallbackClassId, fallbackClassName) =>
   rows.map((item, index) => {
@@ -72,13 +71,13 @@ const filterBarStyle = {
 export default function ClassDetail() {
   const { classId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const initialClassName = (location.state && location.state.className) || classId;
 
   const [className, setClassName] = useState(initialClassName);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -133,15 +132,32 @@ export default function ClassDetail() {
   }, [subjects, searchTerm]);
 
   const handleViewStudents = (record) => {
-    console.log("View students", record);
+    const destinationId = record?.classId ?? record?.class_id ?? classId;
+    if (!destinationId) {
+      return;
+    }
+
+    navigate(`/manager/class/${destinationId}/students`, {
+      state: {
+        className: record.class_name ?? record.className ?? className,
+        subjectName: record.subject_name ?? record.subjectName ?? "-",
+      },
+    });
   };
 
-  const handleAddStudent = () => {
-    setShowAddStudentModal(true);
-  };
+  const handleAddStudent = (record) => {
+    const destinationId = record?.classId ?? record?.class_id ?? classId;
+    if (!destinationId) {
+      return;
+    }
 
-  const handleCloseAddStudent = () => {
-    setShowAddStudentModal(false);
+    navigate(`/manager/class/${destinationId}/add-students`, {
+      state: {
+        className: record.class_name ?? record.className ?? className,
+        subjectName: record.subject_name ?? record.subjectName ?? "-",
+        subjectCode: record.subject_code ?? record.subjectCode ?? "-",
+      },
+    });
   };
 
   const columns = [
@@ -205,7 +221,7 @@ export default function ClassDetail() {
           <Tooltip title="Add student">
             <Button
               icon={<UserAddOutlined />}
-              onClick={handleAddStudent}
+              onClick={() => handleAddStudent(record)}
             />
           </Tooltip>
         </Space>
@@ -257,11 +273,6 @@ export default function ClassDetail() {
           ← Back to class list
         </Link>
       </div>
-      <AddStudentsPopup
-        open={showAddStudentModal}
-        onClose={handleCloseAddStudent}
-        classId={classId}
-      />
     </section>
   );
 }
