@@ -1,4 +1,3 @@
-// ./Header.js (hoặc để inline trong App.js cũng được)
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../vn.fpt.edu.pages/login/AuthContext";
@@ -40,7 +39,6 @@ export default function Header() {
             <button onClick={onLogout}>Đăng xuất</button>
           </div>
         ) : (
-          // Trường hợp chưa login sẽ hiếm thấy vì Header không render ở /login
           <Link to="/login">Đăng nhập</Link>
         )}
       </div>
