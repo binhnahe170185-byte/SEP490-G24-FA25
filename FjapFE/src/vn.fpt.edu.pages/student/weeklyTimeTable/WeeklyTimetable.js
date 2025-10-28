@@ -93,6 +93,21 @@ function normalizeLesson(raw, fallbackId) {
     raw.class?.subject?.subjectName ??
     null;
 
+  // Map instructor and studentGroup
+  const instructorCode = raw.lecturerCode ?? raw.lecturer_code ?? raw.lectureCode ?? raw.instructor ?? null;
+  const studentGroup = raw.studentGroup ?? className ?? null;
+
+  // Map attendance status from backend to frontend
+  // Backend: 'Present', 'Absent', 'Late', 'Excused', null
+  // Frontend: 'pending' (Not Yet), 'done' (Present), 'absent' (Absent)
+  const mapAttendanceStatus = (attendance) => {
+    if (!attendance) return 'pending';
+    const status = attendance.toLowerCase();
+    if (status === 'present' || status === 'late' || status === 'excused') return 'done';
+    if (status === 'absent') return 'absent';
+    return 'pending';
+  };
+
   const roomName =
     raw.roomLabel ??
     raw.roomName ??
@@ -116,7 +131,7 @@ function normalizeLesson(raw, fallbackId) {
     rawDate,
     weekday: Number.isFinite(weekday) && weekday > 0 ? weekday : dateObj?.isoWeekday() ?? null,
     slotId: Number.isFinite(slotId) && slotId > 0 ? slotId : null,
-    status: raw.status ?? (raw.attendances && raw.attendances.length > 0 ? "done" : "pending"),
+    status: mapAttendanceStatus(raw.attendance ?? raw.Attendance ?? raw.raw?.attendance ?? raw.raw?.Attendance),
     // expose subjectCode separately and prefer it for display
     subjectCode: subjectCode ?? null,
     code:
@@ -132,6 +147,8 @@ function normalizeLesson(raw, fallbackId) {
       (raw.roomId ?? raw.room_id ? `Room ${raw.roomId ?? raw.room_id}` : null),
     roomId: raw.roomId ?? raw.room_id ?? null,
     lectureId: raw.lectureId ?? raw.lecture_id ?? null,
+    instructor: instructorCode,
+    studentGroup: studentGroup,
     raw,
   };
 }

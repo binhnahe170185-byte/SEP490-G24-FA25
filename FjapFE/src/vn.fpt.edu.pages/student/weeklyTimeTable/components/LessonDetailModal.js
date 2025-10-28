@@ -33,16 +33,9 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
     const time = lesson?.timeLabel || (lesson?.startTime && lesson?.endTime ?
         `${lesson.startTime} - ${lesson.endTime}` : "N/A");
 
-    // Mock data for people (instructor and student group)
-    // In real app, this would come from API
-    const instructor = {
-        code: "HADTT50",
-        name: "Nguyễn Văn A"
-    };
-    const studentGroup = {
-        code: "SE1834-NET",
-        name: "SE1834-NET"
-    };
+    // Get instructor and studentGroup from lesson data
+    const instructorCode = lesson?.instructor || "N/A";
+    const studentGroupCode = lesson?.studentGroup || "N/A";
 
     return (
         <Modal
@@ -75,7 +68,7 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                 items={[
                     {
                         key: "details",
-                        label: "Chi tiết lớp học",
+                        label: "Class Information",
                         children: (
                             <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
                                 {/* Left Column - Course Information */}
@@ -141,13 +134,13 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                         <div>
                                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                                                 <UserOutlined style={{ fontSize: 16 }} />
-                                                <Text strong>Instructor</Text>
+                                                <Text strong>Lecturer</Text>
                                             </div>
                                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 24 }}>
                                                 <Avatar size={24} style={{ backgroundColor: "#f0f0f0", color: "#000" }}>
-                                                    H
+                                                    {instructorCode.charAt(0)}
                                                 </Avatar>
-                                                <Text>{instructor.code}</Text>
+                                                <Text>{instructorCode}</Text>
                                                 <LinkOutlined style={{ fontSize: 12, color: "#666" }} />
                                             </div>
                                         </div>
@@ -156,13 +149,13 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                         <div>
                                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                                                 <TeamOutlined style={{ fontSize: 16 }} />
-                                                <Text strong>Student Group</Text>
+                                                <Text strong>Class Name</Text>
                                             </div>
                                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 24 }}>
                                                 <Avatar size={24} style={{ backgroundColor: "#f0f0f0", color: "#000" }}>
-                                                    S
+                                                    {studentGroupCode.charAt(0)}
                                                 </Avatar>
-                                                <Text>{studentGroup.code}</Text>
+                                                <Text>{studentGroupCode}</Text>
                                                 <LinkOutlined style={{ fontSize: 12, color: "#666" }} />
                                             </div>
                                         </div>
@@ -173,7 +166,7 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                     },
                     {
                         key: "resources",
-                        label: "Tài nguyên & Liên kết",
+                        label: "Resources & Links",
                         children: (
                             <div style={{
                                 display: "grid",

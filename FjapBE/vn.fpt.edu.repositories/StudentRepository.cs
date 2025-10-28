@@ -39,7 +39,9 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             l.date        AS Date,
             r.room_name   AS RoomName,
             l.time_id     AS TimeId,
-            l.lecture_id  AS LectureId,
+            le.lecture_id  AS LectureId,
+            le.lecturer_code AS LectureCode,
+            a.status AS Attendance,
             t.start_time  AS StartTime,
             t.end_time    AS EndTime,
             s.subject_code AS SubjectCode
@@ -47,9 +49,11 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
         JOIN fjap.class    AS c ON c.class_id  = l.class_id
         JOIN fjap.subject  AS s ON s.subject_id  = c.subject_id
         JOIN fjap.room     AS r ON r.room_id   = l.room_id
+        JOIN fjap.lecture  AS le ON le.lecture_id = l.lecture_id
         JOIN fjap.enrollment AS e ON e.class_id = c.class_id
         JOIN fjap.timeslot AS t ON t.time_id   = l.time_id
-        WHERE e.student_id = {studentId}";
+        LEFT JOIN fjap.attendance AS a ON a.lesson_id = l.lesson_id AND a.student_id = e.student_id
+        WHERE e.student_id= {studentId}";
 
         var lessons = await _context
             .Set<LessonDto>()
@@ -72,6 +76,8 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
 
         public int TimeId { get; set; }
         public int LectureId { get; set; }
+        public string LectureCode { get; set; } = "";
+        public string? Attendance { get; set; }
 
         public TimeOnly StartTime { get; set; }
         public TimeOnly EndTime { get; set; }
