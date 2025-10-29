@@ -32,11 +32,7 @@ const ManagerSidebar = () => {
     //   icon: <FileOutlined />, 
     //   label: <Link to="/manager/materials">Materials</Link>, 
     // }, // Removed - materials moved to staff
-    {
-      key: "/manager/grades",
-      icon: <ReadOutlined />,
-      label: <Link to="/manager/grades">List Grades</Link>,
-    },
+    // Grades moved to Lecturer area
   ];
 
   return (

@@ -54,7 +54,7 @@ const LecturerFooter = () => {
               <Link href="#" style={{ color: '#94a3b8' }}>Dashboard</Link>
               <Link href="#" style={{ color: '#94a3b8' }}>Classes</Link>
               <Link href="#" style={{ color: '#94a3b8' }}>Homework</Link>
-              <Link href="#" style={{ color: '#94a3b8' }}>Grades</Link>
+              <Link href="grades" style={{ color: '#94a3b8' }}>Grades</Link>
               <Link href="#" style={{ color: '#94a3b8' }}>Materials</Link>
             </div>
           </div>

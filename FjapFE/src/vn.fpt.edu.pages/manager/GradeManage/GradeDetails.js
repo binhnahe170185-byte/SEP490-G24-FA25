@@ -30,23 +30,21 @@ export default function GradeDetails() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const base = location.pathname.startsWith('/lecturer') ? '/lecturer' : '/manager';
   
   const [courseDetails, setCourseDetails] = useState(null);
   const [students, setStudents] = useState([]);
   const [gradeComponentWeights, setGradeComponentWeights] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const managerId = user?.managerId || "MOCK_MANAGER_123";
+  const userId = user?.id ;
   const courseFromState = location.state?.course;
 
   // Load course details và danh sách sinh viên
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await ManagerGrades.getCourseDetails(managerId, courseId);
-      console.log("GradeDetails - API Response:", data); // Debug log
-      console.log("GradeDetails - Students data:", data.students); // Debug log
-      
+      const data = await ManagerGrades.getCourseDetails(userId, courseId);
       setCourseDetails(data);
       setGradeComponentWeights(data.gradeComponentWeights || []);
       
@@ -78,7 +76,7 @@ export default function GradeDetails() {
     } finally {
       setLoading(false);
     }
-  }, [managerId, courseId]);
+  }, [userId, courseId]);
 
   useEffect(() => {
     loadData();
@@ -110,7 +108,7 @@ export default function GradeDetails() {
   const handleExport = async () => {
     try {
       message.loading("Exporting grades...", 0);
-      await ManagerGrades.exportCourseGrades(managerId, courseId);
+      await ManagerGrades.exportCourseGrades(userId, courseId);
       message.destroy();
       message.success("Grades exported successfully");
     } catch (error) {
@@ -132,7 +130,7 @@ export default function GradeDetails() {
       {
         title: "No.",
         key: "index",
-        width: 5,
+        width: 50,
         render: (_, __, index) => index + 1,
       },
       {
@@ -145,35 +143,35 @@ export default function GradeDetails() {
         title: "Student Name",
         dataIndex: "studentName",
         key: "studentName",
-        width: 200,
+        width: 170,
       },
       {
         title: "Email",
         dataIndex: "email",
         key: "email",
-        width: 220,
+        width: 190,
       }
     ];
 
     // Add grade component columns dynamically
-    const gradeColumns = gradeComponentWeights.map(weight => {
-      const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
-      return {
-        title: `${weight.gradeTypeName} (${weight.weight}%)`,
-        dataIndex: dataIndex,
-        key: dataIndex,
-        width: 150,
-        align: "center",
-        render: (value) => value != null ? value.toFixed(1) : "-",
-      };
-    });
+    // const gradeColumns = gradeComponentWeights.map(weight => {
+    //   const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+    //   return {
+    //     title: `${weight.gradeTypeName} (${weight.weight}%)`,
+    //     dataIndex: dataIndex,
+    //     key: dataIndex,
+    //     width: 150,
+    //     align: "center",
+    //     render: (value) => value != null ? value.toFixed(1) : "-",
+    //   };
+    // });
 
     const endColumns = [
       {
         title: "Average",
         dataIndex: "average",
         key: "average",
-        width: 100,
+        width: 80,
         align: "center",
         render: (value) => (
           <span style={{ fontWeight: 600, fontSize: 15 }}>
@@ -205,7 +203,8 @@ export default function GradeDetails() {
       }
     ];
 
-    return [...baseColumns, ...gradeColumns, ...endColumns];
+    // return [...baseColumns, ...gradeColumns, ...endColumns];
+    return [...baseColumns, ...endColumns];
   };
 
   const columns = generateColumns();
@@ -225,7 +224,7 @@ export default function GradeDetails() {
         style={{ marginBottom: 16 }}
         items={[
           { title: "Management" },
-          { title: "Grade Management", onClick: () => navigate("/manager/grades") },
+          { title: "Grade Management", onClick: () => navigate(`${base}/grades`) },
           { title: "Grade Details" },
         ]}
       />
@@ -234,14 +233,14 @@ export default function GradeDetails() {
         <Space>
           <Button 
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate("/manager/grades")}
+            onClick={() => navigate(`${base}/grades`)}
           >
             Back
           </Button>
           <Button 
             type="primary"
             icon={<EditOutlined />}
-            onClick={() => navigate(`/manager/grades/enter/${courseId}`, {
+            onClick={() => navigate(`${base}/grades/enter/${courseId}`, {
               state: { course: courseFromState }
             })}
           >
@@ -333,7 +332,7 @@ export default function GradeDetails() {
           columns={columns}
           dataSource={students}
           rowKey="studentId"
-          scroll={{ x: 1400 }}
+          // scroll={{ x: 1400 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,

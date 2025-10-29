@@ -14,13 +14,13 @@ import {
   BookOutlined,
   UserOutlined
 } from '@ant-design/icons';
-import LecturerHeader from './lecturer-header';
+import { useNavigate } from 'react-router-dom';
 import './LecturerHomepage.css';
 
 const { Title, Text } = Typography;
 
 const LecturerHomepage = () => {
-
+  const navigate = useNavigate();
 
   // Lecturer functions grouped by category
   const scheduleClassFunctions = [
@@ -35,24 +35,20 @@ const LecturerHomepage = () => {
   ];
 
   const homeworkFunctions = [
-    { title: 'View Homework\'s List', icon: <FileTextOutlined />, onClick: () => console.log('Homework List') },
+    { title: 'View Homework\'s List', icon: <FileTextOutlined />, onClick: () => navigate('/lecturer/homework') },
     { title: 'Add Homeworks', icon: <EditOutlined />, onClick: () => console.log('Add Homework') },
     { title: 'Edit Homeworks', icon: <EditOutlined />, onClick: () => console.log('Edit Homework') },
     { title: 'View Homework Submission', icon: <FileTextOutlined />, onClick: () => console.log('Homework Submission') }
   ];
 
   const gradeFunctions = [
-    { title: 'View List Grades', icon: <BookOutlined />, onClick: () => console.log('Grades List') },
-    { title: 'View Grade Detail', icon: <BookOutlined />, onClick: () => console.log('Grade Detail') },
-    { title: 'Edit Grade', icon: <EditOutlined />, onClick: () => console.log('Edit Grade') }
+    { title: 'View List Grades', icon: <BookOutlined />, onClick: () => navigate('/lecturer/grades') },
+    { title: 'View Grade Detail', icon: <BookOutlined />, onClick: () => navigate('/lecturer/grades') },
+    { title: 'Edit Grade', icon: <EditOutlined />, onClick: () => navigate('/lecturer/grades') }
   ];
 
   return (
-    <div className="teacher-homepage">
-      {/* Header */}
-      <LecturerHeader />
-
-
+    <div className="teacher-homepage" style={{ padding: '24px' }}>
       {/* Dashboard Section */}
       <div className="dashboard-container">
         <Title level={2} className="dashboard-title">Your Dashboard</Title>
@@ -170,7 +166,7 @@ const LecturerHomepage = () => {
                 </div>
               </div>
               
-              <Button type="primary" className="card-action">View All</Button>
+              <Button type="primary" className="card-action" onClick={() => navigate('/lecturer/grades')}>View All</Button>
             </Card>
           </Col>
         </Row>

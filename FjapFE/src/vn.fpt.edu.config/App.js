@@ -116,9 +116,7 @@ export default function App() {
                   <Route path="subject/create" element={<CreateSubject />} />
                   <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                   <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
-                  <Route path="grades" element={<GradeManage />} />
-                  <Route path="grades/:courseId" element={<GradeDetails />} />
-                  <Route path="grades/enter/:courseId" element={<GradeEntry />} />
+                  
                 </Route>
 
                 <Route
@@ -152,6 +150,7 @@ export default function App() {
                     </RequireStaffAcademic>
                   }
                 >
+                  <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<LecturerHomepage />} />
                   <Route
                     path="classes"
@@ -165,6 +164,9 @@ export default function App() {
                     path="homework"
                     element={<HomeworkManage />}
                   />
+                  <Route path="grades" element={<GradeManage />} />
+                  <Route path="grades/:courseId" element={<GradeDetails />} />
+                  <Route path="grades/enter/:courseId" element={<GradeEntry />} />
                 </Route>
               </Route>
 
