@@ -16,6 +16,7 @@ import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGr
 import StudentHomepage from "../vn.fpt.edu.pages/student/StudentHomepage";
 import AttendanceReportPage from "../vn.fpt.edu.pages/student/AttendanceReportPage";
 import HomeworkPage from "../vn.fpt.edu.pages/student/HomeworkPage";
+import ClassStudentsList from "../vn.fpt.edu.pages/student/classStudents/ClassStudentsList";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import LecturerLayout from "../vn.fpt.edu.pages/layouts/lecturer-layout";
@@ -33,6 +34,7 @@ import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
 import StaffMaterialList from "../vn.fpt.edu.pages/staff/materials/MaterialList";
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
+import Schedule from "../vn.fpt.edu.pages/lecturer/schedule/Schedule";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
@@ -60,6 +62,44 @@ function RequireStaffAcademic({ children }) {
   }
   return children;
 }
+/*
+Hiện tại đang để 2 hàm này neverUsed vì chưa có phân quyền rõ ràng cho student và lecturer
+Khi có phân quyền rõ ràng thì sẽ dùng 2 hàm này để bảo vệ route
+chưa nghĩ ra việc có màn nào đặc biệt chỉ có student hay lecturer mới vào được hay không nên viết sẵn để đấy
+Author: Huy
+*/
+function RequireStudent({ children }) {
+  const { user } = useAuth();
+  if (!user || Number(user.roleId) !== 4) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function RequireLecturer({ children }) {
+  const { user } = useAuth();
+  if (!user || Number(user.roleId) !== 3) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function RoleBasedRedirect() {
+  const { user } = useAuth();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  const roleId = Number(user.roleId);
+  if (roleId === 3) {
+    return <Navigate to="/lecturer/dashboard" replace />;
+  }
+  if (roleId === 4) {
+    return <StudentHomepage />;
+  }
+
+  // Default fallback
+  return <StudentHomepage />;
+}
 
 function ProtectedLayout() {
   const location = useLocation();
@@ -77,20 +117,7 @@ function ProtectedLayout() {
 }
 
 function Home() {
-  const { user } = useAuth();
-  
-  // If user is a student (roleId === 4), show StudentHomepage
-  // Otherwise show default home
-  
-    return <StudentHomepage />;
-  
-  
-  return (
-    <div style={{ padding: 32 }}>
-      <h2>Trang chủ</h2>
-      <p>Chào mừng bạn đến với hệ thống quản lý sinh viên!</p>
-    </div>
-  );
+  return <RoleBasedRedirect />;
 }
 
 export default function App() {
@@ -110,6 +137,7 @@ export default function App() {
                 <Route path="/student/grades" element={<StudentGradeReport />} />
                 <Route path="/student/attendance" element={<AttendanceReportPage />} />
                 <Route path="/student/homework" element={<HomeworkPage />} />
+                <Route path="/student/class/:classId/students" element={<ClassStudentsList />} />
                 <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
 
                 <Route
@@ -129,7 +157,7 @@ export default function App() {
                   <Route path="subject/create" element={<CreateSubject />} />
                   <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                   <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
-                  
+
                 </Route>
 
                 <Route
@@ -165,6 +193,7 @@ export default function App() {
                 >
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<LecturerHomepage />} />
+                  <Route path="schedule" element={<Schedule />} />
                   <Route
                     path="classes"
                     element={<div style={{ padding: 16 }}><h3>Lecturer Classes (coming soon)</h3></div>}
@@ -180,6 +209,7 @@ export default function App() {
                   <Route path="grades" element={<GradeManage />} />
                   <Route path="grades/:courseId" element={<GradeDetails />} />
                   <Route path="grades/enter/:courseId" element={<GradeEntry />} />
+                  <Route path="class/:classId/students" element={<ClassStudentsList />} />
                 </Route>
               </Route>
 

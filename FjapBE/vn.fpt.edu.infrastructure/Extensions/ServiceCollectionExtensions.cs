@@ -17,10 +17,12 @@ namespace FJAP.Infrastructure.Extensions
             services.AddScoped<IStudentRepository, StudentRepository>();
             services.AddScoped<IClassRepository, ClassRepository>();
             services.AddScoped<IAuthRepository, AuthRepository>();
+            services.AddScoped<ILecturerRepository, LecturerRepository>();
 
             services.AddScoped<IStudentService, StudentService>();
             services.AddScoped<IClassService, ClassService>();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ILecturerService, LecturerService>();
 
             return services;
         }

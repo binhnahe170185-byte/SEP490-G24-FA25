@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  Card, 
-  Row, 
-  Col, 
+import {
+  Card,
+  Row,
+  Col,
   Typography,
   Button
 } from 'antd';
-import { 
+import {
   CalendarOutlined,
   BarChartOutlined,
   FileTextOutlined,
@@ -24,7 +24,7 @@ const LecturerHomepage = () => {
 
   // Lecturer functions grouped by category
   const scheduleClassFunctions = [
-    { title: 'View Lecturer\'s Schedule', icon: <CalendarOutlined />, onClick: () => console.log('Schedule') },
+    { title: 'View Lecturer\'s Schedule', icon: <CalendarOutlined />, onClick: () => navigate('/lecturer/schedule') },
     { title: 'View Class\'s Member', icon: <UserOutlined />, onClick: () => console.log('Class Members') }
   ];
 
@@ -52,7 +52,7 @@ const LecturerHomepage = () => {
       {/* Dashboard Section */}
       <div className="dashboard-container">
         <Title level={2} className="dashboard-title">Your Dashboard</Title>
-        
+
         <Row gutter={[24, 24]} className="dashboard-grid">
           {/* Schedule & Class Management */}
           <Col xs={24} lg={12} xl={6}>
@@ -64,7 +64,7 @@ const LecturerHomepage = () => {
                   <Text className="card-description">Manage your schedule and class information.</Text>
                 </div>
               </div>
-              
+
               <div className="card-content">
                 <div className="section">
                   <Text className="section-title">Quick Access</Text>
@@ -78,8 +78,8 @@ const LecturerHomepage = () => {
                   </div>
                 </div>
               </div>
-              
-              <Button type="primary" className="card-action">View All</Button>
+
+              <Button type="primary" className="card-action" onClick={() => navigate('/lecturer/schedule')}>View All</Button>
             </Card>
           </Col>
 
@@ -93,7 +93,7 @@ const LecturerHomepage = () => {
                   <Text className="card-description">Track and manage student attendance.</Text>
                 </div>
               </div>
-              
+
               <div className="card-content">
                 <div className="section">
                   <Text className="section-title">Quick Access</Text>
@@ -107,7 +107,7 @@ const LecturerHomepage = () => {
                   </div>
                 </div>
               </div>
-              
+
               <Button type="primary" className="card-action">View All</Button>
             </Card>
           </Col>
@@ -122,7 +122,7 @@ const LecturerHomepage = () => {
                   <Text className="card-description">Create and manage homework assignments.</Text>
                 </div>
               </div>
-              
+
               <div className="card-content">
                 <div className="section">
                   <Text className="section-title">Quick Access</Text>
@@ -136,7 +136,7 @@ const LecturerHomepage = () => {
                   </div>
                 </div>
               </div>
-              
+
               <Button type="primary" className="card-action">View All</Button>
             </Card>
           </Col>
@@ -151,7 +151,7 @@ const LecturerHomepage = () => {
                   <Text className="card-description">Manage student grades and assessments.</Text>
                 </div>
               </div>
-              
+
               <div className="card-content">
                 <div className="section">
                   <Text className="section-title">Quick Access</Text>
@@ -165,7 +165,7 @@ const LecturerHomepage = () => {
                   </div>
                 </div>
               </div>
-              
+
               <Button type="primary" className="card-action" onClick={() => navigate('/lecturer/grades')}>View All</Button>
             </Card>
           </Col>
