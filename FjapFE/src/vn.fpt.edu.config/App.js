@@ -28,7 +28,7 @@ import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
 import StaffMaterialList from "../vn.fpt.edu.pages/staff/materials/MaterialList";
-import LecturerDashboard from "../vn.fpt.edu.pages/layouts/lecturer-layout/Dashboard";
+import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
 import Header from "../vn.fpt.edu.common/Header";
@@ -152,7 +152,7 @@ export default function App() {
                     </RequireStaffAcademic>
                   }
                 >
-                  <Route path="dashboard" element={<LecturerDashboard />} />
+                  <Route path="dashboard" element={<LecturerHomepage />} />
                   <Route
                     path="classes"
                     element={<div style={{ padding: 16 }}><h3>Lecturer Classes (coming soon)</h3></div>}

@@ -1,0 +1,279 @@
+/* Teacher Homepage Styles */
+.teacher-homepage {
+  min-height: 100vh;
+  background: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Welcome Section */
+.welcome-section {
+  padding: 40px 24px;
+  background: white;
+  text-align: center;
+}
+
+.welcome-title {
+  color: #333;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0 !important;
+}
+
+.welcome-subtitle {
+  color: #666;
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Dashboard Section */
+.dashboard-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-title {
+  color: #333;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 24px 0 !important;
+}
+
+.dashboard-grid {
+  margin-top: 24px;
+}
+
+/* Dashboard Cards */
+.dashboard-card {
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.dashboard-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.card-icon {
+  font-size: 24px;
+  color: #1890ff;
+  margin-top: 4px;
+}
+
+.card-title {
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 4px 0 !important;
+}
+
+.card-description {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+.card-content {
+  margin-bottom: 20px;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: block;
+}
+
+/* Class Items */
+.class-item {
+  padding: 8px 0 !important;
+  border-bottom: none !important;
+}
+
+.class-item:last-child {
+  border-bottom: none !important;
+}
+
+.item-icon {
+  color: #1890ff;
+  margin-right: 8px;
+}
+
+.class-subject {
+  font-weight: 500;
+  color: #333;
+}
+
+.class-details {
+  color: #666;
+  font-size: 13px;
+}
+
+/* Task Items */
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-badge {
+  background: #1890ff;
+}
+
+/* Quick Access */
+.quick-access {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.access-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.access-icon {
+  color: #1890ff;
+  font-size: 16px;
+}
+
+/* Announcements */
+.announcement-item {
+  padding: 8px 0 !important;
+  border-bottom: none !important;
+}
+
+.announcement-item:last-child {
+  border-bottom: none !important;
+}
+
+.announcement-title {
+  font-weight: 500;
+  color: #333;
+}
+
+.announcement-date {
+  color: #666;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+/* Alerts */
+.alert-item {
+  padding: 8px 0 !important;
+  border-bottom: none !important;
+}
+
+.alert-item:last-child {
+  border-bottom: none !important;
+}
+
+.alert-message {
+  color: #333;
+  font-size: 13px;
+}
+
+/* Card Actions */
+.card-action {
+  width: 100%;
+  height: 40px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 992px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .card-icon {
+    font-size: 20px;
+  }
+  
+  .card-title {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 576px) {
+  .dashboard-container {
+    padding: 12px;
+  }
+  
+  .dashboard-title {
+    font-size: 20px;
+  }
+  
+  .card-content {
+    margin-bottom: 16px;
+  }
+  
+  .section {
+    margin-bottom: 16px;
+  }
+}
+
+/* Animation for smooth loading */
+.dashboard-card {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger animation for cards */
+.dashboard-card:nth-child(1) { animation-delay: 0.1s; }
+.dashboard-card:nth-child(2) { animation-delay: 0.2s; }
+.dashboard-card:nth-child(3) { animation-delay: 0.3s; }
+.dashboard-card:nth-child(4) { animation-delay: 0.4s; }
+.dashboard-card:nth-child(5) { animation-delay: 0.5s; }
