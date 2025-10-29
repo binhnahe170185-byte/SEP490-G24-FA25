@@ -3,6 +3,7 @@ using FJAP.Services.Interfaces;
 using FJAP.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace FJAP.Controllers;
 
@@ -12,11 +13,13 @@ public class HolidayController : ControllerBase
 {
     private readonly IHolidayService _holidayService;
     private readonly FjapDbContext _db;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public HolidayController(IHolidayService holidayService, FjapDbContext dbContext)
+    public HolidayController(IHolidayService holidayService, FjapDbContext dbContext, IHttpClientFactory httpClientFactory)
     {
         _holidayService = holidayService;
         _db = dbContext;
+        _httpClientFactory = httpClientFactory;
     }
 
     // ===================== Holidays (list) =====================
@@ -212,5 +215,73 @@ public class HolidayController : ControllerBase
             Console.WriteLine($"Error in CreateBulkHolidays: {ex.Message}");
             return BadRequest(ex.Message);
         }
+    }
+
+    // ===================== Get Japan Holidays from External API =====================
+    [HttpGet("japan/{year:int}")]
+    public async Task<IActionResult> GetJapanHolidays(int year)
+    {
+        try
+        {
+            if (year < 2000 || year > 2100)
+            {
+                return BadRequest(new { error = "Year must be between 2000 and 2100" });
+            }
+
+            var httpClient = _httpClientFactory.CreateClient();
+            var apiUrl = $"https://date.nager.at/api/v3/PublicHolidays/{year}/JP";
+            
+            var response = await httpClient.GetAsync(apiUrl);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                return StatusCode((int)response.StatusCode, new { error = "Failed to fetch holidays from external API" });
+            }
+
+            var jsonString = await response.Content.ReadAsStringAsync();
+            
+            // Parse the JSON response from Nager.Date API
+            var holidays = JsonSerializer.Deserialize<List<JapanHolidayResponse>>(jsonString, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (holidays == null || !holidays.Any())
+            {
+                return Ok(new { year, holidays = new List<object>() });
+            }
+
+            // Transform to our format
+            var result = holidays.Select(h => new
+            {
+                name = h.Name,
+                date = h.Date,
+                type = "National", // Japan public holidays are national holidays
+                description = $"{h.LocalName} ({h.Name})",
+                isRecurring = true
+            }).ToList();
+
+            return Ok(new { year, holidays = result });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetJapanHolidays: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            return StatusCode(500, new { error = "Failed to fetch Japan holidays", message = ex.Message });
+        }
+    }
+
+    // Helper class for deserializing Nager.Date API response
+    private class JapanHolidayResponse
+    {
+        public string Date { get; set; } = string.Empty;
+        public string LocalName { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string CountryCode { get; set; } = string.Empty;
+        public bool Fixed { get; set; }
+        public bool Global { get; set; }
+        public string? Counties { get; set; }
+        public int? LaunchYear { get; set; }
+        public string[]? Types { get; set; }
     }
 }
