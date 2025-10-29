@@ -70,6 +70,10 @@ builder.Services.AddScoped<IHolidayService, HolidayService>();
 
 builder.Services.AddScoped<IGradeRepository, GradeRepository>();
 builder.Services.AddScoped<IGradeService, GradeService>();
+
+// ----- HttpClient for external APIs -----
+builder.Services.AddHttpClient();
+
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";
 builder.Services.AddCors(opt =>

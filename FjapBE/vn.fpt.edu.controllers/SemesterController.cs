@@ -57,6 +57,7 @@ public class SemesterController : ControllerBase
             {
                 semesterId = x.SemesterId,
                 name = x.Name,
+                semesterCode = x.SemesterCode,
                 startDate = x.StartDate.ToString("yyyy-MM-dd"),
                 endDate = x.EndDate.ToString("yyyy-MM-dd"),
                 duration = (x.EndDate.DayNumber - x.StartDate.DayNumber),

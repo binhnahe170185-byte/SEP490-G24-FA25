@@ -27,13 +27,68 @@ public class SemesterService : ISemesterService
             s => s.SemesterId == id,
             includeProperties: "Classes,Students");
 
+    private string GetSemesterSeason(DateOnly date)
+    {
+        var month = date.Month;
+        var day = date.Day;
+
+        // Spring: 01/01 - 30/04
+        if (month == 1 || month == 2 || month == 3 || (month == 4 && day <= 30))
+        {
+            return "spring";
+        }
+        // Summer: 01/05 - 31/08
+        if (month == 5 || month == 6 || month == 7 || month == 8)
+        {
+            return "summer";
+        }
+        // Fall: 01/09 - 31/12
+        if (month >= 9 && month <= 12)
+        {
+            return "fall";
+        }
+
+        return null;
+    }
+
     public async Task<Semester> CreateAsync(CreateSemesterRequest request)
     {
-        // Validate semester name uniqueness
-        var existingSemester = await _semesterRepository.FirstOrDefaultAsync(s => s.Name.ToLower() == request.Name.Trim().ToLower());
-        if (existingSemester != null)
+        // Auto-generate semester name and code
+        var semesterName = request.GenerateSemesterName();
+        var semesterCode = request.GenerateSemesterCode();
+
+        // Validate dates are in allowed ranges
+        var startSeason = GetSemesterSeason(request.StartDate);
+        var endSeason = GetSemesterSeason(request.EndDate);
+
+        if (startSeason == null)
         {
-            throw new InvalidOperationException($"Semester with name '{request.Name}' already exists");
+            throw new ArgumentException("Start date must be within allowed semester ranges (Spring: Jan-Apr, Summer: May-Aug, Fall: Sep-Dec)");
+        }
+
+        if (endSeason == null)
+        {
+            throw new ArgumentException("End date must be within allowed semester ranges (Spring: Jan-Apr, Summer: May-Aug, Fall: Sep-Dec)");
+        }
+
+        // Validate start and end dates are in the same season
+        if (startSeason != endSeason)
+        {
+            throw new ArgumentException("Invalid semester range. Start date and end date must be in the same season.");
+        }
+
+        // Validate semester code uniqueness
+        var existingByCode = await _semesterRepository.FirstOrDefaultAsync(s => s.SemesterCode == semesterCode);
+        if (existingByCode != null)
+        {
+            throw new InvalidOperationException($"Semester with code '{semesterCode}' already exists");
+        }
+
+        // Validate semester name uniqueness
+        var existingByName = await _semesterRepository.FirstOrDefaultAsync(s => s.Name.ToLower() == semesterName.ToLower());
+        if (existingByName != null)
+        {
+            throw new InvalidOperationException($"Semester with name '{semesterName}' already exists");
         }
 
         // Validate date range
@@ -62,7 +117,8 @@ public class SemesterService : ISemesterService
 
         var semester = new Semester
         {
-            Name = request.Name.Trim(),
+            Name = semesterName,
+            SemesterCode = semesterCode,
             StartDate = request.StartDate,
             EndDate = request.EndDate
         };
@@ -77,7 +133,39 @@ public class SemesterService : ISemesterService
         var existing = await _semesterRepository.GetByIdAsync(id);
         if (existing == null) return false;
 
-        existing.Name = request.Name.Trim();
+        // Validate dates are in allowed ranges
+        var startSeason = GetSemesterSeason(request.StartDate);
+        var endSeason = GetSemesterSeason(request.EndDate);
+
+        if (startSeason == null)
+        {
+            throw new ArgumentException("Start date must be within allowed semester ranges (Spring: Jan-Apr, Summer: May-Aug, Fall: Sep-Dec)");
+        }
+
+        if (endSeason == null)
+        {
+            throw new ArgumentException("End date must be within allowed semester ranges (Spring: Jan-Apr, Summer: May-Aug, Fall: Sep-Dec)");
+        }
+
+        // Validate start and end dates are in the same season
+        if (startSeason != endSeason)
+        {
+            throw new ArgumentException("Invalid semester range. Start date and end date must be in the same season.");
+        }
+
+        // Auto-regenerate name and code based on new dates
+        var semesterName = request.GenerateSemesterName();
+        var semesterCode = request.GenerateSemesterCode();
+
+        // Validate code uniqueness (excluding current semester)
+        var existingByCode = await _semesterRepository.FirstOrDefaultAsync(s => s.SemesterCode == semesterCode && s.SemesterId != id);
+        if (existingByCode != null)
+        {
+            throw new InvalidOperationException($"Semester with code '{semesterCode}' already exists");
+        }
+
+        existing.Name = semesterName;
+        existing.SemesterCode = semesterCode;
         existing.StartDate = request.StartDate;
         existing.EndDate = request.EndDate;
 

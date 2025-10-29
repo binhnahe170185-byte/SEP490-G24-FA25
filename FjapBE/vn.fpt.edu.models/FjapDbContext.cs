@@ -591,6 +591,9 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .HasColumnName("name");
+            entity.Property(e => e.SemesterCode)
+                .HasMaxLength(20)
+                .HasColumnName("semester_code");
             entity.Property(e => e.StartDate).HasColumnName("start_date");
         });
 
