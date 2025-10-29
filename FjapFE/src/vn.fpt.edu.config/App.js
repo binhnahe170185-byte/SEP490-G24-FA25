@@ -13,6 +13,9 @@ import AuthProvider, { useAuth } from "../vn.fpt.edu.pages/login/AuthContext";
 import LoginPage from "../vn.fpt.edu.pages/login/LoginPage";
 import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyTimetable";
 import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
+import StudentHomepage from "../vn.fpt.edu.pages/student/StudentHomepage";
+import AttendanceReportPage from "../vn.fpt.edu.pages/student/AttendanceReportPage";
+import HomeworkPage from "../vn.fpt.edu.pages/student/HomeworkPage";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import LecturerLayout from "../vn.fpt.edu.pages/layouts/lecturer-layout";
@@ -74,6 +77,14 @@ function ProtectedLayout() {
 }
 
 function Home() {
+  const { user } = useAuth();
+  
+  // If user is a student (roleId === 4), show StudentHomepage
+  // Otherwise show default home
+  
+    return <StudentHomepage />;
+  
+  
   return (
     <div style={{ padding: 32 }}>
       <h2>Trang chủ</h2>
@@ -97,6 +108,8 @@ export default function App() {
               <Route element={<ProtectedLayout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/student/grades" element={<StudentGradeReport />} />
+                <Route path="/student/attendance" element={<AttendanceReportPage />} />
+                <Route path="/student/homework" element={<HomeworkPage />} />
                 <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
 
                 <Route
