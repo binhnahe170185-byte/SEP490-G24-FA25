@@ -43,7 +43,7 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
 
     const handleViewStudents = () => {
         if (classId) {
-            navigate(`/student/class/${classId}/students`);
+            navigate(`/lecturer/class/${classId}/students`);
             onClose();
         }
     };

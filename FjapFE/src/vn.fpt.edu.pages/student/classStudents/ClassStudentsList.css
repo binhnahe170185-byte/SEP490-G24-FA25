@@ -1,0 +1,136 @@
+.class-students-container {
+    padding: 24px;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+}
+
+.loading-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+/* Header Section */
+.class-students-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 16px 24px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.course-icon {
+    width: 48px;
+    height: 48px;
+    background-color: #1890ff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.course-icon span {
+    color: white;
+    font-size: 24px;
+}
+
+.header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.group-name {
+    color: #1890ff;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.total-students {
+    color: #8c8c8c;
+    font-size: 14px;
+}
+
+/* Main Card */
+.students-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.students-card .ant-card-body {
+    padding: 24px;
+}
+
+.card-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.card-subtitle {
+    display: block;
+    color: #8c8c8c;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+/* Table Styles */
+.students-table {
+    margin-top: 16px;
+}
+
+.students-table .ant-table {
+    font-size: 14px;
+}
+
+.students-table .ant-table-thead>tr>th {
+    background-color: #fafafa;
+    color: #595959;
+    font-weight: 600;
+    border-bottom: 2px solid #f0f0f0;
+    padding: 12px 16px;
+}
+
+.students-table .ant-table-tbody>tr>td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.students-table .ant-table-tbody>tr:hover>td {
+    background-color: #fafafa;
+}
+
+.students-table .ant-table-tbody>tr:last-child>td {
+    border-bottom: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .class-students-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .header-right {
+        width: 100%;
+    }
+}

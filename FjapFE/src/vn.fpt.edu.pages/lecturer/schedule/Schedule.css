@@ -1,0 +1,70 @@
+/* căn giữa trang với 2 khoảng trắng  */
+.schedule-page-wrapper {
+    padding: 24px 0;
+    background: #fff;
+}
+
+.schedule-container {
+    max-width: 1100px;
+    /* width table */
+    margin: 0 auto;
+    /* căn giữa màn */
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.schedule-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    justify-content: flex-start;
+}
+
+.schedule-title {
+    flex: 0 0 auto;
+}
+
+.schedule-controls {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.legend-dot.pending {
+    background: #3b82f6;
+}
+
+.legend-dot.done {
+    background: #22c55e;
+}
+
+.legend-dot.absent {
+    background: #ef4444;
+}
+
+/* tuỳ chỉnh giao diện bảng antd */
+.ant-table-thead>tr>th {
+    background: #fafafa;
+    text-align: center;
+}
+
+.ant-table-tbody>tr>td {
+    vertical-align: top;
+    padding: 12px;
+}
+
+/* bo góc table */
+.ant-table {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #efefef;
+}
