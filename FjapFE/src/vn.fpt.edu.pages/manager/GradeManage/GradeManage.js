@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Breadcrumb, Button, Spin, message } from "antd";
 import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../../login/AuthContext";
 import ManagerGrades from "../../../vn.fpt.edu.api/ManagerGrades";
 import FilterBar from "./FilterBar";
@@ -8,7 +9,9 @@ import CourseGrid from "./CourseGrid";
 
 function GradeManage() {
   const { user } = useAuth();
-  const managerId = user?.managerId || "MOCK_MANAGER_123";
+  const location = useLocation();
+  const userId = user?.id;
+  const isLecturer = location.pathname.startsWith('/lecturer');
 
   const [filters, setFilters] = useState({
     semester: "All Semesters",
@@ -27,7 +30,7 @@ function GradeManage() {
     try {
       setLoading(true);
       // Pass filters to API
-      const data = await ManagerGrades.getCourses(managerId, filters);
+      const data = await ManagerGrades.getCourses(userId, filters);
       setCourses(data);
       setFilteredCourses(data);
     } catch (error) {
@@ -36,7 +39,7 @@ function GradeManage() {
     } finally {
       setLoading(false);
     }
-  }, [managerId, filters]);
+  }, [userId, filters]);
 
   useEffect(() => {
     loadCourses();
@@ -62,7 +65,7 @@ function GradeManage() {
   const handleExportAll = async () => {
     try {
       message.loading("Exporting all grades...", 0);
-      await ManagerGrades.exportAllGrades(managerId);
+      await ManagerGrades.exportAllGrades(userId);
       message.destroy();
       message.success("All grades exported successfully");
     } catch (error) {
@@ -82,11 +85,11 @@ function GradeManage() {
   }
 
   return (
-    <div style={{ padding: "24px", backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
+    <div style={{ padding: "24px" }}>
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Breadcrumb
           items={[
-            { title: "Management" },
+            { title: isLecturer ? "Lecturer" : "Management" },
             { title: "Grade Management" },
           ]}
         />
@@ -116,7 +119,7 @@ function GradeManage() {
 
       <CourseGrid 
         courses={filteredCourses}
-        managerId={managerId}
+        userId={userId}
         onRefresh={loadCourses}
       />
     </div>

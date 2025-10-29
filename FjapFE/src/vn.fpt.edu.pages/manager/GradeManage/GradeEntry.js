@@ -25,6 +25,7 @@ export default function GradeEntry() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const base = location.pathname.startsWith('/lecturer') ? '/lecturer' : '/manager';
   
   const [courseDetails, setCourseDetails] = useState(null);
   const [students, setStudents] = useState([]);
@@ -34,27 +35,20 @@ export default function GradeEntry() {
   const [editingKey, setEditingKey] = useState('');
   const [form] = Form.useForm();
 
-  const managerId = user?.managerId || "MOCK_MANAGER_123";
+  const userId = user?.id;
   const courseFromState = location.state?.course;
 
   // Load course details
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await ManagerGrades.getCourseDetails(managerId, courseId);
-      console.log("API Response:", data); // Debug log
-      console.log("Students data:", data.students); // Debug log
-      console.log("Grade component weights:", data.gradeComponentWeights); // Debug log
-      
+      const data = await ManagerGrades.getCourseDetails(userId, courseId);
       setCourseDetails(data);
       setGradeComponentWeights(data.gradeComponentWeights || []);
       
       // Map student data with dynamic grade components
       const mappedStudents = data.students.map(s => {
         const studentData = { ...s, key: s.studentId };
-        console.log("Student:", s.studentName, "GradeComponentScores:", s.gradeComponentScores); // Debug log
-        
-        // Map existing grade components to dynamic dataIndex using GradeComponentScores
         data.gradeComponentWeights?.forEach(weight => {
           const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
           
@@ -62,8 +56,6 @@ export default function GradeEntry() {
           const gradeComponentScore = s.gradeComponentScores?.find(gcs => 
             gcs.subjectGradeTypeId === weight.subjectGradeTypeId
           );
-          
-          console.log(`Mapping ${weight.gradeTypeName} (${weight.subjectGradeTypeId}):`, gradeComponentScore?.score); // Debug log
           studentData[dataIndex] = gradeComponentScore?.score || null;
         });
         
@@ -72,12 +64,11 @@ export default function GradeEntry() {
       
       setStudents(mappedStudents);
     } catch (error) {
-      console.error("Failed to load course details:", error);
       message.error("Failed to load course details");
     } finally {
       setLoading(false);
     }
-  }, [managerId, courseId]);
+  }, [userId, courseId]);
 
   useEffect(() => {
     loadData();
@@ -163,7 +154,7 @@ export default function GradeEntry() {
         // Save to API
         setSaving(true);
         await ManagerGrades.updateStudentGradeComponents(
-          managerId, 
+          userId, 
           courseId, 
           item.studentId, 
           item.gradeId,
@@ -349,7 +340,7 @@ export default function GradeEntry() {
       onOk: async () => {
         try {
           message.success("All grades saved successfully");
-          navigate(`/manager/grades/${courseId}`, {
+          navigate(`${base}/grades/${courseId}`, {
             state: { course: courseFromState }
           });
         } catch (error) {
@@ -374,7 +365,7 @@ export default function GradeEntry() {
         style={{ marginBottom: 16 }}
         items={[
           { title: "Management" },
-          { title: "Grade Management", onClick: () => navigate("/manager/grades") },
+          { title: "Grade Management", onClick: () => navigate(`${base}/grades`) },
           { title: "Enter Grades" },
         ]}
       />
@@ -383,13 +374,13 @@ export default function GradeEntry() {
         <Space>
           <Button 
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate("/manager/grades")}
+            onClick={() => navigate(`${base}/grades`)}
           >
             Back
           </Button>
           <Button 
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/manager/grades/${courseId}`, {
+            onClick={() => navigate(`${base}/grades/${courseId}`, {
               state: { course: courseFromState }
             })}
           >
@@ -435,7 +426,7 @@ export default function GradeEntry() {
             }}
             columns={mergedColumns}
             dataSource={students}
-            scroll={{ x: 1400 }}
+            // scroll={{ x: 1400 }}
             pagination={{
               pageSize: 20,
               showSizeChanger: true,

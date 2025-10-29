@@ -2,7 +2,7 @@ import React from "react";
 import { Card, Empty } from "antd";
 import CourseCard from "./CourseCard";
 
-export default function CourseGrid({ courses, managerId, onRefresh }) {
+export default function CourseGrid({ courses, userId, onRefresh }) {
   if (courses.length === 0) {
     return (
       <Card style={{ textAlign: "center", padding: 40 }}>
@@ -20,7 +20,7 @@ export default function CourseGrid({ courses, managerId, onRefresh }) {
         <CourseCard
           key={course.courseId}
           course={course}
-          managerId={managerId}
+          userId={userId}
           onRefresh={onRefresh}
         />
       ))}

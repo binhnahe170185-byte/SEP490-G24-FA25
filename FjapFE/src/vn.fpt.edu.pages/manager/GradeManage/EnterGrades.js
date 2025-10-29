@@ -33,14 +33,14 @@ export default function EnterGrades() {
   const [saving, setSaving] = useState(false);
   const [editedData, setEditedData] = useState({});
 
-  const managerId = user?.managerId || "MOCK_MANAGER_123";
+  const userId = user?.id ;
   const courseFromState = location.state?.course;
 
   // Load course details và danh sách sinh viên
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await ManagerGrades.getCourseDetails(managerId, courseId);
+      const data = await ManagerGrades.getCourseDetails(userId, courseId);
       setCourseDetails(data);
       setStudents(data.students);
     } catch (error) {
@@ -49,7 +49,7 @@ export default function EnterGrades() {
     } finally {
       setLoading(false);
     }
-  }, [managerId, courseId]);
+  }, [userId, courseId]);
 
   useEffect(() => {
     loadData();
@@ -92,7 +92,7 @@ export default function EnterGrades() {
           // Save từng student
           for (const studentId in editedData) {
             await ManagerGrades.updateStudentGrade(
-              managerId,
+              userId,
               courseId,
               studentId,
               editedData[studentId]

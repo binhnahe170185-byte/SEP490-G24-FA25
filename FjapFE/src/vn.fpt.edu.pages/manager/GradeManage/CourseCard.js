@@ -8,10 +8,12 @@ import {
   UserOutlined,
   TrophyOutlined
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
-export default function CourseCard({ course, managerId, onRefresh }) {
+export default function CourseCard({ course, userId, onRefresh }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const base = location.pathname.startsWith('/lecturer') ? '/lecturer' : '/manager';
 
   const getStatusColor = () => {
     if (course.completionPercent === 100) return "success";
@@ -137,7 +139,7 @@ export default function CourseCard({ course, managerId, onRefresh }) {
         <Button 
           type="primary"
           icon={<EyeOutlined />}
-          onClick={() => navigate(`/manager/grades/${course.courseId}`, {
+          onClick={() => navigate(`${base}/grades/${course.courseId}`, {
             state: { course }
           })}
           style={{ flex: 1 }}
@@ -146,7 +148,7 @@ export default function CourseCard({ course, managerId, onRefresh }) {
         </Button>
         <Button 
           icon={<EditOutlined />}
-          onClick={() => navigate(`/manager/grades/enter/${course.courseId}`, {
+          onClick={() => navigate(`${base}/grades/enter/${course.courseId}`, {
             state: { course }
           })}
         >
