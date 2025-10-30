@@ -123,7 +123,7 @@ export async function deleteMaterial(id) {
 export async function getSubjects() {
   try {
     // Sử dụng endpoint dropdown mới để lấy tất cả subjects active
-    const res = await api.get("/api/subjects/dropdown");
+    const res = await api.get("/api/manager/subjects/dropdown");
     const list = unwrap(res) || [];
     console.log('Subjects dropdown API response:', list);
     // đảm bảo luôn trả mảng [{subjectId, subjectCode, subjectName}]
@@ -132,7 +132,7 @@ export async function getSubjects() {
     console.error('Failed to get subjects from dropdown endpoint:', error);
     // Fallback về endpoint chính
     try {
-      const res = await api.get("/api/subjects");
+      const res = await api.get("/api/manager/subjects");
       const list = unwrap(res) || [];
       console.log('Subjects fallback API response:', list);
       return Array.isArray(list) ? list : [];
