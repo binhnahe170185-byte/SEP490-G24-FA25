@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace FJAP.Controllers.Manager
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class SubjectsController : ControllerBase
+    [Route("api/manager/subjects")]
+    public class SubjectController : ControllerBase
     {
         private readonly ISubjectService _subjectService;
 
-        public SubjectsController(ISubjectService subjectService)
+        public SubjectController(ISubjectService subjectService)
         {
             _subjectService = subjectService;
         }
@@ -59,6 +59,13 @@ namespace FJAP.Controllers.Manager
         {
             await _subjectService.UpdateStatusAsync(id, request.Status);
             return Ok(new { code = 200, message = "Subject status updated" });
+        }
+
+        [HttpGet("options")]
+        public async Task<IActionResult> GetFormOptions()
+        {
+            var options = await _subjectService.GetFormOptionsAsync();
+            return Ok(new { code = 200, data = options });
         }
 
         [HttpGet("dropdown")]
