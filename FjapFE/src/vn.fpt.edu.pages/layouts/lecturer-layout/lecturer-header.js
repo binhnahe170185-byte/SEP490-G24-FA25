@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Layout, Button, Space, Dropdown, Badge, Avatar } from 'antd';
 import { BellOutlined, UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { useAuth } from '../../login/AuthContext';

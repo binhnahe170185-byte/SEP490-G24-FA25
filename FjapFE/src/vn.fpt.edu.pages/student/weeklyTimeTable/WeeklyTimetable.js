@@ -237,7 +237,7 @@ export default function WeeklyTimetable({ items }) {
       id: s.id,
       label: `Slot ${s.id}`, // always default label
     }));
-  }, [weekItems]);
+  }, []);
 
   // build cellMap: sử dụng weekday từ date
   const cellMap = useMemo(() => {

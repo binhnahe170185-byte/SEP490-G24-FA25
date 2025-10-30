@@ -3,7 +3,6 @@ import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row,
 import { SaveOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import SemesterApi from "../../vn.fpt.edu.api/Semester";
-import dayjs from "dayjs";
 
 const { Title } = Typography;
 
@@ -23,7 +22,7 @@ export default function AddSemester() {
         endDate: values.endDate.format("YYYY-MM-DD"),
       };
 
-      const response = await SemesterApi.createSemester(payload);
+      await SemesterApi.createSemester(payload);
       message.success("Semester created successfully");
       
       // Navigate back to semester list

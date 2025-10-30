@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   Table, 
@@ -12,15 +12,13 @@ import {
   Modal,
   Form,
   message,
-  Popconfirm,
-  Badge
+  Popconfirm
 } from 'antd';
 import { 
   PlusOutlined, 
   EditOutlined, 
   DeleteOutlined, 
   EyeOutlined,
-  FileTextOutlined,
   CalendarOutlined,
   TeamOutlined
 } from '@ant-design/icons';
@@ -29,7 +27,44 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
-const { RangePicker } = DatePicker;
+const MOCK_HOMEWORKS = [
+  {
+    id: 1,
+    title: 'Math Assignment - Chapter 5',
+    description: 'Complete exercises 1-20 from chapter 5. Show all work.',
+    className: 'Math 101 - Section A',
+    dueDate: '2024-01-15',
+    status: 'active',
+    submissions: 15,
+    totalStudents: 20,
+    createdAt: '2024-01-10',
+    attachments: ['assignment.pdf', 'rubric.docx']
+  },
+  {
+    id: 2,
+    title: 'Physics Lab Report',
+    description: 'Write a detailed lab report on the pendulum experiment.',
+    className: 'Physics 201 - Section B',
+    dueDate: '2024-01-18',
+    status: 'active',
+    submissions: 8,
+    totalStudents: 15,
+    createdAt: '2024-01-12',
+    attachments: ['lab_instructions.pdf']
+  },
+  {
+    id: 3,
+    title: 'English Essay - Argumentative',
+    description: 'Write a 1000-word argumentative essay on climate change.',
+    className: 'English 101 - Section C',
+    dueDate: '2024-01-20',
+    status: 'completed',
+    submissions: 25,
+    totalStudents: 25,
+    createdAt: '2024-01-08',
+    attachments: ['essay_guidelines.pdf', 'sample_essay.docx']
+  }
+];
 
 const HomeworkList = () => {
   const [homeworks, setHomeworks] = useState([]);
@@ -45,57 +80,18 @@ const HomeworkList = () => {
   const [form] = Form.useForm();
 
   // Mock data
-  const mockHomeworks = [
-    {
-      id: 1,
-      title: 'Math Assignment - Chapter 5',
-      description: 'Complete exercises 1-20 from chapter 5. Show all work.',
-      className: 'Math 101 - Section A',
-      dueDate: '2024-01-15',
-      status: 'active',
-      submissions: 15,
-      totalStudents: 20,
-      createdAt: '2024-01-10',
-      attachments: ['assignment.pdf', 'rubric.docx']
-    },
-    {
-      id: 2,
-      title: 'Physics Lab Report',
-      description: 'Write a detailed lab report on the pendulum experiment.',
-      className: 'Physics 201 - Section B',
-      dueDate: '2024-01-18',
-      status: 'active',
-      submissions: 8,
-      totalStudents: 15,
-      createdAt: '2024-01-12',
-      attachments: ['lab_instructions.pdf']
-    },
-    {
-      id: 3,
-      title: 'English Essay - Argumentative',
-      description: 'Write a 1000-word argumentative essay on climate change.',
-      className: 'English 101 - Section C',
-      dueDate: '2024-01-20',
-      status: 'completed',
-      submissions: 25,
-      totalStudents: 25,
-      createdAt: '2024-01-08',
-      attachments: ['essay_guidelines.pdf', 'sample_essay.docx']
-    }
-  ];
-
-  useEffect(() => {
-    loadHomeworks();
-  }, []);
-
-  const loadHomeworks = async () => {
+  const loadHomeworks = useCallback(async () => {
     setLoading(true);
     // Simulate API call
     setTimeout(() => {
-      setHomeworks(mockHomeworks);
+      setHomeworks(MOCK_HOMEWORKS);
       setLoading(false);
     }, 1000);
-  };
+  }, []);
+
+  useEffect(() => {
+    loadHomeworks();
+  }, [loadHomeworks]);
 
   const handleCreateHomework = () => {
     setEditingHomework(null);

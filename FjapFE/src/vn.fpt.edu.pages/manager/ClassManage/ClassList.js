@@ -264,7 +264,7 @@ export default function ClassList() {
         );
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [notifyError]);
 
 
   useEffect(() => {

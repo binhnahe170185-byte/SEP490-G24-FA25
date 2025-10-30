@@ -5,7 +5,6 @@ import CreateMaterialModal from './CreateMaterialModal';
 import EditMaterialModal from './EditMaterialModal';
 import MaterialDetail from './MaterialDetail';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial, getSubjects } from '../../../vn.fpt.edu.api/Material';
-import AdminApi from '../../../vn.fpt.edu.api/Admin';
 
 const { Option } = Select;
 

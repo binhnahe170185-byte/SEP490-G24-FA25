@@ -49,9 +49,15 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
   // MODAL hồ sơ (đặt đúng state)
   const [modal, setModal] = useState({ open: false, mode: "view", userId: null, initialUser: null });
-  const openView = (record) => setModal({ open: true, mode: "view", userId: record.id, initialUser: record });
-  const openEdit = (record) => setModal({ open: true, mode: "edit", userId: record.id, initialUser: record });
-  const closeModal = () => setModal((d) => ({ ...d, open: false }));
+  const openView = useCallback(
+    (record) => setModal({ open: true, mode: "view", userId: record.id, initialUser: record }),
+    []
+  );
+  const openEdit = useCallback(
+    (record) => setModal({ open: true, mode: "edit", userId: record.id, initialUser: record }),
+    []
+  );
+  const closeModal = useCallback(() => setModal((d) => ({ ...d, open: false })), []);
 
   // MODAL confirm status change
   const [confirmModal, setConfirmModal] = useState({ 
@@ -133,46 +139,37 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     }
   }, [fixedRole]);
 
-  const buildParams = () => {
-    const params = {
-      search: filters.search || undefined,
-      status: filters.status || undefined,
-      page,
-      pageSize,
-    };
-
-    // Handle role filtering
-    if (Array.isArray(fixedRole)) {
-      // For array roles (head: [2,5], staff: [7,6,3])
-      params.roles = fixedRole.join(',');
-    } else if (typeof fixedRole === "number") {
-      // For single role
-      params.role = fixedRole;
-    } else if (typeof filters.role === "number") {
-      params.role = filters.role;
-    }
-
-    // Add semester filter for students
-    if (fixedRole === 4) {
-      params.semesterId = filters.semesterId || undefined;
-    }
-
-    // Add department filter for staff and lecturer
-    const shouldFilterByDepartment = 
-      (Array.isArray(fixedRole) && (fixedRole.includes(7) || fixedRole.includes(6))) || // Staff roles 7,6
-      fixedRole === 3; // Lecturer
-    
-    if (shouldFilterByDepartment) {
-      params.departmentId = filters.departmentId && filters.departmentId !== "" ? filters.departmentId : undefined;
-    }
-
-    return params;
-  };
-
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const params = buildParams();
+      const params = {
+        search: filters.search || undefined,
+        status: filters.status || undefined,
+        page,
+        pageSize,
+      };
+
+      if (Array.isArray(fixedRole)) {
+        params.roles = fixedRole.join(",");
+      } else if (typeof fixedRole === "number") {
+        params.role = fixedRole;
+      } else if (typeof filters.role === "number") {
+        params.role = filters.role;
+      }
+
+      if (fixedRole === 4) {
+        params.semesterId = filters.semesterId || undefined;
+      }
+
+      const shouldFilterByDepartment =
+        (Array.isArray(fixedRole) && (fixedRole.includes(7) || fixedRole.includes(6))) ||
+        fixedRole === 3;
+
+      if (shouldFilterByDepartment) {
+        params.departmentId =
+          filters.departmentId && filters.departmentId !== "" ? filters.departmentId : undefined;
+      }
+
       console.log("Fetching users with params:", params);
       console.log("API URL:", "/api/StaffOfAdmin/users");
       
@@ -201,7 +198,16 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.status, filters.semesterId, filters.departmentId, fixedRole, page, pageSize]);
+  }, [
+    filters.search,
+    filters.status,
+    filters.semesterId,
+    filters.departmentId,
+    filters.role,
+    fixedRole,
+    page,
+    pageSize,
+  ]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -211,7 +217,6 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
   };
 
   const toggle = useCallback(async (record, checked) => {
-    const newStatus = checked ? "Active" : "Inactive";
     const userName = `${record.firstName} ${record.lastName}`.trim() || record.email;
     
     console.log('Toggle called:', { record, checked, userName });
@@ -317,7 +322,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
         ),
       },
     ],
-    [page, pageSize, fixedRole, toggle]
+    [page, pageSize, fixedRole, toggle, openView, openEdit]
   );
 
   const exportCsv = () => {

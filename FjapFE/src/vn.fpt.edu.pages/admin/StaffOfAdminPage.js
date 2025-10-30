@@ -8,7 +8,6 @@ import {
 } from "@ant-design/icons";
 import UsersList from "./UserList";
 import SemesterList from "./SemesterList";
-import AddSemester from "./AddSemester";
 import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
 import "./admin.css";
 

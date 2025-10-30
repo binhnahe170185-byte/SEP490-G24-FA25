@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row, Col, Steps, Select, Checkbox, List, Tag } from "antd";
-import { SaveOutlined, ArrowLeftOutlined, CalendarOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import SemesterApi from "../../vn.fpt.edu.api/Semester";
 import dayjs from "dayjs";
@@ -164,7 +164,7 @@ export default function AddSemesterWithHolidays() {
         }))
       };
 
-      const response = await SemesterApi.createSemester(payload);
+      await SemesterApi.createSemester(payload);
       message.success("Semester created successfully");
       
       navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });

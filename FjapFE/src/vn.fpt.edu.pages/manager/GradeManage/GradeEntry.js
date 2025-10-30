@@ -83,15 +83,6 @@ export default function GradeEntry() {
     loadData();
   }, [loadData]);
 
-  // Helper function to get weight for a grade component
-  const getWeightForComponent = (componentName) => {
-    const weight = gradeComponentWeights.find(w => 
-      w.gradeTypeName.toLowerCase().includes(componentName.toLowerCase()) ||
-      componentName.toLowerCase().includes(w.gradeTypeName.toLowerCase())
-    );
-    return weight ? weight.weight / 100 : 0; // Convert percentage to decimal
-  };
-
   const isEditing = (record) => record.key === editingKey;
 
   const edit = (record) => {

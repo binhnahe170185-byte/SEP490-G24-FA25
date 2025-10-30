@@ -37,14 +37,14 @@ export default function SemesterList({ title = "Semester Management" }) {
   
   const [form] = Form.useForm();
 
-  const openView = (record) => setModal({ 
+  const openView = useCallback((record) => setModal({ 
     open: true, 
     mode: "view", 
     semesterId: record.id, 
     initialSemester: record 
-  });
+  }), []);
   
-  const openEdit = (record) => {
+  const openEdit = useCallback((record) => {
     form.setFieldsValue({
       name: record.name,
       startDate: record.startDate ? dayjs(record.startDate) : null,
@@ -56,9 +56,9 @@ export default function SemesterList({ title = "Semester Management" }) {
       semesterId: record.id, 
       initialSemester: record 
     });
-  };
+  }, [form]);
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     form.resetFields();
     setModal({ 
       open: true, 
@@ -66,12 +66,12 @@ export default function SemesterList({ title = "Semester Management" }) {
       semesterId: null, 
       initialSemester: null 
     });
-  };
+  }, [form]);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setModal((d) => ({ ...d, open: false }));
     form.resetFields();
-  };
+  }, [form]);
 
   // MODAL confirm delete
   const [confirmModal, setConfirmModal] = useState({ 
@@ -80,45 +80,23 @@ export default function SemesterList({ title = "Semester Management" }) {
     semesterName: "" 
   });
 
-  const applyUpdated = (updated) => {
-    if (!updated?.semesterId) return;
-    setSemesters((prev) =>
-      prev.map((s) =>
-        s.id === updated.semesterId
-          ? {
-            ...s,
-            name: updated.name ?? s.name,
-            startDate: updated.startDate ?? s.startDate,
-            endDate: updated.endDate ?? s.endDate,
-            duration: updated.duration ?? s.duration,
-          }
-          : s
-      )
-    );
-  };
-
-  const buildParams = () => {
-    const params = {
-      search: filters.search || undefined,
-      page,
-      pageSize,
-    };
-    return params;
-  };
-
   const fetchSemesters = useCallback(async () => {
     setLoading(true);
     try {
-      const params = buildParams();
+      const params = {
+        search: filters.search || undefined,
+        page,
+        pageSize,
+      };
       console.log("Fetching semesters with params:", params);
       
-      const response = await SemesterApi.getSemesters(params);
-      console.log("Semesters data received:", response);
+      const apiResult = await SemesterApi.getSemesters(params);
+      console.log("Semesters data received:", apiResult);
       
-      const { total, items } = response;
+      const { total, items } = apiResult;
       
       if (!items || !Array.isArray(items)) {
-        console.error("Invalid response format:", response);
+        console.error("Invalid response format:", apiResult);
         message.error("Invalid data format");
         return;
       }
@@ -150,7 +128,7 @@ export default function SemesterList({ title = "Semester Management" }) {
       };
 
       if (modal.mode === "create") {
-        const response = await SemesterApi.createSemester(payload);
+        await SemesterApi.createSemester(payload);
         message.success("Semester created successfully");
         fetchSemesters();
       } else if (modal.mode === "edit") {
@@ -166,14 +144,14 @@ export default function SemesterList({ title = "Semester Management" }) {
     }
   };
 
-  const handleDelete = (record) => {
+  const handleDelete = useCallback((record) => {
     const semesterName = record.name;
     setConfirmModal({
       open: true,
       record: record,
       semesterName: semesterName
     });
-  };
+  }, []);
 
   const handleConfirmDelete = async () => {
     const { record } = confirmModal;
@@ -245,7 +223,7 @@ export default function SemesterList({ title = "Semester Management" }) {
         ),
       },
     ],
-    [page, pageSize]
+    [page, pageSize, openView, openEdit, handleDelete]
   );
 
   const exportCsv = () => {
