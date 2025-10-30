@@ -72,12 +72,27 @@ builder.Services.AddScoped<IGradeRepository, GradeRepository>();
 builder.Services.AddScoped<IGradeService, GradeService>();
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";
+var allowedOrigins = builder.Configuration
+    .GetSection("Frontend:Origins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy(CorsPolicy, p =>
-        p.WithOrigins("http://localhost:3000")
-         .AllowAnyHeader()
-         .AllowAnyMethod());
+    {
+        if (allowedOrigins.Length == 0)
+        {
+            p.AllowAnyOrigin()
+             .AllowAnyHeader()
+             .AllowAnyMethod();
+        }
+        else
+        {
+            p.WithOrigins(allowedOrigins)
+             .AllowAnyHeader()
+             .AllowAnyMethod();
+        }
+    });
 });
 
 // ----- JWT -----
