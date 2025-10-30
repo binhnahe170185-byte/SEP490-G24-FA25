@@ -9,25 +9,25 @@ public partial class Material
 
     public string Title { get; set; } = null!;
 
-    public string? FilePath { get; set; }
+    public string? Description { get; set; }
 
-    public string? MaterialDescription { get; set; }
+    public string FileUrl { get; set; } = null!;
 
-    public DateTime? CreateAt { get; set; }
-
-    public DateTime? UpdateAt { get; set; }
-
-    public string? Status { get; set; }
-
-    public int? CreateBy { get; set; }
-
-    public int? UpdateBy { get; set; }
-
-    public int? UserId { get; set; }
+    public string Status { get; set; } = null!;
 
     public int SubjectId { get; set; }
 
+    public int? CreatedBy { get; set; }
+
+    public int? UpdatedBy { get; set; }
+
+    public DateTime? CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    public virtual User? CreatedByNavigation { get; set; }
+
     public virtual Subject Subject { get; set; } = null!;
 
-    public virtual User? User { get; set; }
+    public virtual User? UpdatedByNavigation { get; set; }
 }

@@ -4,31 +4,29 @@ import { LinkOutlined } from '@ant-design/icons';
 
 const { Paragraph, Text } = Typography;
 
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
-
-function formatDateDDMM(d) {
-  if (!d) return '—';
-  try {
-    const date = new Date(d);
-    if (isNaN(date.getTime())) return d;
-    const day = pad(date.getDate());
-    const month = pad(date.getMonth() + 1);
-    const year = date.getFullYear();
-    const hour = pad(date.getHours());
-    const minute = pad(date.getMinutes());
-    return `${day}/${month}/${year} ${hour}:${minute}`;
-  } catch (e) {
-    return d;
-  }
-}
-
 export default function MaterialDetail({ visible, record, onClose }) {
   if (!record) return null;
 
   const created = record.createdDate || record.created || record.createdAt || record.__raw?.created_at || null;
   const updated = record.updatedDate || record.updated || record.updatedAt || record.__raw?.updated_at || null;
+
+  const formatDateDDMM = (dateString) => {
+    if (!dateString) return '—';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const pad = (n) => String(n).padStart(2, '0');
+      const day = pad(date.getDate());
+      const month = pad(date.getMonth() + 1);
+      const year = date.getFullYear();
+      const hour = pad(date.getHours());
+      const minute = pad(date.getMinutes());
+      return `${day}/${month}/${year} ${hour}:${minute}`;
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return dateString;
+    }
+  };
 
   return (
     <Modal title={`Detail Material ${record.id || record.materialId || ''}`} open={visible} onCancel={onClose} footer={null} width={820} bodyStyle={{ padding: 20 }}>

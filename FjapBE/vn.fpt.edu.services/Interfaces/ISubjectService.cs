@@ -11,5 +11,6 @@ namespace FJAP.Services.Interfaces
         Task<bool> DeleteAsync(int id);
         Task UpdateStatusAsync(int id, bool status);
         Task<SubjectFormOptions> GetFormOptionsAsync();
+        Task<IEnumerable<SubjectDropdownDto>> GetDropdownOptionsAsync();
     }
 }

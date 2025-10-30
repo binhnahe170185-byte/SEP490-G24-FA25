@@ -30,10 +30,14 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
   }, [visible]);
 
   const handleOk = async () => {
-    const values = await form.validateFields();
-    // pass raw form values to parent; parent will call API
-    onCreate(values);
-    form.resetFields();
+    try {
+      const values = await form.validateFields();
+      await onCreate(values);
+      form.resetFields();
+    } catch (err) {
+      const apiMsg = err?.response?.data?.message || err?.message || 'An error occurred while saving';
+      setErrors([apiMsg]);
+    }
   };
 
   const onFinishFailed = ({ errorFields }) => {
@@ -51,11 +55,11 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
 
   return (
     <Modal 
-      title="Tạo Material Mới" 
+      title="Create Material" 
       open={visible} 
       onOk={handleOk} 
       onCancel={onCancel} 
-      okText="Tạo"
+      okText="Create"
       width={800}
       bodyStyle={{ padding: '24px' }}
     >
@@ -64,7 +68,7 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
           <Alert
             type="error"
             showIcon
-            message="Vui lòng kiểm tra lại thông tin"
+            message="Please check the information"
             description={errors.map((e, i) => <div key={i}>{e}</div>)}
             style={{ marginBottom: 16 }}
           />
@@ -90,7 +94,6 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
               (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
             }
             allowClear
-            mode="combobox"
             notFoundContent="No subjects found"
           >
             {subjects.map((s) => (

@@ -61,4 +61,12 @@ namespace FJAP.vn.fpt.edu.models
     {
         public List<LookupItem> Levels { get; set; } = new();
     }
+
+    // DTO cho dropdown subjects
+    public class SubjectDropdownDto
+    {
+        public int SubjectId { get; set; }
+        public string SubjectCode { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+    }
 }
