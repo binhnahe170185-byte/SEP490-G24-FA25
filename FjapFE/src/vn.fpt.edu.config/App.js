@@ -57,7 +57,13 @@ function RequireManager({ children }) {
 
 function RequireStaffAcademic({ children }) {
   const { user } = useAuth();
+<<<<<<< HEAD
   if (!user || (Number(user.roleId) !== 3 && Number(user.roleId) !== 2 && Number(user.roleId) !== 6)) {
+=======
+  // assuming staffAcademic roleId is 3 (lecturer) or another value; adapt if different
+  // allow roleId 3 (lecturer/staffAcademic), 2 (manager), 6 (Administration_Staff), 7 (Staff Academic in your DB)
+  if (!user || ![7].includes(Number(user.roleId))) {
+>>>>>>> 117ac0a (done fuction material)
     return <Navigate to="/" replace />;
   }
   return children;

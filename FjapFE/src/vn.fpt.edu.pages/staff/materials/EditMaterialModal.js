@@ -13,7 +13,7 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
   React.useEffect(() => {
     if (record) form.setFieldsValue({ 
       name: record.title || record.name, 
-      subject: record.subjectCode || record.subject, 
+      subject: record.subjectId || (record.Subject && record.Subject.subjectId) || (record.subject && record.subject.subjectId) || record.subjectId,
       description: record.description, 
       status: record.status, 
       link: record.filePath || record.link 
@@ -41,8 +41,8 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
 
   const handleOk = async () => {
     const values = await form.validateFields();
-    // pass raw values to parent; parent will call API with record.id
-    onSave(values);
+    // Chờ lưu thành công rồi mới reset form
+    await onSave(values);
     form.resetFields();
   };
 
@@ -98,7 +98,6 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
               (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
             }
             allowClear
-            mode="combobox"
             notFoundContent="No subjects found"
           >
             {subjects.map((s) => (

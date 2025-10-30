@@ -5,31 +5,32 @@ import CreateMaterialModal from './CreateMaterialModal';
 import EditMaterialModal from './EditMaterialModal';
 import MaterialDetail from './MaterialDetail';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial, getSubjects } from '../../../vn.fpt.edu.api/Material';
-import AdminApi from '../../../vn.fpt.edu.api/Admin';
 
 const { Option } = Select;
 
 export default function MaterialList() {
-  const formatDate = (input) => {
-    if (!input) return '—';
-    try {
-      const d = new Date(input);
-      if (isNaN(d.getTime())) return input;
-      const pad = (n) => String(n).padStart(2, '0');
-      const day = pad(d.getDate());
-      const month = pad(d.getMonth() + 1);
-      const year = d.getFullYear();
-      const hours = pad(d.getHours());
-      const mins = pad(d.getMinutes());
-      return `${day}/${month}/${year} ${hours}:${mins}`;
-    } catch (e) {
-      return input;
-    }
-  };
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [subjectFilter, setSubjectFilter] = useState(null);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const pad = (n) => String(n).padStart(2, '0');
+      const day = pad(date.getDate());
+      const month = pad(date.getMonth() + 1);
+      const year = date.getFullYear();
+      const hour = pad(date.getHours());
+      const minute = pad(date.getMinutes());
+      return `${day}/${month}/${year} ${hour}:${minute}`;
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return dateString;
+    }
+  };
 
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -92,7 +93,7 @@ export default function MaterialList() {
     { title: 'Material Name', dataIndex: 'title', key: 'name', render: (_, r) => r.title || r.name },
     { title: 'Subject Code', dataIndex: 'subjectCode', key: 'subject', render: (_, r) => r.subjectCode || r.subject },
     { title: 'Creator', dataIndex: 'creator', key: 'creator' },
-  { title: 'Created Date', dataIndex: 'created', key: 'created', render: (_, r) => formatDate(r.createdDate || r.created) },
+  { title: 'Created Date', dataIndex: 'created', key: 'created', render: (_, r) => formatDate(r.createdDate || r.created || r.createdAt) },
     { title: 'Status', key: 'status', render: (_, r) => (<Tag color={(r.status || '').toLowerCase() === 'active' ? 'blue' : 'volcano'}>{r.status || r.statusName || r.status}</Tag>) },
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space>
