@@ -1,10 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
-using System;
-using System.Collections.Generic;
-using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.vn.fpt.edu.models;
 
@@ -18,7 +15,7 @@ public partial class FjapDbContext : DbContext
         : base(options)
     {
     }
-    public DbSet<LessonDto> LessonDtos => Set<LessonDto>();
+
     public virtual DbSet<Account> Accounts { get; set; }
 
     public virtual DbSet<Attendance> Attendances { get; set; }
@@ -69,15 +66,13 @@ public partial class FjapDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseMySql("server=127.0.0.1;port=3306;database=fjap;user=root;password=123456;sslmode=None;allowpublickeyretrieval=True", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.22-mysql"));
+        => optionsBuilder.UseMySql("server=localhost;port=3306;database=fjap;user=root;password=123;sslmode=None;allowpublickeyretrieval=True", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.4.0-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
-
-        modelBuilder.Entity<LessonDto>().HasNoKey().ToView(null);
 
         modelBuilder.Entity<Account>(entity =>
         {
@@ -377,6 +372,9 @@ public partial class FjapDbContext : DbContext
             entity.HasIndex(e => e.UserId, "idx_lecture_user");
 
             entity.Property(e => e.LectureId).HasColumnName("lecture_id");
+            entity.Property(e => e.LecturerCode)
+                .HasMaxLength(255)
+                .HasColumnName("lecturer_code");
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
             entity.HasOne(d => d.User).WithMany(p => p.Lectures)
@@ -447,46 +445,57 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("material");
 
+            entity.HasIndex(e => e.CreatedBy, "fk_material_created_by");
+
+            entity.HasIndex(e => e.UpdatedBy, "fk_material_updated_by");
+
+            entity.HasIndex(e => e.CreatedAt, "idx_material_created_at");
+
+            entity.HasIndex(e => e.Status, "idx_material_status");
+
             entity.HasIndex(e => e.SubjectId, "idx_material_subject");
 
-            entity.HasIndex(e => e.UserId, "idx_material_user");
-
             entity.Property(e => e.MaterialId).HasColumnName("material_id");
-            entity.Property(e => e.CreateAt)
+            entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime")
-                .HasColumnName("create_at");
-            entity.Property(e => e.CreateBy).HasColumnName("create_by");
-            entity.Property(e => e.FilePath)
-                .HasMaxLength(255)
-                .HasColumnName("file_path");
-            entity.Property(e => e.MaterialDescription)
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Description)
                 .HasColumnType("text")
-                .HasColumnName("material_description");
+                .HasColumnName("description");
+            entity.Property(e => e.FileUrl)
+                .HasColumnType("text")
+                .HasColumnName("file_url");
             entity.Property(e => e.Status)
-                .HasDefaultValueSql("'Active'")
-                .HasColumnType("enum('Active','Inactive')");
+                .HasDefaultValueSql("'active'")
+                .HasColumnType("enum('active','inActive')")
+                .HasColumnName("status");
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.Title)
                 .HasMaxLength(255)
                 .HasColumnName("title");
-            entity.Property(e => e.UpdateAt)
+            entity.Property(e => e.UpdatedAt)
                 .ValueGeneratedOnAddOrUpdate()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime")
-                .HasColumnName("update_at");
-            entity.Property(e => e.UpdateBy).HasColumnName("update_by");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.MaterialCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_material_created_by");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Materials)
                 .HasForeignKey(d => d.SubjectId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_material_subject");
 
-            entity.HasOne(d => d.User).WithMany(p => p.Materials)
-                .HasForeignKey(d => d.UserId)
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.MaterialUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("fk_material_user");
+                .HasConstraintName("fk_material_updated_by");
         });
 
         modelBuilder.Entity<News>(entity =>

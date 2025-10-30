@@ -21,9 +21,10 @@ public class AuthService : IAuthService
     {
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, account.Email),
-            new Claim("accountId", account.AccountId.ToString())
-     
+            // Đặt sub = Users.UserId (số) để controller đọc được userId trực tiếp
+            new Claim(JwtRegisteredClaimNames.Sub, account.UserId.ToString()),
+            // Thêm claim chuẩn email để các chỗ khác có thể đọc email khi cần
+            new Claim(JwtRegisteredClaimNames.Email, account.Email)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));

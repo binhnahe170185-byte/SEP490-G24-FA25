@@ -219,6 +219,20 @@ namespace FJAP.Services
         public Task<SubjectFormOptions> GetFormOptionsAsync()
             => _subjectRepository.GetFormOptionsAsync();
 
+        public async Task<IEnumerable<SubjectDropdownDto>> GetDropdownOptionsAsync()
+        {
+            return await _context.Subjects
+                .Where(s => s.Status == "Active") // Chỉ lấy subjects active
+                .OrderBy(s => s.SubjectCode)
+                .Select(s => new SubjectDropdownDto
+                {
+                    SubjectId = s.SubjectId,
+                    SubjectCode = s.SubjectCode,
+                    SubjectName = s.SubjectName
+                })
+                .ToListAsync();
+        }
+
         private void ValidateGradeTypes(List<GradeTypeDto>? gradeTypes)
         {
             if (gradeTypes == null || !gradeTypes.Any())

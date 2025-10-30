@@ -14,10 +14,7 @@ public class MaterialRepository : GenericRepository<Material>, IMaterialReposito
     {
         return await _context.Materials
             .Include(m => m.Subject)
-            .Include(m => m.User)
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.MaterialId == id);
     }
-
- 
 }

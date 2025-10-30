@@ -35,7 +35,9 @@ public partial class User
 
     public virtual ICollection<Lecture> Lectures { get; set; } = new List<Lecture>();
 
-    public virtual ICollection<Material> Materials { get; set; } = new List<Material>();
+    public virtual ICollection<Material> MaterialCreatedByNavigations { get; set; } = new List<Material>();
+
+    public virtual ICollection<Material> MaterialUpdatedByNavigations { get; set; } = new List<Material>();
 
     public virtual ICollection<News> News { get; set; } = new List<News>();
 

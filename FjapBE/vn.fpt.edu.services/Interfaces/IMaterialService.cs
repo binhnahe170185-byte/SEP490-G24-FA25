@@ -10,5 +10,6 @@ public interface IMaterialService
     //Task<IEnumerable<Material>> GetByLessonAsync(int lessonId);
     Task<Material> CreateAsync(Material material);
     Task<bool> UpdateAsync(Material material);
-    Task<bool> DeleteAsync(int id);
+    // updatedBy: optional user id who performs the delete (to populate UpdateBy)
+    Task<bool> DeleteAsync(int id, int? updatedBy = null);
 }
