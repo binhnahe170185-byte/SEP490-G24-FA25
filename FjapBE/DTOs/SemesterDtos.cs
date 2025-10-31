@@ -141,12 +141,10 @@ public class HolidayRequest
     [Required(ErrorMessage = "Holiday date is required")]
     public DateOnly Date { get; set; }
 
-    [Required(ErrorMessage = "Holiday type is required")]
-    [StringLength(100, ErrorMessage = "Holiday type cannot exceed 100 characters")]
-    public string Type { get; set; } = null!;
-
     [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
     public string? Description { get; set; }
 
+    // Optional fields (not stored in database but may be sent from frontend)
+    public string? Type { get; set; }
     public bool IsRecurring { get; set; } = false;
 }

@@ -115,19 +115,44 @@ export default function SemesterList({ title = "Semester Management" }) {
       const response = await SemesterApi.getSemesters(params);
       console.log("Semesters data received:", response);
       
-      const { total, items } = response;
-      
-      if (!items || !Array.isArray(items)) {
-        console.error("Invalid response format:", response);
-        message.error("Invalid data format");
+      // Handle case where API returns empty result on error
+      if (!response) {
+        console.warn("No response from API");
+        setTotal(0);
+        setSemesters([]);
         return;
       }
       
+      const { total, items } = response;
+      console.log("Semesters extracted:", { total, items, itemsIsArray: Array.isArray(items) });
+      
+      if (!items || !Array.isArray(items)) {
+        console.error("Invalid response format:", response);
+        message.error("Invalid data format - format không đúng");
+        setTotal(0);
+        setSemesters([]);
+        return;
+      }
+      
+      const normalized = normalize(items);
+      console.log("Normalized semesters:", normalized.length);
+      
       setTotal(total || 0);
-      setSemesters(normalize(items));
+      setSemesters(normalized);
+      
+      if (normalized.length === 0 && total === 0) {
+        console.log("No semesters found for current filters");
+      }
     } catch (e) {
       console.error("Error fetching semesters:", e);
-      message.error(`Unable to load semester data: ${e.message}`);
+      console.error("Error details:", {
+        message: e.message,
+        status: e.response?.status,
+        data: e.response?.data
+      });
+      message.error(`Unable to load semester data: ${e.message || "Lỗi không xác định"}`);
+      setTotal(0);
+      setSemesters([]);
     } finally {
       setLoading(false);
     }

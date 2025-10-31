@@ -610,21 +610,16 @@ public partial class FjapDbContext : DbContext
 
             entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
 
-            entity.Property(e => e.HolidayId).HasColumnName("holiday_id");
+            // Map to camelCase column names as per database schema
+            entity.Property(e => e.HolidayId).HasColumnName("holidayId");
             entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .HasColumnName("name");
-            entity.Property(e => e.Date).HasColumnName("date");
-            entity.Property(e => e.Type)
-                .HasMaxLength(50)
-                .HasColumnName("type");
+                .HasMaxLength(200)
+                .HasColumnName("holidayName");
+            entity.Property(e => e.Date).HasColumnName("holidayDate");
             entity.Property(e => e.Description)
                 .HasMaxLength(500)
                 .HasColumnName("description");
-            entity.Property(e => e.IsRecurring)
-                .HasDefaultValueSql("b'0'")
-                .HasColumnName("is_recurring");
-            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+            entity.Property(e => e.SemesterId).HasColumnName("semesterId");
 
             entity.HasOne(d => d.Semester).WithMany()
                 .HasForeignKey(d => d.SemesterId)

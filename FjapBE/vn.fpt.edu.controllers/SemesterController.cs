@@ -93,51 +93,135 @@ public class SemesterController : ControllerBase
     {
         try
         {
+            Console.WriteLine("=== SemesterController.Create called ===");
+            Console.WriteLine($"Request received - StartDate: {request.StartDate}, EndDate: {request.EndDate}");
+            Console.WriteLine($"StartDate default: {request.StartDate == default(DateOnly)}");
+            Console.WriteLine($"EndDate default: {request.EndDate == default(DateOnly)}");
+            Console.WriteLine($"Holidays count: {request.Holidays?.Length ?? 0}");
+            
+            if (request.Holidays != null && request.Holidays.Length > 0)
+            {
+                Console.WriteLine("Holidays details:");
+                foreach (var h in request.Holidays)
+                {
+                    Console.WriteLine($"  - Name: {h.Name}, Date: {h.Date}, Description: {h.Description}");
+                }
+            }
+            
             // Model validation is handled by Data Annotations
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
-            }
-
-            // Check for overlapping semesters
-            var hasOverlap = await _db.Semesters.AnyAsync(s =>
-                (request.StartDate >= s.StartDate && request.StartDate <= s.EndDate) ||
-                (request.EndDate >= s.StartDate && request.EndDate <= s.EndDate) ||
-                (request.StartDate <= s.StartDate && request.EndDate >= s.EndDate));
-
-            if (hasOverlap)
-            {
+                Console.WriteLine("ModelState is invalid:");
+                foreach (var error in ModelState)
+                {
+                    Console.WriteLine($"  {error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
+                    if (error.Value.Errors.Any())
+                    {
+                        foreach (var err in error.Value.Errors)
+                        {
+                            Console.WriteLine($"    - {err.ErrorMessage}");
+                            if (!string.IsNullOrEmpty(err.Exception?.Message))
+                            {
+                                Console.WriteLine($"    - Exception: {err.Exception.Message}");
+                            }
+                        }
+                    }
+                }
                 return BadRequest(new { 
                     code = 400, 
-                    message = "Semester dates overlap with existing semester",
-                    details = "Please choose different dates that don't conflict with existing semesters"
+                    message = "Validation failed",
+                    errors = ModelState.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    )
+                });
+            }
+            
+            Console.WriteLine("ModelState is valid, proceeding with creation...");
+
+            // Check for overlapping semesters
+            var overlappingSemesters = await _db.Semesters
+                .Where(s =>
+                    (request.StartDate >= s.StartDate && request.StartDate <= s.EndDate) ||
+                    (request.EndDate >= s.StartDate && request.EndDate <= s.EndDate) ||
+                    (request.StartDate <= s.StartDate && request.EndDate >= s.EndDate))
+                .Select(s => new
+                {
+                    s.SemesterId,
+                    s.Name,
+                    s.SemesterCode,
+                    s.StartDate,
+                    s.EndDate
+                })
+                .ToListAsync();
+
+            if (overlappingSemesters.Any())
+            {
+                var conflictList = string.Join(", ", overlappingSemesters.Select(s => 
+                    $"{s.Name} ({s.SemesterCode}) [{s.StartDate:yyyy-MM-dd} to {s.EndDate:yyyy-MM-dd}]"));
+                
+                Console.WriteLine($"Overlapping semester found: {conflictList}");
+                
+                return BadRequest(new { 
+                    code = 400, 
+                    message = "Semester dates overlap with existing semester(s)",
+                    details = $"Your semester dates conflict with: {conflictList}. Please choose different dates.",
+                    overlappingSemesters = overlappingSemesters
                 });
             }
 
             var created = await _semesterService.CreateAsync(request);
+            Console.WriteLine($"Semester created with ID: {created.SemesterId}");
             
             // Create holidays if provided
             if (request.Holidays != null && request.Holidays.Any())
             {
+                Console.WriteLine($"Creating {request.Holidays.Length} holidays...");
                 var holidayRequests = request.Holidays.Select(h => new CreateHolidayRequest
                 {
                     Name = h.Name,
                     Date = h.Date,
-                    Type = h.Type,
                     Description = h.Description,
-                    IsRecurring = h.IsRecurring,
                     SemesterId = created.SemesterId
                 }).ToArray();
 
                 await _holidayService.CreateBulkAsync(holidayRequests);
+                Console.WriteLine("Holidays created successfully");
             }
 
+            Console.WriteLine("=== SemesterController.Create completed successfully ===");
             return CreatedAtAction(nameof(GetById), new { id = created.SemesterId }, 
                 new { code = 201, data = created });
         }
         catch (Exception ex)
         {
-            return BadRequest(ex.Message);
+            Console.WriteLine($"=== SemesterController.Create ERROR ===");
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Error Type: {ex.GetType().Name}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                if (ex.InnerException.InnerException != null)
+                {
+                    Console.WriteLine($"Inner-Inner exception: {ex.InnerException.InnerException.Message}");
+                }
+            }
+            
+            // Return detailed error for debugging
+            var errorResponse = new
+            {
+                code = 400,
+                message = ex.Message,
+                errorType = ex.GetType().Name,
+                innerException = ex.InnerException != null ? new
+                {
+                    type = ex.InnerException.GetType().Name,
+                    message = ex.InnerException.Message
+                } : null
+            };
+            
+            return BadRequest(errorResponse);
         }
     }
 
