@@ -53,13 +53,18 @@ public class SemesterService : ISemesterService
 
     public async Task<Semester> CreateAsync(CreateSemesterRequest request)
     {
+        Console.WriteLine("=== SemesterService.CreateAsync called ===");
+        Console.WriteLine($"Request - StartDate: {request.StartDate}, EndDate: {request.EndDate}");
+        
         // Auto-generate semester name and code
         var semesterName = request.GenerateSemesterName();
         var semesterCode = request.GenerateSemesterCode();
+        Console.WriteLine($"Generated - Name: {semesterName}, Code: {semesterCode}");
 
         // Validate dates are in allowed ranges
         var startSeason = GetSemesterSeason(request.StartDate);
         var endSeason = GetSemesterSeason(request.EndDate);
+        Console.WriteLine($"Seasons - Start: {startSeason}, End: {endSeason}");
 
         if (startSeason == null)
         {
@@ -123,9 +128,29 @@ public class SemesterService : ISemesterService
             EndDate = request.EndDate
         };
 
-        await _semesterRepository.AddAsync(semester);
-        await _semesterRepository.SaveChangesAsync();
-        return semester;
+        Console.WriteLine($"Creating semester entity - Name: {semester.Name}, Code: {semester.SemesterCode}, StartDate: {semester.StartDate}, EndDate: {semester.EndDate}");
+        
+        try
+        {
+            await _semesterRepository.AddAsync(semester);
+            Console.WriteLine("Semester added to repository");
+            
+            await _semesterRepository.SaveChangesAsync();
+            Console.WriteLine($"Semester saved successfully with ID: {semester.SemesterId}");
+            
+            return semester;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"=== ERROR saving semester ===");
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+            }
+            throw;
+        }
     }
 
     public async Task<bool> UpdateAsync(int id, UpdateSemesterRequest request)

@@ -19,10 +19,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 // =================== Services ===================
 
-// Controllers
+// Controllers with JSON options
 builder.Services.AddControllers(options =>
 {
     options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+})
+.AddJsonOptions(options =>
+{
+    // Use camelCase for JSON properties (matches frontend)
+    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    // DateOnly serialization as "YYYY-MM-DD"
+    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    options.JsonSerializerOptions.Converters.Add(new FJAP.Infrastructure.JsonConverters.DateOnlyJsonConverter());
+    options.JsonSerializerOptions.Converters.Add(new FJAP.Infrastructure.JsonConverters.NullableDateOnlyJsonConverter());
 });
 
 // ----- DB (EF Core MySQL) -----
@@ -156,6 +165,22 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Request logging middleware for debugging
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/Semester") && context.Request.Method == "POST")
+    {
+        Console.WriteLine("=== Incoming POST /api/Semester request ===");
+        Console.WriteLine($"Content-Type: {context.Request.ContentType}");
+        context.Request.EnableBuffering();
+        var bodyStream = new StreamReader(context.Request.Body);
+        var bodyText = await bodyStream.ReadToEndAsync();
+        context.Request.Body.Position = 0;
+        Console.WriteLine($"Request Body: {bodyText}");
+    }
+    await next();
+});
 
 app.UseCors(CorsPolicy);
 

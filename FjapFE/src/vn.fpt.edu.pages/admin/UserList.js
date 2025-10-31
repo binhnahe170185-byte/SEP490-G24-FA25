@@ -175,21 +175,39 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
       const params = buildParams();
       console.log("Fetching users with params:", params);
       console.log("API URL:", "/api/StaffOfAdmin/users");
+      console.log("Fixed role:", fixedRole);
       
       const response = await AdminApi.getUsers(params);
       console.log("Raw API response:", response);
       
-      const { total, items } = response;
-      console.log("Users data received:", { total, items });
-      
-      if (!items || !Array.isArray(items)) {
-        console.error("Invalid response format:", response);
-        message.error("Dữ liệu không hợp lệ");
+      // Handle case where API returns empty result on error
+      if (!response) {
+        console.warn("No response from API");
+        setTotal(0);
+        setUsers([]);
         return;
       }
       
+      const { total, items } = response;
+      console.log("Users data received:", { total, items, itemsIsArray: Array.isArray(items) });
+      
+      if (!items || !Array.isArray(items)) {
+        console.error("Invalid response format:", response);
+        message.error("Dữ liệu không hợp lệ - format không đúng");
+        setTotal(0);
+        setUsers([]);
+        return;
+      }
+      
+      const normalized = normalize(items);
+      console.log("Normalized users:", normalized.length);
+      
       setTotal(total || 0);
-      setUsers(normalize(items));
+      setUsers(normalized);
+      
+      if (normalized.length === 0 && total === 0) {
+        console.log("No users found for current filters");
+      }
     } catch (e) {
       console.error("Error fetching users:", e);
       console.error("Error details:", {
@@ -197,7 +215,9 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
         status: e.response?.status,
         data: e.response?.data
       });
-      message.error(`Không thể tải dữ liệu người dùng: ${e.message}`);
+      message.error(`Không thể tải dữ liệu người dùng: ${e.message || "Lỗi không xác định"}`);
+      setTotal(0);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
