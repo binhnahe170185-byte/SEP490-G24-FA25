@@ -39,7 +39,11 @@ public partial class User
 
     public virtual ICollection<Material> MaterialUpdatedByNavigations { get; set; } = new List<Material>();
 
-    public virtual ICollection<News> News { get; set; } = new List<News>();
+    public virtual ICollection<News> NewsApprovedByNavigations { get; set; } = new List<News>();
+
+    public virtual ICollection<News> NewsCreatedByNavigations { get; set; } = new List<News>();
+
+    public virtual ICollection<News> NewsUpdatedByNavigations { get; set; } = new List<News>();
 
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
