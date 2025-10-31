@@ -28,6 +28,10 @@ builder.Services.AddControllers(options =>
 {
     // Use camelCase for JSON properties (matches frontend)
     options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    // Handle circular references
+    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    // Increase max depth to handle nested objects
+    options.JsonSerializerOptions.MaxDepth = 64;
     // DateOnly serialization as "YYYY-MM-DD"
     options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     options.JsonSerializerOptions.Converters.Add(new FJAP.Infrastructure.JsonConverters.DateOnlyJsonConverter());

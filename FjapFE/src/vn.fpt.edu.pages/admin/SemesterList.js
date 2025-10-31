@@ -22,7 +22,7 @@ export default function SemesterList({ title = "Semester Management" }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // bộ lọc
+  // filters
   const [filters, setFilters] = useState({
     search: "",
   });
@@ -128,7 +128,7 @@ export default function SemesterList({ title = "Semester Management" }) {
       
       if (!items || !Array.isArray(items)) {
         console.error("Invalid response format:", response);
-        message.error("Invalid data format - format không đúng");
+        message.error("Invalid data format");
         setTotal(0);
         setSemesters([]);
         return;
@@ -150,7 +150,7 @@ export default function SemesterList({ title = "Semester Management" }) {
         status: e.response?.status,
         data: e.response?.data
       });
-      message.error(`Unable to load semester data: ${e.message || "Lỗi không xác định"}`);
+      message.error(`Unable to load semester data: ${e.message || "Unknown error"}`);
       setTotal(0);
       setSemesters([]);
     } finally {

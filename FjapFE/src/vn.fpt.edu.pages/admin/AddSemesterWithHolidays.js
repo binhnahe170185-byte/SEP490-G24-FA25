@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row, Col, Steps, Select, Checkbox, List, Tag, Modal } from "antd";
 import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import SemesterApi from "../../vn.fpt.edu.api/Semester";
 import HolidayApi from "../../vn.fpt.edu.api/Holiday";
 import dayjs from "dayjs";
@@ -84,7 +84,12 @@ export default function AddSemesterWithHolidays() {
   const [currentStep, setCurrentStep] = useState(0);
   const [holidays, setHolidays] = useState([]);
   const [savedDates, setSavedDates] = useState({ startDate: null, endDate: null });
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successModalData, setSuccessModalData] = useState(null);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorModalData, setErrorModalData] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
   
   // ------- Persist step 1 dates in sessionStorage so step 3 can read reliably -------
   const SESSION_KEY = 'create_semester_form';
@@ -422,74 +427,51 @@ export default function AddSemesterWithHolidays() {
         console.log('Calling SemesterApi.createSemester...');
         const created = await SemesterApi.createSemester(payload);
         console.log('Semester created successfully:', created);
+        console.log('Created object keys:', created ? Object.keys(created) : 'null');
         
         setLoading(false);
+        
+        // Check if there's a warning about holidays (semester created but holidays failed)
+        const warning = created?.warning || created?.data?.warning;
+        if (warning) {
+          console.warn('Holiday creation warning:', warning);
+          // Still show success but with warning
+          message.warning(warning, 5);
+        }
         
         // Show success modal with semester information
         // Note: generateSemesterName and generateSemesterCode expect dayjs objects
         const semesterName = created?.name || created?.data?.name || (startDate ? generateSemesterName(startDate) : 'N/A');
         const semesterCode = created?.semesterCode || created?.data?.semesterCode || (startDate ? generateSemesterCode(startDate) : 'N/A');
         
-        Modal.success({
-          title: 'Thành công',
-          content: (
-            <div>
-              <p style={{ marginBottom: 12, fontSize: 16, fontWeight: 500, color: '#52c41a' }}>
-                ✓ Học kì đã được tạo thành công!
-              </p>
-              <div style={{ 
-                marginTop: 16, 
-                padding: '12px 16px', 
-                background: '#f6ffed', 
-                borderRadius: 4,
-                border: '1px solid #b7eb8f'
-              }}>
-                <p style={{ margin: '6px 0', color: '#595959' }}>
-                  <strong style={{ color: '#262626' }}>Tên học kì:</strong> {semesterName}
-                </p>
-                <p style={{ margin: '6px 0', color: '#595959' }}>
-                  <strong style={{ color: '#262626' }}>Mã học kì:</strong> 
-                  <span style={{ 
-                    marginLeft: 8, 
-                    padding: '2px 8px', 
-                    background: '#e6f7ff', 
-                    borderRadius: 3,
-                    color: '#1890ff',
-                    fontWeight: 500
-                  }}>
-                    {semesterCode}
-                  </span>
-                </p>
-                <p style={{ margin: '6px 0', color: '#595959' }}>
-                  <strong style={{ color: '#262626' }}>Thời gian:</strong> {startDate.format("DD/MM/YYYY")} - {endDate.format("DD/MM/YYYY")}
-                </p>
-                <p style={{ margin: '6px 0', color: '#595959' }}>
-                  <strong style={{ color: '#262626' }}>Thời lượng:</strong> {endDate.diff(startDate, 'days')} ngày
-                </p>
-                {holidayItems.length > 0 && (
-                  <p style={{ 
-                    marginTop: 12, 
-                    padding: '8px 12px', 
-                    background: '#e6f7ff', 
-                    borderRadius: 4, 
-                    color: '#1890ff',
-                    border: '1px solid #91d5ff'
-                  }}>
-                    ✓ Đã thêm {holidayItems.length} ngày nghỉ
-                  </p>
-                )}
-              </div>
-            </div>
-          ),
-          okText: 'Quay lại danh sách',
-          width: 500,
-          onOk: () => {
-            // Clear persisted temp values
-            sessionStorage.removeItem(SESSION_KEY);
-            // Navigate back to semester list
-            navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
-          }
+        console.log('Semester name:', semesterName);
+        console.log('Semester code:', semesterCode);
+        
+        // Clear persisted temp values before showing modal
+        sessionStorage.removeItem(SESSION_KEY);
+        
+        // Prepare modal content data
+        const startDateFormatted = startDate.format("DD/MM/YYYY");
+        const endDateFormatted = endDate.format("DD/MM/YYYY");
+        const duration = endDate.diff(startDate, 'days');
+        const holidayCount = holidayItems.length;
+        
+        console.log('About to show Modal.success');
+        console.log('Data prepared:', { semesterName, semesterCode, startDateFormatted, endDateFormatted, duration, holidayCount });
+        
+        console.log('Setting success modal data and showing modal');
+        
+        // Set success modal data and show it
+        setSuccessModalData({
+          semesterName,
+          semesterCode,
+          startDateFormatted,
+          endDateFormatted,
+          duration,
+          holidayCount,
+          warning
         });
+        setSuccessModalVisible(true);
       } catch (e) {
         console.error('Error creating semester:', e);
         console.error('Error response:', e?.response);
@@ -497,7 +479,7 @@ export default function AddSemesterWithHolidays() {
         setLoading(false);
         
         // Extract error message with detailed information
-        let errorMsg = 'Không thể tạo học kì';
+        let errorMsg = 'Failed to create semester';
         let errorDetails = '';
         
         if (e?.response?.data) {
@@ -540,50 +522,14 @@ export default function AddSemesterWithHolidays() {
         // Show both message.error (quick notification) and Modal.error (detailed)
         message.error(errorMsg, 5);
         
-        // Use setTimeout to ensure Modal renders properly
-        setTimeout(() => {
-          console.log('Calling Modal.error...');
-          Modal.error({ 
-            title: 'Không thể tạo học kì', 
-            content: (
-              <div>
-                <p style={{ marginBottom: 8, fontSize: 16, fontWeight: 500, color: '#ff4d4f' }}>
-                  {errorMsg}
-                </p>
-                {errorDetails && (
-                  <div style={{ 
-                    marginTop: 12, 
-                    padding: 12, 
-                    background: '#fff2f0', 
-                    borderRadius: 4,
-                    border: '1px solid #ffccc7'
-                  }}>
-                    <pre style={{ 
-                      margin: 0,
-                      fontSize: 13,
-                      maxHeight: 250,
-                      overflow: 'auto',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      color: '#595959',
-                      fontFamily: 'inherit'
-                    }}>
-                      {errorDetails}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            ),
-            width: 600,
-            okText: 'Đóng',
-            onOk: () => {
-              console.log('Modal.error onOk clicked');
-              // Stay on the current page (don't navigate)
-              // User can fix the error and try again
-            }
-          });
-          console.log('Modal.error called');
-        }, 100);
+        console.log('Setting error modal data and showing modal');
+        
+        // Set error modal data and show it
+        setErrorModalData({
+          errorMsg,
+          errorDetails
+        });
+        setErrorModalVisible(true);
         
         return;
       }
@@ -593,35 +539,20 @@ export default function AddSemesterWithHolidays() {
       setLoading(false);
       
       if (error.errorFields) {
-        Modal.error({
-          title: 'Lỗi xác thực',
-          content: 'Vui lòng điền đầy đủ thông tin bắt buộc và kiểm tra lại các trường dữ liệu.',
-          okText: 'Đóng',
-          onOk: () => {
-            // Stay on the current page
-          }
+        setErrorModalData({
+          errorMsg: 'Lỗi xác thực',
+          errorDetails: 'Vui lòng điền đầy đủ thông tin bắt buộc và kiểm tra lại các trường dữ liệu.'
         });
+        setErrorModalVisible(true);
         return;
       }
       
       // Fallback for any other unexpected errors
-      Modal.error({
-        title: 'Lỗi không mong muốn',
-        content: (
-          <div>
-            <p>Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.</p>
-            {error?.message && (
-              <p style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-                Chi tiết: {error.message}
-              </p>
-            )}
-          </div>
-        ),
-        okText: 'Đóng',
-        onOk: () => {
-          // Stay on the current page
-        }
+      setErrorModalData({
+        errorMsg: 'Lỗi không mong muốn',
+        errorDetails: error?.message ? `Chi tiết: ${error.message}` : 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.'
       });
+      setErrorModalVisible(true);
     }
   };
 
@@ -1145,6 +1076,151 @@ export default function AddSemesterWithHolidays() {
           </Space>
         </div>
       </div>
+      
+      {/* Success Modal */}
+      <Modal
+        title="Success"
+        open={successModalVisible}
+        onCancel={() => {
+          setSuccessModalVisible(false);
+          setTimeout(() => {
+            navigate("/staffOfAdmin", { state: { activeTab: "sem:list" }, replace: true });
+          }, 100);
+        }}
+        footer={[
+          <Button key="ok" type="primary" onClick={() => {
+            setSuccessModalVisible(false);
+            // Add a small delay to ensure modal closes before navigation
+            setTimeout(() => {
+              navigate("/staffOfAdmin", { state: { activeTab: "sem:list" }, replace: true });
+            }, 100);
+          }}>
+            Back to List
+          </Button>
+        ]}
+        width={500}
+        centered
+        maskClosable={false}
+        style={{ zIndex: 1000 }}
+      >
+        {successModalData && (
+          <div>
+            <p style={{ marginBottom: 12, fontSize: 16, fontWeight: 500, color: '#52c41a' }}>
+              ✓ Semester created successfully!
+            </p>
+            <div style={{ 
+              marginTop: 16, 
+              padding: '12px 16px', 
+              background: '#f6ffed', 
+              borderRadius: 4,
+              border: '1px solid #b7eb8f'
+            }}>
+              <p style={{ margin: '6px 0', color: '#595959' }}>
+                <strong style={{ color: '#262626' }}>Semester Name:</strong> {successModalData.semesterName}
+              </p>
+              <p style={{ margin: '6px 0', color: '#595959' }}>
+                <strong style={{ color: '#262626' }}>Semester Code:</strong> 
+                <span style={{ 
+                  marginLeft: 8, 
+                  padding: '2px 8px', 
+                  background: '#e6f7ff', 
+                  borderRadius: 3,
+                  color: '#1890ff',
+                  fontWeight: 500
+                }}>
+                  {successModalData.semesterCode}
+                </span>
+              </p>
+              <p style={{ margin: '6px 0', color: '#595959' }}>
+                <strong style={{ color: '#262626' }}>Duration:</strong> {successModalData.startDateFormatted} - {successModalData.endDateFormatted}
+              </p>
+              <p style={{ margin: '6px 0', color: '#595959' }}>
+                <strong style={{ color: '#262626' }}>Length:</strong> {successModalData.duration} days
+              </p>
+              {successModalData.holidayCount > 0 && !successModalData.warning && (
+                <p style={{ 
+                  marginTop: 12, 
+                  padding: '8px 12px', 
+                  background: '#e6f7ff', 
+                  borderRadius: 4, 
+                  color: '#1890ff',
+                  border: '1px solid #91d5ff'
+                }}>
+                  ✓ Added {successModalData.holidayCount} holidays
+                </p>
+              )}
+              {successModalData.warning && (
+                <div style={{ 
+                  marginTop: 12, 
+                  padding: '12px 16px', 
+                  background: '#fff7e6', 
+                  borderRadius: 4, 
+                  border: '1px solid #ffd591'
+                }}>
+                  <p style={{ margin: 0, color: '#d46b08', fontSize: 14 }}>
+                    ⚠️ Warning: {successModalData.warning}
+                  </p>
+                  <p style={{ margin: '8px 0 0 0', color: '#595959', fontSize: 13 }}>
+                    Semester created successfully, but you may need to create holidays manually.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        title="Failed to Create Semester"
+        open={errorModalVisible}
+        onCancel={() => {
+          setErrorModalVisible(false);
+          setCurrentStep(0);
+        }}
+        footer={[
+          <Button key="close" type="primary" onClick={() => {
+            setErrorModalVisible(false);
+            setCurrentStep(0);
+          }}>
+            Close
+          </Button>
+        ]}
+        width={600}
+        centered
+        maskClosable={false}
+        style={{ zIndex: 1000 }}
+      >
+        {errorModalData && (
+          <div>
+            <p style={{ marginBottom: 8, fontSize: 16, fontWeight: 500, color: '#ff4d4f' }}>
+              {errorModalData.errorMsg}
+            </p>
+            {errorModalData.errorDetails && (
+              <div style={{ 
+                marginTop: 12, 
+                padding: 12, 
+                background: '#fff2f0', 
+                borderRadius: 4,
+                border: '1px solid #ffccc7'
+              }}>
+                <pre style={{ 
+                  margin: 0,
+                  fontSize: 13,
+                  maxHeight: 250,
+                  overflow: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  color: '#595959',
+                  fontFamily: 'inherit'
+                }}>
+                  {errorModalData.errorDetails}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </Card>
   );
 }

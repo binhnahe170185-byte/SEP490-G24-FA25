@@ -21,8 +21,7 @@ namespace FJAP.vn.fpt.edu.models
         [Column("holidayDate", TypeName = "date")]
         public DateOnly Date { get; set; }
 
-        [StringLength(500)]
-        [Column("description")]
+        [Column("description", TypeName = "TEXT")]
         public string? Description { get; set; }
 
         // Navigation properties

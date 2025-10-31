@@ -617,13 +617,13 @@ public partial class FjapDbContext : DbContext
                 .HasColumnName("holidayName");
             entity.Property(e => e.Date).HasColumnName("holidayDate");
             entity.Property(e => e.Description)
-                .HasMaxLength(500)
+                .HasColumnType("TEXT")
                 .HasColumnName("description");
             entity.Property(e => e.SemesterId).HasColumnName("semesterId");
 
-            entity.HasOne(d => d.Semester).WithMany()
+            entity.HasOne(d => d.Semester).WithMany(p => p.Holidays)
                 .HasForeignKey(d => d.SemesterId)
-                .OnDelete(DeleteBehavior.SetNull)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_holiday_semester");
         });
 

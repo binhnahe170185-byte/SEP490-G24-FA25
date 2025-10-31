@@ -107,8 +107,10 @@ public class HolidayService : IHolidayService
             };
         }).ToList();
 
-        await _holidayRepository.AddRangeAsync(holidays);
-        await _holidayRepository.SaveChangesAsync();
+        // Add holidays using DbContext - EF will handle foreign key properly
+        await _context.Holidays.AddRangeAsync(holidays);
+        await _context.SaveChangesAsync();
+        
         return holidays;
     }
 }

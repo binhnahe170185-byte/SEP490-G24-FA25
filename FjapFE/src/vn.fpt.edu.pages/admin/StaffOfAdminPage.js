@@ -87,14 +87,12 @@ export default function StaffOfAdminPage() {
   });
 
   // Sync active tab from navigation state when navigating from other pages
-  // Only sync if the state actually changed (new navigation)
   useEffect(() => {
     const stateKey = location?.state?.activeTab;
     if (typeof stateKey === "string") {
       setActiveKey(stateKey);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]); // Only sync when route changes, not on every render
+  }, [location.pathname, location.state]);
 
   const renderContent = () => {
     if (activeKey.startsWith("users:list")) {
