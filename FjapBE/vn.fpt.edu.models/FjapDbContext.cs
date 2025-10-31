@@ -64,10 +64,6 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseMySql("server=localhost;port=3306;database=fjap;user=root;password=123;sslmode=None;allowpublickeyretrieval=True", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.4.0-mysql"));
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -504,30 +500,59 @@ public partial class FjapDbContext : DbContext
 
             entity.ToTable("news");
 
-            entity.HasIndex(e => e.UserId, "idx_news_user");
+            entity.HasIndex(e => e.ApprovedBy, "fk_news_approved_by");
+
+            entity.HasIndex(e => e.CreatedBy, "fk_news_created_by");
+
+            entity.HasIndex(e => e.UpdatedBy, "fk_news_updated_by");
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ApprovedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("approved_at");
+            entity.Property(e => e.ApprovedBy).HasColumnName("approved_by");
             entity.Property(e => e.Content)
                 .HasColumnType("text")
                 .HasColumnName("content");
-            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-            entity.Property(e => e.CreatedTime)
+            entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime")
-                .HasColumnName("created_time");
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.NewsImage)
-                .HasMaxLength(255)
+                .HasMaxLength(512)
                 .HasColumnName("news_image");
+            entity.Property(e => e.ReviewComment)
+                .HasColumnType("text")
+                .HasColumnName("review_comment");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'draft'")
+                .HasColumnType("enum('draft','pending','published','rejected')")
+                .HasColumnName("status");
             entity.Property(e => e.Title)
                 .HasMaxLength(255)
                 .HasColumnName("title");
-            entity.Property(e => e.UpdateBy).HasColumnName("update_by");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
 
-            entity.HasOne(d => d.User).WithMany(p => p.News)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_news_user");
+            entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.NewsApprovedByNavigations)
+                .HasForeignKey(d => d.ApprovedBy)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_news_approved_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.NewsCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_news_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.NewsUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_news_updated_by");
         });
 
         modelBuilder.Entity<Notification>(entity =>
@@ -602,38 +627,9 @@ public partial class FjapDbContext : DbContext
                 .HasColumnName("name");
             entity.Property(e => e.SemesterCode)
                 .HasMaxLength(20)
+                .HasDefaultValueSql("''")
                 .HasColumnName("semester_code");
             entity.Property(e => e.StartDate).HasColumnName("start_date");
-        });
-
-        modelBuilder.Entity<Holiday>(entity =>
-        {
-            entity.HasKey(e => e.HolidayId).HasName("PRIMARY");
-
-            entity.ToTable("holiday");
-
-            entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
-
-            entity.Property(e => e.HolidayId).HasColumnName("holiday_id");
-            entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .HasColumnName("name");
-            entity.Property(e => e.Date).HasColumnName("date");
-            entity.Property(e => e.Type)
-                .HasMaxLength(50)
-                .HasColumnName("type");
-            entity.Property(e => e.Description)
-                .HasMaxLength(500)
-                .HasColumnName("description");
-            entity.Property(e => e.IsRecurring)
-                .HasDefaultValueSql("b'0'")
-                .HasColumnName("is_recurring");
-            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
-
-            entity.HasOne(d => d.Semester).WithMany()
-                .HasForeignKey(d => d.SemesterId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("fk_holiday_semester");
         });
 
         modelBuilder.Entity<Student>(entity =>
@@ -699,6 +695,38 @@ public partial class FjapDbContext : DbContext
                         j.IndexerProperty<int>("ClassId").HasColumnName("class_id");
                     });
         });
+
+        
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.HasKey(e => e.HolidayId).HasName("PRIMARY");
+
+            entity.ToTable("holiday");
+
+            entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
+
+            entity.Property(e => e.HolidayId).HasColumnName("holiday_id");
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .HasColumnName("name");
+            entity.Property(e => e.Date).HasColumnName("date");
+            entity.Property(e => e.Type)
+                .HasMaxLength(50)
+                .HasColumnName("type");
+            entity.Property(e => e.Description)
+                .HasMaxLength(500)
+                .HasColumnName("description");
+            entity.Property(e => e.IsRecurring)
+                .HasDefaultValueSql("b'0'")
+                .HasColumnName("is_recurring");
+            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
+
+            entity.HasOne(d => d.Semester).WithMany()
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_holiday_semester");
+        });
+
 
         modelBuilder.Entity<Subject>(entity =>
         {
