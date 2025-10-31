@@ -19,3 +19,63 @@
   font-weight: 700;
   letter-spacing: .3px;
 }
+
+/* News List - Submit Button Styles */
+.submit-news-button:hover,
+.submit-news-button:focus {
+  background: #9254de !important;
+  borderColor: #9254de !important;
+  boxShadow: 0 4px 8px rgba(114, 46, 209, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+.submit-news-button:active {
+  transform: translateY(0);
+  boxShadow: 0 2px 4px rgba(114, 46, 209, 0.35) !important;
+}
+
+/* News Detail Modal - Custom Scrollbar */
+/* Đảm bảo modal content có border-radius */
+.ant-modal-content {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+.ant-modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 #f5f5f5;
+  border-radius: 0 0 8px 8px;
+  padding-right: 36px !important; /* Tạo khoảng cách để scrollbar không sát edge */
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.ant-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ant-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 4px 12px 4px; /* Tăng margin-bottom để scrollbar không chồng lên góc bo */
+  border-radius: 6px;
+}
+
+.ant-modal-body::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 6px;
+  border: none;
+  transition: background 0.2s ease;
+  margin-right: 4px;
+  margin-bottom: 4px; /* Thêm margin-bottom để thumb không chạm góc */
+}
+
+.ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* Ensure modal close button is always visible */
+.ant-modal-close {
+  z-index: 1000 !important;
+  right: 8px !important;
+  top: 8px !important;
+}

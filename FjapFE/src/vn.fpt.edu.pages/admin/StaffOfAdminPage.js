@@ -5,12 +5,13 @@ import { Layout, Menu, Button, Space, Typography, Card } from "antd";
 import {
   TeamOutlined, UserAddOutlined, UploadOutlined, EditOutlined,
   AppstoreOutlined, SettingOutlined, CalendarOutlined,
-  BellOutlined, UserOutlined, LogoutOutlined,
+  BellOutlined, UserOutlined, LogoutOutlined, FileTextOutlined,
 } from "@ant-design/icons";
 import UsersList from "./UserList";
 import SemesterList from "./SemesterList";
 import AddSemester from "./AddSemester";
 import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
+import NewsList from "./News/NewsList";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -74,6 +75,11 @@ const ADMIN_MENU = [
       { key: "sem:list", icon: <CalendarOutlined />, label: "View List Semesters" },
       { key: "sem:add", icon: <UserAddOutlined />, label: "Add Semester" },
       { key: "sem:edit", icon: <EditOutlined />, label: "Edit Semester" },
+    ]
+  },
+  {
+    type: "group", label: "NEWS MANAGEMENT", children: [
+      { key: "news:list", icon: <FileTextOutlined />, label: "List News" },
     ]
   },
 ];
@@ -142,6 +148,15 @@ export default function StaffOfAdminPage() {
           </Card>
         );
       }
+    }
+
+    if (activeKey === "news:list") {
+      return (
+        <NewsList
+          key={activeKey}
+          title="List News - Staff of Administration Department"
+        />
+      );
     }
 
     return (
