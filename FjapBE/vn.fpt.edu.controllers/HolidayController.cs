@@ -44,10 +44,11 @@ public class HolidayController : ControllerBase
                 baseQuery = baseQuery.Where(x => x.Name.Contains(term));
             }
 
-            if (!string.IsNullOrWhiteSpace(type))
-            {
-                baseQuery = baseQuery.Where(x => x.Type == type);
-            }
+            // Note: Type filter removed as Type column doesn't exist in database
+            // if (!string.IsNullOrWhiteSpace(type))
+            // {
+            //     baseQuery = baseQuery.Where(x => x.Type == type);
+            // }
 
             if (semesterId.HasValue)
             {
@@ -71,9 +72,7 @@ public class HolidayController : ControllerBase
                 holidayId = x.HolidayId,
                 name = x.Name,
                 date = x.Date.ToString("yyyy-MM-dd"),
-                type = x.Type,
                 description = x.Description,
-                isRecurring = x.IsRecurring,
                 semesterId = x.SemesterId,
             }).ToList();
 
@@ -170,9 +169,7 @@ public class HolidayController : ControllerBase
                     holidayId = h.HolidayId,
                     name = h.Name,
                     date = h.Date.ToString("yyyy-MM-dd"),
-                    type = h.Type,
                     description = h.Description,
-                    isRecurring = h.IsRecurring,
                 })
                 .ToListAsync();
 

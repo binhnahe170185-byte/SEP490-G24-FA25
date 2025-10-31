@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row, Col, Steps, Select, Checkbox, List, Tag } from "antd";
+import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row, Col, Steps, Select, Checkbox, List, Tag, Modal } from "antd";
 import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import SemesterApi from "../../vn.fpt.edu.api/Semester";
@@ -302,33 +302,70 @@ export default function AddSemesterWithHolidays() {
   };
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called');
     try {
-      const values = await form.validateFields();
       setLoading(true);
+      
+      // Get values from form, state, or sessionStorage (in priority order)
+      let formValues = form.getFieldsValue();
+      console.log('Form values from getFieldsValue:', formValues);
+      
+      // Use savedDates state if form values are empty (step 2 scenario)
+      let startDate = formValues.startDate || savedDates.startDate;
+      let endDate = formValues.endDate || savedDates.endDate;
+      
+      // Fallback to sessionStorage if still empty
+      if (!startDate || !endDate) {
+        try {
+          const raw = sessionStorage.getItem(SESSION_KEY);
+          if (raw) {
+            const saved = JSON.parse(raw);
+            if (saved.startDate && !startDate) {
+              startDate = dayjs(saved.startDate);
+            }
+            if (saved.endDate && !endDate) {
+              endDate = dayjs(saved.endDate);
+            }
+          }
+        } catch (err) {
+          console.error('Error reading from sessionStorage:', err);
+        }
+      }
+      
+      console.log('Final dates - startDate:', startDate, 'endDate:', endDate);
 
       // Frontend validation
-      if (!values.startDate || !values.endDate) {
+      if (!startDate || !endDate) {
+        console.error('Missing dates');
         message.error('Please select both start and end dates');
         setLoading(false);
         return;
       }
+      
+      // Ensure dayjs objects
+      if (typeof startDate === 'string') {
+        startDate = dayjs(startDate);
+      }
+      if (typeof endDate === 'string') {
+        endDate = dayjs(endDate);
+      }
 
       // Validate dates are in allowed ranges
-      if (!isDateInAllowedRange(values.startDate)) {
+      if (!isDateInAllowedRange(startDate)) {
         message.error('Start date must be within allowed semester ranges (Spring: Jan-Apr, Summer: May-Aug, Fall: Sep-Dec)');
         setLoading(false);
         return;
       }
 
-      if (!isDateInAllowedRange(values.endDate)) {
+      if (!isDateInAllowedRange(endDate)) {
         message.error('End date must be within allowed semester ranges (Spring: Jan-Apr, Summer: May-Aug, Fall: Sep-Dec)');
         setLoading(false);
         return;
       }
 
       // Validate start and end dates are in the same season
-      const startSeason = getSemesterSeason(values.startDate);
-      const endSeason = getSemesterSeason(values.endDate);
+      const startSeason = getSemesterSeason(startDate);
+      const endSeason = getSemesterSeason(endDate);
       
       if (startSeason !== endSeason) {
         message.error('Invalid semester range. Start date and end date must be in the same season.');
@@ -336,14 +373,14 @@ export default function AddSemesterWithHolidays() {
         return;
       }
 
-      if (values.startDate.isAfter(values.endDate) || values.startDate.isSame(values.endDate)) {
+      if (startDate.isAfter(endDate) || startDate.isSame(endDate)) {
         message.error('Start date must be before end date');
         setLoading(false);
         return;
       }
 
       // Check duration (30-365 days)
-      const duration = values.endDate.diff(values.startDate, 'days');
+      const duration = endDate.diff(startDate, 'days');
       if (duration < 30) {
         message.error('Semester duration must be at least 30 days');
         setLoading(false);
@@ -355,39 +392,236 @@ export default function AddSemesterWithHolidays() {
         return;
       }
 
+      // Prepare payload for backend
       const payload = {
-        startDate: values.startDate.format("YYYY-MM-DD"),
-        endDate: values.endDate.format("YYYY-MM-DD"),
-        holidays: holidays.filter(h => h.name && h.date).map(h => ({
+        startDate: startDate.format("YYYY-MM-DD"),
+        endDate: endDate.format("YYYY-MM-DD"),
+      };
+
+      // Prepare holidays array for backend
+      // Backend accepts holidays directly in the create semester request
+      const holidayItems = holidays
+        .filter(h => h.name && h.date)
+        .map(h => ({
           name: h.name.trim(),
           date: h.date.format("YYYY-MM-DD"),
           type: h.type,
           description: h.description?.trim() || '',
-          IsRecurring: h.recurring,
-        }))
-      };
+          isRecurring: h.recurring, // camelCase to match backend JSON policy
+        }));
+      
+      // Only include holidays if there are any
+      if (holidayItems.length > 0) {
+        payload.holidays = holidayItems;
+      }
 
-      const response = await SemesterApi.createSemester(payload);
-      message.success("Semester created successfully");
-      
-      // Clear persisted temp values after successful creation
-      sessionStorage.removeItem(SESSION_KEY);
-      navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
-    } catch (error) {
-      console.error("Error creating semester:", error);
-      
-      // Handle form validation errors
-      if (error.errorFields) {
-        message.error('Please fix the form errors before submitting');
+      console.log('Creating semester with payload:', payload);
+      console.log('Payload JSON:', JSON.stringify(payload, null, 2));
+
+      try {
+        console.log('Calling SemesterApi.createSemester...');
+        const created = await SemesterApi.createSemester(payload);
+        console.log('Semester created successfully:', created);
+        
         setLoading(false);
+        
+        // Show success modal with semester information
+        // Note: generateSemesterName and generateSemesterCode expect dayjs objects
+        const semesterName = created?.name || created?.data?.name || (startDate ? generateSemesterName(startDate) : 'N/A');
+        const semesterCode = created?.semesterCode || created?.data?.semesterCode || (startDate ? generateSemesterCode(startDate) : 'N/A');
+        
+        Modal.success({
+          title: 'Thành công',
+          content: (
+            <div>
+              <p style={{ marginBottom: 12, fontSize: 16, fontWeight: 500, color: '#52c41a' }}>
+                ✓ Học kì đã được tạo thành công!
+              </p>
+              <div style={{ 
+                marginTop: 16, 
+                padding: '12px 16px', 
+                background: '#f6ffed', 
+                borderRadius: 4,
+                border: '1px solid #b7eb8f'
+              }}>
+                <p style={{ margin: '6px 0', color: '#595959' }}>
+                  <strong style={{ color: '#262626' }}>Tên học kì:</strong> {semesterName}
+                </p>
+                <p style={{ margin: '6px 0', color: '#595959' }}>
+                  <strong style={{ color: '#262626' }}>Mã học kì:</strong> 
+                  <span style={{ 
+                    marginLeft: 8, 
+                    padding: '2px 8px', 
+                    background: '#e6f7ff', 
+                    borderRadius: 3,
+                    color: '#1890ff',
+                    fontWeight: 500
+                  }}>
+                    {semesterCode}
+                  </span>
+                </p>
+                <p style={{ margin: '6px 0', color: '#595959' }}>
+                  <strong style={{ color: '#262626' }}>Thời gian:</strong> {startDate.format("DD/MM/YYYY")} - {endDate.format("DD/MM/YYYY")}
+                </p>
+                <p style={{ margin: '6px 0', color: '#595959' }}>
+                  <strong style={{ color: '#262626' }}>Thời lượng:</strong> {endDate.diff(startDate, 'days')} ngày
+                </p>
+                {holidayItems.length > 0 && (
+                  <p style={{ 
+                    marginTop: 12, 
+                    padding: '8px 12px', 
+                    background: '#e6f7ff', 
+                    borderRadius: 4, 
+                    color: '#1890ff',
+                    border: '1px solid #91d5ff'
+                  }}>
+                    ✓ Đã thêm {holidayItems.length} ngày nghỉ
+                  </p>
+                )}
+              </div>
+            </div>
+          ),
+          okText: 'Quay lại danh sách',
+          width: 500,
+          onOk: () => {
+            // Clear persisted temp values
+            sessionStorage.removeItem(SESSION_KEY);
+            // Navigate back to semester list
+            navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
+          }
+        });
+      } catch (e) {
+        console.error('Error creating semester:', e);
+        console.error('Error response:', e?.response);
+        console.error('Error response data:', e?.response?.data);
+        setLoading(false);
+        
+        // Extract error message with detailed information
+        let errorMsg = 'Không thể tạo học kì';
+        let errorDetails = '';
+        
+        if (e?.response?.data) {
+          const data = e.response.data;
+          
+          if (typeof data === 'string') {
+            errorMsg = data;
+          } else {
+            if (data.message) {
+              errorMsg = data.message;
+            }
+            if (data.details) {
+              errorDetails = data.details;
+            }
+            if (data.overlappingSemesters && Array.isArray(data.overlappingSemesters)) {
+              const conflicts = data.overlappingSemesters.map(s => 
+                `${s.name} (${s.semesterCode}) [${s.startDate} to ${s.endDate}]`
+              ).join('\n');
+              errorDetails += `\n\nConflicting semesters:\n${conflicts}`;
+            }
+            if (data.errorType) {
+              errorDetails += `\nError Type: ${data.errorType}`;
+            }
+            if (data.innerException) {
+              errorDetails += `\n${data.innerException.type}: ${data.innerException.message}`;
+            }
+            if (data.errors) {
+              const errorList = Object.entries(data.errors)
+                .map(([key, messages]) => `${key}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+                .join('\n');
+              errorDetails += `\nValidation Errors:\n${errorList}`;
+            }
+          }
+        } else if (e?.message) {
+          errorMsg = e.message;
+        }
+        
+        console.log('About to show Modal.error with:', { errorMsg, errorDetails });
+        
+        // Show both message.error (quick notification) and Modal.error (detailed)
+        message.error(errorMsg, 5);
+        
+        // Use setTimeout to ensure Modal renders properly
+        setTimeout(() => {
+          console.log('Calling Modal.error...');
+          Modal.error({ 
+            title: 'Không thể tạo học kì', 
+            content: (
+              <div>
+                <p style={{ marginBottom: 8, fontSize: 16, fontWeight: 500, color: '#ff4d4f' }}>
+                  {errorMsg}
+                </p>
+                {errorDetails && (
+                  <div style={{ 
+                    marginTop: 12, 
+                    padding: 12, 
+                    background: '#fff2f0', 
+                    borderRadius: 4,
+                    border: '1px solid #ffccc7'
+                  }}>
+                    <pre style={{ 
+                      margin: 0,
+                      fontSize: 13,
+                      maxHeight: 250,
+                      overflow: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#595959',
+                      fontFamily: 'inherit'
+                    }}>
+                      {errorDetails}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ),
+            width: 600,
+            okText: 'Đóng',
+            onOk: () => {
+              console.log('Modal.error onOk clicked');
+              // Stay on the current page (don't navigate)
+              // User can fix the error and try again
+            }
+          });
+          console.log('Modal.error called');
+        }, 100);
+        
+        return;
+      }
+    } catch (error) {
+      // This catch handles form validation errors (from form.validateFields())
+      console.error("Form validation or unexpected error:", error);
+      setLoading(false);
+      
+      if (error.errorFields) {
+        Modal.error({
+          title: 'Lỗi xác thực',
+          content: 'Vui lòng điền đầy đủ thông tin bắt buộc và kiểm tra lại các trường dữ liệu.',
+          okText: 'Đóng',
+          onOk: () => {
+            // Stay on the current page
+          }
+        });
         return;
       }
       
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.details || 
-                          'Failed to create semester';
-      message.error(errorMessage);
-      setLoading(false);
+      // Fallback for any other unexpected errors
+      Modal.error({
+        title: 'Lỗi không mong muốn',
+        content: (
+          <div>
+            <p>Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.</p>
+            {error?.message && (
+              <p style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+                Chi tiết: {error.message}
+              </p>
+            )}
+          </div>
+        ),
+        okText: 'Đóng',
+        onOk: () => {
+          // Stay on the current page
+        }
+      });
     }
   };
 
@@ -407,7 +641,6 @@ export default function AddSemesterWithHolidays() {
           <Form
             form={form}
             layout="vertical"
-            style={{ maxWidth: 600 }}
           >
             {/* Auto-generated Semester Info Preview */}
             {startDate && isDateInAllowedRange(startDate) && generatedName && (
@@ -571,7 +804,7 @@ export default function AddSemesterWithHolidays() {
         const customHolidays = holidays.filter(h => h.type !== 'National');
         
         return (
-          <div style={{ maxWidth: 800 }}>
+          <div>
             <div style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 4 }}>Holidays</Title>
               <Text type="secondary">Japan public holidays have been automatically loaded. Add custom holidays if needed.</Text>
@@ -751,94 +984,103 @@ export default function AddSemesterWithHolidays() {
         const reviewCode = finalStartDate ? generateSemesterCode(finalStartDate) : 'Not set';
         
         return (
-          <div style={{ maxWidth: 700 }}>
+          <div>
             <Title level={4} style={{ marginBottom: 24 }}>Review Semester Details</Title>
             
-            <Card 
-              title="Semester Information"
-              style={{ marginBottom: 24 }}
-            >
-              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                <Row>
-                  <Col span={6}><Text type="secondary">Name:</Text></Col>
-                  <Col span={18}><Text strong>{reviewName}</Text></Col>
-                </Row>
-                <Row>
-                  <Col span={6}><Text type="secondary">Code:</Text></Col>
-                  <Col span={18}>
-                    <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>
-                      {reviewCode}
-                    </Tag>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col span={6}><Text type="secondary">Start Date:</Text></Col>
-                  <Col span={18}>
-                    <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>
-                      {finalStartDate ? finalStartDate.format("YYYY-MM-DD") : 'Not set'}
-                    </Tag>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col span={6}><Text type="secondary">End Date:</Text></Col>
-                  <Col span={18}>
-                    <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>
-                      {finalEndDate ? finalEndDate.format("YYYY-MM-DD") : 'Not set'}
-                    </Tag>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col span={6}><Text type="secondary">Duration:</Text></Col>
-                  <Col span={18}>
-                    <Text>{duration || 0} days</Text>
-                  </Col>
-                </Row>
-              </Space>
-            </Card>
-
-            <Card 
-              title={
-                <Space>
-                  <span>Holidays</span>
-                  <Tag color="processing">{holidays.length}</Tag>
-                  {japanHolidaysCount > 0 && (
-                    <Tag color="blue">{japanHolidaysCount} Japan</Tag>
+            <Row gutter={24}>
+              <Col xs={24} lg={10}>
+                <Card 
+                  title="Semester Information"
+                  style={{ height: '100%' }}
+                >
+                  <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                    <Row>
+                      <Col span={8}><Text type="secondary">Name:</Text></Col>
+                      <Col span={16}><Text strong>{reviewName}</Text></Col>
+                    </Row>
+                    <Row>
+                      <Col span={8}><Text type="secondary">Code:</Text></Col>
+                      <Col span={16}>
+                        <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>
+                          {reviewCode}
+                        </Tag>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col span={8}><Text type="secondary">Start Date:</Text></Col>
+                      <Col span={16}>
+                        <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>
+                          {finalStartDate ? finalStartDate.format("YYYY-MM-DD") : 'Not set'}
+                        </Tag>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col span={8}><Text type="secondary">End Date:</Text></Col>
+                      <Col span={16}>
+                        <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>
+                          {finalEndDate ? finalEndDate.format("YYYY-MM-DD") : 'Not set'}
+                        </Tag>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col span={8}><Text type="secondary">Duration:</Text></Col>
+                      <Col span={16}>
+                        <Text strong>{duration || 0} days</Text>
+                      </Col>
+                    </Row>
+                  </Space>
+                </Card>
+              </Col>
+              
+              <Col xs={24} lg={14}>
+                <Card 
+                  title={
+                    <Space>
+                      <span>Holidays</span>
+                      <Tag color="processing">{holidays.length}</Tag>
+                      {japanHolidaysCount > 0 && (
+                        <Tag color="blue">{japanHolidaysCount} Japan</Tag>
+                      )}
+                      {customHolidaysCount > 0 && (
+                        <Tag color="default">{customHolidaysCount} Custom</Tag>
+                      )}
+                    </Space>
+                  }
+                  style={{ height: '100%' }}
+                >
+                  {holidays.length === 0 ? (
+                    <Text type="secondary">No holidays added</Text>
+                  ) : (
+                    <List
+                      size="small"
+                      dataSource={holidays}
+                      renderItem={(holiday) => (
+                        <List.Item style={{ padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
+                          <Row style={{ width: '100%' }} gutter={8}>
+                            <Col flex={1}>
+                              <Text strong style={{ display: 'block', marginBottom: 4 }}>{holiday.name}</Text>
+                              {holiday.description && (
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {holiday.description}
+                                </Text>
+                              )}
+                            </Col>
+                            <Col>
+                              <Space direction="vertical" size={4} align="end">
+                                <Tag color="cyan">{holiday.date?.format("YYYY-MM-DD")}</Tag>
+                                {holiday.type !== 'National' && (
+                                  <Tag color="default" style={{ fontSize: 11 }}>{holiday.type}</Tag>
+                                )}
+                              </Space>
+                            </Col>
+                          </Row>
+                        </List.Item>
+                      )}
+                    />
                   )}
-                  {customHolidaysCount > 0 && (
-                    <Tag color="default">{customHolidaysCount} Custom</Tag>
-                  )}
-                </Space>
-              }
-            >
-              {holidays.length === 0 ? (
-                <Text type="secondary">No holidays added</Text>
-              ) : (
-                <List
-                  size="small"
-                  dataSource={holidays}
-                  renderItem={(holiday) => (
-                    <List.Item style={{ padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
-                      <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-                        <Space>
-                          <Text strong>{holiday.name}</Text>
-                          {holiday.description && (
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              {holiday.description}
-                            </Text>
-                          )}
-                        </Space>
-                        <Space>
-                          <Tag color="cyan">{holiday.date?.format("YYYY-MM-DD")}</Tag>
-                          {holiday.type !== 'National' && (
-                            <Tag color="default" style={{ fontSize: 11 }}>{holiday.type}</Tag>
-                          )}
-                        </Space>
-                      </Space>
-                    </List.Item>
-                  )}
-                />
-              )}
-            </Card>
+                </Card>
+              </Col>
+            </Row>
           </div>
         );
 
@@ -850,47 +1092,58 @@ export default function AddSemesterWithHolidays() {
   return (
     <Card style={{ borderRadius: 12, boxShadow: "0 6px 18px rgba(0,0,0,0.06)" }}>
       <div style={{ marginBottom: 24 }}>
-        <Space align="center" style={{ marginBottom: 16 }}>
-          <Button 
-            icon={<ArrowLeftOutlined />} 
-            onClick={handleCancel}
-            style={{ marginRight: 8 }}
-          >
-            Back to Semester List
-          </Button>
-          <Title level={3} style={{ margin: 0 }}>Add New Semester</Title>
-        </Space>
+        <Row align="middle" justify="space-between" gutter={16}>
+          <Col>
+            <Button 
+              icon={<ArrowLeftOutlined />} 
+              onClick={handleCancel}
+            >
+              Back to Semester List
+            </Button>
+          </Col>
+          <Col flex={1}>
+            <div style={{ textAlign: "center" }}>
+              <Title level={3} style={{ margin: 0 }}>Add New Semester</Title>
+            </div>
+          </Col>
+          <Col style={{ visibility: "hidden" }}>
+            {/* spacer to balance header layout */}
+            <Button icon={<ArrowLeftOutlined />} />
+          </Col>
+        </Row>
       </div>
 
-      <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px" }}>
+        <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
-      {renderStepContent()}
+        {renderStepContent()}
 
-      <div style={{ marginTop: 32, textAlign: "right" }}>
-        <Space>
-          {currentStep > 0 && (
-            <Button onClick={prevStep}>
-              Previous
+        <div style={{ marginTop: 32, textAlign: "center" }}>
+          <Space>
+            {currentStep > 0 && (
+              <Button onClick={prevStep}>
+                Previous
+              </Button>
+            )}
+            {currentStep < steps.length - 1 ? (
+              <Button type="primary" onClick={nextStep}>
+                Next
+              </Button>
+            ) : (
+              <Button 
+                type="primary" 
+                icon={<SaveOutlined />}
+                onClick={handleSubmit}
+                loading={loading}
+              >
+                Create Semester
+              </Button>
+            )}
+            <Button onClick={handleCancel}>
+              Cancel
             </Button>
-          )}
-          {currentStep < steps.length - 1 ? (
-            <Button type="primary" onClick={nextStep}>
-              Next
-            </Button>
-          ) : (
-            <Button 
-              type="primary" 
-              icon={<SaveOutlined />}
-              onClick={handleSubmit}
-              loading={loading}
-            >
-              Create Semester
-            </Button>
-          )}
-          <Button onClick={handleCancel}>
-            Cancel
-          </Button>
-        </Space>
+          </Space>
+        </div>
       </div>
     </Card>
   );

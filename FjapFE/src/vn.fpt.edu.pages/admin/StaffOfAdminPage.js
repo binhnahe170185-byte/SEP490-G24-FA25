@@ -1,5 +1,6 @@
 // src/vn.fpt.edu.pages/admin/AdminPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Layout, Menu, Button, Space, Typography, Card } from "antd";
 import {
   TeamOutlined, UserAddOutlined, UploadOutlined, EditOutlined,
@@ -78,8 +79,22 @@ const ADMIN_MENU = [
 ];
 
 export default function StaffOfAdminPage() {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [activeKey, setActiveKey] = useState("users:list:head");
+  const [activeKey, setActiveKey] = useState(() => {
+    // Initialize from location state on mount
+    return location?.state?.activeTab || "users:list:head";
+  });
+
+  // Sync active tab from navigation state when navigating from other pages
+  // Only sync if the state actually changed (new navigation)
+  useEffect(() => {
+    const stateKey = location?.state?.activeTab;
+    if (typeof stateKey === "string") {
+      setActiveKey(stateKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]); // Only sync when route changes, not on every render
 
   const renderContent = () => {
     if (activeKey.startsWith("users:list")) {

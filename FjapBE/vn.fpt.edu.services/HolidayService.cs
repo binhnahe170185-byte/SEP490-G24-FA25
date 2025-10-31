@@ -29,14 +29,17 @@ public class HolidayService : IHolidayService
 
     public async Task<Holiday> CreateAsync(CreateHolidayRequest request)
     {
+        if (request.SemesterId == null || request.SemesterId == 0)
+        {
+            throw new ArgumentException("SemesterId is required");
+        }
+
         var holiday = new Holiday
         {
             Name = request.Name.Trim(),
             Date = request.Date,
-            Type = request.Type.Trim(),
             Description = request.Description?.Trim(),
-            IsRecurring = request.IsRecurring,
-            SemesterId = request.SemesterId ?? 0
+            SemesterId = request.SemesterId.Value
         };
 
         await _holidayRepository.AddAsync(holiday);
@@ -51,10 +54,12 @@ public class HolidayService : IHolidayService
 
         existing.Name = request.Name.Trim();
         existing.Date = request.Date;
-        existing.Type = request.Type.Trim();
         existing.Description = request.Description?.Trim();
-        existing.IsRecurring = request.IsRecurring;
-        existing.SemesterId = request.SemesterId ?? 0;
+        
+        if (request.SemesterId != null && request.SemesterId != 0)
+        {
+            existing.SemesterId = request.SemesterId.Value;
+        }
 
         _holidayRepository.Update(existing);
         await _holidayRepository.SaveChangesAsync();
@@ -81,14 +86,25 @@ public class HolidayService : IHolidayService
 
     public async Task<IEnumerable<Holiday>> CreateBulkAsync(CreateHolidayRequest[] requests)
     {
-        var holidays = requests.Select(request => new Holiday
+        if (requests == null || requests.Length == 0)
         {
-            Name = request.Name.Trim(),
-            Date = request.Date,
-            Type = request.Type.Trim(),
-            Description = request.Description?.Trim(),
-            IsRecurring = request.IsRecurring,
-            SemesterId = request.SemesterId ?? 0
+            return new List<Holiday>();
+        }
+
+        var holidays = requests.Select(request =>
+        {
+            if (request.SemesterId == null || request.SemesterId == 0)
+            {
+                throw new ArgumentException($"SemesterId is required for holiday: {request.Name}");
+            }
+
+            return new Holiday
+            {
+                Name = request.Name.Trim(),
+                Date = request.Date,
+                Description = request.Description?.Trim(),
+                SemesterId = request.SemesterId.Value
+            };
         }).ToList();
 
         await _holidayRepository.AddRangeAsync(holidays);

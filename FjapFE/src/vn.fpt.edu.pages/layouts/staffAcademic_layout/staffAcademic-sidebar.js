@@ -33,29 +33,9 @@ const StaffAcademicSidebar = () => {
         <Link to="/staffAcademic/materials">Materials</Link>
       </Item>
 
-
-  
-
-      <SubMenu key="classes" icon={<ReadOutlined />} title="Classes">
-        <Item key="/staffAcademic/classes/list">
-          <Link to="/staffAcademic/classes/list">View List Class</Link>
-        </Item>
-        <Item key="/staffAcademic/classes/add">
-          <Link to="/staffAcademic/classes/add">Add Class</Link>
-        </Item>
-        <Item key="/staffAcademic/classes/edit">
-          <Link to="/staffAcademic/classes/edit">Edit Class</Link>
-        </Item>
-        <Item key="/staffAcademic/classes/detail">
-          <Link to="/staffAcademic/classes/detail">View class detail</Link>
-        </Item>
-        <Item key="/staffAcademic/classes/students">
-          <Link to="/staffAcademic/classes/students">View class students</Link>
-        </Item>
-        <Item key="/staffAcademic/classes/import">
-          <Link to="/staffAcademic/classes/import">Import students</Link>
-        </Item>
-      </SubMenu>
+      <Item key="/staffAcademic/classes" icon={<ReadOutlined />}>
+        <Link to="/staffAcademic/classes">Classes</Link>
+      </Item>
 
       <SubMenu key="grades" icon={<EditOutlined />} title="Grades">
         <Item key="/staffAcademic/grades/edit">
