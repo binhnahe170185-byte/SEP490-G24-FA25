@@ -632,6 +632,31 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.StartDate).HasColumnName("start_date");
         });
 
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.HasKey(e => e.HolidayId).HasName("PRIMARY");
+
+            entity.ToTable("holiday");
+
+            entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
+
+            // Map to camelCase column names as per database schema
+            entity.Property(e => e.HolidayId).HasColumnName("holidayId");
+            entity.Property(e => e.Name)
+                .HasMaxLength(200)
+                .HasColumnName("holidayName");
+            entity.Property(e => e.Date).HasColumnName("holidayDate");
+            entity.Property(e => e.Description)
+                .HasColumnType("TEXT")
+                .HasColumnName("description");
+            entity.Property(e => e.SemesterId).HasColumnName("semesterId");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.Holidays)
+                .HasForeignKey(d => d.SemesterId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_holiday_semester");
+        });
+
         modelBuilder.Entity<Student>(entity =>
         {
             entity.HasKey(e => e.StudentId).HasName("PRIMARY");

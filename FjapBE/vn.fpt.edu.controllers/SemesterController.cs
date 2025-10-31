@@ -173,25 +173,70 @@ public class SemesterController : ControllerBase
             var created = await _semesterService.CreateAsync(request);
             Console.WriteLine($"Semester created with ID: {created.SemesterId}");
             
-            // Create holidays if provided
+            // Detach the entity to prevent lazy loading of navigation properties during serialization
+            _db.Entry(created).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            
+            // Save semester data before creating holidays (to avoid navigation property issues)
+            var semesterId = created.SemesterId;
+            var semesterName = created.Name;
+            var semesterCode = created.SemesterCode;
+            var startDate = created.StartDate;
+            var endDate = created.EndDate;
+            
+            // Create holidays if provided - wrap in try-catch to not fail semester creation if holidays fail
+            string holidayWarning = null;
             if (request.Holidays != null && request.Holidays.Any())
             {
                 Console.WriteLine($"Creating {request.Holidays.Length} holidays...");
-                var holidayRequests = request.Holidays.Select(h => new CreateHolidayRequest
+                try
                 {
-                    Name = h.Name,
-                    Date = h.Date,
-                    Description = h.Description,
-                    SemesterId = created.SemesterId
-                }).ToArray();
+                    var holidayRequests = request.Holidays.Select(h => new CreateHolidayRequest
+                    {
+                        Name = h.Name,
+                        Date = h.Date,
+                        Description = h.Description,
+                        SemesterId = semesterId
+                    }).ToArray();
 
-                await _holidayService.CreateBulkAsync(holidayRequests);
-                Console.WriteLine("Holidays created successfully");
+                    await _holidayService.CreateBulkAsync(holidayRequests);
+                    Console.WriteLine("Holidays created successfully");
+                }
+                catch (Exception holidayEx)
+                {
+                    // Log holiday creation error but don't fail the entire request
+                    Console.WriteLine($"=== WARNING: Failed to create holidays ===");
+                    Console.WriteLine($"Error: {holidayEx.Message}");
+                    Console.WriteLine($"Error Type: {holidayEx.GetType().Name}");
+                    if (holidayEx.InnerException != null)
+                    {
+                        Console.WriteLine($"Inner exception: {holidayEx.InnerException.GetType().Name}: {holidayEx.InnerException.Message}");
+                    }
+                    
+                    holidayWarning = $"Semester created successfully, but failed to create holidays: {holidayEx.Message}";
+                }
             }
 
             Console.WriteLine("=== SemesterController.Create completed successfully ===");
-            return CreatedAtAction(nameof(GetById), new { id = created.SemesterId }, 
-                new { code = 201, data = created });
+            
+            // Create a completely new response object without any entity references
+            // This prevents any lazy loading or navigation property serialization issues
+            var responseData = new
+            {
+                code = 201,
+                data = new
+                {
+                    semesterId = semesterId,
+                    name = semesterName,
+                    semesterCode = semesterCode,
+                    startDate = startDate,
+                    endDate = endDate
+                    // Exclude Holidays collection to avoid circular reference
+                    // If needed, frontend can fetch holidays separately via GET /api/Holiday/semester/{id}
+                },
+                warning = holidayWarning
+            };
+            
+            return CreatedAtAction(nameof(GetById), new { id = semesterId }, responseData);
         }
         catch (Exception ex)
         {
