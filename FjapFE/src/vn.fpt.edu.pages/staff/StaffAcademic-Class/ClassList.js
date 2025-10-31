@@ -810,7 +810,7 @@ const toolbarContainerStyle = {
   flexWrap: "wrap",
   gap: 16,
   border: "1px solid #d6bcfa",
-  background: "#f8f5ff",
+  background: "#ffffff",
   padding: "16px 20px",
   borderRadius: 12,
   marginBottom: 24,
