@@ -18,21 +18,11 @@ const ManagerSidebar = () => {
       label: <Link to="/manager/dashboard">Dashboard</Link>,
     },
     {
-      key: '/manager/class',
-      icon: <BookOutlined />,
-      label: <Link to="/manager/class">List Class</Link>,
-    },
-    {
       key: "/manager/subject",
       icon: <ReadOutlined />,
       label: <Link to="/manager/subject">List Subject</Link>,
     },
-    // {
-    //   key: '/manager/materials', 
-    //   icon: <FileOutlined />, 
-    //   label: <Link to="/manager/materials">Materials</Link>, 
-    // }, // Removed - materials moved to staff
-    // Grades moved to Lecturer area
+
   ];
 
   return (

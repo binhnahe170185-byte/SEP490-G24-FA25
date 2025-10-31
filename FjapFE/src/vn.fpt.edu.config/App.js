@@ -20,10 +20,10 @@ import ClassStudentsList from "../vn.fpt.edu.pages/student/classStudents/ClassSt
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import LecturerLayout from "../vn.fpt.edu.pages/layouts/lecturer-layout";
-import ClassPage from "../vn.fpt.edu.pages/manager/ClassManage";
-import ClassDetail from "../vn.fpt.edu.pages/manager/ClassManage/ClassDetail";
-import ClassStudents from "../vn.fpt.edu.pages/manager/ClassManage/ClassStudents";
-import ClassAddStudents from "../vn.fpt.edu.pages/manager/ClassManage/ClassAddStudents";
+import ClassPage from "../vn.fpt.edu.pages/staff/StaffAcademic-Class";
+import ClassDetail from "../vn.fpt.edu.pages/staff/StaffAcademic-Class/ClassDetail";
+import ClassStudents from "../vn.fpt.edu.pages/staff/StaffAcademic-Class/ClassStudents";
+import ClassAddStudents from "../vn.fpt.edu.pages/staff/StaffAcademic-Class/ClassAddStudents";
 import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
@@ -148,11 +148,6 @@ export default function App() {
                     </RequireManager>
                   }
                 >
-                  <Route index element={<ClassPage />} />
-                  <Route path="class" element={<ClassPage />} />
-                  <Route path="class/:classId" element={<ClassDetail />} />
-                  <Route path="class/:classId/students" element={<ClassStudents />} />
-                  <Route path="class/:classId/add-students" element={<ClassAddStudents />} />
                   <Route path="subject" element={<SubjectPage />} />
                   <Route path="subject/create" element={<CreateSubject />} />
                   <Route path="subject/edit/:subjectId" element={<EditSubject />} />
@@ -173,14 +168,14 @@ export default function App() {
                     element={<div style={{ padding: 16 }}><h3>Staff Academic Dashboard (placeholder)</h3></div>}
                   />
                   <Route
-                    path="classes"
-                    element={<div style={{ padding: 16 }}><h3>Classes (placeholder)</h3></div>}
-                  />
-                  <Route
                     path="subjects"
                     element={<div style={{ padding: 16 }}><h3>Subjects (placeholder)</h3></div>}
                   />
                   <Route path="materials" element={<StaffMaterialList />} />
+                  <Route path="classes" element={<ClassPage />} />
+                  <Route path="class/:classId" element={<ClassDetail />} />
+                  <Route path="class/:classId/students" element={<ClassStudents />} />
+                  <Route path="class/:classId/add-students" element={<ClassAddStudents />} />
                 </Route>
 
                 <Route
