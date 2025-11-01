@@ -735,15 +735,9 @@ public partial class FjapDbContext : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("name");
             entity.Property(e => e.Date).HasColumnName("date");
-            entity.Property(e => e.Type)
-                .HasMaxLength(50)
-                .HasColumnName("type");
             entity.Property(e => e.Description)
                 .HasMaxLength(500)
                 .HasColumnName("description");
-            entity.Property(e => e.IsRecurring)
-                .HasDefaultValueSql("b'0'")
-                .HasColumnName("is_recurring");
             entity.Property(e => e.SemesterId).HasColumnName("semester_id");
 
             entity.HasOne(d => d.Semester).WithMany()
