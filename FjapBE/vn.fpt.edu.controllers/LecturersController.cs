@@ -1,6 +1,6 @@
 using FJAP.Services.Interfaces;
+using FJAP.vn.fpt.edu.models;
 using Microsoft.AspNetCore.Mvc;
-using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.Controllers;
 

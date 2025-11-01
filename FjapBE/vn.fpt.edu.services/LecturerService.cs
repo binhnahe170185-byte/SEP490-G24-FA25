@@ -1,6 +1,6 @@
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
-using static FJAP.Repositories.StudentRepository;
+using FJAP.vn.fpt.edu.models;
 
 namespace FJAP.Services;
 

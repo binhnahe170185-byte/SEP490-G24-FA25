@@ -1,7 +1,6 @@
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.Repositories;
 

@@ -3,7 +3,6 @@ using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
 using Microsoft.EntityFrameworkCore;
-using static FJAP.Repositories.StudentRepository;
 
 namespace FJAP.Services;
 
