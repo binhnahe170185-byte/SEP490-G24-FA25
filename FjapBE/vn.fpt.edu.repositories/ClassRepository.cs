@@ -386,6 +386,60 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         return await query.AnyAsync();
     }
 
+    public async Task<IEnumerable<ClassScheduleDto>> GetClassScheduleBySemesterAsync(int semesterId, int classId)
+    {
+        // Lấy thông tin semester để có StartDate
+        var semester = await _context.Semesters
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SemesterId == semesterId);
+
+        if (semester == null)
+        {
+            return new List<ClassScheduleDto>();
+        }
+
+        // Tính tuần đầu tiên: từ StartDate đến StartDate + 6 ngày
+        var firstWeekStart = semester.StartDate;
+        var firstWeekEnd = firstWeekStart.AddDays(6);
+
+        // Kiểm tra class có thuộc semester này không
+        var classExists = await _context.Classes
+            .AsNoTracking()
+            .AnyAsync(c => c.ClassId == classId && c.SemesterId == semesterId);
+
+        if (!classExists)
+        {
+            return new List<ClassScheduleDto>();
+        }
+
+        // Query lessons trong tuần đầu tiên và map sang DTO
+        var lessons = await _context.Lessons
+            .AsNoTracking()
+            .Include(l => l.Class)
+                .ThenInclude(c => c.Subject)
+            .Include(l => l.Room)
+            .Include(l => l.Time)
+            .Where(l => l.ClassId == classId 
+                && l.Date >= firstWeekStart 
+                && l.Date <= firstWeekEnd)
+            .OrderBy(l => l.Date)
+            .ThenBy(l => l.Time.StartTime)
+            .Select(l => new ClassScheduleDto
+            {
+                ClassId = l.ClassId,
+                ClassName = l.Class.ClassName,
+                Date = l.Date,
+                RoomName = l.Room.RoomName,
+                TimeId = l.TimeId,
+                StartTime = l.Time.StartTime,
+                EndTime = l.Time.EndTime,
+                SubjectCode = l.Class.Subject.SubjectCode
+            })
+            .ToListAsync();
+
+        return lessons;
+    }
+
     private static decimal? ExtractGradeComponent(List<GradeType> components, params string[] possibleNames)
     {
         var component = components.FirstOrDefault(c =>

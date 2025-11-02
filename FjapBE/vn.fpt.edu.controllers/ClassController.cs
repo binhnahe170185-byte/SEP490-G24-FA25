@@ -438,6 +438,26 @@ public class ClassController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Lấy lịch học của một lớp theo semester_id và class_id (tuần đầu tiên)
+    /// GET: api/manager/classes/schedule?semesterId={semesterId}&classId={classId}
+    /// </summary>
+    [HttpGet("schedule")]
+    [ProducesResponseType(typeof(IEnumerable<ClassScheduleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetClassSchedule([FromQuery] int semesterId, [FromQuery] int classId)
+    {
+        if (semesterId <= 0 || classId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "semesterId and classId must be greater than 0" });
+        }
+
+        var lessons = await _classService.GetClassScheduleBySemesterAsync(semesterId, classId);
+        
+        return Ok(new { code = 200, data = lessons });
+    }
+
     [HttpGet("{classId}/subjects")]
     public async Task<IActionResult> GetSubjects(string classId)
     {

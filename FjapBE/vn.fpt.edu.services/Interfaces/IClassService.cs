@@ -18,4 +18,5 @@ public interface IClassService
     Task<IEnumerable<ClassGradeDto>> GetClassesWithGradesAsync(ClassGradeFilterRequest? filter = null);
     Task<ClassGradeDetailDto?> GetClassGradeDetailsAsync(int classId);
     Task<bool> HasDuplicateNameForSubjectAsync(string className, int subjectId, int? excludeClassId = null);
+    Task<IEnumerable<ClassScheduleDto>> GetClassScheduleBySemesterAsync(int semesterId, int classId);
 }

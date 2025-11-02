@@ -86,4 +86,7 @@ public class ClassService : IClassService
 
     public Task<bool> HasDuplicateNameForSubjectAsync(string className, int subjectId, int? excludeClassId = null)
         => _classRepository.ExistsWithNameAndSubjectAsync(className, subjectId, excludeClassId);
+
+    public Task<IEnumerable<ClassScheduleDto>> GetClassScheduleBySemesterAsync(int semesterId, int classId)
+        => _classRepository.GetClassScheduleBySemesterAsync(semesterId, classId);
 }

@@ -14,4 +14,5 @@ public interface IClassRepository : IGenericRepository<Class>
     Task<List<ClassGradeDto>> GetClassesWithGradesAsync(ClassGradeFilterRequest? filter = null);
     Task<ClassGradeDetailDto?> GetClassGradeDetailsAsync(int classId);
     Task<bool> ExistsWithNameAndSubjectAsync(string className, int subjectId, int? excludeClassId = null);
+    Task<IEnumerable<ClassScheduleDto>> GetClassScheduleBySemesterAsync(int semesterId, int classId);
 }
