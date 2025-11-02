@@ -12,83 +12,72 @@ const PickSemesterAndClass = ({
   onClassChange,
   onLoadClass
 }) => {
-  const [loadingSemesters, setLoadingSemesters] = useState(false);
-  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [semesterOptions, setSemesterOptions] = useState([]);
-  const [classOptions, setClassOptions] = useState([]);
+  const [allClassesBySemester, setAllClassesBySemester] = useState({}); // { semesterId: [classes] }
 
-  // Load semesters from API
+  // Load semesters and classes grouped by semester from single API
   useEffect(() => {
-    const fetchSemesters = async () => {
+    const fetchScheduleOptions = async () => {
       try {
-        setLoadingSemesters(true);
-        const response = await api.get('/api/semester/options');
+        setLoadingOptions(true);
+        const response = await api.get('/api/staffAcademic/classes/schedule-options');
         const data = response.data?.data || response.data;
         
-        if (data && Array.isArray(data)) {
-          const formatted = data.map(sem => {
-            // Handle both formats: new format (id, name, startDate, endDate) and old format (semester_id, semester_name)
-            const id = sem.id || sem.semesterId || sem.semester_id;
-            const name = sem.name || sem.semester_name;
-            const startDate = sem.startDate || '';
-            const endDate = sem.endDate || '';
-            
-            // Build label with date range if available
-            const label = startDate && endDate 
-              ? `${name} (${startDate} → ${endDate})`
-              : name || 'Unknown Semester';
-            
-            return {
-              value: id,
-              label: label,
-              startDate: startDate,
-              endDate: endDate
-            };
-          });
-          setSemesterOptions(formatted);
+        if (data) {
+          // Format semesters
+          if (data.semesters && Array.isArray(data.semesters)) {
+            const formattedSemesters = data.semesters.map(sem => {
+              const id = sem.id || sem.semesterId;
+              const name = sem.name || '';
+              const startDate = sem.startDate || '';
+              const endDate = sem.endDate || '';
+              
+              const label = startDate && endDate 
+                ? `${name} (${startDate} → ${endDate})`
+                : name || 'Unknown Semester';
+              
+              return {
+                value: id,
+                label: label,
+                startDate: startDate,
+                endDate: endDate
+              };
+            });
+            setSemesterOptions(formattedSemesters);
+          }
+
+          // Store classes grouped by semester
+          if (data.classesBySemester) {
+            // Convert keys to numbers for easier lookup
+            const grouped = {};
+            Object.keys(data.classesBySemester).forEach(semId => {
+              const classes = data.classesBySemester[semId];
+              grouped[parseInt(semId)] = classes.map(cls => ({
+                value: cls.class_id || cls.classId,
+                label: cls.class_name || cls.className
+              }));
+            });
+            setAllClassesBySemester(grouped);
+          }
         }
       } catch (error) {
-        console.error('Failed to load semesters:', error);
+        console.error('Failed to load schedule options:', error);
         setSemesterOptions([]);
+        setAllClassesBySemester({});
       } finally {
-        setLoadingSemesters(false);
+        setLoadingOptions(false);
       }
     };
 
-    fetchSemesters();
+    fetchScheduleOptions();
   }, []);
 
-  // Load classes from API when semester is selected
-  useEffect(() => {
-    const fetchClasses = async () => {
-      if (!semesterId) {
-        setClassOptions([]);
-        return;
-      }
-
-      try {
-        setLoadingClasses(true);
-        const response = await api.get('/api/staffAcademic/classes/active');
-        const data = response.data?.data || response.data;
-        
-        if (data && Array.isArray(data)) {
-          const formatted = data.map(cls => ({
-            value: cls.class_id || cls.classId,
-            label: cls.class_name || cls.className
-          }));
-          setClassOptions(formatted);
-        }
-      } catch (error) {
-        console.error('Failed to load classes:', error);
-        setClassOptions([]);
-      } finally {
-        setLoadingClasses(false);
-      }
-    };
-
-    fetchClasses();
-  }, [semesterId]);
+  // Get classes for selected semester
+  const displayClasses = semesterId 
+    ? (allClassesBySemester[parseInt(semesterId)] || [])
+    : [];
 
   const handleLoadClass = async () => {
     if (!semesterId) {
@@ -131,7 +120,6 @@ const PickSemesterAndClass = ({
 
   // Use API data if available, otherwise fallback to props
   const displaySemesters = semesterOptions.length > 0 ? semesterOptions : semesters;
-  const displayClasses = classOptions.length > 0 ? classOptions : classes;
   return (
     <div className="create-schedule-card">
       <h3>Pick Semester & Class</h3>
@@ -141,16 +129,20 @@ const PickSemesterAndClass = ({
           <select
             id="semester_id"
             value={semesterId}
-            onChange={(e) => onSemesterChange(e.target.value)}
+            onChange={(e) => {
+              onSemesterChange(e.target.value);
+              // Reset class selection when semester changes
+              onClassChange('');
+            }}
             required
-            disabled={loadingSemesters}
+            disabled={loadingOptions}
           >
             <option value="">-- Select --</option>
-            {displaySemesters.map(s => (
+            {semesterOptions.map(s => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-          {loadingSemesters && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>Loading...</span>}
+          {loadingOptions && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>Loading...</span>}
         </div>
         <div>
           <label htmlFor="class_id">Class</label>
@@ -159,14 +151,15 @@ const PickSemesterAndClass = ({
             value={classId}
             onChange={(e) => onClassChange(e.target.value)}
             required
-            disabled={loadingClasses || !semesterId}
+            disabled={loadingOptions || !semesterId || displayClasses.length === 0}
           >
             <option value="">-- Select --</option>
             {displayClasses.map(c => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
           </select>
-          {loadingClasses && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>Loading...</span>}
+          {!semesterId && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>Select semester first</span>}
+          {semesterId && displayClasses.length === 0 && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>No classes for this semester</span>}
         </div>
         <div>
           <label>Subject</label>
