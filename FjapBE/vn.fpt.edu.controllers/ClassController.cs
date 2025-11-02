@@ -4,8 +4,7 @@ using System.Linq;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-
-namespace FJAP.Controllers;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/staffAcademic/classes")]
@@ -13,11 +12,13 @@ public class ClassController : ControllerBase
 {
     private readonly IClassService _classService;
     private readonly IStudentService _studentService;
+    private readonly FjapDbContext _db;
 
-    public ClassController(IClassService classService, IStudentService studentService)
+    public ClassController(IClassService classService, IStudentService studentService, FjapDbContext db)
     {
         _classService = classService;
         _studentService = studentService;
+        _db = db;
     }
 
     [HttpGet]
@@ -666,8 +667,44 @@ public async Task<IActionResult> GetClassGradeDetails(int classId)
             code = 500,
             message = $"Internal server error: {ex.Message}"
         });
+        }
     }
-}
+
+    /// <summary>
+    /// Lấy danh sách class có status = "Active", chỉ trả về class_id và class_name
+    /// GET: api/staffAcademic/classes/active
+    /// </summary>
+    [HttpGet("active")]
+    public async Task<IActionResult> GetActiveClasses()
+    {
+        try
+        {
+            var activeClasses = await _db.Classes
+                .AsNoTracking()
+                .Where(c => c.Status != null && c.Status.ToLower() == "active")
+                .OrderBy(c => c.ClassName)
+                .Select(c => new
+                {
+                    class_id = c.ClassId,
+                    class_name = c.ClassName
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                code = 200,
+                data = activeClasses
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                code = 500,
+                message = $"Error retrieving active classes: {ex.Message}"
+            });
+        }
+    }
 }
 
 public class UpdateClassStatusRequest

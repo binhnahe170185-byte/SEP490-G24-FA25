@@ -42,5 +42,20 @@ public class LecturerRepository : GenericRepository<Lecture>, ILecturerRepositor
 
         return lessons;
     }
+
+    public async Task<IEnumerable<LecturerDto>> GetAllLecturersAsync()
+    {
+        var lecturers = await _context.Lectures
+            .AsNoTracking()
+            .Select(l => new LecturerDto
+            {
+                LecturerId = l.LectureId,
+                LecturerCode = l.LecturerCode
+            })
+            .OrderBy(l => l.LecturerCode)
+            .ToListAsync();
+
+        return lecturers;
+    }
 }
 
