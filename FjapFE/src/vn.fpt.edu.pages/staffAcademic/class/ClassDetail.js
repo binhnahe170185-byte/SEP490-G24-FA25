@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
-import { Button, Input, Space, Table, Tooltip } from "antd";
+import { Button, Input, Space, Table, Tooltip, Typography } from "antd";
 import {
+  ArrowLeftOutlined,
   TeamOutlined,
   UserAddOutlined,
   SearchOutlined,
@@ -137,7 +138,7 @@ export default function ClassDetail() {
       return;
     }
 
-    navigate(`/manager/class/${destinationId}/students`, {
+    navigate(`/staffAcademic/class/${destinationId}/students`, {
       state: {
         className: record.class_name ?? record.className ?? className,
         subjectName: record.subject_name ?? record.subjectName ?? "-",
@@ -151,7 +152,7 @@ export default function ClassDetail() {
       return;
     }
 
-    navigate(`/manager/class/${destinationId}/add-students`, {
+    navigate(`/staffAcademic/class/${destinationId}/add-students`, {
       state: {
         className: record.class_name ?? record.className ?? className,
         subjectName: record.subject_name ?? record.subjectName ?? "-",
@@ -231,12 +232,23 @@ export default function ClassDetail() {
 
   return (
     <section style={wrapperStyle}>
+      <Space size={12}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate(-1)}
+          >
+            Back
+          </Button>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            Class Students
+          </Typography.Title>
+        </Space>
       <header>
-        <h1 style={headingStyle}>Class Detail</h1>
         <p style={{ marginTop: 4, color: "#64748b" }}>
           You are viewing information for class <strong>{className}</strong>.
         </p>
       </header>
+      
 
       <article style={tableCardStyle}>
         <div style={filterBarStyle}>
@@ -269,7 +281,7 @@ export default function ClassDetail() {
       </article>
 
       <div>
-        <Link to="/manager/class" style={{ color: "#2563eb" }}>
+        <Link to="/staffAcademic/classes" style={{ color: "#2563eb" }}>
           ← Back to class list
         </Link>
       </div>

@@ -183,7 +183,7 @@ const ClassAddStudents = () => {
     try {
       await ClassListApi.addStudents(classId, studentIds);
       notifySuccess(key, "Students added", "Selected students were added to the class.");
-      navigate(`/manager/class/${classId}/students`, { replace: true });
+      navigate(`/staffAcademic/class/${classId}/students`, { replace: true });
     } catch (error) {
       console.error("Failed to add students", error);
       const message =

@@ -558,7 +558,7 @@ export default function ClassList() {
       return;
     }
 
-    navigate(`/manager/class/${destinationId}`,
+    navigate(`/staffAcademic/class/${destinationId}`,
       {
         state: { className: record.class_name ?? destinationId }
       });
