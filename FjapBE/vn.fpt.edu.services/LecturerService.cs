@@ -15,5 +15,8 @@ public class LecturerService : ILecturerService
 
     public async Task<IEnumerable<LessonDto>> GetLessonsByLecturerIdAsync(int lecturerId)
         => await _lecturerRepository.GetLessonsByLecturerIdAsync(lecturerId);
+
+    public async Task<IEnumerable<LecturerDto>> GetAllLecturersAsync()
+        => await _lecturerRepository.GetAllLecturersAsync();
 }
 

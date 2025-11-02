@@ -15,6 +15,14 @@ public class LecturersController : ControllerBase
         _lecturerService = lecturerService;
     }
 
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<LecturerDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllLecturers()
+    {
+        var lecturers = await _lecturerService.GetAllLecturersAsync();
+        return Ok(new { code = 200, data = lecturers });
+    }
+
     [HttpGet("{id:int}/lesson")]
     [ProducesResponseType(typeof(IEnumerable<LessonDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

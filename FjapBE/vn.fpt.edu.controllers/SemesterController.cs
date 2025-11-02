@@ -455,5 +455,45 @@ public class SemesterController : ControllerBase
             return StatusCode(500, new { error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Lấy danh sách semester, trả về semester_id, name, startDate, endDate
+    /// GET: api/Semester/options
+    /// </summary>
+    [HttpGet("options")]
+    public async Task<IActionResult> GetSemesterOptions()
+    {
+        try
+        {
+            var semesters = await _db.Semesters
+                .AsNoTracking()
+                .OrderByDescending(s => s.StartDate)
+                .Select(s => new
+                {
+                    id = s.SemesterId,
+                    semesterId = s.SemesterId,
+                    name = s.Name,
+                    semester_name = s.Name,
+                    startDate = s.StartDate.ToString("yyyy-MM-dd"),
+                    endDate = s.EndDate.ToString("yyyy-MM-dd")
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                code = 200,
+                data = semesters
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetSemesterOptions: {ex.Message}");
+            return StatusCode(500, new
+            {
+                code = 500,
+                message = $"Error retrieving semester options: {ex.Message}"
+            });
+        }
+    }
 }
 
