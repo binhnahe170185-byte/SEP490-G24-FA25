@@ -106,9 +106,11 @@ function RoleBasedRedirect() {
     return <StudentHomepage />;
   }
   if (roleId === 5) {
-    return <CreateSchedule />;
+    return <Navigate to="/createSchedule" replace />;
   }
 
+  // Default fallback
+  return <StudentHomepage />;
 }
 
 function ProtectedLayout() {
@@ -141,14 +143,7 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
-              <Route
-                path="/createSchedule"
-                element={
-                  <RequireHeadOfAcademic>
-                    <CreateSchedule />
-                  </RequireHeadOfAcademic>
-                }
-              />
+
 
               <Route element={<ProtectedLayout />}>
                 <Route path="/" element={<Home />} />
@@ -157,6 +152,17 @@ export default function App() {
                 <Route path="/student/homework" element={<HomeworkPage />} />
                 <Route path="/student/class/:classId/students" element={<ClassStudentsList />} />
                 <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
+
+                /* Tạm thời headOfacademic sẽ login vào /createSchedule */
+                <Route
+                  path="/createSchedule"
+                  element={
+                    <RequireHeadOfAcademic>
+                      <CreateSchedule />
+                    </RequireHeadOfAcademic>
+                  }
+                />
+
 
                 <Route
                   path="/manager/*"
