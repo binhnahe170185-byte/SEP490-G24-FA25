@@ -158,7 +158,6 @@ export default function Schedule({ items }) {
     const { user } = useAuth();
     const [remoteItems, setRemoteItems] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [anchorDate, setAnchorDate] = useState(dayjs().isoWeekday(1));
     const [year, setYear] = useState(anchorDate.year());
     const [weekNumber, setWeekNumber] = useState(anchorDate.isoWeek());
@@ -179,7 +178,6 @@ export default function Schedule({ items }) {
         let cancelled = false;
         async function fetchLessons() {
             setLoading(true);
-            setError(null);
             try {
                 const { data } = await api.get(`/api/Lecturers/${user.lecturerId}/lesson`);
                 const rows = Array.isArray(data?.data) ? data.data : [];
@@ -193,7 +191,6 @@ export default function Schedule({ items }) {
                 console.error(err);
                 if (!cancelled) {
                     setRemoteItems([]);
-                    setError("Unable to load schedule. Please try again later.");
                 }
             } finally {
                 if (!cancelled) {
@@ -297,25 +294,6 @@ export default function Schedule({ items }) {
                 </div>
 
                 <Divider style={{ margin: "12px 0" }} />
-                {!user?.lecturerId && !items ? (
-                    <Alert
-                        type="info"
-                        showIcon
-                        message="Tài khoản hiện tại không có thông tin giảng viên."
-                        description="Vui lòng đăng nhập bằng tài khoản giảng viên để xem lịch giảng dạy."
-                        style={{ marginBottom: 16 }}
-                    />
-                ) : null}
-
-                {error ? (
-                    <Alert
-                        type="error"
-                        showIcon
-                        message="An error occurred while loading schedule."
-                        description={error}
-                        style={{ marginBottom: 16 }}
-                    />
-                ) : null}
                 <TimetableTable
                     week={week}
                     cellMap={cellMap}

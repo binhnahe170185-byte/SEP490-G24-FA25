@@ -12,32 +12,32 @@ public class LecturerRepository : GenericRepository<Lecture>, ILecturerRepositor
 
     public async Task<IEnumerable<LessonDto>> GetLessonsByLecturerIdAsync(int lecturerId)
     {
-        FormattableString sql = $@"
-        SELECT 
-            l.lesson_id   AS LessonId,
-            l.class_id    AS ClassId,
-            c.class_name  AS ClassName,
-            l.date        AS Date,
-            r.room_name   AS RoomName,
-            l.time_id     AS TimeId,
-            le.lecture_id  AS LectureId,
-            le.lecturer_code AS LectureCode,
-            NULL AS Attendance,
-            t.start_time  AS StartTime,
-            t.end_time    AS EndTime,
-            s.subject_code AS SubjectCode
-        FROM fjap.lesson   AS l
-        JOIN fjap.class    AS c ON c.class_id  = l.class_id
-        JOIN fjap.subject  AS s ON s.subject_id  = c.subject_id
-        JOIN fjap.room     AS r ON r.room_id   = l.room_id
-        JOIN fjap.lecture  AS le ON le.lecture_id = l.lecture_id
-        JOIN fjap.timeslot AS t ON t.time_id   = l.time_id
-        WHERE le.lecture_id = {lecturerId}";
-
-        var lessons = await _context
-            .Set<LessonDto>()
-            .FromSqlInterpolated(sql)
+        // Query lessons của lecturer và map sang DTO
+        var lessons = await _context.Lessons
             .AsNoTracking()
+            .Include(l => l.Class)
+                .ThenInclude(c => c.Subject)
+            .Include(l => l.Room)
+            .Include(l => l.Lecture)
+            .Include(l => l.Time)
+            .Where(l => l.LectureId == lecturerId)
+            .OrderBy(l => l.Date)
+            .ThenBy(l => l.Time.StartTime)
+            .Select(l => new LessonDto
+            {
+                LessonId = l.LessonId,
+                ClassId = l.ClassId,
+                ClassName = l.Class.ClassName,
+                Date = l.Date,
+                RoomName = l.Room.RoomName,
+                TimeId = l.TimeId,
+                LectureId = l.LectureId,
+                LectureCode = l.Lecture.LecturerCode ?? "",
+                Attendance = null, // Không có attendance cho lecturer
+                StartTime = l.Time.StartTime,
+                EndTime = l.Time.EndTime,
+                SubjectCode = l.Class.Subject.SubjectCode
+            })
             .ToListAsync();
 
         return lessons;
