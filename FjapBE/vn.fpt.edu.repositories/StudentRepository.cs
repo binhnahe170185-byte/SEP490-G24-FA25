@@ -31,34 +31,48 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
     // get ra d? li?u c?a lesson d?a v�o studentId
     public async Task<IEnumerable<LessonDto>> GetLessonsByStudentIdAsync(int studentId)
     {
-        FormattableString sql = $@"
-        SELECT 
-            l.lesson_id   AS LessonId,
-            l.class_id    AS ClassId,
-            c.class_name  AS ClassName,
-            l.date        AS Date,
-            r.room_name   AS RoomName,
-            l.time_id     AS TimeId,
-            le.lecture_id  AS LectureId,
-            le.lecturer_code AS LectureCode,
-            a.status AS Attendance,
-            t.start_time  AS StartTime,
-            t.end_time    AS EndTime,
-            s.subject_code AS SubjectCode
-        FROM fjap.lesson   AS l
-        JOIN fjap.class    AS c ON c.class_id  = l.class_id
-        JOIN fjap.subject  AS s ON s.subject_id  = c.subject_id
-        JOIN fjap.room     AS r ON r.room_id   = l.room_id
-        JOIN fjap.lecture  AS le ON le.lecture_id = l.lecture_id
-        JOIN fjap.enrollment AS e ON e.class_id = c.class_id
-        JOIN fjap.timeslot AS t ON t.time_id   = l.time_id
-        LEFT JOIN fjap.attendance AS a ON a.lesson_id = l.lesson_id AND a.student_id = e.student_id
-        WHERE e.student_id= {studentId}";
-
-        var lessons = await _context
-            .Set<LessonDto>()
-            .FromSqlInterpolated(sql)
+        // Lấy danh sách classIds mà student tham gia
+        var classIds = await _context.Students
             .AsNoTracking()
+            .Where(s => s.StudentId == studentId)
+            .SelectMany(s => s.Classes.Select(c => c.ClassId))
+            .ToListAsync();
+
+        if (!classIds.Any())
+        {
+            return new List<LessonDto>();
+        }
+
+        // Query lessons từ các classes mà student tham gia và map sang DTO
+        var lessons = await _context.Lessons
+            .AsNoTracking()
+            .Include(l => l.Class)
+                .ThenInclude(c => c.Subject)
+            .Include(l => l.Room)
+            .Include(l => l.Lecture)
+            .Include(l => l.Time)
+            .Include(l => l.Attendances)
+            .Where(l => classIds.Contains(l.ClassId))
+            .OrderBy(l => l.Date)
+            .ThenBy(l => l.Time.StartTime)
+            .Select(l => new LessonDto
+            {
+                LessonId = l.LessonId,
+                ClassId = l.ClassId,
+                ClassName = l.Class.ClassName,
+                Date = l.Date,
+                RoomName = l.Room.RoomName,
+                TimeId = l.TimeId,
+                LectureId = l.LectureId,
+                LectureCode = l.Lecture.LecturerCode ?? "",
+                Attendance = l.Attendances
+                    .Where(a => a.StudentId == studentId)
+                    .Select(a => a.Status)
+                    .FirstOrDefault(),
+                StartTime = l.Time.StartTime,
+                EndTime = l.Time.EndTime,
+                SubjectCode = l.Class.Subject.SubjectCode
+            })
             .ToListAsync();
 
         return lessons;

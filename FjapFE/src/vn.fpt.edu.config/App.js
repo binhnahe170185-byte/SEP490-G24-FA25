@@ -20,10 +20,10 @@ import ClassStudentsList from "../vn.fpt.edu.pages/student/classStudents/ClassSt
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import LecturerLayout from "../vn.fpt.edu.pages/layouts/lecturer-layout";
-import ClassPage from "../vn.fpt.edu.pages/staff/StaffAcademic-Class";
-import ClassDetail from "../vn.fpt.edu.pages/staff/StaffAcademic-Class/ClassDetail";
-import ClassStudents from "../vn.fpt.edu.pages/staff/StaffAcademic-Class/ClassStudents";
-import ClassAddStudents from "../vn.fpt.edu.pages/staff/StaffAcademic-Class/ClassAddStudents";
+import ClassPage from "../vn.fpt.edu.pages/staffAcademic/class";
+import ClassDetail from "../vn.fpt.edu.pages/staffAcademic/class/ClassDetail";
+import ClassStudents from "../vn.fpt.edu.pages/staffAcademic/class/ClassStudents";
+import ClassAddStudents from "../vn.fpt.edu.pages/staffAcademic/class/ClassAddStudents";
 import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
@@ -31,11 +31,12 @@ import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDeta
 import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
-import StaffMaterialList from "../vn.fpt.edu.pages/staff/materials/MaterialList";
+import StaffMaterialList from "../vn.fpt.edu.pages/staffAcademic/materials/MaterialList";
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import Schedule from "../vn.fpt.edu.pages/lecturer/schedule/Schedule";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
+import CreateSchedule from "../vn.fpt.edu.pages/headOfAcademic/createSchedule/CreateSchedule";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 import { NotificationProvider } from "../vn.fpt.edu.common/notifications";
@@ -84,6 +85,14 @@ function RequireLecturer({ children }) {
   return children;
 }
 
+function RequireHeadOfAcademic({ children }) {
+  const { user } = useAuth();
+  if (!user || Number(user.roleId) !== 5) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
 function RoleBasedRedirect() {
   const { user } = useAuth();
   if (!user) {
@@ -96,9 +105,10 @@ function RoleBasedRedirect() {
   if (roleId === 4) {
     return <StudentHomepage />;
   }
+  if (roleId === 5) {
+    return <CreateSchedule />;
+  }
 
-  // Default fallback
-  return <StudentHomepage />;
 }
 
 function ProtectedLayout() {
@@ -131,6 +141,14 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
+              <Route
+                path="/createSchedule"
+                element={
+                  <RequireHeadOfAcademic>
+                    <CreateSchedule />
+                  </RequireHeadOfAcademic>
+                }
+              />
 
               <Route element={<ProtectedLayout />}>
                 <Route path="/" element={<Home />} />
