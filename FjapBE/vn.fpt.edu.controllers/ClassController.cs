@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FJAP.Controllers;
 
 [ApiController]
-[Route("api/manager/classes")]
+[Route("api/staffAcademic/classes")]
 public class ClassController : ControllerBase
 {
     private readonly IClassService _classService;
