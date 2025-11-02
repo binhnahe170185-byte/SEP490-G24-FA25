@@ -3,61 +3,61 @@ import { api } from "./http";
 class ClassList {
   // Lấy tất cả class
   static async getAll() {
-    const response = await api.get("/api/manager/classes");
+    const response = await api.get("/api/staffAcademic/classes");
     return response.data?.data ?? response.data; // hỗ trợ cả 2 kiểu payload
   }
 
   static async getById(classId) {
-    const response = await api.get(`/api/manager/classes/${classId}`);
+    const response = await api.get(`/api/staffAcademic/classes/${classId}`);
     return response.data?.data ?? response.data;
   }
 
   // Lấy chi tiết class theo id
   static async getDetail(classId) {
-    const response = await api.get(`/api/manager/classes/${classId}/subjects`);
+    const response = await api.get(`/api/staffAcademic/classes/${classId}/subjects`);
     return response.data?.data ?? response.data;
   }
 
   static async getStudents(classId) {
-    const response = await api.get(`/api/manager/classes/${classId}/students`);
+    const response = await api.get(`/api/staffAcademic/classes/${classId}/students`);
     return response.data?.data ?? response.data;
   }
 
   static async getEligibleStudents(classId) {
-    const response = await api.get(`/api/manager/classes/${classId}/eligible-students`);
+    const response = await api.get(`/api/staffAcademic/classes/${classId}/eligible-students`);
     return response.data?.data ?? response.data;
   }
 
   static async addStudents(classId, studentIds) {
-    const response = await api.post(`/api/manager/classes/${classId}/students`, {
+    const response = await api.post(`/api/staffAcademic/classes/${classId}/students`, {
       studentIds,
     });
     return response.data ?? response;
   }
 
   static async getFormOptions() {
-    const response = await api.get("/api/manager/classes/options");
+    const response = await api.get("/api/staffAcademic/classes/options");
     return response.data?.data ?? response.data;
   }
 
   static async create(payload) {
-    const response = await api.post("/api/manager/classes", payload);
+    const response = await api.post("/api/staffAcademic/classes", payload);
     return response.data?.data ?? response.data;
   }
 
   static async update(classId, payload) {
-    const response = await api.put(`/api/manager/classes/${classId}`, payload);
+    const response = await api.put(`/api/staffAcademic/classes/${classId}`, payload);
     return response.data?.data ?? response.data;
   }
 
   static async delete(classId) {
-    const response = await api.delete(`/api/manager/classes/${classId}`);
+    const response = await api.delete(`/api/staffAcademic/classes/${classId}`);
     return response.data?.data ?? response.data;
   }
 
   // Update status class
   static async updateStatus(classId, status) {
-    const response = await api.patch(`/api/manager/classes/${classId}/status`, {
+    const response = await api.patch(`/api/staffAcademic/classes/${classId}/status`, {
       status,
     });
     return response.data?.data ?? response.data;

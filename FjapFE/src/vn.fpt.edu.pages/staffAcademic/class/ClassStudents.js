@@ -197,14 +197,11 @@ const ClassStudents = () => {
         </Space>
         {classInfo && (
           <Space>
-            <Typography.Text type="secondary">
-              <Link to={`/manager/class/${classInfo.classId}`}>View class detail</Link>
-            </Typography.Text>
             <Button
               type="primary"
               icon={<UserAddOutlined />}
               onClick={() =>
-                navigate(`/manager/class/${classInfo.classId}/add-students`, {
+                navigate(`/staffAcademic/class/${classInfo.classId}/add-students`, {
                   state: {
                     className: classInfo.className,
                     subjectName: classInfo.subjectName,
