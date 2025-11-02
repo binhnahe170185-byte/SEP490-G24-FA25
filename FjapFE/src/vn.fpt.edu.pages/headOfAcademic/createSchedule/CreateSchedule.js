@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import './CreateSchedule.css';
 import SemestersTable from './components/SemestersTable';
 import RoomsTable from './components/RoomsTable';
-import TimeslotsTable from './components/TimeslotsTable';
-import HolidaysTable from './components/HolidaysTable';
 import CalendarTable from './components/CalendarTable';
 import PickSemesterAndClass from './components/PickSemesterAndClass';
 import LecturerSelector from './components/LecturerSelector';
@@ -491,104 +489,73 @@ const CreateSchedule = () => {
 
   return (
     <div className="create-schedule-app">
-      <aside className="create-schedule-sidebar">
-        <div className="create-schedule-brand">
-          <span className="create-schedule-pill">FJAP</span>
-          <b>Admin / Scheduling</b>
+      <main className="create-schedule-main">
+        {/* FILTERS / PICKERS */}
+        <div className="create-schedule-grid create-schedule-cols-2">
+          <PickSemesterAndClass
+            semesterId={semesterId}
+            classId={classId}
+            subjectName={subjectName}
+            semesters={semesters}
+            classes={classes}
+            onSemesterChange={setSemesterId}
+            onClassChange={setClassId}
+            onLoadClass={handleLoadClass}
+          />
+          <LecturerSelector
+            lecturerId={lecturerId}
+            onLecturerChange={setLecturerId}
+          />
         </div>
-        <div className="create-schedule-muted" style={{ fontSize: '12px' }}>
-          Static mock screen with light JS; theme based on your reference.
+
+        {/* CATALOG SNAPSHOTS */}
+        <div className="create-schedule-grid create-schedule-cols-2" style={{ marginTop: '16px' }}>
+          <SemestersTable data={semesterData} />
+          <RoomsTable data={roomData} />
         </div>
-        <div className="create-schedule-nav-title">Steps</div>
-        <nav className="create-schedule-nav">
-          <div className="create-schedule-nav-item create-schedule-active">0) Catalog Setup</div>
-          <div className="create-schedule-nav-item">1) Create Classes</div>
-          <div className="create-schedule-nav-item">2) Assign Lecturer</div>
-          <div className="create-schedule-nav-item">3) Build Timetable</div>
-        </nav>
-      </aside>
 
-      <div className="create-schedule-main-wrapper">
-        <header className="create-schedule-header">
-          <h1>Class Scheduling (1 class = 1 subject)</h1>
-          <div className="create-schedule-steps">
-            <span className="create-schedule-step create-schedule-done">0 Catalogs</span>
-            <span className="create-schedule-step create-schedule-done">1 Create Classes</span>
-            <span className="create-schedule-step create-schedule-current">2 Assign Lecturer</span>
-            <span className="create-schedule-step">3 Timetable</span>
-          </div>
-        </header>
+        {/* STEP 2: Patterns */}
+        <div className="create-schedule-grid create-schedule-cols-1" style={{ marginTop: '16px' }}>
+          <WeeklyPatterns
+            weekday={weekday}
+            slotId={slotId}
+            roomId={roomId}
+            patterns={patterns}
+            weekdays={weekdays}
+            slots={slots}
+            rooms={rooms}
+            weekdayMap={weekdayMap}
+            onWeekdayChange={setWeekday}
+            onSlotChange={setSlotId}
+            onRoomChange={setRoomId}
+            onAddPattern={handleAddPattern}
+            onRemovePattern={handleRemovePattern}
+          />
+        </div>
 
-        <main className="create-schedule-main">
-          {/* FILTERS / PICKERS */}
-          <div className="create-schedule-grid create-schedule-cols-2">
-            <PickSemesterAndClass
-              semesterId={semesterId}
-              classId={classId}
-              subjectName={subjectName}
-              semesters={semesters}
-              classes={classes}
-              onSemesterChange={setSemesterId}
-              onClassChange={setClassId}
-              onLoadClass={handleLoadClass}
-            />
-            <LecturerSelector
-              lecturerId={lecturerId}
-              onLecturerChange={setLecturerId}
-            />
-          </div>
+        {/* CALENDAR VIEW */}
+        <div className="create-schedule-grid create-schedule-cols-2" style={{ marginTop: '16px' }}>
+          <CalendarTable
+            title="Class Timetable (loaded)"
+            weekStart={currentWeekStart}
+            weekRange={currentWeekStart ? getWeekRange(currentWeekStart) : 'Week'}
+            onPrevWeek={handlePrevWeek}
+            onNextWeek={handleNextWeek}
+            renderCalendar={() => renderCalendar(currentWeekStart, false)}
+          />
+          <CalendarTable
+            title="Preview (patterns × semester)"
+            weekStart={previewWeekStart}
+            weekRange={previewWeekStart ? getWeekRange(previewWeekStart) : 'Week'}
+            onPrevWeek={handlePrevWeekPreview}
+            onNextWeek={handleNextWeekPreview}
+            renderCalendar={() => renderCalendar(previewWeekStart, true)}
+          />
+        </div>
 
-          {/* CATALOG SNAPSHOTS */}
-          <div className="create-schedule-grid create-schedule-cols-3" style={{ marginTop: '16px' }}>
-            <SemestersTable data={semesterData} />
-            <RoomsTable data={roomData} />
-            <TimeslotsTable data={timeslots} />
-          </div>
-
-          {/* STEP 2: Patterns */}
-          <div className="create-schedule-grid create-schedule-cols-2" style={{ marginTop: '16px' }}>
-            <WeeklyPatterns
-              weekday={weekday}
-              slotId={slotId}
-              roomId={roomId}
-              patterns={patterns}
-              weekdays={weekdays}
-              slots={slots}
-              rooms={rooms}
-              weekdayMap={weekdayMap}
-              onWeekdayChange={setWeekday}
-              onSlotChange={setSlotId}
-              onRoomChange={setRoomId}
-              onAddPattern={handleAddPattern}
-              onRemovePattern={handleRemovePattern}
-            />
-            <HolidaysTable data={holidays} semesterName={semesterId} />
-          </div>
-
-          {/* CALENDAR VIEW */}
-          <div className="create-schedule-grid create-schedule-cols-2" style={{ marginTop: '16px' }}>
-            <CalendarTable
-              title="Class Timetable (loaded)"
-              weekStart={currentWeekStart}
-              weekRange={currentWeekStart ? getWeekRange(currentWeekStart) : 'Week'}
-              onPrevWeek={handlePrevWeek}
-              onNextWeek={handleNextWeek}
-              renderCalendar={() => renderCalendar(currentWeekStart, false)}
-            />
-            <CalendarTable
-              title="Preview (patterns × semester)"
-              weekStart={previewWeekStart}
-              weekRange={previewWeekStart ? getWeekRange(previewWeekStart) : 'Week'}
-              onPrevWeek={handlePrevWeekPreview}
-              onNextWeek={handleNextWeekPreview}
-              renderCalendar={() => renderCalendar(previewWeekStart, true)}
-            />
-          </div>
-
-          {/* SAVE */}
-          <SaveButton onSave={handleSave} />
-        </main>
-      </div>
+        {/* SAVE */}
+        <SaveButton onSave={handleSave} />
+      </main>
     </div>
   );
 };

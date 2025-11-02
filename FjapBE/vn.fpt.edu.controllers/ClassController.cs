@@ -705,6 +705,77 @@ public async Task<IActionResult> GetClassGradeDetails(int classId)
             });
         }
     }
+
+    /// <summary>
+    /// Lấy tất cả semesters và classes được nhóm theo semester để dùng cho schedule picker
+    /// GET: api/staffAcademic/classes/schedule-options
+    /// </summary>
+    [HttpGet("schedule-options")]
+    public async Task<IActionResult> GetScheduleOptions()
+    {
+        try
+        {
+            // Lấy tất cả semesters
+            var semesters = await _db.Semesters
+                .AsNoTracking()
+                .OrderByDescending(s => s.StartDate)
+                .Select(s => new
+                {
+                    id = s.SemesterId,
+                    semesterId = s.SemesterId,
+                    name = s.Name,
+                    startDate = s.StartDate.ToString("yyyy-MM-dd"),
+                    endDate = s.EndDate.ToString("yyyy-MM-dd")
+                })
+                .ToListAsync();
+
+            // Lấy tất cả classes active, nhóm theo semesterId
+            var classesBySemester = await _db.Classes
+                .AsNoTracking()
+                .Include(c => c.Semester)
+                .Where(c => c.Status != null && c.Status.ToLower() == "active")
+                .OrderBy(c => c.ClassName)
+                .Select(c => new
+                {
+                    class_id = c.ClassId,
+                    classId = c.ClassId,
+                    class_name = c.ClassName,
+                    className = c.ClassName,
+                    semester_id = c.SemesterId,
+                    semesterId = c.SemesterId
+                })
+                .ToListAsync();
+
+            // Nhóm classes theo semesterId
+            var groupedClasses = classesBySemester
+                .GroupBy(c => c.semester_id)
+                .ToDictionary(g => g.Key, g => g.Select(c => new
+                {
+                    class_id = c.class_id,
+                    classId = c.classId,
+                    class_name = c.class_name,
+                    className = c.className
+                }).ToList());
+
+            return Ok(new
+            {
+                code = 200,
+                data = new
+                {
+                    semesters = semesters,
+                    classesBySemester = groupedClasses
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                code = 500,
+                message = $"Error retrieving schedule options: {ex.Message}"
+            });
+        }
+    }
 }
 
 public class UpdateClassStatusRequest
