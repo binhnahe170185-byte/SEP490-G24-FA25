@@ -1,8 +1,10 @@
 // src/vn.fpt.edu.pages/admin/AddStudent.js
 import React, { useState, useEffect } from "react";
 import {
-  Card, Form, Input, Select, DatePicker, Button, Row, Col, message, Space, Typography, Divider, Alert, Tabs, Upload
+  Card, Form, Input, Select, DatePicker, Button, Row, Col, message, Space, Typography, Divider, Alert, Tabs, Upload, Modal
 } from "antd";
+import { useNavigate } from "react-router-dom";
+import { CheckCircleTwoTone, CloseCircleTwoTone } from "@ant-design/icons";
 import {
   UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined,
   IdcardOutlined, CalendarOutlined, SaveOutlined, ReloadOutlined,
@@ -24,6 +26,12 @@ const GENDER_OPTIONS = [
 
 export default function AddStudent() {
   const [form] = Form.useForm();
+  const [msg, msgCtx] = message.useMessage();
+  const navigate = useNavigate();
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ userId: null, studentId: null, studentCode: "", semesterName: "" });
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorText, setErrorText] = useState("");
   const [loading, setLoading] = useState(false);
   const [levels, setLevels] = useState([]);
   const [semesters, setSemesters] = useState([]); // All semesters with full info
@@ -90,7 +98,7 @@ export default function AddStudent() {
       }
     } catch (error) {
       console.error("Failed to load options:", error);
-      message.error("Failed to load levels and semesters");
+      msg.error("Failed to load levels and semesters");
     } finally {
       setLoadingOptions(false);
     }
@@ -281,7 +289,11 @@ export default function AddStudent() {
       }
       
       if (!dob) {
-        message.error("Please select date of birth");
+        Modal.warning({
+          title: "Missing date of birth",
+          centered: true,
+          content: "Please select date of birth before creating a student."
+        });
         setLoading(false);
         return;
       }
@@ -310,7 +322,11 @@ export default function AddStudent() {
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(userData.email)) {
-        message.error("Invalid email format");
+        Modal.warning({
+          title: "Invalid email",
+          centered: true,
+          content: "Please enter a valid email address (e.g., name@example.com)."
+        });
         setLoading(false);
         return;
       }
@@ -319,7 +335,11 @@ export default function AddStudent() {
       if (userData.phoneNumber) {
         const phoneRegex = /^[0-9]{10,11}$/;
         if (!phoneRegex.test(userData.phoneNumber.replace(/[\s-]/g, ""))) {
-          message.error("Phone number must have 10-11 digits");
+          Modal.warning({
+            title: "Invalid phone number",
+            centered: true,
+            content: "Phone number must have 10-11 digits."
+          });
           setLoading(false);
           return;
         }
@@ -342,7 +362,11 @@ export default function AddStudent() {
 
       // Validate required student fields
       if (!studentPayload.levelId) {
-        message.error("Please select a level");
+        Modal.warning({
+          title: "Level is required",
+          centered: true,
+          content: "Please select a level for the student."
+        });
         setLoading(false);
         return;
       }
@@ -352,7 +376,11 @@ export default function AddStudent() {
       let targetSemester = null;
       
       if (!values.enrollmentSemesterId || !semesters.length) {
-        message.error("Please select enrollment semester");
+        Modal.warning({
+          title: "Enrollment semester is required",
+          centered: true,
+          content: "Please wait for semesters to load or pick an enrollment semester."
+        });
         setLoading(false);
         return;
       }
@@ -362,7 +390,11 @@ export default function AddStudent() {
       );
 
       if (!enrollmentSem || !enrollmentSem.startDate) {
-        message.error("Invalid enrollment semester selected");
+        Modal.warning({
+          title: "Invalid enrollment semester",
+          centered: true,
+          content: "Please re-select a valid enrollment semester."
+        });
         setLoading(false);
         return;
       }
@@ -394,7 +426,11 @@ export default function AddStudent() {
       }
 
       if (!targetSemester || !targetSemester.semesterId) {
-        message.error("Could not determine current semester. Please check enrollment semester selection.");
+        Modal.warning({
+          title: "Cannot determine semester",
+          centered: true,
+          content: "Please check enrollment semester selection and try again."
+        });
         setLoading(false);
         return;
       }
@@ -405,19 +441,20 @@ export default function AddStudent() {
       try {
         studentResponse = await AdminApi.createStudentUser(studentPayload);
       } catch (e) {
-        message.error("Backend endpoint /api/StaffOfAdmin/users/student is not available. Please restart backend to enable Student (role=4) creation.");
+        const backendMsg = e?.response?.data?.message || e?.message || "Backend endpoint is not available.";
+        setErrorText(backendMsg);
+        setErrorModalOpen(true);
         setLoading(false);
         return;
       }
       
       const studentId = studentResponse?.data?.studentId || studentResponse?.studentId;
       const userId = studentResponse?.data?.userId || studentResponse?.userId;
+      const studentCode = studentResponse?.data?.studentCode || form.getFieldValue('studentCode');
       const semesterName = targetSemester?.name || studentResponse?.data?.semesterName || "";
-      const successMsg = studentId 
-        ? `Student created successfully! Student ID: ${studentId}, User ID: ${userId}. Added to semester: ${semesterName}`
-        : `Student created successfully! User ID: ${userId}. Added to semester: ${semesterName}`;
-      
-      message.success(successMsg);
+
+      setSuccessInfo({ userId, studentId, studentCode: studentCode || "", semesterName: semesterName || "" });
+      setSuccessModalOpen(true);
       
       // Reset form
       setTimeout(() => {
@@ -445,9 +482,25 @@ export default function AddStudent() {
         errorMessage = error.message;
       }
       
-      message.error(errorMessage);
+      setErrorText(errorMessage || "Failed to create student. Please try again.");
+      setErrorModalOpen(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Show popup when antd form validation fails before submit
+  const handleFinishFailed = (info) => {
+    try {
+      const firstErr = info?.errorFields?.[0];
+      const errMsg = firstErr?.errors?.[0] || "Please fix the highlighted fields and try again.";
+      Modal.warning({
+        title: "Validation error",
+        centered: true,
+        content: errMsg,
+      });
+    } catch {
+      Modal.warning({ title: "Validation error", centered: true, content: "Please check the form and try again." });
     }
   };
 
@@ -496,6 +549,7 @@ export default function AddStudent() {
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+      {msgCtx}
       <Card
         style={{
           borderRadius: 12,
@@ -536,8 +590,10 @@ export default function AddStudent() {
               form={form}
               layout="vertical"
               onFinish={handleSubmit}
+              onFinishFailed={handleFinishFailed}
               autoComplete="off"
               size="large"
+              scrollToFirstError
             >
               <Divider style={{ margin: "16px 0" }}>Personal Information</Divider>
 
@@ -871,6 +927,52 @@ export default function AddStudent() {
           ]}
         />
       </Card>
+      <Modal
+        open={successModalOpen}
+        centered
+        title={<span><CheckCircleTwoTone twoToneColor="#52c41a" /> <span style={{ marginLeft: 8 }}>Student created successfully</span></span>}
+        onOk={() => {
+          setSuccessModalOpen(false);
+          navigate("/staffOfAdmin", { state: { activeTab: "users:list:student" } });
+        }}
+        onCancel={() => {
+          setSuccessModalOpen(false);
+          form.resetFields();
+          // Re-initialize auto semester and clear student code so next select level will regenerate
+          setTimeout(() => {
+            pickEnrollmentSemesterByDate(dayjs());
+            form.setFieldsValue({ studentCode: "" });
+          }, 0);
+        }}
+        okText="Back to student list"
+        cancelText="Continue adding"
+      >
+        <div style={{ marginTop: 4, lineHeight: 1.8 }}>
+          {successInfo?.studentCode ? <div>Student Code: <strong>{successInfo.studentCode}</strong></div> : null}
+          {successInfo?.semesterName ? <div>Semester: <strong>{successInfo.semesterName}</strong></div> : null}
+          {successInfo?.userId ? <div>User ID: <strong>{successInfo.userId}</strong></div> : null}
+          {successInfo?.studentId ? <div>Student ID: <strong>{successInfo.studentId}</strong></div> : null}
+        </div>
+      </Modal>
+      <Modal
+        open={errorModalOpen}
+        centered
+        title={<span><CloseCircleTwoTone twoToneColor="#ff4d4f" /> <span style={{ marginLeft: 8 }}>Failed to create student</span></span>}
+        onOk={() => {
+          setErrorModalOpen(false);
+          navigate("/staffOfAdmin", { state: { activeTab: "users:list:student" } });
+        }}
+        onCancel={() => {
+          setErrorModalOpen(false);
+        }}
+        okText="Back to student list"
+        cancelText="Back to form"
+      >
+        <div style={{ marginTop: 4, lineHeight: 1.8 }}>
+          <div style={{ marginBottom: 8 }}>{errorText}</div>
+          <div style={{ color: '#8c8c8c', fontSize: 12 }}>Please check inputs and try again.</div>
+        </div>
+      </Modal>
     </div>
   );
 }
