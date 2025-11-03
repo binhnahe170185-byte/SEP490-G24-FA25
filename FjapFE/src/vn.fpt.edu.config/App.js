@@ -28,6 +28,7 @@ import SubjectPage from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/Index";
 import CreateSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/CreateSubject";
 import EditSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/EditSubject";
 import SubjectDetail from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/SubjectDetail";
+import Dashboard from "../vn.fpt.edu.pages/staffAcademic/Dashboard";
 import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
@@ -185,7 +186,7 @@ export default function App() {
                 >
                   <Route
                     path="dashboard"
-                    element={<div style={{ padding: 16 }}><h3>Staff Academic Dashboard (placeholder)</h3></div>}
+                    element={<Dashboard />}
                   />
                   <Route
                     path="subjects"
