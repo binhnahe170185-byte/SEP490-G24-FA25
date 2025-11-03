@@ -33,7 +33,7 @@ class ManagerGrades {
         params.SearchTerm = filters.search;
       }
 
-      const response = await api.get("/api/manager/classes/with-grades", { params });
+      const response = await api.get("/api/staffAcademic/classes/with-grades", { params });
       const classes = response.data?.data || [];
       
       // Map backend ClassGradeDto to frontend format
@@ -88,7 +88,7 @@ class ManagerGrades {
    */
   static async getCourseDetails(managerId, courseId) {
     try {
-      const response = await api.get(`/api/manager/classes/${courseId}/grade-details`);
+      const response = await api.get(`/api/staffAcademic/classes/${courseId}/grade-details`);
       const data = response.data?.data;
       
       if (!data) {
@@ -153,7 +153,7 @@ class ManagerGrades {
   static async updateStudentGrade(managerId, courseId, studentId, gradeData) {
     try {
       // First, get the grade ID for this student
-      const detailsResponse = await api.get(`/api/manager/classes/${courseId}/grade-details`);
+      const detailsResponse = await api.get(`/api/staffAcademic/classes/${courseId}/grade-details`);
       const details = detailsResponse.data?.data;
       
       if (!details || !details.students) {
@@ -285,7 +285,7 @@ class ManagerGrades {
   static async exportCourseGrades(managerId, courseId) {
     try {
       // Get class details to find subjectId
-      const classResponse = await api.get(`/api/manager/classes/${courseId}`);
+      const classResponse = await api.get(`/api/staffAcademic/classes/${courseId}`);
       const classData = classResponse.data?.data;
 
       if (!classData?.subjectId) {
