@@ -28,6 +28,7 @@ public class StaffOfAdminController : ControllerBase
         [FromQuery] string? roles,
         [FromQuery] string? status,
         [FromQuery] int? semesterId,
+        [FromQuery] int? levelId,
         [FromQuery] int? departmentId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
@@ -94,14 +95,14 @@ public class StaffOfAdminController : ControllerBase
         }
         if (!string.IsNullOrWhiteSpace(status)) baseQuery = baseQuery.Where(x => x.Status == status);
         if (semesterId is int sid) baseQuery = baseQuery.Where(x => x.SemesterId == sid);
+        if (levelId is int lid) baseQuery = baseQuery.Where(x => x.LevelId == lid);
         if (departmentId is int did) baseQuery = baseQuery.Where(x => x.DepartmentId == did);
 
         var total = await baseQuery.CountAsync();
 
+        // Return full list (remove paging as requested)
         var items = await baseQuery
             .OrderByDescending(x => x.UserId)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync();
 
         var shaped = items.Select(x => new
