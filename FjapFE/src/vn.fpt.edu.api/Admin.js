@@ -142,6 +142,18 @@ const AdminApi = {
   getDepartments: () =>
     api.get("/api/StaffOfAdmin/departments").then((res) => res?.data ?? []),
 
+  // Levels for students filtering (reuses staffAcademic classes options)
+  // Returns raw list from backend; consumer maps to select options
+  getLevels: () =>
+    api
+      .get("/api/staffAcademic/classes/options")
+      .then((res) => {
+        const data = res?.data?.data || res?.data || {};
+        const levels = data.levels || [];
+        return levels;
+      })
+      .catch(() => []),
+
   // DETAIL / CRUD
   getUserById: (id) => api.get(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
   createUser: (payload) => {
