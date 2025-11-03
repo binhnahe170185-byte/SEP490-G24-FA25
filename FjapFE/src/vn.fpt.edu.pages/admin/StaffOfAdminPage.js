@@ -181,7 +181,7 @@ export default function StaffOfAdminPage() {
     <Layout style={{ minHeight: "100vh", background: COLORS.lightBg }}>
       {/* SIDEBAR */}
       <Sider
-        collapsible
+        collapsible={false}
         collapsed={collapsed}
         onCollapse={setCollapsed}
         width={260}
@@ -190,7 +190,12 @@ export default function StaffOfAdminPage() {
           background: collapsed ? COLORS.siderCollapsed : COLORS.sider,
           borderRight: `1px solid ${COLORS.siderBorder}`,
           transition: "all .25s ease",
-          position: "relative",
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          height: "100vh",
+          overflowY: "auto",
         }}
       >
         {/* Logo */}
@@ -230,7 +235,7 @@ export default function StaffOfAdminPage() {
       </Sider>
 
       {/* MAIN CONTENT */}
-      <Layout>
+      <Layout style={{ marginLeft: 260 }}>
         <Header style={{
           background: "#ffffff",
           borderBottom: "1px solid #e2e8f0",

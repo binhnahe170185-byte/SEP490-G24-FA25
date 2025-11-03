@@ -100,8 +100,9 @@ export default function SemesterList({ title = "Semester Management" }) {
   const buildParams = () => {
     const params = {
       search: filters.search || undefined,
-      page,
-      pageSize,
+      // Request large page size to get all results
+      page: 1,
+      pageSize: 100,
     };
     return params;
   };
@@ -137,7 +138,7 @@ export default function SemesterList({ title = "Semester Management" }) {
       const normalized = normalize(items);
       console.log("Normalized semesters:", normalized.length);
       
-      setTotal(total || 0);
+      setTotal(normalized.length);
       setSemesters(normalized);
       
       if (normalized.length === 0 && total === 0) {
@@ -156,12 +157,11 @@ export default function SemesterList({ title = "Semester Management" }) {
     } finally {
       setLoading(false);
     }
-  }, [filters.search, page, pageSize]);
+  }, [filters.search]);
 
   useEffect(() => { fetchSemesters(); }, [fetchSemesters]);
 
   const onChangeFilter = (field, value) => {
-    setPage(1);
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -224,7 +224,7 @@ export default function SemesterList({ title = "Semester Management" }) {
 
   const columns = useMemo(
     () => [
-      { title: "No.", render: (_, _r, i) => (page - 1) * pageSize + i + 1, width: 72, align: "center" },
+      { title: "No.", render: (_, _r, i) => i + 1, width: 72, align: "center" },
       { title: "Semester Name", dataIndex: "name", key: "name" },
       { title: "Start Date", dataIndex: "startDate", key: "startDate" },
       { title: "End Date", dataIndex: "endDate", key: "endDate" },
@@ -270,7 +270,7 @@ export default function SemesterList({ title = "Semester Management" }) {
         ),
       },
     ],
-    [page, pageSize]
+    []
   );
 
   const exportCsv = () => {
@@ -322,13 +322,7 @@ export default function SemesterList({ title = "Semester Management" }) {
         dataSource={semesters}
         loading={loading}
         rowKey="id"
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          onChange: (p, ps) => { setPage(p); setPageSize(ps); },
-        }}
+        pagination={false}
       />
 
       {/* Modal form */}
