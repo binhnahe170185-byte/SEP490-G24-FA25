@@ -177,6 +177,10 @@ const AdminApi = {
     form.append("file", file);
     return api.post("/api/StaffOfAdmin/users/import", form).then(unwrap);
   },
+
+  // Create student (create user + student server-side)
+  createStudentUser: (payload) =>
+    api.post("/api/StaffOfAdmin/users/student", payload).then((res) => res?.data ?? res),
 };
 
 export default AdminApi;

@@ -36,11 +36,6 @@ export default function AddStaff() {
   // Load departments
   useEffect(() => {
     loadDepartments();
-    
-    // TEST: Uncomment to verify message system works in this component
-    // setTimeout(() => {
-    //   message.info("TEST: Message system check - if you see this, messages should work!");
-    // }, 2000);
   }, []);
 
   const loadDepartments = async () => {
@@ -56,7 +51,6 @@ export default function AddStaff() {
           }))
         : [];
       setDepartments(normalizedData);
-      console.log("Loaded departments:", normalizedData);
     } catch (error) {
       console.error("Failed to load departments:", error);
       message.error("Failed to load departments list");
@@ -109,8 +103,6 @@ export default function AddStaff() {
 
   // Handle department change - auto set role
   const handleDepartmentChange = (departmentId) => {
-    console.log("handleDepartmentChange called with:", departmentId, typeof departmentId);
-    
     // Normalize departmentId to number
     const normalizedDeptId = typeof departmentId === 'string' 
       ? parseInt(departmentId, 10) 
@@ -121,18 +113,13 @@ export default function AddStaff() {
     
     if (staffType === "staff" && normalizedDeptId) {
       const roleId = getRoleIdFromDepartment(normalizedDeptId);
-      console.log("Role determined:", roleId);
       if (roleId) {
         form.setFieldsValue({ roleId });
       }
       
       // Trigger validation to clear any errors - use setTimeout to ensure value is set first
       setTimeout(() => {
-        form.validateFields(['departmentId']).then(() => {
-          console.log("Department validation passed");
-        }).catch((err) => {
-          console.log("Department validation error:", err);
-        });
+        form.validateFields(['departmentId']).catch(() => {});
       }, 100);
     }
   };

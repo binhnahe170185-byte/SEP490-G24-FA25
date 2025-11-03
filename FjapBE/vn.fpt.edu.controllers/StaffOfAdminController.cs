@@ -344,6 +344,125 @@ public class StaffOfAdminController : ControllerBase
         return Ok(new { code = 200, result });
     }
 
+    /// <summary>
+    /// Create a student: insert User(role=4) and Student with auto semester (based on current date)
+    /// </summary>
+    [HttpPost("users/student")]
+    public async Task<IActionResult> CreateStudent([FromBody] CreateStudentRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { code = 400, message = "Validation failed" });
+        }
+
+        // Basic normalize
+        var email = request.Email.Trim().ToLower();
+        var phone = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+        var address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+        var gender = new[] { "Male", "Female", "Other" }.Contains(request.Gender) ? request.Gender : "Other";
+
+        // Uniqueness checks
+        var emailExists = await _db.Users.AsNoTracking().AnyAsync(u => u.Email.ToLower() == email);
+        if (emailExists) return BadRequest(new { code = 400, message = "Email already exists in the system" });
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            var phoneExists = await _db.Users.AsNoTracking().AnyAsync(u => u.PhoneNumber != null && u.PhoneNumber.Trim() == phone);
+            if (phoneExists) return BadRequest(new { code = 400, message = "Phone number already exists in the system" });
+        }
+
+        // Validate level
+        var level = await _db.Levels.AsNoTracking().FirstOrDefaultAsync(l => l.LevelId == request.LevelId);
+        if (level == null) return BadRequest(new { code = 400, message = "Level does not exist" });
+
+        // Create User (role 4 - Student)
+        var user = new User
+        {
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            Email = email,
+            PhoneNumber = phone ?? "",
+            Gender = gender,
+            Dob = request.Dob,
+            Address = address ?? "",
+            Avatar = request.Avatar,
+            RoleId = 4,
+            DepartmentId = null,
+            Status = "Active"
+        };
+
+        await _db.Users.AddAsync(user);
+        await _db.SaveChangesAsync();
+
+        // Determine semester based on current date (first semester with startDate >= today; otherwise latest)
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var semester = await _db.Semesters.AsNoTracking()
+            .OrderBy(s => s.StartDate)
+            .FirstOrDefaultAsync(s => s.StartDate >= today);
+        if (semester == null)
+        {
+            semester = await _db.Semesters.AsNoTracking().OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        }
+
+        // Generate student code if missing: {SemesterCode}{LevelCode}{Sequence}
+        string levelCode = ExtractLevelCode(level.LevelName);
+        string semesterCode = semester?.SemesterCode ?? "";
+        string studentCode = request.StudentCode?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(studentCode) && !string.IsNullOrWhiteSpace(semesterCode) && !string.IsNullOrWhiteSpace(levelCode))
+        {
+            var prefix = $"{semesterCode}{levelCode}".ToUpper();
+            var existingCodes = await _db.Students.AsNoTracking()
+                .Where(s => s.StudentCode != null && s.StudentCode.ToUpper().StartsWith(prefix))
+                .Select(s => s.StudentCode)
+                .ToListAsync();
+
+            var maxSeq = 0;
+            foreach (var code in existingCodes)
+            {
+                if (code != null && code.ToUpper().StartsWith(prefix))
+                {
+                    var numStr = code.ToUpper().Substring(prefix.Length);
+                    if (int.TryParse(numStr, out int num) && num > maxSeq) maxSeq = num;
+                }
+            }
+            studentCode = $"{prefix}{(maxSeq + 1).ToString().PadLeft(3, '0')}";
+        }
+
+        // Create Student
+        var student = new Student
+        {
+            UserId = user.UserId,
+            LevelId = request.LevelId,
+            SemesterId = semester?.SemesterId,
+            StudentCode = string.IsNullOrWhiteSpace(studentCode) ? null : studentCode,
+            Status = "Active",
+            EnrollmentDate = DateOnly.FromDateTime(DateTime.UtcNow.Date)
+        };
+
+        await _db.Students.AddAsync(student);
+        await _db.SaveChangesAsync();
+
+        return Created($"/api/Students/{student.StudentId}", new
+        {
+            code = 201,
+            data = new
+            {
+                userId = user.UserId,
+                studentId = student.StudentId,
+                studentCode = student.StudentCode,
+                semesterId = student.SemesterId,
+                levelId = student.LevelId
+            }
+        });
+    }
+
+    private static string ExtractLevelCode(string levelName)
+    {
+        if (string.IsNullOrWhiteSpace(levelName)) return string.Empty;
+        var match = System.Text.RegularExpressions.Regex.Match(levelName, @"N\d+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (match.Success) return match.Value.ToUpper();
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(levelName, @"^level\s*", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        return cleaned.ToUpper();
+    }
     // ===================== Helper: lấy danh sách Enrollment Semesters (distinct) cho filter =====================
     [HttpGet("users/enrollment-semesters")]
     public async Task<IActionResult> GetEnrollmentSemesters()

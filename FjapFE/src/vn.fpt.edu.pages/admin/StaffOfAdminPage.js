@@ -6,6 +6,7 @@ import {
   TeamOutlined, UserAddOutlined, UploadOutlined, EditOutlined,
   AppstoreOutlined, SettingOutlined, CalendarOutlined,
   BellOutlined, UserOutlined, LogoutOutlined, FileTextOutlined,
+  IdcardOutlined, BookOutlined, PlusCircleOutlined, HomeOutlined,
 } from "@ant-design/icons";
 import UsersList from "./UserList";
 import SemesterList from "./SemesterList";
@@ -13,6 +14,7 @@ import AddSemester from "./AddSemester";
 import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
 import NewsList from "./News/NewsList";
 import AddStaff from "./AddStaff";
+import AddStudent from "./AddStudent";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -59,25 +61,24 @@ const ADMIN_MENU = [
       },
       {
         key: "users:add", icon: <UserAddOutlined />, label: "Add User", children: [
-          { key: "users:add:staff", label: "Add Staff" },
-          { key: "users:add:student", label: "Add Student" },
+          { key: "users:add:staff", label: "Add Staff", icon: <IdcardOutlined /> },
+          { key: "users:add:student", label: "Add Student", icon: <BookOutlined /> },
         ]
       },
-      { key: "users:import", icon: <UploadOutlined />, label: "Import User List" },
       { key: "users:edit", icon: <EditOutlined />, label: "Edit User" },
     ]
   },
   {
     type: "group", label: "ROOM MANAGEMENT", children: [
       { key: "rooms:list", icon: <AppstoreOutlined />, label: "View List Rooms" },
-      { key: "rooms:add", icon: <UserAddOutlined />, label: "Add Room" },
+      { key: "rooms:add", icon: <PlusCircleOutlined />, label: "Add Room" },
       { key: "rooms:status", icon: <SettingOutlined />, label: "Edit Room's Status" },
     ]
   },
   {
     type: "group", label: "SEMESTER MANAGEMENT", children: [
       { key: "sem:list", icon: <CalendarOutlined />, label: "View List Semesters" },
-      { key: "sem:add", icon: <UserAddOutlined />, label: "Add Semester" },
+      { key: "sem:add", icon: <PlusCircleOutlined />, label: "Add Semester" },
       { key: "sem:edit", icon: <EditOutlined />, label: "Edit Semester" },
     ]
   },
@@ -131,12 +132,7 @@ export default function StaffOfAdminPage() {
         return <AddStaff />;
       }
       if (activeKey === "users:add:student") {
-        return (
-          <Card style={{ borderRadius: 12 }}>
-            <Title level={4} style={{ margin: 0 }}>Thêm Sinh Viên</Title>
-            <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo sinh viên — sẽ gắn sau)</div>
-          </Card>
-        );
+        return <AddStudent />;
       }
       return (
         <Card style={{ borderRadius: 12 }}>
