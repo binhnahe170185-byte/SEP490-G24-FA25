@@ -7,7 +7,7 @@ import {
   PlusOutlined, SearchOutlined, EditOutlined, 
   DeleteOutlined, EyeOutlined, ExclamationCircleOutlined 
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import SubjectListApi from "../../../vn.fpt.edu.api/SubjectList";
 
 const { confirm } = Modal;
@@ -39,6 +39,8 @@ export default function SubjectList() {
   });
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePrefix = location.pathname.startsWith('/manager') ? '/manager' : '/staffAcademic';
 
   const normalizeSubjects = (list = []) =>
     list.map((item) => ({
@@ -200,20 +202,20 @@ export default function SubjectList() {
             <Button
               type="text"
               icon={<EyeOutlined />}
-              onClick={() => navigate(`/manager/subject/detail/${record.subjectId}`)}
+              onClick={() => navigate(`${basePrefix}/subject/detail/${record.subjectId}`)}
             />
           </Tooltip>
           <Tooltip title="Edit">
             <Button
               type="text"
-              icon={<EditOutlined style={{ color: "#1890ff" }}/>}
-              onClick={() => navigate(`/manager/subject/edit/${record.subjectId}`)}
+              icon={<EditOutlined style={{ color: "#1890ff" }}/>} 
+              onClick={() => navigate(`${basePrefix}/subject/edit/${record.subjectId}`)}
             />
           </Tooltip>
           <Tooltip title="Delete">
             <Button
               type="text"
-              icon={<DeleteOutlined style={{ color: "#ff4d4f" }}/>}
+              icon={<DeleteOutlined style={{ color: "#ff4d4f" }}/>} 
               onClick={() => handleDelete(record)}
             />
           </Tooltip>
@@ -253,7 +255,7 @@ export default function SubjectList() {
         <Button 
           type="primary" 
           icon={<PlusOutlined />} 
-          onClick={() => navigate("/manager/subject/create")}
+          onClick={() => navigate(`${basePrefix}/subject/create`)}
           size="large"
         >
           Create New Subject
@@ -302,3 +304,5 @@ const filtersRowStyle = {
   gap: 12, 
   alignItems: "center"
 };
+
+

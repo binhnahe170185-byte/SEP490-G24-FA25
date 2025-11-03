@@ -24,10 +24,10 @@ import ClassPage from "../vn.fpt.edu.pages/staffAcademic/class";
 import ClassDetail from "../vn.fpt.edu.pages/staffAcademic/class/ClassDetail";
 import ClassStudents from "../vn.fpt.edu.pages/staffAcademic/class/ClassStudents";
 import ClassAddStudents from "../vn.fpt.edu.pages/staffAcademic/class/ClassAddStudents";
-import SubjectPage from "../vn.fpt.edu.pages/manager/SubjectManage/Index";
-import CreateSubject from "../vn.fpt.edu.pages/manager/SubjectManage/CreateSubject";
-import EditSubject from "../vn.fpt.edu.pages/manager/SubjectManage/EditSubject";
-import SubjectDetail from "../vn.fpt.edu.pages/manager/SubjectManage/SubjectDetail";
+import SubjectPage from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/Index";
+import CreateSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/CreateSubject";
+import EditSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/EditSubject";
+import SubjectDetail from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/SubjectDetail";
 import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
@@ -172,11 +172,7 @@ export default function App() {
                     </RequireManager>
                   }
                 >
-                  <Route path="subject" element={<SubjectPage />} />
-                  <Route path="subject/create" element={<CreateSubject />} />
-                  <Route path="subject/edit/:subjectId" element={<EditSubject />} />
-                  <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
-
+                  
                 </Route>
 
                 <Route
@@ -200,6 +196,11 @@ export default function App() {
                   <Route path="class/:classId" element={<ClassDetail />} />
                   <Route path="class/:classId/students" element={<ClassStudents />} />
                   <Route path="class/:classId/add-students" element={<ClassAddStudents />} />
+                  <Route path="subject" element={<SubjectPage />} />
+                  <Route path="subject/create" element={<CreateSubject />} />
+                  <Route path="subject/edit/:subjectId" element={<EditSubject />} />
+                  <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
+
                 </Route>
 
                 <Route
