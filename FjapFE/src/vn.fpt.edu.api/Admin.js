@@ -144,7 +144,28 @@ const AdminApi = {
 
   // DETAIL / CRUD
   getUserById: (id) => api.get(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
-  createUser: (payload) => api.post("/api/StaffOfAdmin/users", payload).then(unwrap),
+  createUser: (payload) => {
+    return api.post("/api/StaffOfAdmin/users", payload)
+      .then((res) => {
+        // For POST requests, preserve the full response structure
+        // Backend returns: { code: 201, data: {...} }
+        // Axios wraps it in res.data
+        return res.data; // Return { code: 201, data: {...} } directly
+      })
+      .catch((error) => {
+        // For errors, return the error response data if available
+        if (error.response?.data) {
+          return Promise.reject({
+            response: {
+              data: error.response.data,
+              status: error.response.status
+            },
+            message: error.message
+          });
+        }
+        return Promise.reject(error);
+      });
+  },
   updateUser: (id, payload) => api.put(`/api/StaffOfAdmin/users/${id}`, payload).then(unwrap),
   deleteUser: (id) => api.delete(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
 

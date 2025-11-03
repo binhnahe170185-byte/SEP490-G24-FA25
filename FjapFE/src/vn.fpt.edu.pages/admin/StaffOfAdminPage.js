@@ -12,6 +12,7 @@ import SemesterList from "./SemesterList";
 import AddSemester from "./AddSemester";
 import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
 import NewsList from "./News/NewsList";
+import AddStaff from "./AddStaff";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -39,6 +40,11 @@ const roleIdFromKey = (key) => {
   return undefined;
 };
 
+// Check if key is for adding staff (includes head, staff, lecturer)
+const isAddStaffKey = (key) => {
+  return key === "users:add:staff";
+};
+
 const ADMIN_MENU = [
   {
     type: "group", label: "USER MANAGEMENT", children: [
@@ -53,9 +59,7 @@ const ADMIN_MENU = [
       },
       {
         key: "users:add", icon: <UserAddOutlined />, label: "Add User", children: [
-          { key: "users:add:admin", label: "Add Admin" },
-          { key: "users:add:manager", label: "Add Manager" },
-          { key: "users:add:lecturer", label: "Add Lecturer" },
+          { key: "users:add:staff", label: "Add Staff" },
           { key: "users:add:student", label: "Add Student" },
         ]
       },
@@ -123,12 +127,21 @@ export default function StaffOfAdminPage() {
     }
 
     if (activeKey.startsWith("users:add")) {
-      const roleId = roleIdFromKey(activeKey);
-      const titleMap = { 1: "Add Admin", 2: "Add Manager", 3: "Add Lecturer", 4: "Add Student" };
+      if (isAddStaffKey(activeKey)) {
+        return <AddStaff />;
+      }
+      if (activeKey === "users:add:student") {
+        return (
+          <Card style={{ borderRadius: 12 }}>
+            <Title level={4} style={{ margin: 0 }}>Thêm Sinh Viên</Title>
+            <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo sinh viên — sẽ gắn sau)</div>
+          </Card>
+        );
+      }
       return (
         <Card style={{ borderRadius: 12 }}>
-          <Title level={4} style={{ margin: 0 }}>{titleMap[roleId] || "Add User"}</Title>
-          <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user theo role — sẽ gắn sau)</div>
+          <Title level={4} style={{ margin: 0 }}>Add User</Title>
+          <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user — sẽ gắn sau)</div>
         </Card>
       );
     }
