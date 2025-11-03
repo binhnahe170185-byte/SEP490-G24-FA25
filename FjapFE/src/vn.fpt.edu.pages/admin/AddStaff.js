@@ -1,12 +1,13 @@
 // src/vn.fpt.edu.pages/admin/AddStaff.js
 import React, { useState, useEffect } from "react";
 import {
-  Card, Form, Input, Select, DatePicker, Button, Row, Col, message, Space, Typography, Divider, Alert
+  Card, Form, Input, Select, DatePicker, Button, Row, Col, message, Space, Typography, Divider, Alert, Modal
 } from "antd";
 import {
   UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined,
-  IdcardOutlined, CalendarOutlined, SaveOutlined, ReloadOutlined
+  IdcardOutlined, CalendarOutlined, SaveOutlined, ReloadOutlined, CheckCircleTwoTone, CloseCircleTwoTone
 } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import AdminApi from "../../vn.fpt.edu.api/Admin";
 
@@ -32,6 +33,11 @@ export default function AddStaff() {
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [staffType, setStaffType] = useState(null); // "staff" or "lecturer"
+  const navigate = useNavigate();
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ userId: null, roleLabel: "", departmentName: "" });
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
   // Load departments
   useEffect(() => {
@@ -204,14 +210,9 @@ export default function AddStaff() {
       // Extract userId from response if available
       const userId = response?.data?.userId || response?.userId;
       const roleLabel = getRoleLabel(userData.roleId);
-      const successMsg = userId 
-        ? `${roleLabel} created successfully! User ID: ${userId}`
-        : `${roleLabel} created successfully!`;
-      
-      // Show success message BEFORE setting loading to false (like AddSemester)
-      console.log("About to show success message:", successMsg);
-      message.success(successMsg);
-      console.log("message.success() called");
+      const deptName = departments.find(d => (d.departmentId || d.id) === userData.departmentId)?.name || "";
+      setSuccessInfo({ userId, roleLabel, departmentName: deptName });
+      setSuccessModalOpen(true);
       
       // Set loading to false after message
       setLoading(false);
@@ -243,9 +244,8 @@ export default function AddStaff() {
       }
       
       // Show error message BEFORE setting loading to false (like AddSemester)
-      console.log("About to show error message:", errorMessage);
-      message.error(errorMessage);
-      console.log("message.error() called");
+      setErrorText(errorMessage);
+      setErrorModalOpen(true);
       
       // Set loading to false after message
       setLoading(false);
@@ -538,6 +538,45 @@ export default function AddStaff() {
           </Form.Item>
         </Form>
       </Card>
+      <Modal
+        open={successModalOpen}
+        centered
+        title={<span><CheckCircleTwoTone twoToneColor="#52c41a" /> <span style={{ marginLeft: 8 }}>User created successfully</span></span>}
+        onOk={() => {
+          setSuccessModalOpen(false);
+          navigate("/staffOfAdmin", { state: { activeTab: staffType === "lecturer" ? "users:list:lecturer" : "users:list:staff" } });
+        }}
+        onCancel={() => {
+          setSuccessModalOpen(false);
+          form.resetFields();
+          setStaffType(null);
+        }}
+        okText="Back to user list"
+        cancelText="Continue adding"
+      >
+        <div style={{ marginTop: 4, lineHeight: 1.8 }}>
+          {successInfo?.roleLabel ? <div>Role: <strong>{successInfo.roleLabel}</strong></div> : null}
+          {successInfo?.departmentName ? <div>Department: <strong>{successInfo.departmentName}</strong></div> : null}
+          {successInfo?.userId ? <div>User ID: <strong>{successInfo.userId}</strong></div> : null}
+        </div>
+      </Modal>
+      <Modal
+        open={errorModalOpen}
+        centered
+        title={<span><CloseCircleTwoTone twoToneColor="#ff4d4f" /> <span style={{ marginLeft: 8 }}>Failed to create user</span></span>}
+        onOk={() => {
+          setErrorModalOpen(false);
+          navigate("/staffOfAdmin", { state: { activeTab: "users:list:staff" } });
+        }}
+        onCancel={() => setErrorModalOpen(false)}
+        okText="Back to user list"
+        cancelText="Back to form"
+      >
+        <div style={{ marginTop: 4, lineHeight: 1.8 }}>
+          <div style={{ marginBottom: 8 }}>{errorText}</div>
+          <div style={{ color: '#8c8c8c', fontSize: 12 }}>Please check inputs and try again.</div>
+        </div>
+      </Modal>
     </div>
   );
 }
