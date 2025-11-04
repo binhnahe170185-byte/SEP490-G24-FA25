@@ -36,17 +36,18 @@ public class NewsService : INewsService
         return MapToDto(news);
     }
 
-    public async Task<bool> UpdateAsync(int id, UpdateNewsRequest request, int userId)
+    public async Task<bool> UpdateAsync(int id, UpdateNewsRequest request, int userId, int? roleId)
     {
         var news = await _newsRepository.GetByIdAsync(id);
         if (news == null) return false;
 
-        // Staff chỉ được sửa khi status là draft hoặc rejected và phải là người tạo
-        if (news.Status != "draft" && news.Status != "rejected")
-            throw new InvalidOperationException("News can only be updated when status is 'draft' or 'rejected'");
-
-        if (news.CreatedBy != userId)
-            throw new UnauthorizedAccessException("You can only update your own news");
+        // Head (roleId 2) có thể sửa bất kỳ status nào
+        // Staff (roleId 6) chỉ được sửa khi status là draft, pending hoặc rejected (không cần là người tạo)
+        if (roleId != 2) // Không phải Head
+        {
+            if (news.Status != "draft" && news.Status != "pending" && news.Status != "rejected")
+                throw new InvalidOperationException("News can only be updated when status is 'draft', 'pending' or 'rejected'");
+        }
 
         news.Title = request.Title.Trim();
         news.Content = request.Content?.Trim();
@@ -122,17 +123,21 @@ public class NewsService : INewsService
         return true;
     }
 
-    public async Task<bool> DeleteAsync(int id, int userId)
+    public async Task<bool> DeleteAsync(int id, int userId, int? roleId)
     {
         var news = await _newsRepository.GetByIdAsync(id);
         if (news == null) return false;
 
-        // Staff chỉ xóa được khi status là draft hoặc pending và phải là người tạo
-        if (news.Status != "draft" && news.Status != "pending")
-            throw new InvalidOperationException("News can only be deleted when status is 'draft' or 'pending'");
+        // Head (roleId 2) có thể xóa bất kỳ status nào
+        // Staff (roleId 6) chỉ xóa được khi status là draft, pending, published hoặc rejected và phải là người tạo
+        if (roleId != 2) // Không phải Head
+        {
+            if (news.Status != "draft" && news.Status != "pending" && news.Status != "published" && news.Status != "rejected")
+                throw new InvalidOperationException("News can only be deleted when status is 'draft', 'pending', 'published' or 'rejected'");
 
-        if (news.CreatedBy != userId)
-            throw new UnauthorizedAccessException("You can only delete your own news");
+            if (news.CreatedBy != userId)
+                throw new UnauthorizedAccessException("You can only delete your own news");
+        }
 
         _newsRepository.Remove(news);
         await _newsRepository.SaveChangesAsync();
@@ -144,13 +149,8 @@ public class NewsService : INewsService
         IQueryable<News> query = _context.News.AsNoTracking();
 
         // Phân quyền filter
-        if (roleId == 6) // Staff - chỉ xem tin của mình
-        {
-            if (!userId.HasValue)
-                return (Enumerable.Empty<NewsListDto>(), 0);
-            query = query.Where(n => n.CreatedBy == userId);
-        }
-        else if (roleId == 3 || roleId == 4) // Lecturer hoặc Student - chỉ xem published
+        // Staff (roleId 6) và Head (roleId 2) - xem tất cả tin
+        if (roleId == 3 || roleId == 4) // Lecturer hoặc Student - chỉ xem published
         {
             query = query.Where(n => n.Status == "published");
         }
@@ -199,12 +199,8 @@ public class NewsService : INewsService
         if (news == null) return null;
 
         // Phân quyền check
-        if (roleId == 6) // Staff - chỉ xem tin của mình
-        {
-            if (!userId.HasValue || news.CreatedBy != userId)
-                throw new UnauthorizedAccessException("You can only view your own news");
-        }
-        else if (roleId == 3 || roleId == 4) // Lecturer hoặc Student - chỉ xem published
+        // Staff (roleId 6) và Head (roleId 2) - xem tất cả tin
+        if (roleId == 3 || roleId == 4) // Lecturer hoặc Student - chỉ xem published
         {
             if (news.Status != "published")
                 throw new UnauthorizedAccessException("You can only view published news");
