@@ -1,126 +1,74 @@
-﻿import React, { useState } from 'react';
-import { Layout, Button, Space, Dropdown, Badge, Avatar } from 'antd';
-import { BellOutlined, UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+﻿import React from 'react';
+import { Dropdown, Badge, Avatar } from 'antd';
+import { BellOutlined, UserOutlined, LogoutOutlined, HomeOutlined, CalendarOutlined, FileTextOutlined, BookOutlined } from '@ant-design/icons';
 import { useAuth } from '../../login/AuthContext';
-import { useNavigate } from 'react-router-dom';
-
-const { Header } = Layout;
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const LecturerHeader = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [notificationCount] = useState(3); // Mock notification count
+  const location = useLocation();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
+  const menuItems = [
+    { key: '/lecturer/homepage', label: 'Home', icon: <HomeOutlined />, path: '/lecturer/homepage' },
+    { key: '/lecturer/schedule', label: 'Schedule', icon: <CalendarOutlined />, path: '/lecturer/schedule' },
+    { key: '/lecturer/homework', label: 'Homework', icon: <FileTextOutlined />, path: '/lecturer/homework' },
+    { key: '/lecturer/grades', label: 'Grades', icon: <BookOutlined />, path: '/lecturer/grades' }
+  ];
+
+  const handleMenuClick = (path) => {
+    navigate(path);
   };
 
-  const profileMenuItems = [
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: 'Profile',
-      onClick: () => console.log('Profile clicked'),
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Settings',
-      onClick: () => console.log('Settings clicked'),
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: 'Logout',
-      onClick: handleLogout,
-      danger: true,
-    },
-  ];
-
-  const notificationMenuItems = [
-    {
-      key: '1',
-      label: 'New homework submission from John Doe',
-      onClick: () => console.log('Notification 1 clicked'),
-    },
-    {
-      key: '2',
-      label: 'Class reminder: Math 101 at 2:00 PM',
-      onClick: () => console.log('Notification 2 clicked'),
-    },
-    {
-      key: '3',
-      label: 'Grade deadline approaching for Physics',
-      onClick: () => console.log('Notification 3 clicked'),
-    },
-  ];
-
   return (
-    <Header style={{
-      background: '#ffffff',
-      borderBottom: '1px solid #e2e8f0',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 24px',
-      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 8, height: 24, borderRadius: 2, background: '#ff6600' }} />
-        <img src="/FJAP.png" alt="FPT Japan Academy" style={{ height: 40 }} />
-        <div style={{ marginLeft: 16, color: '#64748b', fontSize: 14 }}>
-          Lecturer Portal
+    <header className="student-header" style={{ position: 'sticky', top: 0, zIndex: 1000 }}>
+      <div className="student-header-content">
+        <div className="student-header-left">
+          <div className="student-logo">
+            <img src="/FJAP.png" alt="FJAP" className="logo-icon" style={{ width: 150, height: 80, objectFit: 'contain' }} />
+          </div>
+        </div>
+
+        <nav className="student-header-nav">
+          {menuItems.map(item => (
+            <div
+              key={item.key}
+              className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={() => handleMenuClick(item.path)}
+            >
+              {item.icon}
+              <span className="nav-label">{item.label}</span>
+            </div>
+          ))}
+        </nav>
+
+        <div className="student-header-right">
+          <div className="notifications">
+            <Badge dot>
+              <BellOutlined style={{ fontSize: 18, cursor: 'pointer', marginRight: 16 }} />
+            </Badge>
+          </div>
+          <Dropdown
+            menu={{ items: [
+              { key: 'profile', label: 'Profile', icon: <UserOutlined /> },
+              { type: 'divider' },
+              { key: 'logout', label: 'Logout', icon: <LogoutOutlined />, danger: true, onClick: () => { logout(); navigate('/login', { replace: true }); } }
+            ] }}
+            placement="bottomRight"
+          >
+            <div className="user-menu-trigger">
+              <Avatar
+                src={user?.picture}
+                icon={!user?.picture && <UserOutlined />}
+                size="default"
+                style={{ cursor: 'pointer' }}
+              />
+              <span className="user-name">{user?.name || user?.email || 'Lecturer'}</span>
+            </div>
+          </Dropdown>
         </div>
       </div>
-
-      <Space size="middle">
-        <Dropdown
-          menu={{ items: notificationMenuItems }}
-          placement="bottomRight"
-          trigger={['click']}
-        >
-          <Button 
-            icon={<BellOutlined />} 
-            style={{ border: 'none', boxShadow: 'none' }}
-          >
-            <Badge count={notificationCount} size="small">
-              Notifications
-            </Badge>
-          </Button>
-        </Dropdown>
-
-        <Dropdown
-          menu={{ items: profileMenuItems }}
-          placement="bottomRight"
-          trigger={['click']}
-        >
-          <Button 
-            style={{ 
-              border: 'none', 
-              boxShadow: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '4px 8px',
-            }}
-          >
-            <Avatar 
-              size="small" 
-              src={user?.picture} 
-              icon={<UserOutlined />}
-            />
-            <span>{user?.name || user?.email || 'Lecturer'}</span>
-          </Button>
-        </Dropdown>
-      </Space>
-    </Header>
+    </header>
   );
 };
 

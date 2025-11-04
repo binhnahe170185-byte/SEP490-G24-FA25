@@ -101,7 +101,7 @@ function RoleBasedRedirect() {
   }
   const roleId = Number(user.roleId);
   if (roleId === 3) {
-    return <Navigate to="/lecturer/dashboard" replace />;
+    return <Navigate to="/lecturer/homepage" replace />;
   }
   if (roleId === 4) {
     return <StudentHomepage />;
@@ -207,13 +207,13 @@ export default function App() {
                 <Route
                   path="/lecturer/*"
                   element={
-                    <RequireStaffAcademic>
+                    <RequireLecturer>
                       <LecturerLayout />
-                    </RequireStaffAcademic>
+                    </RequireLecturer>
                   }
                 >
-                  <Route index element={<Navigate to="dashboard" replace />} />
-                  <Route path="dashboard" element={<LecturerHomepage />} />
+                  <Route index element={<Navigate to="homepage" replace />} />
+                  <Route path="homepage" element={<LecturerHomepage />} />
                   <Route path="schedule" element={<Schedule />} />
                   <Route
                     path="classes"
