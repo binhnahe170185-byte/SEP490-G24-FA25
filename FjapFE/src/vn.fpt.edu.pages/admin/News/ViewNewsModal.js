@@ -1,5 +1,5 @@
-import React from "react";
-import { Modal, Tag, Image, Typography, Alert } from "antd";
+import React, { useEffect, useMemo, useState } from "react";
+import { Modal, Tag, Typography, Alert } from "antd";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -86,14 +86,28 @@ const processImageUrl = (imageUrl) => {
 };
 
 export default function ViewNewsModal({ visible, news, onCancel }) {
-  if (!news) return null;
+  // Hooks phải khai báo trước mọi return
+  const [imageError, setImageError] = useState(false);
+  useEffect(() => {
+    setImageError(false);
+  }, [news?.newsImage, news?.__raw?.NewsImage, news?.id]);
 
-  // Extract data from news object (support both normalized and raw data)
-  const newsId = news.id || news.newsId || news.__raw?.Id || null;
-  const title = news.title || news.__raw?.Title || "";
-  const content = news.content || news.__raw?.Content || "";
-  const rawImageUrl = news.newsImage || news.__raw?.NewsImage || null;
+  // Extract data từ news (có thể undefined nếu news null)
+  const newsId = news?.id || news?.newsId || news?.__raw?.Id || null;
+  const title = news?.title || news?.__raw?.Title || "";
+  const content = news?.content || news?.__raw?.Content || "";
+  const rawImageUrl = news?.newsImage || news?.__raw?.NewsImage || null;
   const newsImage = processImageUrl(rawImageUrl);
+  const [displayUrl, setDisplayUrl] = useState(newsImage);
+  const isHttpUrl = useMemo(() => typeof newsImage === "string" && /^(http|https):\/\//i.test(newsImage), [newsImage]);
+  const [usedProxy, setUsedProxy] = useState(false);
+  useEffect(() => {
+    setImageError(false);
+    setUsedProxy(false);
+    setDisplayUrl(newsImage || null);
+  }, [newsImage, newsId]);
+
+  if (!news) return null;
   
   // Kiểm tra nếu URL là Pinterest pin (không phải direct image)
   const isPinterestPin = rawImageUrl && 
@@ -112,12 +126,20 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
       onCancel={onCancel}
       footer={null}
       width={800}
+      destroyOnClose
+      title={
+        <Title level={3} style={{ margin: 10, textTransform: "uppercase", fontWeight: 600, fontSize: 20 }}>
+          NEWS DETAIL
+        </Title>
+      }
       styles={{
         body: {
-          padding: "24px 32px 24px 24px", // padding-right giảm vì CSS đã handle
+          padding: "16px 32px 24px 24px", // body padding dưới header chuẩn
           maxHeight: "85vh",
           overflowY: "auto",
           overflowX: "hidden",
+          overscrollBehavior: "contain",
+          WebkitOverflowScrolling: "touch",
         },
         content: {
           padding: 0,
@@ -127,90 +149,79 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
         top: 40,
       }}
     >
-      {/* Header Section */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-          paddingBottom: 16,
-          borderBottom: "2px solid #f0f0f0",
-          position: "sticky",
-          top: 0,
-          background: "#ffffff",
-          zIndex: 10,
-          paddingRight: 0,
-        }}
-      >
-        <Title level={3} style={{ margin: 0, textTransform: "uppercase", fontWeight: 600, fontSize: 18 }}>
-          NEWS DETAIL
-        </Title>
-      </div>
+      {/* Header đã được chuyển sang Modal.title để tránh tràn khi cuộn */}
 
       {/* Metadata Section */}
-      <div style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          marginBottom: 20,
+          background: "#fafafa",
+          borderRadius: 10,
+          padding: 12,
+          border: "1px solid #f0f0f0",
+        }}
+      >
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "12px 0",
+            padding: "10px 8px",
             borderBottom: "1px solid #f0f0f0",
           }}
         >
-          <Text strong style={{ color: "#595959", minWidth: 140 }}>
+          <Text strong style={{ color: "#434343", minWidth: 150 }}>
             ID:
           </Text>
-          <Text>{formatNewsId(newsId)}</Text>
+          <Text style={{ color: "#1f1f1f", fontWeight: 500 }}>{formatNewsId(newsId)}</Text>
         </div>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "12px 0",
+            padding: "10px 8px",
             borderBottom: "1px solid #f0f0f0",
           }}
         >
-          <Text strong style={{ color: "#595959", minWidth: 140 }}>
+          <Text strong style={{ color: "#434343", minWidth: 150 }}>
             Author:
           </Text>
-          <Text>{author}</Text>
+          <Text style={{ color: "#1f1f1f" }}>{author}</Text>
         </div>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "12px 0",
+            padding: "10px 8px",
             borderBottom: "1px solid #f0f0f0",
           }}
         >
-          <Text strong style={{ color: "#595959", minWidth: 140 }}>
+          <Text strong style={{ color: "#434343", minWidth: 150 }}>
             Created Time:
           </Text>
-          <Text>{formatDateTimeWithTimezone(createdAt)}</Text>
+          <Text style={{ color: "#1f1f1f" }}>{formatDateTimeWithTimezone(createdAt)}</Text>
         </div>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "12px 0",
+            padding: "10px 8px",
             borderBottom: "1px solid #f0f0f0",
           }}
         >
-          <Text strong style={{ color: "#595959", minWidth: 140 }}>
+          <Text strong style={{ color: "#434343", minWidth: 150 }}>
             Updated Time:
           </Text>
-          <Text>{formatDateTimeWithTimezone(updatedAt)}</Text>
+          <Text style={{ color: "#1f1f1f" }}>{formatDateTimeWithTimezone(updatedAt)}</Text>
         </div>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "12px 0",
+            padding: "10px 8px",
             alignItems: "center",
           }}
         >
-          <Text strong style={{ color: "#595959", minWidth: 140 }}>
+          <Text strong style={{ color: "#434343", minWidth: 150 }}>
             Status:
           </Text>
           <Tag color={STATUS_COLORS[status] || "default"}>
@@ -238,47 +249,60 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
           style={{ marginBottom: 24 }}
         />
       )}
-      {newsImage && (
-        <div
-          style={{
-            marginBottom: 20,
-            borderRadius: 8,
-            overflow: "hidden",
-            background: "#fafafa",
-            minHeight: "180px",
-            maxHeight: "280px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Image
-            src={newsImage}
+      {/* Khung ảnh luôn hiển thị (giữ UI như cũ); ảnh bên trong ẩn nếu lỗi */}
+      <div
+        style={{
+          marginBottom: 20,
+          borderRadius: 8,
+          overflow: "hidden",
+          background: "#f9f9f9",
+          minHeight: "180px",
+          maxHeight: "280px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "1px solid #f0f0f0",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+        }}
+      >
+        {displayUrl && !imageError && (
+          <img
+            src={displayUrl}
             alt="News"
-            style={{
-              width: "100%",
-              maxHeight: "280px",
-              objectFit: "contain",
+            style={{ width: "100%", maxHeight: "280px", objectFit: "contain" }}
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            onError={() => {
+              if (isHttpUrl && !usedProxy) {
+                const stripped = newsImage.replace(/^https?:\/\//i, "");
+                const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}`;
+                setUsedProxy(true);
+                setDisplayUrl(proxied);
+                return;
+              }
+              setImageError(true);
             }}
-            preview={{
-              mask: "Preview",
-            }}
-            onError={(e) => {
-              console.error("Failed to load image:", newsImage);
-              e.target.style.display = "none";
-            }}
-            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3uOD5obNiBpTuBAlKLpagFhF1AMJLfZYM2K8zk4y8mK8gS+tYCPmBR5wZb4nIqS0kgHsZYn2A5H3scA2cQ2AH7K5GcHsV0FNI9CLuFQLZEvPJ9CTwiM9LmYGwA6S5UHyE4X4rG4BxAWXWlBYeRA5hc3tLUFCSUC2F7IVGRi7AgbYeGdQYFxnPgGyKZGTHUrSDal2cHAYACL//1BYWwS6hmMcB4BQh4uOguxzgegxJLBBgNDIx0xFjOExfY0DA9H7//8/WGNgYN7FwPD36v//039s///7dxnQ9BcYBaUfAEA7IJeWnQXiSgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
           />
-        </div>
-      )}
+        )}
+        {!newsImage && (
+          <div style={{ color: "#999", fontSize: 13 }}>
+            No image provided
+          </div>
+        )}
+        {imageError && newsImage && (
+          <div style={{ color: "#fa541c", fontSize: 13 }}>
+            Cannot load image. Please check the URL.
+          </div>
+        )}
+      </div>
 
       {/* Content Section */}
-      <div style={{ marginTop: newsImage || isPinterestPin ? 0 : 20 }}>
+      <div style={{ marginTop: newsImage || isPinterestPin ? 0 : 12 }}>
         <Title
           level={2}
           style={{
-            marginBottom: 16,
-            fontSize: 24,
+            marginBottom: 12,
+            fontSize: 22,
             fontWeight: 700,
             lineHeight: 1.4,
             color: "#1a1a1a",

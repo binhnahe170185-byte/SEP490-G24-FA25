@@ -86,26 +86,35 @@ const normalize = (items = []) =>
     return item;
   });
 
-// Get current user role from localStorage profile or token
+// Helpers: detect role robustly across different storages/claims
+const parseMaybeNumber = (v) => {
+  if (v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+};
+
 const getCurrentRoleId = () => {
   try {
-    // Try to get from profile first (stored in localStorage by AuthContext)
+    // 1) profile.roleId or profile.user.roleId
     const profileStr = localStorage.getItem("profile");
     if (profileStr) {
       const profile = JSON.parse(profileStr);
-      if (profile?.roleId) {
-        return parseInt(profile.roleId);
-      }
+      const fromProfile = parseMaybeNumber(
+        profile?.roleId ?? profile?.user?.roleId ?? profile?.user?.RoleId
+      );
+      if (fromProfile !== null) return fromProfile;
     }
-    
-    // Fallback: Try to get from token claims
+
+    // 2) loose localStorage key
+    const looseRoleId = parseMaybeNumber(localStorage.getItem("roleId"));
+    if (looseRoleId !== null) return looseRoleId;
+
+    // 3) JWT claim: role_id or roleId
     const token = localStorage.getItem("token");
-    if (token) {
-      // Decode JWT to get role_id
+    if (token && token.includes(".")) {
       const payload = JSON.parse(atob(token.split(".")[1]));
-      if (payload.role_id) {
-        return parseInt(payload.role_id);
-      }
+      const fromToken = parseMaybeNumber(payload?.role_id ?? payload?.roleId);
+      if (fromToken !== null) return fromToken;
     }
   } catch (e) {
     console.error("Error getting role:", e);
@@ -211,8 +220,8 @@ export default function NewsList({ title = "News Management" }) {
       message.warning("Only Staff can edit news");
       return;
     }
-    if (record.status !== "draft" && record.status !== "rejected") {
-      message.warning("News can only be edited when status is 'draft' or 'rejected'");
+    if (record.status !== "draft" && record.status !== "rejected" && record.status !== "pending") {
+      message.warning("News can only be edited when status is 'draft', 'pending' or 'rejected'");
       return;
     }
     setSelectedNews(record);
@@ -263,8 +272,9 @@ export default function NewsList({ title = "News Management" }) {
     }
   };
 
-  const isStaff = currentRoleId === 6;
-  const isHead = currentRoleId === 2;
+  // Mapping vai trò
+  const isStaff = [6, 7].includes(Number(currentRoleId));
+  const isHead = [2, 5].includes(Number(currentRoleId));
   
   // Debug log để kiểm tra role detection
   useEffect(() => {
@@ -342,11 +352,11 @@ export default function NewsList({ title = "News Management" }) {
           
           // Điều kiện cho Staff:
           // - Draft: View, Edit, Delete, Submit
-          // - Pending: View (không Edit, không Delete)
-          // - Published: View (không Edit, không Delete)
+          // - Pending: View, Edit, Delete
+          // - Published: View, Delete
           // - Rejected: View, Edit, Delete
-          const showEdit = isStaff && (status === "draft" || status === "rejected");
-          const showDelete = isStaff && (status === "draft" || status === "rejected");
+          const showEdit = isStaff && (status === "draft" || status === "pending" || status === "rejected");
+          const showDelete = isStaff && (status === "draft" || status === "pending" || status === "published" || status === "rejected");
           const canSubmit = isStaff && status === "draft";
           
           // Điều kiện cho Head:
