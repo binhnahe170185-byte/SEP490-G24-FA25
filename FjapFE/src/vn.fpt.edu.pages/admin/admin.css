@@ -24,14 +24,14 @@
 .submit-news-button:hover,
 .submit-news-button:focus {
   background: #9254de !important;
-  borderColor: #9254de !important;
-  boxShadow: 0 4px 8px rgba(114, 46, 209, 0.45) !important;
+  border-color: #9254de !important;
+  box-shadow: 0 4px 8px rgba(114, 46, 209, 0.45) !important;
   transform: translateY(-1px);
 }
 
 .submit-news-button:active {
   transform: translateY(0);
-  boxShadow: 0 2px 4px rgba(114, 46, 209, 0.35) !important;
+  box-shadow: 0 2px 4px rgba(114, 46, 209, 0.35) !important;
 }
 
 /* News Detail Modal - Custom Scrollbar */
@@ -39,6 +39,7 @@
 .ant-modal-content {
   border-radius: 8px !important;
   overflow: hidden !important;
+  overscroll-behavior: contain;
 }
 
 .ant-modal-body {
@@ -48,6 +49,7 @@
   padding-right: 36px !important; /* Tạo khoảng cách để scrollbar không sát edge */
   overflow-y: auto !important;
   overflow-x: hidden !important;
+  overscroll-behavior: contain;
 }
 
 .ant-modal-body::-webkit-scrollbar {
@@ -78,4 +80,20 @@
   z-index: 1000 !important;
   right: 8px !important;
   top: 8px !important;
+}
+
+/* Chặn scroll của nền khi cuộn trong modal (anti scroll-bleed) */
+.ant-modal,
+.ant-modal-wrap {
+  overscroll-behavior: contain;
+}
+
+/* News form common styles */
+.news-form .ant-form-item-label > label {
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.news-form .ant-input, .news-form .ant-input-textarea {
+  border-radius: 6px;
 }

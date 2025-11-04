@@ -50,7 +50,7 @@ public class NewsController : ControllerBase
             var roleId = GetCurrentRoleId();
             // Chỉ Staff (RoleId 6) được tạo news
             if (roleId != 6)
-                return StatusCode(403, new { code = 403, message = "Only Staff can create news" });
+                return StatusCode(403, new { code = 403, message = $"Only Staff can create news. Your roleId: {roleId ?? -1}" });
 
             var userId = GetCurrentUserId();
             var created = await _newsService.CreateAsync(request, userId);
@@ -78,12 +78,12 @@ public class NewsController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Chỉ Staff (RoleId 6) được sửa news
-            if (roleId != 6)
-                return StatusCode(403, new { code = 403, message = "Only Staff can update news" });
+            // Cho phép Head (RoleId 2) và Staff (RoleId 6) được sửa news
+            if (roleId != 2 && roleId != 6)
+                return StatusCode(403, new { code = 403, message = $"Only Head or Staff can update news. Your roleId: {roleId ?? -1}" });
 
             var userId = GetCurrentUserId();
-            var success = await _newsService.UpdateAsync(id, request, userId);
+            var success = await _newsService.UpdateAsync(id, request, userId, roleId);
             if (!success)
                 return NotFound(new { code = 404, message = "News not found" });
 
@@ -202,12 +202,12 @@ public class NewsController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Chỉ Staff (RoleId 6) được xóa
-            if (roleId != 6)
-                return StatusCode(403, new { code = 403, message = "Only Staff can delete news" });
+            // Cho phép Head (RoleId 2) và Staff (RoleId 6) được xóa news
+            if (roleId != 2 && roleId != 6)
+                return StatusCode(403, new { code = 403, message = $"Only Head or Staff can delete news. Your roleId: {roleId ?? -1}" });
 
             var userId = GetCurrentUserId();
-            var success = await _newsService.DeleteAsync(id, userId);
+            var success = await _newsService.DeleteAsync(id, userId, roleId);
             if (!success)
                 return NotFound(new { code = 404, message = "News not found" });
 

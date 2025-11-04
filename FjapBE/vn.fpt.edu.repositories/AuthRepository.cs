@@ -18,6 +18,7 @@ namespace FJAP.Repositories
         {
             return _db.Accounts
                 .Include(a => a.User)
+                    .ThenInclude(u => u.Role)
                 .SingleOrDefaultAsync(a => a.Email == email);
         }
 
