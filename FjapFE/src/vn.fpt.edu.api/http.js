@@ -14,7 +14,8 @@ function resolveBaseUrl() {
       return "http://localhost:5000";
     }
 
-    return origin;
+    // Deployed on web: default to Azure App Service API base
+    return "https://fjap.azurewebsites.net";
   }
 
   return undefined;
