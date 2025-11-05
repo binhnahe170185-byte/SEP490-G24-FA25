@@ -45,6 +45,9 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             return null;
         }
 
+
+
+
         var normalizedId = classId.Trim();
 
         IQueryable<Class> BuildQuery() => _context.Classes
