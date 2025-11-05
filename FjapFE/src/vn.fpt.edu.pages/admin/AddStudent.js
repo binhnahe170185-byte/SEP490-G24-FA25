@@ -13,6 +13,7 @@ import {
 import dayjs from "dayjs";
 import AdminApi from "../../vn.fpt.edu.api/Admin";
 import { api } from "../../vn.fpt.edu.api/http";
+import ImportStudent from "./ImportStudent";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -37,7 +38,6 @@ export default function AddStudent() {
   const [semesters, setSemesters] = useState([]); // All semesters with full info
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [activeTab, setActiveTab] = useState("manual");
-  const [importLoading, setImportLoading] = useState(false);
   const [currentSemester, setCurrentSemester] = useState(null); // Semester that student will be added to
 
   // Load levels and semesters
@@ -509,44 +509,6 @@ export default function AddStudent() {
     setCurrentSemester(null);
   };
 
-  // Handle Excel import
-  const handleImport = async (file) => {
-    setImportLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await api.post("/api/StaffOfAdmin/users/import", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      const result = response?.data?.result || response?.data;
-      const inserted = result?.inserted || 0;
-      const skipped = result?.skipped || 0;
-      const errors = result?.errors || [];
-
-      if (inserted > 0) {
-        message.success(`Successfully imported ${inserted} student(s)`);
-      }
-      if (skipped > 0) {
-        message.warning(`${skipped} student(s) were skipped (duplicates or errors)`);
-      }
-      if (errors.length > 0) {
-        console.error("Import errors:", errors);
-        message.error(`Import completed with ${errors.length} error(s). Check console for details.`);
-      }
-    } catch (error) {
-      console.error("Import error:", error);
-      const errorMessage = error?.response?.data?.message || error?.message || "Failed to import students";
-      message.error(errorMessage);
-    } finally {
-      setImportLoading(false);
-    }
-    return false; // Prevent default upload
-  };
-
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto" }}>
       {msgCtx}
@@ -863,66 +825,7 @@ export default function AddStudent() {
                   <FileExcelOutlined /> Import from Excel
                 </span>
               ),
-              children: (
-                <Card>
-              <Space direction="vertical" size="large" style={{ width: "100%" }}>
-                <div>
-                  <Title level={4}>Import Students from Excel</Title>
-                  <Text type="secondary">
-                    Upload an Excel file (.xlsx or .xls) to import multiple students at once.
-                  </Text>
-                </div>
-
-                <Alert
-                  message="Excel Format Requirements"
-                  description={
-                    <div>
-                      <p style={{ marginBottom: 8 }}>Your Excel file should have the following columns (in order):</p>
-                      <ol style={{ marginLeft: 20, marginBottom: 0 }}>
-                        <li>FirstName</li>
-                        <li>LastName</li>
-                        <li>Address</li>
-                        <li>Email (required)</li>
-                        <li>Gender (Male/Female/Other)</li>
-                        <li>Avatar (optional)</li>
-                        <li>Dob (Date of Birth - format: YYYY-MM-DD)</li>
-                        <li>PhoneNumber (optional)</li>
-                        <li>RoleId (must be 4 for students)</li>
-                      </ol>
-                      <p style={{ marginTop: 16, marginBottom: 0 }}>
-                        <strong>Note:</strong> The first row should be the header row. Students will be created with RoleId = 4.
-                        You may need to manually assign levels and semesters after import.
-                      </p>
-                    </div>
-                  }
-                  type="warning"
-                  showIcon
-                />
-
-                <Upload.Dragger
-                  name="file"
-                  accept=".xlsx,.xls"
-                  beforeUpload={handleImport}
-                  showUploadList={false}
-                  disabled={importLoading}
-                >
-                  <p className="ant-upload-drag-icon">
-                    <UploadOutlined style={{ fontSize: 48, color: "#1890ff" }} />
-                  </p>
-                  <p className="ant-upload-text">Click or drag file to this area to upload</p>
-                  <p className="ant-upload-hint">
-                    Support for Excel files (.xlsx, .xls) only
-                  </p>
-                </Upload.Dragger>
-
-                {importLoading && (
-                  <div style={{ textAlign: "center", padding: 20 }}>
-                    <Text>Importing students, please wait...</Text>
-                  </div>
-                )}
-              </Space>
-                </Card>
-              ),
+              children: <ImportStudent key="import-student-tab" />,
             },
           ]}
         />

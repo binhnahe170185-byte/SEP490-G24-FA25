@@ -15,6 +15,7 @@ import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
 import NewsList from "./News/NewsList";
 import AddStaff from "./AddStaff";
 import AddStudent from "./AddStudent";
+import ImportStudent from "./ImportStudent";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -63,6 +64,7 @@ const ADMIN_MENU = [
         key: "users:add", icon: <UserAddOutlined />, label: "Add User", children: [
           { key: "users:add:staff", label: "Add Staff", icon: <IdcardOutlined /> },
           { key: "users:add:student", label: "Add Student", icon: <BookOutlined /> },
+          { key: "users:import:student", label: "Import Student", icon: <UploadOutlined /> },
         ]
       },
       { key: "users:edit", icon: <EditOutlined />, label: "Edit User" },
@@ -127,12 +129,15 @@ export default function StaffOfAdminPage() {
       );
     }
 
-    if (activeKey.startsWith("users:add")) {
+    if (activeKey.startsWith("users:add") || activeKey.startsWith("users:import")) {
       if (isAddStaffKey(activeKey)) {
         return <AddStaff />;
       }
       if (activeKey === "users:add:student") {
         return <AddStudent />;
+      }
+      if (activeKey === "users:import:student") {
+        return <ImportStudent />;
       }
       return (
         <Card style={{ borderRadius: 12 }}>

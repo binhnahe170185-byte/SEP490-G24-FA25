@@ -193,6 +193,74 @@ const AdminApi = {
   // Create student (create user + student server-side)
   createStudentUser: (payload) =>
     api.post("/api/StaffOfAdmin/users/student", payload).then((res) => res?.data ?? res),
+
+  // Import students
+  previewImportStudents: (file, enrollmentSemesterId, levelId) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("enrollmentSemesterId", enrollmentSemesterId);
+    formData.append("levelId", levelId);
+    return api.post("/api/Students/import/preview", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    }).then((res) => res?.data?.data ?? res?.data);
+  },
+
+  importStudents: (payload) =>
+    api.post("/api/Students/import", payload).then((res) => res?.data?.data ?? res?.data),
+
+  downloadStudentTemplate: async () => {
+    try {
+      const res = await api.get("/api/Students/import/template", { 
+        responseType: "blob" 
+      });
+      
+      // Check if response is actually a blob
+      if (!(res.data instanceof Blob)) {
+        // Try to parse as JSON error message
+        const text = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsText(res.data);
+        });
+        
+        try {
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.message || "Failed to download template");
+        } catch {
+          throw new Error("Invalid response format from server");
+        }
+      }
+      
+      // Check if blob is empty or too small (might be error response)
+      if (res.data.size < 100) {
+        const text = await res.data.text();
+        try {
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.message || "Failed to download template");
+        } catch {
+          throw new Error("Template file is too small, may be corrupted");
+        }
+      }
+      
+      const url = window.URL.createObjectURL(res.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "StudentImportTemplate.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      console.error("Download template error:", error);
+      throw error;
+    }
+  },
 };
 
 export default AdminApi;

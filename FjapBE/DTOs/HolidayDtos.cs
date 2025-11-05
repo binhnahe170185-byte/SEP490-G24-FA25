@@ -23,7 +23,6 @@ public class HolidayDto
     public string Date { get; set; } = null!; // Formatted as YYYY-MM-DD
     public string Type { get; set; } = null!;
     public string? Description { get; set; }
-    public bool IsRecurring { get; set; }
     public int? SemesterId { get; set; }
     public string? SemesterName { get; set; }
 }
