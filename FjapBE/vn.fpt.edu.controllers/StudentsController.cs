@@ -79,6 +79,32 @@ public class StudentsController : ControllerBase
         var gpa = await _studentService.GetStudentSemesterGPAAsync(id, semesterId);
         return Ok(new { code = 200, data = gpa });
     }
+
+    /// <summary>
+    /// Lấy danh sách tất cả môn học active trong curriculum với search và pagination
+    /// GET: api/Students/curriculum-subjects?search=&page=1&pageSize=20
+    /// </summary>
+    [HttpGet("curriculum-subjects")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCurriculumSubjects(
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 100) pageSize = 100;
+
+        var (subjects, totalCount) = await _studentService.GetCurriculumSubjectsAsync(search, page, pageSize);
+        return Ok(new
+        {
+            code = 200,
+            data = subjects,
+            total = totalCount,
+            page = page,
+            pageSize = pageSize
+        });
+    }
    
    
     [HttpGet]

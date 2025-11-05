@@ -36,8 +36,10 @@ import StaffMaterialList from "../vn.fpt.edu.pages/staffAcademic/materials/Mater
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import Schedule from "../vn.fpt.edu.pages/lecturer/schedule/Schedule";
+import Attendance from "../vn.fpt.edu.pages/lecturer/Attendance/Attendance";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
 import CreateSchedule from "../vn.fpt.edu.pages/headOfAcademic/createSchedule/CreateSchedule";
+import CurriculumSubjects from "../vn.fpt.edu.pages/student/CurriculumSubjects";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 import { NotificationProvider } from "../vn.fpt.edu.common/notifications";
@@ -144,6 +146,7 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
+              <Route path="/attendance" element={<Attendance />} />
 
 
               <Route element={<ProtectedLayout />}>
@@ -151,6 +154,7 @@ export default function App() {
                 <Route path="/student/grades" element={<StudentGradeReport />} />
                 <Route path="/student/attendance" element={<AttendanceReportPage />} />
                 <Route path="/student/homework" element={<HomeworkPage />} />
+                <Route path="/student/curriculum-subjects" element={<CurriculumSubjects />} />
                 <Route path="/student/class/:classId/students" element={<ClassStudentsList />} />
                 <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
 

@@ -23,4 +23,5 @@ public interface IStudentService
     // Import methods
     Task<ImportStudentPreviewResponse> PreviewImportAsync(Stream excelStream, int enrollmentSemesterId, int levelId);
     Task<ImportStudentResponse> ImportStudentsAsync(ImportStudentRequest request);
+    Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize);
 }

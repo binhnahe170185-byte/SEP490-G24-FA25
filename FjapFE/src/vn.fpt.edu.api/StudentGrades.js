@@ -50,6 +50,22 @@ class StudentGrades {
       averageGPA: 8.0,
     };
   }
+
+  // Lấy danh sách tất cả môn học active trong curriculum 
+  static async getCurriculumSubjects(search = "", page = 1, pageSize = 20) {
+    const params = new URLSearchParams();
+    if (search) params.append("search", search);
+    params.append("page", page.toString());
+    params.append("pageSize", pageSize.toString());
+    
+    const response = await api.get(`/api/Students/curriculum-subjects?${params.toString()}`);
+    return {
+      items: response.data?.data || response.data || [],
+      total: response.data?.total || 0,
+      page: response.data?.page || page,
+      pageSize: response.data?.pageSize || pageSize
+    };
+  }
 }
 
 export default StudentGrades;

@@ -397,4 +397,6 @@ public class StudentService : IStudentService
 
         return maxSequence + 1;
     }
+    public async Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize)
+        => await _studentRepository.GetCurriculumSubjectsAsync(search, page, pageSize);
 }
