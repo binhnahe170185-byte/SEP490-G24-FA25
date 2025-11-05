@@ -17,4 +17,5 @@ public interface IStudentService
     Task<IEnumerable<StudentCourseGradeDto>> GetStudentCoursesBySemesterAsync(int studentId, int semesterId);
     Task<StudentGradeDetailDto?> GetStudentGradeDetailsAsync(int studentId, int classId);
     Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId);
+    Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize);
 }

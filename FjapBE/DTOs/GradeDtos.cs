@@ -188,4 +188,40 @@ namespace FJAP.vn.fpt.edu.models
         public int PassedCourses { get; set; }
         public int FailedCourses { get; set; }
     }
+
+    /// <summary>
+    /// DTO cho danh sách môn học trong curriculum của sinh viên
+    /// </summary>
+    public class CurriculumSubjectDto
+    {
+        public int SubjectId { get; set; }
+        public string SubjectCode { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public decimal? PassMark { get; set; }
+        public List<SubjectGradeComponentInfoDto> GradeComponents { get; set; } = new();
+        public List<SubjectMaterialDto> Materials { get; set; } = new();
+    }
+
+    /// <summary>
+    /// DTO cho tài liệu của môn học
+    /// </summary>
+    public class SubjectMaterialDto
+    {
+        public int MaterialId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string FileUrl { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho thông tin thành phần điểm của môn học
+    /// </summary>
+    public class SubjectGradeComponentInfoDto
+    {
+        public string GradeTypeName { get; set; } = string.Empty;
+        public decimal Weight { get; set; }
+        public decimal MaxScore { get; set; }
+    }
 }

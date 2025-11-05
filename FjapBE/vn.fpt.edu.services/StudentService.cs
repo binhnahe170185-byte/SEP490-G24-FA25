@@ -67,4 +67,7 @@ public class StudentService : IStudentService
 
     public async Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId)
         => await _studentRepository.GetStudentSemesterGPAAsync(studentId, semesterId);
+
+    public async Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize)
+        => await _studentRepository.GetCurriculumSubjectsAsync(search, page, pageSize);
 }

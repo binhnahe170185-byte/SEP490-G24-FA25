@@ -61,6 +61,12 @@ const StudentHomepage = () => {
       path: '/student/grades'
     },
     {
+      key: '/student/curriculum-subjects',
+      label: 'Curriculum Subjects',
+      icon: <BookOutlined />,
+      path: '/student/curriculum-subjects'
+    },
+    {
       key: '/student/attendance',
       label: 'Attendance',
       icon: <BarChartOutlined />,

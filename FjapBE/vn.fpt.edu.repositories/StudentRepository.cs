@@ -256,4 +256,55 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             FailedCourses = failedCourses
         };
     }
+
+    /// Lấy danh sách tất cả môn học active trong curriculum với search và pagination
+    public async Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize)
+    {
+        // Query base với filter active
+        var query = _context.Subjects
+            .AsNoTracking()
+            .Where(s => s.Status != null && s.Status.ToLower() == "active");
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchTerm = search.Trim().ToLower();
+            query = query.Where(s =>
+                s.SubjectCode.ToLower().Contains(searchTerm) ||
+                s.SubjectName.ToLower().Contains(searchTerm) ||
+                (s.Description != null && s.Description.ToLower().Contains(searchTerm))
+            );
+        }
+
+        // Get total count
+        var totalCount = await query.CountAsync();
+
+        // Apply pagination
+        var subjectsData = await query
+            .Include(s => s.SubjectGradeTypes)
+            .OrderBy(s => s.SubjectCode)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(s => new CurriculumSubjectDto
+            {
+                SubjectId = s.SubjectId,
+                SubjectCode = s.SubjectCode,
+                SubjectName = s.SubjectName,
+                Description = s.Description,
+                PassMark = s.PassMark,
+                Status = s.Status ?? "Active",
+                GradeComponents = s.SubjectGradeTypes
+                    .Select(sgt => new SubjectGradeComponentInfoDto
+                    {
+                        GradeTypeName = sgt.GradeTypeName,
+                        Weight = sgt.Weight,
+                        MaxScore = sgt.MaxScore
+                    })
+                    .ToList(),
+                Materials = new List<SubjectMaterialDto>() // Tạm thời để trống, sẽ load sau nếu cần
+            })
+            .ToListAsync();
+
+        return (subjectsData, totalCount);
+    }
 }
