@@ -142,9 +142,42 @@ const AdminApi = {
   getDepartments: () =>
     api.get("/api/StaffOfAdmin/departments").then((res) => res?.data ?? []),
 
+  // Levels for students filtering (reuses staffAcademic classes options)
+  // Returns raw list from backend; consumer maps to select options
+  getLevels: () =>
+    api
+      .get("/api/staffAcademic/classes/options")
+      .then((res) => {
+        const data = res?.data?.data || res?.data || {};
+        const levels = data.levels || [];
+        return levels;
+      })
+      .catch(() => []),
+
   // DETAIL / CRUD
   getUserById: (id) => api.get(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
-  createUser: (payload) => api.post("/api/StaffOfAdmin/users", payload).then(unwrap),
+  createUser: (payload) => {
+    return api.post("/api/StaffOfAdmin/users", payload)
+      .then((res) => {
+        // For POST requests, preserve the full response structure
+        // Backend returns: { code: 201, data: {...} }
+        // Axios wraps it in res.data
+        return res.data; // Return { code: 201, data: {...} } directly
+      })
+      .catch((error) => {
+        // For errors, return the error response data if available
+        if (error.response?.data) {
+          return Promise.reject({
+            response: {
+              data: error.response.data,
+              status: error.response.status
+            },
+            message: error.message
+          });
+        }
+        return Promise.reject(error);
+      });
+  },
   updateUser: (id, payload) => api.put(`/api/StaffOfAdmin/users/${id}`, payload).then(unwrap),
   deleteUser: (id) => api.delete(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
 
@@ -156,6 +189,10 @@ const AdminApi = {
     form.append("file", file);
     return api.post("/api/StaffOfAdmin/users/import", form).then(unwrap);
   },
+
+  // Create student (create user + student server-side)
+  createStudentUser: (payload) =>
+    api.post("/api/StaffOfAdmin/users/student", payload).then((res) => res?.data ?? res),
 };
 
 export default AdminApi;

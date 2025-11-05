@@ -1,5 +1,6 @@
 ﻿using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
+using FJAP.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,7 @@ public class StaffOfAdminController : ControllerBase
         [FromQuery] string? roles,
         [FromQuery] string? status,
         [FromQuery] int? semesterId,
+        [FromQuery] int? levelId,
         [FromQuery] int? departmentId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
@@ -93,14 +95,14 @@ public class StaffOfAdminController : ControllerBase
         }
         if (!string.IsNullOrWhiteSpace(status)) baseQuery = baseQuery.Where(x => x.Status == status);
         if (semesterId is int sid) baseQuery = baseQuery.Where(x => x.SemesterId == sid);
+        if (levelId is int lid) baseQuery = baseQuery.Where(x => x.LevelId == lid);
         if (departmentId is int did) baseQuery = baseQuery.Where(x => x.DepartmentId == did);
 
         var total = await baseQuery.CountAsync();
 
+        // Return full list (remove paging as requested)
         var items = await baseQuery
             .OrderByDescending(x => x.UserId)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync();
 
         var shaped = items.Select(x => new
@@ -147,14 +149,164 @@ public class StaffOfAdminController : ControllerBase
     }
 
     [HttpPost("users")]
-    public async Task<IActionResult> Create(User request)
+    public async Task<IActionResult> Create([FromBody] CreateStaffRequest request)
     {
-        // đảm bảo status default
-        if (string.IsNullOrWhiteSpace(request.Status))
-            request.Status = "Active";
+        try
+        {
+            // Model validation
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value?.Errors.Count > 0)
+                    .Select(x => new { 
+                        field = x.Key, 
+                        messages = x.Value?.Errors.Select(e => e.ErrorMessage).ToArray() 
+                    })
+                    .ToArray();
+                
+                return BadRequest(new { 
+                    code = 400, 
+                    message = "Validation failed",
+                    errors = errors
+                });
+            }
 
-        var created = await _adminService.CreateAsync(request);
-        return CreatedAtAction(nameof(GetById), new { id = created.UserId }, new { code = 201, data = created });
+            // Validate role ID - only allow Staff (6, 7) and Lecturer (3)
+            var validRoleIds = new[] { 3, 6, 7 };
+            if (!validRoleIds.Contains(request.RoleId))
+            {
+                return BadRequest(new { code = 400, message = "Invalid role for staff creation. Allowed roles: Staff (6,7), Lecturer (3). Department heads are assigned separately by admin." });
+            }
+
+            // For Staff (6, 7), department is required
+            if ((request.RoleId == 6 || request.RoleId == 7) && !request.DepartmentId.HasValue)
+            {
+                return BadRequest(new { code = 400, message = "Department is required for Staff roles" });
+            }
+
+            // Check email uniqueness - trim and lowercase for comparison
+            var emailNormalized = request.Email.Trim().ToLower();
+            var existingEmail = await _db.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email.ToLower().Trim() == emailNormalized);
+            
+            if (existingEmail != null)
+            {
+                return BadRequest(new { code = 400, message = "Email already exists in the system" });
+            }
+
+            // Check phone uniqueness (if provided and not empty)
+            if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+            {
+                var phoneNormalized = request.PhoneNumber.Trim();
+                var existingPhone = await _db.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.PhoneNumber != null && u.PhoneNumber.Trim() == phoneNormalized);
+                
+                if (existingPhone != null)
+                {
+                    return BadRequest(new { code = 400, message = "Phone number already exists in the system" });
+                }
+            }
+
+            // Validate department exists (if provided)
+            if (request.DepartmentId.HasValue)
+            {
+                var departmentExists = await _db.Departments
+                    .AsNoTracking()
+                    .AnyAsync(d => d.DepartmentId == request.DepartmentId.Value);
+                
+                if (!departmentExists)
+                    return BadRequest(new { code = 400, message = "Department does not exist" });
+            }
+
+            // Validate gender
+            var validGenders = new[] { "Male", "Female", "Other" };
+            if (!validGenders.Contains(request.Gender))
+                request.Gender = "Other";
+
+            // Map DTO to User entity
+            var user = new User
+            {
+                FirstName = request.FirstName.Trim(),
+                LastName = request.LastName.Trim(),
+                Email = request.Email.Trim().ToLower(),
+                PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? "" : request.PhoneNumber.Trim(),
+                Gender = request.Gender,
+                Dob = request.Dob,
+                Address = string.IsNullOrWhiteSpace(request.Address) ? "" : request.Address.Trim(),
+                Avatar = request.Avatar,
+                RoleId = request.RoleId,
+                DepartmentId = request.DepartmentId,
+                Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status
+            };
+
+            var created = await _adminService.CreateAsync(user);
+            
+            // Return response without navigation properties
+            var responseData = new
+            {
+                userId = created.UserId,
+                firstName = created.FirstName,
+                lastName = created.LastName,
+                email = created.Email,
+                phoneNumber = created.PhoneNumber,
+                gender = created.Gender,
+                dob = created.Dob.ToString("yyyy-MM-dd"),
+                address = created.Address,
+                avatar = created.Avatar,
+                roleId = created.RoleId,
+                departmentId = created.DepartmentId,
+                status = created.Status
+            };
+            
+            return CreatedAtAction(nameof(GetById), new { id = created.UserId }, new { code = 201, data = responseData });
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            Console.WriteLine($"DbUpdateException: {ex.Message}");
+            Console.WriteLine($"InnerException: {ex.InnerException?.Message}");
+            
+            // Handle database constraint violations
+            var innerMsg = ex.InnerException?.Message?.ToLower() ?? "";
+            var outerMsg = ex.Message?.ToLower() ?? "";
+            
+            // Check for email unique constraint violation
+            if (innerMsg.Contains("uk_user_email") || innerMsg.Contains("duplicate entry") && innerMsg.Contains("email") ||
+                outerMsg.Contains("uk_user_email") || outerMsg.Contains("duplicate entry") && outerMsg.Contains("email"))
+            {
+                return BadRequest(new { code = 400, message = "Email already exists in the system" });
+            }
+            
+            // Check for phone unique constraint violation
+            if (innerMsg.Contains("uk_user_phone") || innerMsg.Contains("duplicate entry") && innerMsg.Contains("phone") ||
+                outerMsg.Contains("uk_user_phone") || outerMsg.Contains("duplicate entry") && outerMsg.Contains("phone"))
+            {
+                return BadRequest(new { code = 400, message = "Phone number already exists in the system" });
+            }
+            
+            return BadRequest(new { code = 400, message = $"Database error: {ex.Message}", details = ex.InnerException?.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"=== ERROR creating user ===");
+            Console.WriteLine($"Message: {ex.Message}");
+            Console.WriteLine($"Type: {ex.GetType().Name}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"InnerException: {ex.InnerException.Message}");
+                Console.WriteLine($"InnerException Type: {ex.InnerException.GetType().Name}");
+            }
+            
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "An error occurred while creating the user", 
+                error = ex.Message,
+                errorType = ex.GetType().Name,
+                innerException = ex.InnerException?.Message
+            });
+        }
     }
 
     [HttpPut("users/{id:int}")]
@@ -193,6 +345,125 @@ public class StaffOfAdminController : ControllerBase
         return Ok(new { code = 200, result });
     }
 
+    /// <summary>
+    /// Create a student: insert User(role=4) and Student with auto semester (based on current date)
+    /// </summary>
+    [HttpPost("users/student")]
+    public async Task<IActionResult> CreateStudent([FromBody] CreateStudentRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { code = 400, message = "Validation failed" });
+        }
+
+        // Basic normalize
+        var email = request.Email.Trim().ToLower();
+        var phone = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+        var address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+        var gender = new[] { "Male", "Female", "Other" }.Contains(request.Gender) ? request.Gender : "Other";
+
+        // Uniqueness checks
+        var emailExists = await _db.Users.AsNoTracking().AnyAsync(u => u.Email.ToLower() == email);
+        if (emailExists) return BadRequest(new { code = 400, message = "Email already exists in the system" });
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            var phoneExists = await _db.Users.AsNoTracking().AnyAsync(u => u.PhoneNumber != null && u.PhoneNumber.Trim() == phone);
+            if (phoneExists) return BadRequest(new { code = 400, message = "Phone number already exists in the system" });
+        }
+
+        // Validate level
+        var level = await _db.Levels.AsNoTracking().FirstOrDefaultAsync(l => l.LevelId == request.LevelId);
+        if (level == null) return BadRequest(new { code = 400, message = "Level does not exist" });
+
+        // Create User (role 4 - Student)
+        var user = new User
+        {
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            Email = email,
+            PhoneNumber = phone ?? "",
+            Gender = gender,
+            Dob = request.Dob,
+            Address = address ?? "",
+            Avatar = request.Avatar,
+            RoleId = 4,
+            DepartmentId = null,
+            Status = "Active"
+        };
+
+        await _db.Users.AddAsync(user);
+        await _db.SaveChangesAsync();
+
+        // Determine semester based on current date (first semester with startDate >= today; otherwise latest)
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var semester = await _db.Semesters.AsNoTracking()
+            .OrderBy(s => s.StartDate)
+            .FirstOrDefaultAsync(s => s.StartDate >= today);
+        if (semester == null)
+        {
+            semester = await _db.Semesters.AsNoTracking().OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
+        }
+
+        // Generate student code if missing: {SemesterCode}{LevelCode}{Sequence}
+        string levelCode = ExtractLevelCode(level.LevelName);
+        string semesterCode = semester?.SemesterCode ?? "";
+        string studentCode = request.StudentCode?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(studentCode) && !string.IsNullOrWhiteSpace(semesterCode) && !string.IsNullOrWhiteSpace(levelCode))
+        {
+            var prefix = $"{semesterCode}{levelCode}".ToUpper();
+            var existingCodes = await _db.Students.AsNoTracking()
+                .Where(s => s.StudentCode != null && s.StudentCode.ToUpper().StartsWith(prefix))
+                .Select(s => s.StudentCode)
+                .ToListAsync();
+
+            var maxSeq = 0;
+            foreach (var code in existingCodes)
+            {
+                if (code != null && code.ToUpper().StartsWith(prefix))
+                {
+                    var numStr = code.ToUpper().Substring(prefix.Length);
+                    if (int.TryParse(numStr, out int num) && num > maxSeq) maxSeq = num;
+                }
+            }
+            studentCode = $"{prefix}{(maxSeq + 1).ToString().PadLeft(3, '0')}";
+        }
+
+        // Create Student
+        var student = new Student
+        {
+            UserId = user.UserId,
+            LevelId = request.LevelId,
+            SemesterId = semester?.SemesterId,
+            StudentCode = string.IsNullOrWhiteSpace(studentCode) ? null : studentCode,
+            Status = "Active",
+            EnrollmentDate = DateOnly.FromDateTime(DateTime.UtcNow.Date)
+        };
+
+        await _db.Students.AddAsync(student);
+        await _db.SaveChangesAsync();
+
+        return Created($"/api/Students/{student.StudentId}", new
+        {
+            code = 201,
+            data = new
+            {
+                userId = user.UserId,
+                studentId = student.StudentId,
+                studentCode = student.StudentCode,
+                semesterId = student.SemesterId,
+                levelId = student.LevelId
+            }
+        });
+    }
+
+    private static string ExtractLevelCode(string levelName)
+    {
+        if (string.IsNullOrWhiteSpace(levelName)) return string.Empty;
+        var match = System.Text.RegularExpressions.Regex.Match(levelName, @"N\d+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (match.Success) return match.Value.ToUpper();
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(levelName, @"^level\s*", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        return cleaned.ToUpper();
+    }
     // ===================== Helper: lấy danh sách Enrollment Semesters (distinct) cho filter =====================
     [HttpGet("users/enrollment-semesters")]
     public async Task<IActionResult> GetEnrollmentSemesters()

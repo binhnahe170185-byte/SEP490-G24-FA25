@@ -49,7 +49,7 @@ export default function SubjectDetail() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Button 
             icon={<ArrowLeftOutlined />} 
-            onClick={() => navigate('/manager/subject')} 
+            onClick={() => navigate('/staffAcademic/subject')} 
             type="text" 
           />
           <span>Subject Details</span>
@@ -59,7 +59,7 @@ export default function SubjectDetail() {
         <Button 
           type="primary" 
           icon={<EditOutlined />}
-          onClick={() => navigate(`/manager/subject/edit/${subjectId}`)}
+          onClick={() => navigate(`/staffAcademic/subject/edit/${subjectId}`)}
         >
           Edit Subject
         </Button>

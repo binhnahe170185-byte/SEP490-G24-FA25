@@ -1,6 +1,7 @@
 ﻿using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FJAP.Controllers;
 
@@ -9,10 +10,12 @@ namespace FJAP.Controllers;
 public class StudentsController : ControllerBase
 {
     private readonly IStudentService _studentService;
+    private readonly FjapDbContext _db;
 
-    public StudentsController(IStudentService studentService)
+    public StudentsController(IStudentService studentService, FjapDbContext db)
     {
         _studentService = studentService;
+        _db = db;
     }
 
     [HttpGet("{id:int}/lesson")]
@@ -131,5 +134,56 @@ public class StudentsController : ControllerBase
         var ok = await _studentService.DeleteAsync(id);
         if (!ok) return NotFound();
         return NoContent();
+    }
+
+    /// <summary>
+    /// Get next sequence number for student code generation
+    /// GET: api/Students/next-sequence?semesterCode=SP26&levelCode=N2
+    /// </summary>
+    [HttpGet("next-sequence")]
+    [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNextSequence([FromQuery] string semesterCode, [FromQuery] string levelCode)
+    {
+        if (string.IsNullOrWhiteSpace(semesterCode) || string.IsNullOrWhiteSpace(levelCode))
+        {
+            return BadRequest(new { code = 400, message = "semesterCode and levelCode are required" });
+        }
+
+        try
+        {
+            // Pattern: {semesterCode}{levelCode}{number}
+            var prefix = $"{semesterCode}{levelCode}".ToUpper();
+            
+            // Get all students with matching student code prefix
+            var students = await _db.Students
+                .AsNoTracking()
+                .Where(s => s.StudentCode != null && s.StudentCode.ToUpper().StartsWith(prefix))
+                .Select(s => s.StudentCode)
+                .ToListAsync();
+
+            var maxSequence = 0;
+            foreach (var code in students)
+            {
+                // Extract number from end of student code
+                if (code != null && code.ToUpper().StartsWith(prefix))
+                {
+                    var numStr = code.ToUpper().Substring(prefix.Length);
+                    if (int.TryParse(numStr, out int num))
+                    {
+                        if (num > maxSequence)
+                            maxSequence = num;
+                    }
+                }
+            }
+
+            // Return next sequence (maxSequence + 1, or 1 if no matches)
+            var nextSequence = maxSequence + 1;
+            return Ok(new { code = 200, data = nextSequence });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetNextSequence: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Failed to get next sequence", error = ex.Message });
+        }
     }
 }

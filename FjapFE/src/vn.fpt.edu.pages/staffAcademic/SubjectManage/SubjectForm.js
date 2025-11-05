@@ -7,7 +7,7 @@ import {
   SaveOutlined, ArrowLeftOutlined, PlusOutlined, 
   DeleteOutlined, DownOutlined, ThunderboltOutlined 
 } from "@ant-design/icons";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import SubjectListApi from "../../../vn.fpt.edu.api/SubjectList";
 import { 
   calculateTotalWeight, 
@@ -25,21 +25,19 @@ export default function SubjectForm({ mode = "create" }) {
   const [options, setOptions] = useState({ levels: [] });
   const [gradeTypesData, setGradeTypesData] = useState([]);
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePrefix = location.pathname.startsWith('/manager') ? '/manager' : '/staffAcademic';
 
   const isEditMode = mode === "edit";
 
-  // Load subject data for edit mode
   const loadSubjectData = useCallback(async () => {
     if (!subjectId) return;
     
     setLoading(true);
     try {
       const data = await SubjectListApi.getById(subjectId);
-      
-      // Set grade types data
       const gradeTypes = data.gradeTypes || [];
       setGradeTypesData(gradeTypes);
-      
       form.setFieldsValue({
         subjectCode: data.subjectCode,
         subjectName: data.subjectName,
@@ -51,13 +49,12 @@ export default function SubjectForm({ mode = "create" }) {
     } catch (error) {
       console.error("Failed to load subject:", error);
       message.error("Failed to load subject data");
-      navigate("/manager/subject");
+      navigate(`${basePrefix}/subject`);
     } finally {
       setLoading(false);
     }
   }, [subjectId, form, navigate]);
 
-  // Load form options (levels)
   const loadFormOptions = async () => {
     try {
       const data = await SubjectListApi.getFormOptions();
@@ -73,7 +70,6 @@ export default function SubjectForm({ mode = "create" }) {
     if (isEditMode) {
       loadSubjectData();
     } else {
-      // Set default grade types for create mode
       const defaultGradeTypes = [
         { gradeTypeName: "Assignment", weight: 20 },
         { gradeTypeName: "Midterm", weight: 30 },
@@ -84,7 +80,6 @@ export default function SubjectForm({ mode = "create" }) {
     }
   }, [isEditMode, loadSubjectData, form]);
 
-  // Apply preset template
   const applyPreset = (presetName) => {
     const preset = GRADE_TYPE_PRESETS[presetName];
     if (preset) {
@@ -95,14 +90,12 @@ export default function SubjectForm({ mode = "create" }) {
     }
   };
 
-  // Preset dropdown menu
   const presetMenuItems = Object.keys(GRADE_TYPE_PRESETS).map((key) => ({
     key,
     label: key,
     onClick: () => applyPreset(key),
   }));
 
-  // Validate total weight = 100
   const validateGradeTypes = (_, gradeTypes) => {
     if (!gradeTypes || gradeTypes.length === 0) {
       return Promise.reject(new Error("At least one grade type is required"));
@@ -115,7 +108,6 @@ export default function SubjectForm({ mode = "create" }) {
       );
     }
 
-    // Check for duplicate names
     const names = gradeTypes.map(gt => gt?.gradeTypeName?.trim().toLowerCase()).filter(Boolean);
     const uniqueNames = new Set(names);
     if (names.length !== uniqueNames.size) {
@@ -125,7 +117,6 @@ export default function SubjectForm({ mode = "create" }) {
     return Promise.resolve();
   };
 
-  // Handle form submission
   const handleSubmit = async (values) => {
     setSubmitting(true);
     try {
@@ -143,7 +134,7 @@ export default function SubjectForm({ mode = "create" }) {
         await SubjectListApi.create(submitData);
         message.success("Subject created successfully!");
       }
-      navigate("/manager/subject");
+      navigate(`${basePrefix}/subject`);
     } catch (error) {
       console.error("Submit error:", error);
       const errorMsg = error.response?.data?.message 
@@ -156,10 +147,9 @@ export default function SubjectForm({ mode = "create" }) {
   };
 
   const handleCancel = () => {
-    navigate("/manager/subject");
+    navigate(`${basePrefix}/subject`);
   };
 
-  // Handle grade type field changes
   const handleGradeTypeChange = (index, field, value) => {
     const newGradeTypes = [...gradeTypesData];
     if (!newGradeTypes[index]) {
@@ -170,14 +160,12 @@ export default function SubjectForm({ mode = "create" }) {
     form.setFieldsValue({ gradeTypes: newGradeTypes });
   };
 
-  // Handle add grade type
   const handleAddGradeType = () => {
     const newGradeTypes = [...gradeTypesData, { gradeTypeName: "", weight: 0 }];
     setGradeTypesData(newGradeTypes);
     form.setFieldsValue({ gradeTypes: newGradeTypes });
   };
 
-  // Handle remove grade type
   const handleRemoveGradeType = (index) => {
     const newGradeTypes = gradeTypesData.filter((_, i) => i !== index);
     setGradeTypesData(newGradeTypes);
@@ -193,7 +181,6 @@ export default function SubjectForm({ mode = "create" }) {
     );
   }
 
-  // Columns for Grade Types table
   const gradeTypeColumns = [
     {
       title: "No.",
@@ -279,7 +266,6 @@ export default function SubjectForm({ mode = "create" }) {
           passMark: 5.0,
         }}
       >
-        {/* Basic Information Section */}
         <div style={{ marginBottom: 24 }}>
           <Typography.Title level={5}>Basic Information</Typography.Title>
           
@@ -351,7 +337,6 @@ export default function SubjectForm({ mode = "create" }) {
 
         <Divider />
 
-        {/* Grade Types Section */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <Typography.Title level={5} style={{ margin: 0 }}>
@@ -423,3 +408,5 @@ export default function SubjectForm({ mode = "create" }) {
     </Card>
   );
 }
+
+

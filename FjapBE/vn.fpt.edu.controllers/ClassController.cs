@@ -65,40 +65,22 @@ public class ClassController : ControllerBase
 
             return new
             {
-                class_id = cls.ClassId.ToString(),
                 classId = cls.ClassId,
-                class_name = cls.ClassName,
                 className = cls.ClassName,
                 status = cls.Status,
-                updated_at = cls.UpdatedAt,
                 updatedAt = cls.UpdatedAt,
-                semester = semesterName,
-                semester_name = semesterName,
                 semesterName = semesterName,
-                semester_id = cls.SemesterId,
                 semesterId = cls.SemesterId,
-                semester_start_date = semesterStart,
                 semesterStartDate = semesterStart,
-                semester_end_date = semesterEnd,
                 semesterEndDate = semesterEnd,
-                semester_detail = semesterDetail,
                 semesterDetail = semesterDetail,
-                subject_id = subject?.SubjectId,
                 subjectId = subject?.SubjectId,
-                subject_code = subject?.SubjectCode,
                 subjectCode = subject?.SubjectCode,
-                subject_name = subject?.SubjectName,
                 subjectName = subject?.SubjectName,
-                subject_level = subject?.Level?.LevelName ?? subject?.LevelId.ToString(),
                 subjectLevel = subject?.Level?.LevelName ?? subject?.LevelId.ToString(),
-                subject_detail = subjectDetail,
                 subjectDetail = subjectDetail,
-                level = levelName,
-                level_name = levelName,
                 levelName = levelName,
-                level_id = cls.Level?.LevelId ?? cls.LevelId,
                 levelId = cls.LevelId,
-                level_detail = levelDetail,
                 levelDetail = levelDetail
             };
         }).ToList();
@@ -167,19 +149,10 @@ public class ClassController : ControllerBase
             ? null
             : new
             {
-                id = cls.Semester.SemesterId,
-                name = cls.Semester.Name,
                 startDate = semesterStart,
                 endDate = semesterEnd
             };
 
-        var levelDetail = cls.Level == null
-            ? null
-            : new
-            {
-                id = cls.Level.LevelId,
-                name = cls.Level.LevelName
-            };
 
         var subjectDetail = subject == null
             ? null
@@ -202,42 +175,22 @@ public class ClassController : ControllerBase
             code = 200,
             data = new
             {
-                class_id = cls.ClassId.ToString(),
                 classId = cls.ClassId,
-                class_name = cls.ClassName,
                 className = cls.ClassName,
                 status = cls.Status,
-                updated_at = cls.UpdatedAt,
                 updatedAt = cls.UpdatedAt,
-                semester = semesterName,
-                semester_name = semesterName,
                 semesterName = semesterName,
-                semester_id = cls.SemesterId,
                 semesterId = cls.SemesterId,
-                semester_start_date = semesterStart,
                 semesterStartDate = semesterStart,
-                semester_end_date = semesterEnd,
                 semesterEndDate = semesterEnd,
-                semester_detail = semesterDetail,
                 semesterDetail = semesterDetail,
-                level = levelName,
-                level_name = levelName,
                 levelName = levelName,
-                level_id = cls.Level?.LevelId ?? cls.LevelId,
                 levelId = cls.LevelId,
-                level_detail = levelDetail,
-                levelDetail = levelDetail,
-                subject_id = subject?.SubjectId,
                 subjectId = subject?.SubjectId,
-                subject_ids = subjectIds,
                 subjectIds = subjectIds,
-                subject_code = subject?.SubjectCode,
                 subjectCode = subject?.SubjectCode,
-                subject_name = subject?.SubjectName,
                 subjectName = subject?.SubjectName,
-                subject_level = subject?.Level?.LevelName ?? subject?.LevelId.ToString(),
                 subjectLevel = subject?.Level?.LevelName ?? subject?.LevelId.ToString(),
-                subject_detail = subjectDetail,
                 subjectDetail = subjectDetail
             }
         });
@@ -265,8 +218,7 @@ public class ClassController : ControllerBase
                 {
                     id = subject.SubjectId,
                     name = subject.SubjectName,
-                    subjectCode = subject.SubjectCode,
-                    subjectName = subject.SubjectName,
+                    code = subject.SubjectCode,
                     levelId = subject.LevelId,
                     levelName = subject.Level?.LevelName,
                     status = subject.Status
@@ -303,11 +255,10 @@ public class ClassController : ControllerBase
                     {
                         studentId = student.StudentId,
                         studentCode = student.StudentCode,
-                        student_code = student.StudentCode,
                         semesterId = student.SemesterId,
                         levelId = student.LevelId,
-                        first_name = firstName,
-                        last_name = lastName,
+                        firstName = firstName,
+                        lastName = lastName,
                         fullName = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
                         email = user?.Email,
                         avatar = user?.Avatar
@@ -336,17 +287,11 @@ public class ClassController : ControllerBase
 
             return new
             {
-                student_id = student.StudentId,
                 studentId = student.StudentId,
-                student_code = student.StudentCode,
                 studentCode = student.StudentCode,
-                level_id = student.LevelId,
                 levelId = student.LevelId,
-                first_name = firstName,
-                firstName,
-                last_name = lastName,
-                lastName,
-                full_name = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                firstName = firstName,
+                lastName = lastName,
                 fullName = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
                 email = user?.Email,
                 avatar = user?.Avatar
@@ -516,17 +461,16 @@ public class ClassController : ControllerBase
 
        var subjectPayload = new
        {
-           class_id = cls.ClassId.ToString(),
            classId = cls.ClassId,
-           class_name = cls.ClassName,
-           subject_id = subject.SubjectId,
-           subject_code = subject.SubjectCode,
-           subject_name = subject.SubjectName,
-           subject_level = subject.Level?.LevelName ?? subject.LevelId.ToString(),
-           level_name = subject.Level?.LevelName,
-           lecture_name = lectureNameString,
-           lecture_email = lectureEmailString,
-           total_students = enrollmentCounts.TryGetValue(subject.SubjectId, out var count) && count > 0
+           className = cls.ClassName,
+           subjectId = subject.SubjectId,
+           subjectCode = subject.SubjectCode,
+           subjectName = subject.SubjectName,
+           subjectLevel = subject.Level?.LevelName ?? subject.LevelId.ToString(),
+           levelName = subject.Level?.LevelName,
+           lectureName = lectureNameString,
+           lectureEmail = lectureEmailString,
+           totalStudents = enrollmentCounts.TryGetValue(subject.SubjectId, out var count) && count > 0
                ? count
                : totalStudentsInClass > 0 ? totalStudentsInClass : studentCount
        };
@@ -570,30 +514,17 @@ public class ClassController : ControllerBase
                 message = "Class status updated",
                 data = new
                 {
-                    class_id = updated.ClassId.ToString(),
                     classId = updated.ClassId,
-                    class_name = updated.ClassName,
                     className = updated.ClassName,
                     status = updated.Status,
-                    updated_at = updated.UpdatedAt,
                     updatedAt = updated.UpdatedAt,
-                    semester = semesterName,
-                    semester_name = semesterName,
                     semesterName = semesterName,
-                    semester_id = updated.SemesterId,
                     semesterId = updated.SemesterId,
-                    semester_start_date = semesterStart,
                     semesterStartDate = semesterStart,
-                    semester_end_date = semesterEnd,
                     semesterEndDate = semesterEnd,
-                    level = levelName,
-                    level_name = levelName,
-                    levelName = levelName,
-                    level_id = updated.Level?.LevelId ?? updated.LevelId,
-                    levelId = updated.LevelId,
-                    semester_detail = semesterDetail,
                     semesterDetail = semesterDetail,
-                    level_detail = levelDetail,
+                    levelName = levelName,
+                    levelId = updated.LevelId,
                     levelDetail = levelDetail
                 }
             });
@@ -685,8 +616,8 @@ public async Task<IActionResult> GetClassGradeDetails(int classId)
                 .OrderBy(c => c.ClassName)
                 .Select(c => new
                 {
-                    class_id = c.ClassId,
-                    class_name = c.ClassName
+                    classId = c.ClassId,
+                    className = c.ClassName
                 })
                 .ToListAsync();
 
@@ -721,7 +652,6 @@ public async Task<IActionResult> GetClassGradeDetails(int classId)
                 .OrderByDescending(s => s.StartDate)
                 .Select(s => new
                 {
-                    id = s.SemesterId,
                     semesterId = s.SemesterId,
                     name = s.Name,
                     startDate = s.StartDate.ToString("yyyy-MM-dd"),
@@ -737,23 +667,18 @@ public async Task<IActionResult> GetClassGradeDetails(int classId)
                 .OrderBy(c => c.ClassName)
                 .Select(c => new
                 {
-                    class_id = c.ClassId,
                     classId = c.ClassId,
-                    class_name = c.ClassName,
                     className = c.ClassName,
-                    semester_id = c.SemesterId,
                     semesterId = c.SemesterId
                 })
                 .ToListAsync();
 
             // Nhóm classes theo semesterId
             var groupedClasses = classesBySemester
-                .GroupBy(c => c.semester_id)
+                .GroupBy(c => c.semesterId)
                 .ToDictionary(g => g.Key, g => g.Select(c => new
                 {
-                    class_id = c.class_id,
                     classId = c.classId,
-                    class_name = c.class_name,
                     className = c.className
                 }).ToList());
 

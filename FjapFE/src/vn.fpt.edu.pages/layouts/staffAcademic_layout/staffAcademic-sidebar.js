@@ -15,6 +15,7 @@ const StaffAcademicSidebar = () => {
   if (activeGroup === 'materials') defaultOpenKeys.push('materials');
   if (activeGroup === 'classes') defaultOpenKeys.push('classes');
   if (activeGroup === 'grades') defaultOpenKeys.push('grades');
+  if (activeGroup === 'subject') defaultOpenKeys.push('subject');
 
   return (
     <Menu
@@ -31,6 +32,10 @@ const StaffAcademicSidebar = () => {
 
       <Item key="/staffAcademic/materials" icon={<BookOutlined />}>
         <Link to="/staffAcademic/materials">Materials</Link>
+      </Item>
+
+      <Item key="/staffAcademic/subject" icon={<BookOutlined />}>
+        <Link to="/staffAcademic/subject">Subjects</Link>
       </Item>
 
       <Item key="/staffAcademic/classes" icon={<ReadOutlined />}>

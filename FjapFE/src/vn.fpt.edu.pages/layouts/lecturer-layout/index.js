@@ -16,7 +16,7 @@ const mainStyles = {
 
 const LecturerLayout = () => {
   const location = useLocation();
-  const isDashboard = location.pathname === '/lecturer/dashboard' || location.pathname === '/lecturer';
+  const isDashboard = location.pathname === '/lecturer/homepage' || location.pathname === '/lecturer';
   
   return (
     <div style={layoutStyles}>

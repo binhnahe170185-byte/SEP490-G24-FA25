@@ -6,12 +6,15 @@ import {
   TeamOutlined, UserAddOutlined, UploadOutlined, EditOutlined,
   AppstoreOutlined, SettingOutlined, CalendarOutlined,
   BellOutlined, UserOutlined, LogoutOutlined, FileTextOutlined,
+  IdcardOutlined, BookOutlined, PlusCircleOutlined, HomeOutlined,
 } from "@ant-design/icons";
 import UsersList from "./UserList";
 import SemesterList from "./SemesterList";
 import AddSemester from "./AddSemester";
 import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
 import NewsList from "./News/NewsList";
+import AddStaff from "./AddStaff";
+import AddStudent from "./AddStudent";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -39,6 +42,11 @@ const roleIdFromKey = (key) => {
   return undefined;
 };
 
+// Check if key is for adding staff (includes head, staff, lecturer)
+const isAddStaffKey = (key) => {
+  return key === "users:add:staff";
+};
+
 const ADMIN_MENU = [
   {
     type: "group", label: "USER MANAGEMENT", children: [
@@ -53,27 +61,24 @@ const ADMIN_MENU = [
       },
       {
         key: "users:add", icon: <UserAddOutlined />, label: "Add User", children: [
-          { key: "users:add:admin", label: "Add Admin" },
-          { key: "users:add:manager", label: "Add Manager" },
-          { key: "users:add:lecturer", label: "Add Lecturer" },
-          { key: "users:add:student", label: "Add Student" },
+          { key: "users:add:staff", label: "Add Staff", icon: <IdcardOutlined /> },
+          { key: "users:add:student", label: "Add Student", icon: <BookOutlined /> },
         ]
       },
-      { key: "users:import", icon: <UploadOutlined />, label: "Import User List" },
       { key: "users:edit", icon: <EditOutlined />, label: "Edit User" },
     ]
   },
   {
     type: "group", label: "ROOM MANAGEMENT", children: [
       { key: "rooms:list", icon: <AppstoreOutlined />, label: "View List Rooms" },
-      { key: "rooms:add", icon: <UserAddOutlined />, label: "Add Room" },
+      { key: "rooms:add", icon: <PlusCircleOutlined />, label: "Add Room" },
       { key: "rooms:status", icon: <SettingOutlined />, label: "Edit Room's Status" },
     ]
   },
   {
     type: "group", label: "SEMESTER MANAGEMENT", children: [
       { key: "sem:list", icon: <CalendarOutlined />, label: "View List Semesters" },
-      { key: "sem:add", icon: <UserAddOutlined />, label: "Add Semester" },
+      { key: "sem:add", icon: <PlusCircleOutlined />, label: "Add Semester" },
       { key: "sem:edit", icon: <EditOutlined />, label: "Edit Semester" },
     ]
   },
@@ -123,12 +128,16 @@ export default function StaffOfAdminPage() {
     }
 
     if (activeKey.startsWith("users:add")) {
-      const roleId = roleIdFromKey(activeKey);
-      const titleMap = { 1: "Add Admin", 2: "Add Manager", 3: "Add Lecturer", 4: "Add Student" };
+      if (isAddStaffKey(activeKey)) {
+        return <AddStaff />;
+      }
+      if (activeKey === "users:add:student") {
+        return <AddStudent />;
+      }
       return (
         <Card style={{ borderRadius: 12 }}>
-          <Title level={4} style={{ margin: 0 }}>{titleMap[roleId] || "Add User"}</Title>
-          <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user theo role — sẽ gắn sau)</div>
+          <Title level={4} style={{ margin: 0 }}>Add User</Title>
+          <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user — sẽ gắn sau)</div>
         </Card>
       );
     }
@@ -172,7 +181,7 @@ export default function StaffOfAdminPage() {
     <Layout style={{ minHeight: "100vh", background: COLORS.lightBg }}>
       {/* SIDEBAR */}
       <Sider
-        collapsible
+        collapsible={false}
         collapsed={collapsed}
         onCollapse={setCollapsed}
         width={260}
@@ -181,7 +190,12 @@ export default function StaffOfAdminPage() {
           background: collapsed ? COLORS.siderCollapsed : COLORS.sider,
           borderRight: `1px solid ${COLORS.siderBorder}`,
           transition: "all .25s ease",
-          position: "relative",
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          height: "100vh",
+          overflowY: "auto",
         }}
       >
         {/* Logo */}
@@ -221,7 +235,7 @@ export default function StaffOfAdminPage() {
       </Sider>
 
       {/* MAIN CONTENT */}
-      <Layout>
+      <Layout style={{ marginLeft: 260 }}>
         <Header style={{
           background: "#ffffff",
           borderBottom: "1px solid #e2e8f0",

@@ -97,7 +97,10 @@ const string CorsPolicy = "AllowFrontend";
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy(CorsPolicy, p =>
-        p.WithOrigins("http://localhost:3000")
+        p.WithOrigins(
+            "http://localhost:3000",
+            "https://gray-plant-0778b1000.3.azurestaticapps.net"
+        )
          .AllowAnyHeader()
          .AllowAnyMethod());
 });

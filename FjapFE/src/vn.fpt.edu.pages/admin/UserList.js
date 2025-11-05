@@ -20,6 +20,8 @@ const normalize = (items = []) =>
     statusStr: u.status || "Active",
     status: (u.status || "Active") === "Active",
     dob: u.dob ?? "",
+      studentCode: u.studentCode ?? u.student_code ?? null,
+      levelId: u.levelId ?? null,
     levelName: u.levelName ?? u.level ?? null,
     semesterName: u.semesterName ?? u.semester ?? null,
     enrollmentDate: u.enrollmentDate ?? null,
@@ -41,10 +43,12 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     role: fixedRole ?? null,
     status: null,       // "Active" | "Inactive" | null
     semesterId: null,   // chỉ dùng cho Student
+    levelId: null,      // chỉ dùng cho Student (mới)
     departmentId: "", // chỉ dùng cho Staff
   });
 
   const [semesterOptions, setSemesterOptions] = useState([]);
+  const [levelOptions, setLevelOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
 
   // MODAL hồ sơ (đặt đúng state)
@@ -88,7 +92,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
   // reset filter khi đổi trang (role)
   useEffect(() => {
-    setFilters({ search: "", role: fixedRole ?? null, status: null, semesterId: null, departmentId: null });
+    setFilters({ search: "", role: fixedRole ?? null, status: null, semesterId: null, levelId: null, departmentId: null });
     setPage(1);
   }, [fixedRole]);
 
@@ -106,7 +110,25 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
       })();
     } else {
       setSemesterOptions([]);
-      setFilters((p) => ({ ...p, semesterId: null }));
+      setFilters((p) => ({ ...p, semesterId: null, levelId: null }));
+    }
+  }, [fixedRole]);
+
+  // tải levels khi là Student
+  useEffect(() => {
+    if (fixedRole === 4) {
+      (async () => {
+        try {
+          const levels = await AdminApi.getLevels();
+          const opts = [{ value: null, label: "All levels" }, ...levels.map((l) => ({ value: Number(l.id ?? l.levelId), label: l.name || l.levelName }))];
+          setLevelOptions(opts);
+        } catch {
+          setLevelOptions([{ value: null, label: "All levels" }]);
+        }
+      })();
+    } else {
+      setLevelOptions([]);
+      setFilters((p) => ({ ...p, levelId: null }));
     }
   }, [fixedRole]);
 
@@ -137,8 +159,9 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     const params = {
       search: filters.search || undefined,
       status: filters.status || undefined,
-      page,
-      pageSize,
+      // Request a large page size as a fallback if backend still paginates
+      page: 1,
+      pageSize: 100,
     };
 
     // Handle role filtering
@@ -152,9 +175,10 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
       params.role = filters.role;
     }
 
-    // Add semester filter for students
+    // Add student-specific filters
     if (fixedRole === 4) {
       params.semesterId = filters.semesterId || undefined;
+      params.levelId = filters.levelId != null ? Number(filters.levelId) : undefined;
     }
 
     // Add department filter for staff and lecturer
@@ -199,10 +223,15 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
         return;
       }
       
-      const normalized = normalize(items);
+      let normalized = normalize(items);
+      // Client-side fallback filter by level for students if backend doesn't apply
+      if (fixedRole === 4 && filters.levelId != null) {
+        const target = Number(filters.levelId);
+        normalized = normalized.filter((u) => Number(u.levelId) === target);
+      }
       console.log("Normalized users:", normalized.length);
       
-      setTotal(total || 0);
+      setTotal((total || normalized.length || 0));
       setUsers(normalized);
       
       if (normalized.length === 0 && total === 0) {
@@ -221,7 +250,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.status, filters.semesterId, filters.departmentId, fixedRole, page, pageSize]);
+  }, [filters.search, filters.status, filters.semesterId, filters.levelId, filters.departmentId, fixedRole]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -292,53 +321,68 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     setConfirmModal({ open: false, record: null, checked: false, userName: "" });
   };
 
-  const columns = useMemo(
-    () => [
-      { title: "No.", render: (_, _r, i) => (page - 1) * pageSize + i + 1, width: 72, align: "center" },
-      { title: "First Name", dataIndex: "firstName" },
-      { title: "Last Name", dataIndex: "lastName" },
-      { title: "Email", dataIndex: "email" },
-      { title: "Phone", dataIndex: "phone" },
-      { title: "Gender", dataIndex: "gender" },
-      { title: "Role", dataIndex: "role" },
-      {
-        title: "Status",
-        key: "status",
-        render: (_, r) => (
-          fixedRole === 1 ? (
-            <span style={{ color: r.status ? "#52c41a" : "#ff4d4f" }}>
-              {r.status ? "Active" : "Inactive"}
-            </span>
-          ) : (
-            <Switch 
-              checkedChildren="Active" 
-              unCheckedChildren="Inactive" 
-              checked={r.status} 
-              onChange={(c) => {
-                console.log('Switch clicked:', { userId: r.id, checked: c, currentStatus: r.status });
-                toggle(r, c);
-              }}
-            />
-          )
-        ),
-      },
-      { title: "DOB", dataIndex: "dob" },
-      {
-        title: "Actions",
-        key: "actions",
-        align: "right",
-        render: (_, r) => (
-          <Space>
-            <Tooltip title="View profile"><Button size="small" icon={<EyeOutlined />} onClick={() => openView(r)} /></Tooltip>
-            {fixedRole !== 1 && (
-              <Tooltip title="Edit profile"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
-            )}
-          </Space>
-        ),
-      },
-    ],
-    [page, pageSize, fixedRole, toggle]
-  );
+  const columns = useMemo(() => {
+    const base = [
+      { title: "No.", render: (_, _r, i) => i + 1, width: 72, align: "center" },
+    ];
+
+    if (fixedRole === 4) {
+      base.push({ title: "Student Code", dataIndex: "studentCode" });
+    }
+
+    base.push({ title: "First Name", dataIndex: "firstName" });
+    base.push({ title: "Last Name", dataIndex: "lastName" });
+    base.push({ title: "Email", dataIndex: "email" });
+    base.push({ title: "Phone", dataIndex: "phone" });
+    base.push({ title: "Gender", dataIndex: "gender" });
+    base.push({ title: "Role", dataIndex: "role" });
+
+    if (fixedRole === 4) {
+      base.push({ title: "Level", dataIndex: "levelName" });
+    }
+
+    base.push({
+      title: "Status",
+      key: "status",
+      render: (_, r) => (
+        fixedRole === 1 ? (
+          <span style={{ color: r.status ? "#52c41a" : "#ff4d4f" }}>
+            {r.status ? "Active" : "Inactive"}
+          </span>
+        ) : (
+          <Switch
+            checkedChildren="Active"
+            unCheckedChildren="Inactive"
+            checked={r.status}
+            onChange={(c) => {
+              console.log('Switch clicked:', { userId: r.id, checked: c, currentStatus: r.status });
+              toggle(r, c);
+            }}
+          />
+        )
+      ),
+    });
+
+    if (fixedRole !== 4) {
+      base.push({ title: "DOB", dataIndex: "dob" });
+    }
+
+    base.push({
+      title: "Actions",
+      key: "actions",
+      align: "right",
+      render: (_, r) => (
+        <Space>
+          <Tooltip title="View profile"><Button size="small" icon={<EyeOutlined />} onClick={() => openView(r)} /></Tooltip>
+          {fixedRole !== 1 && (
+            <Tooltip title="Edit profile"><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /></Tooltip>
+          )}
+        </Space>
+      ),
+    });
+
+    return base;
+  }, [fixedRole, toggle]);
 
   const exportCsv = () => {
     const header = ["First Name", "Last Name", "Email", "Phone", "Gender", "Role", "Status", "DOB"];
@@ -357,7 +401,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
         <Input
-          placeholder="Search name, email, phone…"
+          placeholder="Search name, email, phone, student code…"
           allowClear
           prefix={<SearchOutlined />}
           value={filters.search}
@@ -407,6 +451,17 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
           />
         )}
 
+        {fixedRole === 4 && (
+          <Select
+            placeholder="All levels"
+            value={filters.levelId}
+            onChange={(v) => onChangeFilter("levelId", v ?? null)}
+            allowClear
+            style={{ width: 200 }}
+            options={levelOptions}
+          />
+        )}
+
         {(Array.isArray(fixedRole) && (fixedRole.includes(7) || fixedRole.includes(6))) && (
           <Select
             placeholder="All departments"
@@ -442,13 +497,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
         dataSource={users}
         loading={loading}
         rowKey="id"
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          onChange: (p, ps) => { setPage(p); setPageSize(ps); },
-        }}
+        pagination={false}
       />
 
       {/* Modal ở giữa màn hình */}
