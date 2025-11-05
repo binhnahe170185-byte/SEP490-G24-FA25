@@ -35,6 +35,7 @@ import StaffMaterialList from "../vn.fpt.edu.pages/staffAcademic/materials/Mater
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import Schedule from "../vn.fpt.edu.pages/lecturer/schedule/Schedule";
+import Attendance from "../vn.fpt.edu.pages/lecturer/Attendance/Attendance";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
 import CreateSchedule from "../vn.fpt.edu.pages/headOfAcademic/createSchedule/CreateSchedule";
 import Header from "../vn.fpt.edu.common/Header";
@@ -143,6 +144,7 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
+              <Route path="/attendance" element={<Attendance />} />
 
 
               <Route element={<ProtectedLayout />}>

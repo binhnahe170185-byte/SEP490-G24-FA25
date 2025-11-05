@@ -1,0 +1,31 @@
+.attendance-container {
+  padding: 24px;
+  background-color: #f0f2f5;
+  min-height: 100vh;
+}
+
+.attendance-container .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.attendance-container .ant-select {
+  border-radius: 4px;
+}
+
+.attendance-container .ant-table {
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.attendance-container .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+}
+
+.attendance-container .ant-tag {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
