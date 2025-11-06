@@ -57,5 +57,58 @@ public class LecturerRepository : GenericRepository<Lecture>, ILecturerRepositor
 
         return lecturers;
     }
+
+    public async Task<IEnumerable<LecturerClassDto>> GetClassesByLecturerIdAsync(int lecturerId, int? semesterId = null)
+    {
+        // Query lessons của lecturer để lấy classes
+        var lessonsQuery = _context.Lessons
+            .AsNoTracking()
+            .Include(l => l.Class)
+                .ThenInclude(c => c.Subject)
+            .Include(l => l.Class)
+                .ThenInclude(c => c.Semester)
+            .Where(l => l.LectureId == lecturerId);
+
+        // Filter by semester nếu có
+        if (semesterId.HasValue)
+        {
+            lessonsQuery = lessonsQuery.Where(l => l.Class.SemesterId == semesterId.Value);
+        }
+
+        var lessons = await lessonsQuery
+            .ToListAsync();
+
+        // Group by ClassId để lấy distinct classes
+        var classGroups = lessons
+            .GroupBy(l => l.ClassId)
+            .Select(g => g.First().Class)
+            .ToList();
+
+        // Map to DTO
+        var result = classGroups.Select(c => new LecturerClassDto
+        {
+            ClassId = c.ClassId,
+            ClassName = c.ClassName,
+            ClassCode = c.ClassName, // Có thể thêm ClassCode nếu có
+            SemesterId = c.SemesterId,
+            SemesterName = c.Semester?.Name,
+            StartDate = c.Semester?.StartDate.ToDateTime(TimeOnly.MinValue),
+            EndDate = c.Semester?.EndDate.ToDateTime(TimeOnly.MinValue),
+            Subjects = lessons
+                .Where(l => l.ClassId == c.ClassId)
+                .Select(l => new LecturerClassSubjectDto
+                {
+                    SubjectId = l.Class.Subject.SubjectId,
+                    SubjectCode = l.Class.Subject.SubjectCode,
+                    SubjectName = l.Class.Subject.SubjectName
+                })
+                .DistinctBy(s => s.SubjectId)
+                .ToList()
+        })
+        .OrderBy(c => c.ClassName)
+        .ToList();
+
+        return result;
+    }
 }
 
