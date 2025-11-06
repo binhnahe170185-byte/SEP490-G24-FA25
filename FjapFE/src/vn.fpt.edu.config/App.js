@@ -17,6 +17,7 @@ import StudentHomepage from "../vn.fpt.edu.pages/student/StudentHomepage";
 import AttendanceReportPage from "../vn.fpt.edu.pages/student/AttendanceReportPage";
 import HomeworkPage from "../vn.fpt.edu.pages/student/HomeworkPage";
 import ClassStudentsList from "../vn.fpt.edu.pages/student/classStudents/ClassStudentsList";
+import AcademicTranscript from "../vn.fpt.edu.pages/student/AcademicTranscript";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import LecturerLayout from "../vn.fpt.edu.pages/layouts/lecturer-layout";
@@ -43,6 +44,7 @@ import CurriculumSubjects from "../vn.fpt.edu.pages/student/CurriculumSubjects";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 import { NotificationProvider } from "../vn.fpt.edu.common/notifications";
+import StudentLayout from "../vn.fpt.edu.pages/layouts/student-layout/StudentLayout";
 
 function RequireAuth({ children }) {
   const { user, initializing } = useAuth();
@@ -106,32 +108,48 @@ function RoleBasedRedirect() {
     return <Navigate to="/lecturer/homepage" replace />;
   }
   if (roleId === 4) {
-    return <StudentHomepage />;
+    return <Navigate to="/" replace />;
   }
   if (roleId === 5) {
     return <Navigate to="/createSchedule" replace />;
   }
 
   // Default fallback
-  return <StudentHomepage />;
+  return <Navigate to="/" replace />;
 }
 
 function ProtectedLayout() {
   const location = useLocation();
+  const { user } = useAuth();
+  const isStudent = user && Number(user.roleId) === 4;
   const hideHeader =
     location.pathname.startsWith("/staffAcademic") ||
-    location.pathname.startsWith("/lecturer");
+    location.pathname.startsWith("/lecturer") ||
+    location.pathname.startsWith("/student") ||
+    location.pathname === "/weeklyTimetable" ||
+    (location.pathname === "/" && isStudent);
 
   return (
     <RequireAuth>
       {!hideHeader && <Header />}
       <Outlet />
-      <Footer />
+      {!hideHeader && <Footer />}
     </RequireAuth>
   );
 }
 
 function Home() {
+  const { user } = useAuth();
+  const roleId = user ? Number(user.roleId) : null;
+  if (roleId === 4) {
+    return (
+      <RequireStudent>
+        <StudentLayout>
+          <StudentHomepage />
+        </StudentLayout>
+      </RequireStudent>
+    );
+  }
   return <RoleBasedRedirect />;
 }
 
@@ -150,13 +168,32 @@ export default function App() {
 
 
               <Route element={<ProtectedLayout />}>
+                <Route
+                  path="/student/*"
+                  element={
+                    <RequireStudent>
+                      <StudentLayout />
+                    </RequireStudent>
+                  }
+                >
+                  <Route path="grades" element={<StudentGradeReport />} />
+                  <Route path="academic-transcript" element={<AcademicTranscript />} />
+                  <Route path="attendance" element={<AttendanceReportPage />} />
+                  <Route path="homework" element={<HomeworkPage />} />
+                  <Route path="curriculum-subjects" element={<CurriculumSubjects />} />
+                  <Route path="class/:classId/students" element={<ClassStudentsList />} />
+                </Route>
                 <Route path="/" element={<Home />} />
-                <Route path="/student/grades" element={<StudentGradeReport />} />
-                <Route path="/student/attendance" element={<AttendanceReportPage />} />
-                <Route path="/student/homework" element={<HomeworkPage />} />
-                <Route path="/student/curriculum-subjects" element={<CurriculumSubjects />} />
-                <Route path="/student/class/:classId/students" element={<ClassStudentsList />} />
-                <Route path="/weeklyTimetable" element={<WeeklyTimetable />} />
+                <Route
+                  path="/weeklyTimetable"
+                  element={
+                    <RequireStudent>
+                      <StudentLayout />
+                    </RequireStudent>
+                  }
+                >
+                  <Route index element={<WeeklyTimetable />} />
+                </Route>
 
                 /* Tạm thời headOfacademic sẽ login vào /createSchedule */
                 <Route

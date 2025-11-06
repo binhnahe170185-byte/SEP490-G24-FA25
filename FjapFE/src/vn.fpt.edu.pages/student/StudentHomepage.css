@@ -220,6 +220,11 @@
   margin: 0;
 }
 
+/* Student Layout Content */
+.student-layout-content {
+  min-height: calc(100vh - 64px);
+}
+
 /* Homepage Container */
 .homepage-container {
   padding: 24px;

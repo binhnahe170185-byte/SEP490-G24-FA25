@@ -19,7 +19,7 @@ public interface IStudentService
     Task<IEnumerable<StudentCourseGradeDto>> GetStudentCoursesBySemesterAsync(int studentId, int semesterId);
     Task<StudentGradeDetailDto?> GetStudentGradeDetailsAsync(int studentId, int classId);
     Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId);
-    
+    Task<AcademicTranscriptDto> GetAcademicTranscriptAsync(int studentId);
     // Import methods
     Task<ImportStudentPreviewResponse> PreviewImportAsync(Stream excelStream, int enrollmentSemesterId, int levelId);
     Task<ImportStudentResponse> ImportStudentsAsync(ImportStudentRequest request);
