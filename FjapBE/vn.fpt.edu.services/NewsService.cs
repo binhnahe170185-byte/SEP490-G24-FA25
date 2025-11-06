@@ -128,16 +128,13 @@ public class NewsService : INewsService
         var news = await _newsRepository.GetByIdAsync(id);
         if (news == null) return false;
 
-        // Head (roleId 2) có thể xóa bất kỳ status nào
-        // Staff (roleId 6) chỉ xóa được khi status là draft, pending, published hoặc rejected và phải là người tạo
-        if (roleId != 2) // Không phải Head
-        {
-            if (news.Status != "draft" && news.Status != "pending" && news.Status != "published" && news.Status != "rejected")
-                throw new InvalidOperationException("News can only be deleted when status is 'draft', 'pending', 'published' or 'rejected'");
+        // Chỉ Staff (roleId 6) được xóa news
+        if (roleId != 6)
+            throw new UnauthorizedAccessException("Only Staff (roleId 6) can delete news");
 
-            if (news.CreatedBy != userId)
-                throw new UnauthorizedAccessException("You can only delete your own news");
-        }
+        // Staff chỉ xóa được khi status là draft, pending, published hoặc rejected (không cần là người tạo)
+        if (news.Status != "draft" && news.Status != "pending" && news.Status != "published" && news.Status != "rejected")
+            throw new InvalidOperationException("News can only be deleted when status is 'draft', 'pending', 'published' or 'rejected'");
 
         _newsRepository.Remove(news);
         await _newsRepository.SaveChangesAsync();

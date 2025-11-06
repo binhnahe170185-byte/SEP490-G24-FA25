@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { Modal, Form, Input, Typography, message } from "antd";
+import { Modal, Form, Input, Typography, notification } from "antd";
 import NewsApi from "../../../vn.fpt.edu.api/News";
 
 export default function AddNewsModal({ visible, onCancel, onSuccess }) {
+  const [api, contextHolder] = notification.useNotification();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -25,12 +26,25 @@ export default function AddNewsModal({ visible, onCancel, onSuccess }) {
       };
 
       await NewsApi.createNews(payload);
-      message.success("News created successfully");
       form.resetFields();
-      onSuccess();
+      // Hiển thị toast notification
+      api.success({
+        message: "Success",
+        description: "News created successfully",
+        placement: "topRight",
+        duration: 3,
+      });
+      setTimeout(() => {
+        onSuccess();
+      }, 500);
     } catch (e) {
       console.error("Error creating news:", e);
-      message.error(`Failed to create news: ${e.response?.data?.message ?? e.message}`);
+      api.error({
+        message: "Error",
+        description: `Failed to create news: ${e.response?.data?.message ?? e.message}`,
+        placement: "topRight",
+        duration: 3,
+      });
     } finally {
       setLoading(false);
     }
@@ -43,7 +57,9 @@ export default function AddNewsModal({ visible, onCancel, onSuccess }) {
   };
 
   return (
-    <Modal
+    <>
+      {contextHolder}
+      <Modal
       title={<Typography.Title level={4} style={{ margin: 0 }}>Create News</Typography.Title>}
       open={visible}
       onOk={handleSubmit}
@@ -111,6 +127,7 @@ export default function AddNewsModal({ visible, onCancel, onSuccess }) {
         </div>
       </Form>
     </Modal>
+    </>
   );
 }
 

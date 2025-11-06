@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal, Form, Input, Typography, message } from "antd";
+import { Modal, Form, Input, Typography, notification } from "antd";
 import NewsApi from "../../../vn.fpt.edu.api/News";
 
 export default function EditNewsModal({ visible, news, onCancel, onSuccess }) {
+  const [api, contextHolder] = notification.useNotification();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -36,12 +37,25 @@ export default function EditNewsModal({ visible, news, onCancel, onSuccess }) {
       };
 
       await NewsApi.updateNews(news.id || news.newsId, payload);
-      message.success("News updated successfully");
       form.resetFields();
-      onSuccess();
+      // Hiển thị toast notification
+      api.success({
+        message: "Success",
+        description: "News updated successfully",
+        placement: "topRight",
+        duration: 3,
+      });
+      setTimeout(() => {
+        onSuccess();
+      }, 500);
     } catch (e) {
       console.error("Error updating news:", e);
-      message.error(`Failed to update news: ${e.response?.data?.message ?? e.message}`);
+      api.error({
+        message: "Error",
+        description: `Failed to update news: ${e.response?.data?.message ?? e.message}`,
+        placement: "topRight",
+        duration: 3,
+      });
     } finally {
       setLoading(false);
     }
@@ -55,7 +69,9 @@ export default function EditNewsModal({ visible, news, onCancel, onSuccess }) {
   if (!news) return null;
 
   return (
-    <Modal
+    <>
+      {contextHolder}
+      <Modal
       title={<Typography.Title level={4} style={{ margin: 0 }}>Edit News</Typography.Title>}
       open={visible}
       onOk={handleSubmit}
@@ -122,6 +138,7 @@ export default function EditNewsModal({ visible, news, onCancel, onSuccess }) {
         </div>
       </Form>
     </Modal>
+    </>
   );
 }
 

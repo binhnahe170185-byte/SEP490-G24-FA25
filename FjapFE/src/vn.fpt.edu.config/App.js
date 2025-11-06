@@ -113,6 +113,10 @@ function RoleBasedRedirect() {
   if (roleId === 5) {
     return <Navigate to="/createSchedule" replace />;
   }
+  if (roleId === 7) {
+    // Academic_Staff (staffAcademic)
+    return <Navigate to="/staffAcademic/dashboard" replace />;
+  }
 
   // Default fallback
   return <Navigate to="/" replace />;

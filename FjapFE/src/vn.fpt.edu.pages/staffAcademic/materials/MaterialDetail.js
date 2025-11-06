@@ -9,6 +9,77 @@ export default function MaterialDetail({ visible, record, onClose }) {
 
   const created = record.createdDate || record.created || record.createdAt || record.__raw?.created_at || null;
   const updated = record.updatedDate || record.updated || record.updatedAt || record.__raw?.updated_at || null;
+  
+  // Chỉ hiển thị Updated At/By nếu thực sự có cập nhật (khác với Created At)
+  const hasBeenUpdated = (() => {
+    if (!created || !updated) return false;
+    try {
+      const createdDate = new Date(created);
+      const updatedDate = new Date(updated);
+      // So sánh thời gian (bỏ qua milliseconds)
+      return Math.abs(updatedDate.getTime() - createdDate.getTime()) > 1000; // Chênh lệch > 1 giây
+    } catch {
+      return false;
+    }
+  })();
+  // Cố gắng lấy email của người cập nhật nếu có
+  const updatedByRaw =
+    record.updatedByEmail || record.updateByEmail ||
+    record.updateByName || record.updateBy ||
+    record.updatedByName || record.updatedBy ||
+    record.__raw?.UpdatedByEmail || record.__raw?.updatedByEmail ||
+    record.__raw?.UpdaterEmail || record.__raw?.updaterEmail ||
+    record.__raw?.UpdatedBy || record.__raw?.updatedBy ||
+    record.__raw?.UpdatedByName || record.__raw?.updatedByName ||
+    null;
+  const updatedBy = (typeof updatedByRaw === 'string' && updatedByRaw.includes('@')) ? updatedByRaw : null;
+
+  // Fallback: nếu backend chỉ trả id (ví dụ 14), thử map sang email của current user nếu trùng id
+  const parseMaybeNumber = (v) => {
+    if (v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  const getCurrentUserFromStorage = () => {
+    try {
+      const token = localStorage.getItem('token');
+      let email = null;
+      let userId = null;
+      if (token && token.includes('.')) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          email = payload?.email ?? payload?.Email ?? email;
+          userId = parseMaybeNumber(payload?.sub ?? payload?.userId ?? payload?.UserId);
+        } catch {}
+      }
+      // Fallback từ profile
+      const profileStr = localStorage.getItem('profile');
+      if (profileStr) {
+        try {
+          const profile = JSON.parse(profileStr);
+          email = email ?? profile?.email ?? profile?.user?.email ?? profile?.user?.Email ?? null;
+          userId = userId ?? parseMaybeNumber(
+            profile?.accountId ?? profile?.account_id ?? profile?.userId ?? profile?.user_id ?? profile?.user?.userId ?? profile?.user?.accountId
+          );
+        } catch {}
+      }
+      return { email, userId };
+    } catch {
+      return { email: null, userId: null };
+    }
+  };
+
+  let updatedByEmail = updatedBy;
+  if (!updatedByEmail) {
+    const numericUpdatedBy = parseMaybeNumber(updatedByRaw);
+    if (numericUpdatedBy !== null) {
+      const { email, userId } = getCurrentUserFromStorage();
+      if (userId !== null && numericUpdatedBy === userId && email) {
+        updatedByEmail = email;
+      }
+    }
+  }
 
   const formatDateDDMM = (dateString) => {
     if (!dateString) return '—';
@@ -54,8 +125,21 @@ export default function MaterialDetail({ visible, record, onClose }) {
           ) : '—'}
         </Descriptions.Item>
 
-        <Descriptions.Item label="Created Date">{formatDateDDMM(created)}</Descriptions.Item>
-        <Descriptions.Item label="Updated Date">{formatDateDDMM(updated)}</Descriptions.Item>
+        <Descriptions.Item label="Created At">{formatDateDDMM(created)}</Descriptions.Item>
+        {hasBeenUpdated && (
+          <>
+            <Descriptions.Item label="Updated At">{formatDateDDMM(updated)}</Descriptions.Item>
+            <Descriptions.Item label="Updated By">
+              <Space direction="vertical">
+                {updatedByEmail ? (
+                  <Text copyable={{ text: updatedByEmail }}>
+                    <a href={`mailto:${updatedByEmail}`}>{updatedByEmail}</a>
+                  </Text>
+                ) : '—'}
+              </Space>
+            </Descriptions.Item>
+          </>
+        )}
 
         <Descriptions.Item label="Description">
           <Paragraph style={{ background: '#fafafa', padding: 12, borderRadius: 6, margin: 0 }}>{record.description || 'No description'}</Paragraph>

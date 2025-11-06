@@ -33,7 +33,15 @@ export default function LoginPage() {
       };
 
       login({ token, profile });
-      navigate("/", { replace: true });
+      
+      // Redirect based on role
+      const roleId = Number(profile.roleId);
+      if (roleId === 7) {
+        // Academic_Staff (staffAcademic)
+        navigate("/staffAcademic/dashboard", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     } catch (e) {
       console.error(e);
       notiApi.error({

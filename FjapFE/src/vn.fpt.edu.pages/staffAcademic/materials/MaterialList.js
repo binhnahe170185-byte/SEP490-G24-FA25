@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Button, Space, Modal, Tag, Input, Select, message } from 'antd';
+import { Card, Table, Button, Space, Modal, Tag, Input, Select, message, notification } from 'antd';
 import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import CreateMaterialModal from './CreateMaterialModal';
 import EditMaterialModal from './EditMaterialModal';
@@ -9,10 +9,14 @@ import { getMaterials, createMaterial, updateMaterial, deleteMaterial, getSubjec
 const { Option } = Select;
 
 export default function MaterialList() {
+  const [api, contextHolder] = notification.useNotification();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [subjectFilter, setSubjectFilter] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sorterState, setSorterState] = useState({ columnKey: null, order: null }); // {columnKey:'status', order:'ascend'|'descend'|null}
 
   const formatDate = (dateString) => {
     if (!dateString) return '—';
@@ -89,19 +93,37 @@ export default function MaterialList() {
   };
 
   const columns = [
-    { title: 'Material ID', dataIndex: 'id', key: 'id' },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: 'Material Name', dataIndex: 'title', key: 'name', render: (_, r) => r.title || r.name },
     { title: 'Subject Code', dataIndex: 'subjectCode', key: 'subject', render: (_, r) => r.subjectCode || r.subject },
     { title: 'Creator', dataIndex: 'creator', key: 'creator' },
   { title: 'Created Date', dataIndex: 'created', key: 'created', render: (_, r) => formatDate(r.createdDate || r.created || r.createdAt) },
-    { title: 'Status', key: 'status', render: (_, r) => (<Tag color={(r.status || '').toLowerCase() === 'active' ? 'blue' : 'volcano'}>{r.status || r.statusName || r.status}</Tag>) },
+    { 
+      title: 'Status', 
+      dataIndex: 'status',
+      key: 'status',
+      sorter: (a, b) => {
+        const av = (a.status || '').toString().toLowerCase();
+        const bv = (b.status || '').toString().toLowerCase();
+        // active < inactive
+        const toNum = (v) => (v === 'active' ? 0 : v === 'inactive' ? 1 : 2);
+        return toNum(av) - toNum(bv);
+      },
+      sortDirections: ['ascend','descend'],
+      sortOrder: sorterState.columnKey === 'status' ? sorterState.order : null,
+      render: (_, r) => (
+        <Tag color={(r.status || '').toLowerCase() === 'active' ? 'blue' : 'volcano'} style={{ textTransform: 'capitalize' }}>
+          {(r.status || r.statusName || r.status || '').toString().toLowerCase() || '—'}
+        </Tag>
+      )
+    },
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space>
         <Button icon={<EyeOutlined />} onClick={() => setDetail(r)} />
-        {r.status === 'active' && (
+        {(String(r.status || '').toLowerCase() === 'active') && (
           <Button icon={<EditOutlined />} onClick={() => setEditing(r)} />
         )}
-        {r.status !== 'inActive' && (
+        {(String(r.status || '').toLowerCase() !== 'inactive') && (
           <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)} />
         )}
       </Space>
@@ -113,6 +135,20 @@ export default function MaterialList() {
     return true; // Không cần filter ở frontend nữa vì đã filter ở backend
   });
 
+  // Client-side sort when user clicks the Status header
+  const sorted = React.useMemo(() => {
+    if (sorterState.columnKey !== 'status' || !sorterState.order) return filtered;
+    const copy = [...filtered];
+    copy.sort((a, b) => {
+      const av = (a.status || '').toString().toLowerCase();
+      const bv = (b.status || '').toString().toLowerCase();
+      const toNum = (v) => (v === 'active' ? 0 : v === 'inactive' ? 1 : 2);
+      const cmp = toNum(av) - toNum(bv);
+      return sorterState.order === 'ascend' ? cmp : -cmp;
+    });
+    return copy;
+  }, [filtered, sorterState]);
+
   const handleCreate = async (values) => {
     try {
       await createMaterial({ 
@@ -121,12 +157,22 @@ export default function MaterialList() {
         fileUrl: values.link, 
         subjectId: values.subject
       });
-      message.success('Tạo thành công');
+      api.success({
+        message: 'Success',
+        description: 'Material created successfully',
+        placement: 'topRight',
+        duration: 3,
+      });
       setShowCreate(false);
       fetchMaterials();
     } catch (e) {
       console.error(e);
-      message.error('Tạo thất bại');
+      api.error({
+        message: 'Error',
+        description: `Failed to create material: ${e?.response?.data?.message ?? e.message}`,
+        placement: 'topRight',
+        duration: 3,
+      });
     }
   };
 
@@ -139,17 +185,28 @@ export default function MaterialList() {
         fileUrl: values.link, 
         subjectId: values.subject
       });
-      message.success('Cập nhật thành công');
+      api.success({
+        message: 'Success',
+        description: 'Material updated successfully',
+        placement: 'topRight',
+        duration: 3,
+      });
       setEditing(null);
       fetchMaterials();
     } catch (e) {
       console.error(e);
-      message.error('Cập nhật thất bại');
+      api.error({
+        message: 'Error',
+        description: `Failed to update material: ${e?.response?.data?.message ?? e.message}`,
+        placement: 'topRight',
+        duration: 3,
+      });
     }
   };
 
   return (
     <div>
+      {contextHolder}
       <Card style={{ borderRadius: 12 }}>
         <Space style={{ width: '100%', marginBottom: 12, justifyContent: 'space-between' }}>
           <Space>
@@ -176,7 +233,35 @@ export default function MaterialList() {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>Add Material</Button>
         </Space>
 
-        <Table columns={columns} dataSource={filtered} rowKey={(r) => r.id || r.materialId} loading={loading} pagination={{ pageSize: 6 }} />
+        <Table 
+          columns={columns} 
+          dataSource={sorted} 
+          rowKey={(r) => r.id || r.materialId} 
+          loading={loading}
+          
+          onChange={(_, __, sorter) => {
+            // Only track status column sorter
+            if (sorter && sorter.columnKey === 'status') {
+              setSorterState({ columnKey: 'status', order: sorter.order || null });
+            } else {
+              setSorterState({ columnKey: null, order: null });
+            }
+          }}
+          pagination={{
+            current: page,
+            pageSize,
+            total: sorted.length,
+            showSizeChanger: true,
+            showTotal: (total, range) => (
+              <span style={{ color: '#595959' }}>
+                Showing <strong>{range[0]}-{range[1]}</strong> of <strong>{total}</strong> items
+              </span>
+            ),
+            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+            style: { marginTop: 16 }
+          }}
+          
+        />
       </Card>
 
         {/* Confirmation modal for delete (soft-delete) */}
@@ -192,12 +277,22 @@ export default function MaterialList() {
               setDeletingInProgress(true);
               try {
                 await deleteMaterial(deleting.id);
-                message.success('Deleted');
+                api.success({
+                  message: 'Success',
+                  description: 'Material deleted (deactivated) successfully',
+                  placement: 'topRight',
+                  duration: 3,
+                });
                 setDeleting(null);
                 await fetchMaterials();
               } catch (e) {
                 console.error('deleteMaterial failed', e);
-                message.error('Delete failed');
+                api.error({
+                  message: 'Error',
+                  description: `Failed to delete material: ${e?.response?.data?.message ?? e.message}`,
+                  placement: 'topRight',
+                  duration: 3,
+                });
               } finally {
                 setDeletingInProgress(false);
               }
