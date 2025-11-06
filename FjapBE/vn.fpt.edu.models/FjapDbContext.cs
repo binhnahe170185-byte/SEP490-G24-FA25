@@ -640,7 +640,7 @@ public partial class FjapDbContext : DbContext
 
             entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
 
-            // Map to camelCase column names as per database schema
+            // Map to camelCase column names to match database schema
             entity.Property(e => e.HolidayId).HasColumnName("holidayId");
             entity.Property(e => e.Name)
                 .HasMaxLength(200)
@@ -720,32 +720,6 @@ public partial class FjapDbContext : DbContext
                         j.IndexerProperty<int>("ClassId").HasColumnName("class_id");
                     });
         });
-
-        
-        modelBuilder.Entity<Holiday>(entity =>
-        {
-            entity.HasKey(e => e.HolidayId).HasName("PRIMARY");
-
-            entity.ToTable("holiday");
-
-            entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
-
-            entity.Property(e => e.HolidayId).HasColumnName("holiday_id");
-            entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .HasColumnName("name");
-            entity.Property(e => e.Date).HasColumnName("date");
-            entity.Property(e => e.Description)
-                .HasMaxLength(500)
-                .HasColumnName("description");
-            entity.Property(e => e.SemesterId).HasColumnName("semester_id");
-
-            entity.HasOne(d => d.Semester).WithMany()
-                .HasForeignKey(d => d.SemesterId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("fk_holiday_semester");
-        });
-
 
         modelBuilder.Entity<Subject>(entity =>
         {
