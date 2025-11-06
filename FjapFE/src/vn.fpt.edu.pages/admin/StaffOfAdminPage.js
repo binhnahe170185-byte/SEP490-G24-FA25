@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Layout, Menu, Button, Space, Typography, Card } from "antd";
 import {
-  TeamOutlined, UserAddOutlined, UploadOutlined, EditOutlined,
+  TeamOutlined, UserAddOutlined, EditOutlined,
   AppstoreOutlined, SettingOutlined, CalendarOutlined,
   BellOutlined, UserOutlined, LogoutOutlined, FileTextOutlined,
   IdcardOutlined, BookOutlined, PlusCircleOutlined, HomeOutlined,
@@ -12,10 +12,10 @@ import UsersList from "./UserList";
 import SemesterList from "./SemesterList";
 import AddSemester from "./AddSemester";
 import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
+import EditSemester from "./EditSemester";
 import NewsList from "./News/NewsList";
 import AddStaff from "./AddStaff";
 import AddStudent from "./AddStudent";
-import ImportStudent from "./ImportStudent";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -64,10 +64,8 @@ const ADMIN_MENU = [
         key: "users:add", icon: <UserAddOutlined />, label: "Add User", children: [
           { key: "users:add:staff", label: "Add Staff", icon: <IdcardOutlined /> },
           { key: "users:add:student", label: "Add Student", icon: <BookOutlined /> },
-          { key: "users:import:student", label: "Import Student", icon: <UploadOutlined /> },
         ]
       },
-      { key: "users:edit", icon: <EditOutlined />, label: "Edit User" },
     ]
   },
   {
@@ -81,7 +79,6 @@ const ADMIN_MENU = [
     type: "group", label: "SEMESTER MANAGEMENT", children: [
       { key: "sem:list", icon: <CalendarOutlined />, label: "View List Semesters" },
       { key: "sem:add", icon: <PlusCircleOutlined />, label: "Add Semester" },
-      { key: "sem:edit", icon: <EditOutlined />, label: "Edit Semester" },
     ]
   },
   {
@@ -129,15 +126,12 @@ export default function StaffOfAdminPage() {
       );
     }
 
-    if (activeKey.startsWith("users:add") || activeKey.startsWith("users:import")) {
+    if (activeKey.startsWith("users:add")) {
       if (isAddStaffKey(activeKey)) {
         return <AddStaff />;
       }
       if (activeKey === "users:add:student") {
         return <AddStudent />;
-      }
-      if (activeKey === "users:import:student") {
-        return <ImportStudent />;
       }
       return (
         <Card style={{ borderRadius: 12 }}>
@@ -155,12 +149,7 @@ export default function StaffOfAdminPage() {
         return <AddSemesterWithHolidays />;
       }
       if (activeKey === "sem:edit") {
-        return (
-          <Card style={{ borderRadius: 12 }}>
-            <Title level={4} style={{ margin: 0 }}>Edit Semester</Title>
-            <div style={{ color: "#64748b", marginTop: 8 }}>(Semester edit form — integrated into SemesterList)</div>
-          </Card>
-        );
+        return <EditSemester />;
       }
     }
 
