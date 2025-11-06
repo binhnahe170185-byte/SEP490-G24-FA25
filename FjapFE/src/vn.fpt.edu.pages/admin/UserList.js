@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Button, Input, Select, Space, Table, Tooltip, message, Switch, Card, Modal } from "antd";
-import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, UserAddOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import AdminApi from "../../vn.fpt.edu.api/Admin";
 import UserProfileModal from "./UserProfileModal"; // đúng tên component
 
@@ -486,9 +486,6 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
         <Space style={{ marginLeft: "auto" }}>
           <Button icon={<FileExcelOutlined />} onClick={exportCsv}>Export CSV</Button>
-          {fixedRole !== 1 && (
-            <Button type="primary" icon={<UserAddOutlined />}>Add User</Button>
-          )}
         </Space>
       </div>
 

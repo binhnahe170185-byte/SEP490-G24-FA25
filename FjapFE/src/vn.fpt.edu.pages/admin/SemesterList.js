@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Button, Input, Space, Table, Tooltip, message, Card, Modal, DatePicker, Form } from "antd";
-import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, PlusOutlined, DeleteOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import { Button, Input, Space, Table, Tooltip, message, Card, Modal } from "antd";
+import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import SemesterApi from "../../vn.fpt.edu.api/Semester";
-import dayjs from "dayjs";
 
 const normalize = (items = []) =>
   items.map((s) => ({
@@ -16,6 +16,7 @@ const normalize = (items = []) =>
   }));
 
 export default function SemesterList({ title = "Semester Management" }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [semesters, setSemesters] = useState([]);
   const [total, setTotal] = useState(0);
@@ -27,15 +28,13 @@ export default function SemesterList({ title = "Semester Management" }) {
     search: "",
   });
 
-  // MODAL form
+  // MODAL form - only for view mode
   const [modal, setModal] = useState({ 
     open: false, 
     mode: "view", 
     semesterId: null, 
     initialSemester: null 
   });
-  
-  const [form] = Form.useForm();
 
   const openView = (record) => setModal({ 
     open: true, 
@@ -45,32 +44,18 @@ export default function SemesterList({ title = "Semester Management" }) {
   });
   
   const openEdit = (record) => {
-    form.setFieldsValue({
-      name: record.name,
-      startDate: record.startDate ? dayjs(record.startDate) : null,
-      endDate: record.endDate ? dayjs(record.endDate) : null,
-    });
-    setModal({ 
-      open: true, 
-      mode: "edit", 
-      semesterId: record.id, 
-      initialSemester: record 
+    // Navigate to Edit Semester page
+    navigate("/staffOfAdmin", { 
+      state: { 
+        activeTab: "sem:edit",
+        semesterId: record.id 
+      } 
     });
   };
 
-  const openCreate = () => {
-    form.resetFields();
-    setModal({ 
-      open: true, 
-      mode: "create", 
-      semesterId: null, 
-      initialSemester: null 
-    });
-  };
 
   const closeModal = () => {
     setModal((d) => ({ ...d, open: false }));
-    form.resetFields();
   };
 
   // MODAL confirm delete
@@ -165,31 +150,6 @@ export default function SemesterList({ title = "Semester Management" }) {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      const payload = {
-        name: values.name.trim(),
-        startDate: values.startDate.format("YYYY-MM-DD"),
-        endDate: values.endDate.format("YYYY-MM-DD"),
-      };
-
-      if (modal.mode === "create") {
-        const response = await SemesterApi.createSemester(payload);
-        message.success("Semester created successfully");
-        fetchSemesters();
-      } else if (modal.mode === "edit") {
-        await SemesterApi.updateSemester(modal.semesterId, payload);
-        message.success("Semester updated successfully");
-        fetchSemesters();
-      }
-      
-      closeModal();
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      message.error("An error occurred while saving data");
-    }
-  };
 
   const handleDelete = (record) => {
     const semesterName = record.name;
@@ -311,9 +271,6 @@ export default function SemesterList({ title = "Semester Management" }) {
 
         <Space style={{ marginLeft: "auto" }}>
           <Button icon={<FileExcelOutlined />} onClick={exportCsv}>Export CSV</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Add Semester
-          </Button>
         </Space>
       </div>
 
@@ -325,53 +282,26 @@ export default function SemesterList({ title = "Semester Management" }) {
         pagination={false}
       />
 
-      {/* Modal form */}
+      {/* Modal form - only for view mode */}
       <Modal
-        title={
-          modal.mode === "create" ? "Add New Semester" :
-          modal.mode === "edit" ? "Edit Semester" :
-          "Semester Details"
-        }
-        open={modal.open}
-        onOk={modal.mode === "view" ? closeModal : handleSubmit}
+        title="Semester Details"
+        open={modal.open && modal.mode === "view"}
+        onOk={closeModal}
         onCancel={closeModal}
-        okText={modal.mode === "view" ? "Close" : "Save"}
+        okText="Close"
         cancelText="Cancel"
-        confirmLoading={loading}
         width={600}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          disabled={modal.mode === "view"}
-        >
-          <Form.Item
-            label="Semester Name"
-            name="name"
-            rules={[
-              { required: true, message: "Please enter semester name" },
-              { min: 2, message: "Semester name must be at least 2 characters" }
-            ]}
-          >
-            <Input placeholder="e.g., Fall Semester 2024-2025" />
-          </Form.Item>
-
-          <Form.Item
-            label="Start Date"
-            name="startDate"
-            rules={[{ required: true, message: "Please select start date" }]}
-          >
-            <DatePicker style={{ width: "100%" }} />
-          </Form.Item>
-
-          <Form.Item
-            label="End Date"
-            name="endDate"
-            rules={[{ required: true, message: "Please select end date" }]}
-          >
-            <DatePicker style={{ width: "100%" }} />
-          </Form.Item>
-        </Form>
+        {modal.initialSemester && (
+          <div>
+            <p><strong>Semester Name:</strong> {modal.initialSemester.name}</p>
+            <p><strong>Start Date:</strong> {modal.initialSemester.startDate}</p>
+            <p><strong>End Date:</strong> {modal.initialSemester.endDate}</p>
+            <p><strong>Duration:</strong> {modal.initialSemester.duration} days</p>
+            <p><strong>Classes:</strong> {modal.initialSemester.classCount}</p>
+            <p><strong>Students:</strong> {modal.initialSemester.studentCount}</p>
+          </div>
+        )}
       </Modal>
 
       {/* Modal confirm delete */}

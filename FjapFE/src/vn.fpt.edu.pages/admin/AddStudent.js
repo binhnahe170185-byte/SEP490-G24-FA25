@@ -510,16 +510,18 @@ export default function AddStudent() {
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div style={{ width: "100%", margin: "0", padding: "0" }}>
       {msgCtx}
       <Card
         style={{
           borderRadius: 12,
           boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          width: "100%",
         }}
+        bodyStyle={{ padding: "20px 0" }}
       >
         {/* Header */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 24, padding: "0 8px" }}>
           <Space align="center" style={{ marginBottom: 8 }}>
             <BookOutlined style={{ fontSize: 24, color: "#0071c5" }} />
             <Title level={3} style={{ margin: 0 }}>
@@ -531,13 +533,14 @@ export default function AddStudent() {
           </Text>
         </div>
 
-        <Divider />
+        <Divider style={{ margin: "16px 0" }} />
 
         {/* Tabs for Manual and Import */}
-        <Tabs 
-          activeKey={activeTab} 
-          onChange={setActiveTab}
-          items={[
+        <div style={{ padding: "0 8px" }}>
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={setActiveTab}
+            items={[
             {
               key: "manual",
               label: (
@@ -546,193 +549,202 @@ export default function AddStudent() {
                 </span>
               ),
               children: (
-                <>
+                <div style={{ padding: "0 8px" }}>
                   {/* Form */}
                   <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSubmit}
-              onFinishFailed={handleFinishFailed}
-              autoComplete="off"
-              size="large"
-              scrollToFirstError
-            >
-              <Divider style={{ margin: "16px 0" }}>Personal Information</Divider>
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleSubmit}
+                    onFinishFailed={handleFinishFailed}
+                    autoComplete="off"
+                    size="middle"
+                    scrollToFirstError
+                  >
+                    <Divider style={{ margin: "16px 0" }}>Personal Information</Divider>
 
-              {/* Name Row */}
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>Last Name</strong>}
-                    name="lastName"
-                    rules={[
-                      { required: true, message: "Please enter last name" },
-                      { min: 2, message: "Last name must be at least 2 characters" }
-                    ]}
-                  >
-                    <Input
-                      prefix={<UserOutlined />}
-                      placeholder="Enter last name"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>First Name</strong>}
-                    name="firstName"
-                    rules={[
-                      { required: true, message: "Please enter first name" },
-                      { min: 2, message: "First name must be at least 2 characters" }
-                    ]}
-                  >
-                    <Input
-                      prefix={<UserOutlined />}
-                      placeholder="Enter first name"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+                    {/* Name Row */}
+                    <Row gutter={16}>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>Last Name</strong>}
+                          name="lastName"
+                          rules={[
+                            { required: true, message: "Please enter last name" },
+                            { min: 2, message: "Last name must be at least 2 characters" }
+                          ]}
+                          style={{ marginBottom: 16 }}
+                        >
+                          <Input
+                            prefix={<UserOutlined />}
+                            placeholder="Enter last name"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>First Name</strong>}
+                          name="firstName"
+                          rules={[
+                            { required: true, message: "Please enter first name" },
+                            { min: 2, message: "First name must be at least 2 characters" }
+                          ]}
+                          style={{ marginBottom: 16 }}
+                        >
+                          <Input
+                            prefix={<UserOutlined />}
+                            placeholder="Enter first name"
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
-              {/* Contact Info Row */}
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>Email</strong>}
-                    name="email"
-                    rules={[
-                      { required: true, message: "Please enter email" },
-                      { type: "email", message: "Invalid email format" }
-                    ]}
-                  >
-                    <Input
-                      prefix={<MailOutlined />}
-                      placeholder="example@fpt.edu.vn"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>Phone Number</strong>}
-                    name="phoneNumber"
-                    rules={[
-                      {
-                        pattern: /^[0-9\s-]{10,11}$/,
-                        message: "Phone number must have 10-11 digits"
-                      }
-                    ]}
-                  >
-                    <Input
-                      prefix={<PhoneOutlined />}
-                      placeholder="0123456789"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+                    {/* Contact Info Row */}
+                    <Row gutter={16}>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>Email</strong>}
+                          name="email"
+                          rules={[
+                            { required: true, message: "Please enter email" },
+                            { type: "email", message: "Invalid email format" }
+                          ]}
+                          style={{ marginBottom: 16 }}
+                        >
+                          <Input
+                            prefix={<MailOutlined />}
+                            placeholder="example@fpt.edu.vn"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>Phone Number</strong>}
+                          name="phoneNumber"
+                          rules={[
+                            {
+                              pattern: /^[0-9\s-]{10,11}$/,
+                              message: "Phone number must have 10-11 digits"
+                            }
+                          ]}
+                          style={{ marginBottom: 16 }}
+                        >
+                          <Input
+                            prefix={<PhoneOutlined />}
+                            placeholder="0123456789"
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
-              {/* Gender and DOB Row */}
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>Gender</strong>}
-                    name="gender"
-                    rules={[
-                      { required: true, message: "Please select gender" }
-                    ]}
-                  >
-                    <Select placeholder="Select gender">
-                      {GENDER_OPTIONS.map(gender => (
-                        <Option key={gender.value} value={gender.value}>
-                          {gender.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>Date of Birth</strong>}
-                    name="dob"
-                    rules={[
-                      { required: true, message: "Please select date of birth" }
-                    ]}
-                  >
-                    <DatePicker
-                      style={{ width: "100%" }}
-                      placeholder="Select date of birth"
-                      format="DD/MM/YYYY"
-                      disabledDate={(current) => {
-                        return current && (current > dayjs().endOf("day") || current < dayjs().subtract(100, "years"));
-                      }}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+                    {/* Gender and DOB Row */}
+                    <Row gutter={16}>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>Gender</strong>}
+                          name="gender"
+                          rules={[
+                            { required: true, message: "Please select gender" }
+                          ]}
+                          style={{ marginBottom: 16 }}
+                        >
+                          <Select placeholder="Select gender" style={{ width: "100%" }}>
+                            {GENDER_OPTIONS.map(gender => (
+                              <Option key={gender.value} value={gender.value}>
+                                {gender.label}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>Date of Birth</strong>}
+                          name="dob"
+                          rules={[
+                            { required: true, message: "Please select date of birth" }
+                          ]}
+                          style={{ marginBottom: 16 }}
+                        >
+                          <DatePicker
+                            style={{ width: "100%" }}
+                            placeholder="Select date of birth"
+                            format="DD/MM/YYYY"
+                            disabledDate={(current) => {
+                              return current && (current > dayjs().endOf("day") || current < dayjs().subtract(100, "years"));
+                            }}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
-              {/* Address */}
-              <Form.Item
-                label={<strong>Address</strong>}
-                name="address"
-              >
-                <TextArea
-                  prefix={<HomeOutlined />}
-                  placeholder="Enter address (optional)"
-                  rows={3}
-                />
-              </Form.Item>
-
-              <Divider style={{ margin: "16px 0" }}>Student Information</Divider>
-
-              {/* Student Code, Level Row */}
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>Student Code</strong>}
-                    name="studentCode"
-                    rules={[
-                      { max: 50, message: "Student code must not exceed 50 characters" }
-                    ]}
-                    tooltip="Student code will be automatically generated when Level is selected"
-                  >
-                    <Input
-                      prefix={<IdcardOutlined />}
-                      placeholder="Auto-generated (e.g., SP26N2123)"
-                      readOnly
-                      style={{ backgroundColor: "#f5f5f5", cursor: "not-allowed" }}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={<strong>Level</strong>}
-                    name="levelId"
-                    rules={[
-                      { required: true, message: "Please select a level" }
-                    ]}
-                  >
-                    <Select
-                      placeholder="Select level"
-                      loading={loadingOptions}
-                      style={{ width: "100%" }}
-                      showSearch
-                      optionFilterProp="children"
-                      onChange={handleLevelChange}
-                      filterOption={(input, option) =>
-                        (option?.children ?? "").toLowerCase().includes(input.toLowerCase())
-                      }
+                    {/* Address */}
+                    <Form.Item
+                      label={<strong>Address</strong>}
+                      name="address"
+                      style={{ marginBottom: 16 }}
                     >
-                      {levels.map(level => {
-                        const levelId = level.levelId || level.id;
-                        const levelName = level.name || level.levelName || "";
-                        return (
-                          <Option key={String(levelId)} value={Number(levelId)}>
-                            {levelName}
-                          </Option>
-                        );
-                      })}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
+                      <TextArea
+                        prefix={<HomeOutlined />}
+                        placeholder="Enter address (optional)"
+                        rows={2}
+                      />
+                    </Form.Item>
+
+                    <Divider style={{ margin: "16px 0" }}>Student Information</Divider>
+
+                    {/* Student Code, Level Row */}
+                    <Row gutter={16}>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>Student Code</strong>}
+                          name="studentCode"
+                          rules={[
+                            { max: 50, message: "Student code must not exceed 50 characters" }
+                          ]}
+                          tooltip="Student code will be automatically generated when Level is selected"
+                          style={{ marginBottom: 16 }}
+                        >
+                          <Input
+                            prefix={<IdcardOutlined />}
+                            placeholder="Auto-generated (e.g., SP26N2123)"
+                            readOnly
+                            style={{ backgroundColor: "#f5f5f5", cursor: "not-allowed" }}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          label={<strong>Level</strong>}
+                          name="levelId"
+                          rules={[
+                            { required: true, message: "Please select a level" }
+                          ]}
+                          style={{ marginBottom: 16 }}
+                        >
+                          <Select
+                            placeholder="Select level"
+                            loading={loadingOptions}
+                            style={{ width: "100%" }}
+                            showSearch
+                            optionFilterProp="children"
+                            onChange={handleLevelChange}
+                            filterOption={(input, option) =>
+                              (option?.children ?? "").toLowerCase().includes(input.toLowerCase())
+                            }
+                          >
+                            {levels.map(level => {
+                              const levelId = level.levelId || level.id;
+                              const levelName = level.name || level.levelName || "";
+                              return (
+                                <Option key={String(levelId)} value={Number(levelId)}>
+                                  {levelName}
+                                </Option>
+                              );
+                            })}
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
               {/* Hidden field to submit auto-selected enrollment semester id */}
               <Form.Item name="enrollmentSemesterId" hidden rules={[{ required: true }]}> 
@@ -772,7 +784,7 @@ export default function AddStudent() {
               <Alert
                 message="Note"
                 description={
-                  <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+                  <ul style={{ marginBottom: 0, paddingLeft: 20, fontSize: 13 }}>
                     <li>Level and Enrollment Semester are required for all students</li>
                     <li><strong>Auto Student Code:</strong> System will automatically generate student code when Level is selected. Format: {`{SemesterCode}{LevelCode}{Sequence}`} (e.g., SP26N2123)</li>
                     <li>System will automatically determine current semester based on Enrollment Date:
@@ -788,34 +800,34 @@ export default function AddStudent() {
                 }
                 type="info"
                 showIcon
-                style={{ marginBottom: 24 }}
+                style={{ marginBottom: 24, fontSize: 13 }}
               />
 
-              {/* Submit Buttons */}
-              <Form.Item>
-                <Space size="middle">
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    icon={<SaveOutlined />}
-                    loading={loading}
-                    size="large"
-                    style={{ minWidth: 120 }}
-                  >
-                    Create Student
-                  </Button>
-                  <Button
-                    htmlType="button"
-                    onClick={handleReset}
-                    icon={<ReloadOutlined />}
-                    size="large"
-                  >
-                    Reset
-                  </Button>
-                </Space>
-              </Form.Item>
+                    {/* Submit Buttons */}
+                    <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
+                      <Space size="middle">
+                        <Button
+                          type="primary"
+                          htmlType="submit"
+                          icon={<SaveOutlined />}
+                          loading={loading}
+                          size="middle"
+                          style={{ minWidth: 120 }}
+                        >
+                          Create Student
+                        </Button>
+                        <Button
+                          htmlType="button"
+                          onClick={handleReset}
+                          icon={<ReloadOutlined />}
+                          size="middle"
+                        >
+                          Reset
+                        </Button>
+                      </Space>
+                    </Form.Item>
             </Form>
-                </>
+                </div>
               ),
             },
             {
@@ -828,7 +840,8 @@ export default function AddStudent() {
               children: <ImportStudent key="import-student-tab" />,
             },
           ]}
-        />
+          />
+        </div>
       </Card>
       <Modal
         open={successModalOpen}

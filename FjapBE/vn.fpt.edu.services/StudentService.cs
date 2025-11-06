@@ -101,9 +101,33 @@ public class StudentService : IStudentService
         var levelCode = ExtractLevelCode(level.LevelName);
         var semesterCode = enrollmentSemester.SemesterCode ?? "";
 
-        // Read Excel file
+        // Read Excel file - get "Students" sheet, must find it explicitly
         using var wb = new XLWorkbook(excelStream);
-        var ws = wb.Worksheets.First();
+        
+        // List all sheet names for debugging
+        var allSheetNames = wb.Worksheets.Select(w => w.Name).ToList();
+        Console.WriteLine($"Available sheets in Excel file: {string.Join(", ", allSheetNames)}");
+        
+        // Try to find "Students" sheet (case-insensitive)
+        var ws = wb.Worksheets.FirstOrDefault(w => 
+            w.Name.Equals("Students", StringComparison.OrdinalIgnoreCase));
+        
+        // If not found, try "Student" (singular)
+        if (ws == null)
+        {
+            ws = wb.Worksheets.FirstOrDefault(w => 
+                w.Name.Equals("Student", StringComparison.OrdinalIgnoreCase));
+        }
+        
+        // If still not found, throw error with helpful message
+        if (ws == null)
+        {
+            throw new ArgumentException(
+                $"Sheet 'Students' not found in Excel file. Available sheets: {string.Join(", ", allSheetNames)}. " +
+                "Please ensure your Excel file contains a sheet named 'Students' with student data.");
+        }
+        
+        Console.WriteLine($"Using sheet: '{ws.Name}'");
 
         bool isHeader = true;
         int rowNum = 0;

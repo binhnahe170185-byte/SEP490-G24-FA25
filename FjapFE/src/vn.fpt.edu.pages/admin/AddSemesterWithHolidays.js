@@ -916,13 +916,16 @@ export default function AddSemesterWithHolidays() {
         
         return (
           <div>
-            <Title level={4} style={{ marginBottom: 24 }}>Review Semester Details</Title>
+            <div style={{ padding: "0 24px" }}>
+              <Title level={4} style={{ marginBottom: 24 }}>Review Semester Details</Title>
+            </div>
             
             <Row gutter={24}>
-              <Col xs={24} lg={10}>
+              <Col xs={24} lg={10} style={{ paddingLeft: 24 }}>
                 <Card 
                   title="Semester Information"
                   style={{ height: '100%' }}
+                  bodyStyle={{ padding: "16px 24px" }}
                 >
                   <Space direction="vertical" size="middle" style={{ width: "100%" }}>
                     <Row>
@@ -966,21 +969,26 @@ export default function AddSemesterWithHolidays() {
               <Col xs={24} lg={14}>
                 <Card 
                   title={
-                    <Space>
-                      <span>Holidays</span>
-                      <Tag color="processing">{holidays.length}</Tag>
-                      {japanHolidaysCount > 0 && (
-                        <Tag color="blue">{japanHolidaysCount} Japan</Tag>
-                      )}
-                      {customHolidaysCount > 0 && (
-                        <Tag color="default">{customHolidaysCount} Custom</Tag>
-                      )}
-                    </Space>
+                    <div style={{ padding: "0 24px" }}>
+                      <Space>
+                        <span>Holidays</span>
+                        <Tag color="processing">{holidays.length}</Tag>
+                        {japanHolidaysCount > 0 && (
+                          <Tag color="blue">{japanHolidaysCount} Japan</Tag>
+                        )}
+                        {customHolidaysCount > 0 && (
+                          <Tag color="default">{customHolidaysCount} Custom</Tag>
+                        )}
+                      </Space>
+                    </div>
                   }
                   style={{ height: '100%' }}
+                  bodyStyle={{ padding: "16px 0" }}
                 >
                   {holidays.length === 0 ? (
-                    <Text type="secondary">No holidays added</Text>
+                    <div style={{ padding: "0 24px" }}>
+                      <Text type="secondary">No holidays added</Text>
+                    </div>
                   ) : (
                     <List
                       size="small"
@@ -988,7 +996,7 @@ export default function AddSemesterWithHolidays() {
                       renderItem={(holiday) => (
                         <List.Item style={{ padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
                           <Row style={{ width: '100%' }} gutter={8}>
-                            <Col flex={1}>
+                            <Col flex={1} style={{ paddingLeft: 24 }}>
                               <Text strong style={{ display: 'block', marginBottom: 4 }}>{holiday.name}</Text>
                               {holiday.description && (
                                 <Text type="secondary" style={{ fontSize: 12 }}>
@@ -996,7 +1004,7 @@ export default function AddSemesterWithHolidays() {
                                 </Text>
                               )}
                             </Col>
-                            <Col>
+                            <Col style={{ paddingRight: 24 }}>
                               <Space direction="vertical" size={4} align="end">
                                 <Tag color="cyan">{holiday.date?.format("YYYY-MM-DD")}</Tag>
                                 {holiday.type !== 'National' && (
@@ -1021,8 +1029,15 @@ export default function AddSemesterWithHolidays() {
   };
 
   return (
-    <Card style={{ borderRadius: 12, boxShadow: "0 6px 18px rgba(0,0,0,0.06)" }}>
-      <div style={{ marginBottom: 24 }}>
+    <Card 
+      style={{ 
+        borderRadius: 12, 
+        boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+        width: "100%"
+      }}
+      bodyStyle={{ padding: "20px 0" }}
+    >
+      <div style={{ marginBottom: 24, padding: "0 8px" }}>
         <Row align="middle" justify="space-between" gutter={16}>
           <Col>
             <Button 
@@ -1044,12 +1059,16 @@ export default function AddSemesterWithHolidays() {
         </Row>
       </div>
 
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px" }}>
-        <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
+      <div style={{ width: "100%", margin: "0", padding: "0" }}>
+        <div style={{ padding: "0 8px" }}>
+          <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
+        </div>
 
-        {renderStepContent()}
+        <div style={{ padding: "0 8px" }}>
+          {renderStepContent()}
+        </div>
 
-        <div style={{ marginTop: 32, textAlign: "center" }}>
+        <div style={{ marginTop: 32, textAlign: "center", padding: "0 8px" }}>
           <Space>
             {currentStep > 0 && (
               <Button onClick={prevStep}>

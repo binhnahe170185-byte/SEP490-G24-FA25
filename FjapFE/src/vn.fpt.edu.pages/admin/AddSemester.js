@@ -41,88 +41,110 @@ export default function AddSemester() {
   };
 
   return (
-    <Card style={{ borderRadius: 12, boxShadow: "0 6px 18px rgba(0,0,0,0.06)" }}>
-      <div style={{ marginBottom: 24 }}>
-        <Row align="middle" justify="space-between" gutter={16}>
-          <Col>
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              onClick={handleCancel}
-            >
-              Back to Semester List
-            </Button>
-          </Col>
-          <Col flex={1}>
-            <div style={{ textAlign: "center" }}>
-              <Title level={3} style={{ margin: 0 }}>Add New Semester</Title>
-            </div>
-          </Col>
-          <Col style={{ visibility: "hidden" }}>
-            {/* spacer to balance header layout */}
-            <Button icon={<ArrowLeftOutlined />} />
-          </Col>
-        </Row>
-      </div>
-
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 16px" }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
-          <Row gutter={16}>
-            <Col span={24}>
-              <Form.Item
-                label="Semester Name"
-                name="name"
-                rules={[
-                  { required: true, message: "Please enter semester name" },
-                  { min: 2, message: "Semester name must be at least 2 characters" }
-                ]}
-              >
-                <Input placeholder="e.g., Fall Semester 2024-2025" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="Start Date"
-                name="startDate"
-                rules={[{ required: true, message: "Please select start date" }]}
-              >
-                <DatePicker style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="End Date"
-                name="endDate"
-                rules={[{ required: true, message: "Please select end date" }]}
-              >
-                <DatePicker style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item>
-            <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+    <div style={{ width: "100%", margin: "0", padding: "0" }}>
+      <Card 
+        style={{ 
+          borderRadius: 12, 
+          boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+          width: "100%"
+        }}
+        bodyStyle={{ padding: "20px 0" }}
+      >
+        <div style={{ marginBottom: 24, padding: "0 8px" }}>
+          <Row align="middle" justify="space-between" gutter={16}>
+            <Col>
               <Button 
-                type="primary" 
-                htmlType="submit" 
-                icon={<SaveOutlined />}
-                loading={loading}
+                icon={<ArrowLeftOutlined />} 
+                onClick={handleCancel}
               >
-                Create Semester
+                Back to Semester List
               </Button>
-              <Button onClick={handleCancel}>
-                Cancel
-              </Button>
-            </div>
-          </Form.Item>
-        </Form>
-      </div>
-    </Card>
+            </Col>
+            <Col flex={1}>
+              <div style={{ textAlign: "center" }}>
+                <Title level={3} style={{ margin: 0 }}>Add New Semester</Title>
+              </div>
+            </Col>
+            <Col style={{ visibility: "hidden" }}>
+              <Button icon={<ArrowLeftOutlined />} />
+            </Col>
+          </Row>
+        </div>
+
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 8px" }}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            size="middle"
+          >
+            <Form.Item
+              label={<strong>Semester Name</strong>}
+              name="name"
+              rules={[
+                { required: true, message: "Please enter semester name" },
+                { min: 2, message: "Semester name must be at least 2 characters" }
+              ]}
+              style={{ marginBottom: 16 }}
+            >
+              <Input placeholder="e.g., Fall Semester 2024-2025" />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={<strong>Start Date</strong>}
+                  name="startDate"
+                  rules={[{ required: true, message: "Please select start date" }]}
+                  style={{ marginBottom: 16 }}
+                >
+                  <DatePicker 
+                    style={{ width: "100%" }} 
+                    format="DD/MM/YYYY"
+                    placeholder="Select start date"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={<strong>End Date</strong>}
+                  name="endDate"
+                  rules={[{ required: true, message: "Please select end date" }]}
+                  style={{ marginBottom: 16 }}
+                >
+                  <DatePicker 
+                    style={{ width: "100%" }} 
+                    format="DD/MM/YYYY"
+                    placeholder="Select end date"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  icon={<SaveOutlined />}
+                  loading={loading}
+                  size="middle"
+                  style={{ minWidth: 140 }}
+                >
+                  Create Semester
+                </Button>
+                <Button 
+                  onClick={handleCancel}
+                  size="middle"
+                  style={{ minWidth: 140 }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </Form.Item>
+          </Form>
+        </div>
+      </Card>
+    </div>
   );
 }

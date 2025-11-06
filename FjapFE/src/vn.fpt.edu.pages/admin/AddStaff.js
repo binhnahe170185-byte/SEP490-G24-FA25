@@ -258,36 +258,39 @@ export default function AddStaff() {
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div style={{ width: "100%", margin: "0", padding: "0" }}>
       <Card
         style={{
           borderRadius: 12,
           boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          width: "100%",
         }}
+        bodyStyle={{ padding: "20px 0" }}
       >
         {/* Header */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 24, padding: "0 8px" }}>
           <Space align="center" style={{ marginBottom: 8 }}>
             <IdcardOutlined style={{ fontSize: 24, color: "#0071c5" }} />
             <Title level={3} style={{ margin: 0 }}>
               Add Staff
             </Title>
           </Space>
-          <Text type="secondary">
+          <Text type="secondary" style={{ fontSize: 13 }}>
             Select staff type: Staff (requires department, role auto-set) or Lecturer (no department required). Department heads are assigned separately by admin.
           </Text>
         </div>
 
-        <Divider />
+        <Divider style={{ margin: "16px 0" }} />
 
         {/* Form */}
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          autoComplete="off"
-          size="large"
-        >
+        <div style={{ padding: "0 8px" }}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            autoComplete="off"
+            size="middle"
+          >
           {/* Staff Type Selection */}
           <Form.Item
             label={<strong>Staff Type</strong>}
@@ -295,6 +298,7 @@ export default function AddStaff() {
             rules={[
               { required: true, message: "Please select staff type" }
             ]}
+            style={{ marginBottom: 16 }}
           >
             <Select
               placeholder="Select staff type"
@@ -333,6 +337,7 @@ export default function AddStaff() {
                   }
                 }
               ]}
+              style={{ marginBottom: 16 }}
             >
               <Select
                 placeholder="Select department"
@@ -371,7 +376,7 @@ export default function AddStaff() {
             <Input />
           </Form.Item>
 
-          <Divider style={{ margin: "24px 0" }}>Personal Information</Divider>
+          <Divider style={{ margin: "20px 0" }}>Personal Information</Divider>
 
           {/* Name Row */}
           <Row gutter={16}>
@@ -383,6 +388,7 @@ export default function AddStaff() {
                   { required: true, message: "Please enter last name" },
                   { min: 2, message: "Last name must be at least 2 characters" }
                 ]}
+                style={{ marginBottom: 16 }}
               >
                 <Input
                   prefix={<UserOutlined />}
@@ -398,6 +404,7 @@ export default function AddStaff() {
                   { required: true, message: "Please enter first name" },
                   { min: 2, message: "First name must be at least 2 characters" }
                 ]}
+                style={{ marginBottom: 16 }}
               >
                 <Input
                   prefix={<UserOutlined />}
@@ -417,6 +424,7 @@ export default function AddStaff() {
                   { required: true, message: "Please enter email" },
                   { type: "email", message: "Invalid email format" }
                 ]}
+                style={{ marginBottom: 16 }}
               >
                 <Input
                   prefix={<MailOutlined />}
@@ -434,6 +442,7 @@ export default function AddStaff() {
                     message: "Phone number must have 10-11 digits"
                   }
                 ]}
+                style={{ marginBottom: 16 }}
               >
                 <Input
                   prefix={<PhoneOutlined />}
@@ -452,8 +461,9 @@ export default function AddStaff() {
                 rules={[
                   { required: true, message: "Please select gender" }
                 ]}
+                style={{ marginBottom: 16 }}
               >
-                <Select placeholder="Select gender">
+                <Select placeholder="Select gender" style={{ width: "100%" }}>
                   {GENDER_OPTIONS.map(gender => (
                     <Option key={gender.value} value={gender.value}>
                       {gender.label}
@@ -469,6 +479,7 @@ export default function AddStaff() {
                 rules={[
                   { required: true, message: "Please select date of birth" }
                 ]}
+                style={{ marginBottom: 16 }}
               >
                 <DatePicker
                   style={{ width: "100%" }}
@@ -487,11 +498,12 @@ export default function AddStaff() {
           <Form.Item
             label={<strong>Address</strong>}
             name="address"
+            style={{ marginBottom: 16 }}
           >
             <TextArea
               prefix={<HomeOutlined />}
               placeholder="Enter address (optional)"
-              rows={3}
+              rows={2}
             />
           </Form.Item>
 
@@ -499,7 +511,7 @@ export default function AddStaff() {
           <Alert
             message="Note"
             description={
-              <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+              <ul style={{ marginBottom: 0, paddingLeft: 20, fontSize: 13 }}>
                 <li>Select "Staff" and choose a department - role will be automatically set (Academic Staff for Academic Department, Administration Staff for Administration Department)</li>
                 <li>Select "Lecturer" - no department required, role will be set to Lecturer</li>
                 <li>Email and phone number must be unique in the system</li>
@@ -510,18 +522,18 @@ export default function AddStaff() {
             }
             type="info"
             showIcon
-            style={{ marginBottom: 24 }}
+            style={{ marginBottom: 24, fontSize: 13 }}
           />
 
           {/* Submit Buttons */}
-          <Form.Item>
+          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
             <Space size="middle">
               <Button
                 type="primary"
                 htmlType="submit"
                 icon={<SaveOutlined />}
                 loading={loading}
-                size="large"
+                size="middle"
                 style={{ minWidth: 120 }}
               >
                 Create Staff
@@ -530,13 +542,14 @@ export default function AddStaff() {
                 htmlType="button"
                 onClick={handleReset}
                 icon={<ReloadOutlined />}
-                size="large"
+                size="middle"
               >
                 Reset
               </Button>
             </Space>
           </Form.Item>
         </Form>
+        </div>
       </Card>
       <Modal
         open={successModalOpen}

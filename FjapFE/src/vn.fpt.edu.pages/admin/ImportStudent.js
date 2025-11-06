@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Card, Form, Select, Button, Row, Col, message, Space, Typography, Divider, 
-  Alert, Upload, Table, Tag, Modal, Progress, Input
+  Alert, Upload, Table, Tag, Modal, Progress, Input, Tooltip
 } from "antd";
 import {
   FileExcelOutlined, UploadOutlined, DownloadOutlined, 
@@ -28,6 +28,9 @@ export default function ImportStudent() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [resultModalOpen, setResultModalOpen] = useState(false);
+  
+  // Watch form values to enable/disable upload reactively
+  const levelId = Form.useWatch("levelId", form);
 
   // Auto-pick enrollment semester based on a date (like AddStudent.js)
   const pickEnrollmentSemesterByDate = (date) => {
@@ -213,40 +216,47 @@ export default function ImportStudent() {
     }
   };
 
-  // Table columns for preview
+  // Table columns for preview - flexible widths to use full available space
   const previewColumns = [
     {
-      title: "Row",
+      title: "#",
       dataIndex: "rowNumber",
       key: "rowNumber",
-      width: 60,
+      width: 50,
+      align: "center",
+      fixed: "left",
     },
     {
       title: "First Name",
       dataIndex: "firstName",
       key: "firstName",
+      ellipsis: true,
     },
     {
       title: "Last Name",
       dataIndex: "lastName",
       key: "lastName",
+      ellipsis: true,
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
+      ellipsis: true,
     },
     {
       title: "Gender",
       dataIndex: "gender",
       key: "gender",
-      width: 100,
+      width: 80,
+      align: "center",
     },
     {
       title: "DOB",
       dataIndex: "dob",
       key: "dob",
-      width: 120,
+      width: 110,
+      align: "center",
       render: (dob) => dob ? dayjs(dob).format("DD/MM/YYYY") : "",
     },
     {
@@ -259,24 +269,19 @@ export default function ImportStudent() {
       title: "Student Code",
       dataIndex: "studentCode",
       key: "studentCode",
-      width: 150,
-      render: (code) => code ? <Tag color="blue">{code}</Tag> : "-",
-    },
-    {
-      title: "Target Semester",
-      dataIndex: "targetSemesterName",
-      key: "targetSemesterName",
-      width: 150,
+      width: 140,
+      render: (code) => code ? <Tag color="blue" style={{ margin: 0 }}>{code}</Tag> : "-",
     },
     {
       title: "Status",
       key: "status",
-      width: 100,
+      width: 90,
+      align: "center",
       render: (_, record) => (
         record.isValid ? (
-          <Tag icon={<CheckCircleOutlined />} color="success">Valid</Tag>
+          <Tag icon={<CheckCircleOutlined />} color="success" style={{ margin: 0 }}>OK</Tag>
         ) : (
-          <Tag icon={<CloseCircleOutlined />} color="error">Invalid</Tag>
+          <Tag icon={<CloseCircleOutlined />} color="error" style={{ margin: 0 }}>Err</Tag>
         )
       ),
     },
@@ -284,14 +289,16 @@ export default function ImportStudent() {
       title: "Errors",
       dataIndex: "errors",
       key: "errors",
+      width: 150,
+      ellipsis: {
+        showTitle: false,
+      },
       render: (errors) => errors && errors.length > 0 ? (
-        <div>
-          {errors.map((err, idx) => (
-            <Tag key={idx} color="red" style={{ marginBottom: 4 }}>
-              {err}
-            </Tag>
-          ))}
-        </div>
+        <Tooltip title={errors.join(", ")}>
+          <Tag color="red" style={{ margin: 0, cursor: "pointer" }}>
+            {errors.length} error{errors.length > 1 ? "s" : ""}
+          </Tag>
+        </Tooltip>
       ) : "-",
     },
   ];
@@ -302,71 +309,84 @@ export default function ImportStudent() {
   );
 
   return (
-    <div style={{ maxWidth: "100%", margin: "0", padding: "0" }}>
+    <div style={{ width: "100%", margin: "0", padding: "0" }}>
       {msgCtx}
       <Card
         style={{
           borderRadius: 12,
           boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          width: "100%",
         }}
+        bodyStyle={{ padding: "20px 0" }}
       >
         {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <Space align="center" style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 16, padding: "0 8px" }}>
+          <Space align="center" style={{ marginBottom: 4 }}>
             <FileExcelOutlined style={{ fontSize: 24, color: "#0071c5" }} />
             <Title level={3} style={{ margin: 0 }}>
               Import Students from Excel
             </Title>
           </Space>
-          <Text type="secondary">
+          <Text type="secondary" style={{ fontSize: 13 }}>
             Import multiple students at once by uploading an Excel file. Select enrollment semester and level, then preview and confirm.
           </Text>
         </div>
 
-        <Divider />
-
-        {/* Configuration Form */}
-        <Form
-          form={form}
-          layout="vertical"
-          autoComplete="off"
-        >
-          <Row gutter={16}>
+        {/* Configuration Form - Compact Layout */}
+        <div style={{ padding: "0 8px" }}>
+          <Form
+            form={form}
+            layout="vertical"
+            autoComplete="off"
+          >
             {/* Hidden field for enrollment semester (auto-selected, not editable) */}
             <Form.Item name="enrollmentSemesterId" hidden rules={[{ required: true }]}>
               <Input />
             </Form.Item>
             
-            {/* Display auto-selected semester info */}
+            {/* Display auto-selected semester info - Compact */}
             {selectedSemester && (
-              <Col xs={24}>
-                <Alert
-                  message={
-                    <Space>
-                      <CalendarOutlined />
-                      <span>
-                        <strong>Enrollment Semester (Auto-selected):</strong> {selectedSemester.name}
-                        {selectedSemester.startDate && (
-                          <span style={{ marginLeft: 8, color: "#666" }}>
-                            (Starts: {dayjs(selectedSemester.startDate).format("DD/MM/YYYY")})
-                          </span>
-                        )}
-                      </span>
-                    </Space>
-                  }
-                  description="The enrollment semester is automatically selected based on today's date. Students will be enrolled in this semester."
-                  type="info"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-              </Col>
+              <Alert
+                message={
+                  <Space size="small">
+                    <CalendarOutlined />
+                    <span style={{ fontSize: 13 }}>
+                      <strong>Enrollment Semester:</strong> {selectedSemester.name}
+                      {selectedSemester.startDate && (
+                        <span style={{ marginLeft: 8, color: "#666" }}>
+                          (Starts: {dayjs(selectedSemester.startDate).format("DD/MM/YYYY")})
+                        </span>
+                      )}
+                    </span>
+                  </Space>
+                }
+                type="info"
+                showIcon
+                style={{ marginBottom: 12, padding: "8px 12px" }}
+                description={null}
+              />
             )}
-            <Col xs={24} sm={12}>
+
+          <Row gutter={16} align="middle">
+            {/* Level Selection - Compact */}
+            <Col xs={24} sm={8} md={6}>
               <Form.Item
-                label={<strong>Level</strong>}
+                label={
+                  <span style={{ 
+                    fontSize: 14, 
+                    fontWeight: "bold", 
+                    color: "#ff4d4f",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4
+                  }}>
+                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    Level <span style={{ color: "#ff4d4f" }}>*</span>
+                  </span>
+                }
                 name="levelId"
                 rules={[{ required: true, message: "Please select level" }]}
-                tooltip="The level for all imported students"
+                style={{ marginBottom: 12 }}
               >
                 <Select
                   placeholder="Select level"
@@ -376,6 +396,7 @@ export default function ImportStudent() {
                   filterOption={(input, option) =>
                     (option?.children ?? "").toLowerCase().includes(input.toLowerCase())
                   }
+                  style={{ width: "100%" }}
                 >
                   {levels.map(level => (
                     <Option key={String(level.levelId || level.id)} value={Number(level.levelId || level.id)}>
@@ -385,69 +406,64 @@ export default function ImportStudent() {
                 </Select>
               </Form.Item>
             </Col>
-          </Row>
-        </Form>
 
-        <Divider />
-
-        {/* Instructions */}
-        <Alert
-          message="Quick Guide"
-          description="Download the Excel template, fill in student information, then upload the file. Required fields: FirstName, LastName, Email, Gender, Dob. Optional: Address, PhoneNumber."
-          type="info"
-          showIcon
-          style={{ marginBottom: 24 }}
-        />
-
-        {/* Download Template */}
-        <div style={{ marginBottom: 24 }}>
-          <Card 
-            style={{ 
-              backgroundColor: "#f0f9ff",
-              border: "1px solid #bae6fd"
-            }}
-          >
-            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-              <div>
+            {/* Download Template - Inline */}
+            <Col xs={24} sm={16} md={18}>
+              <Space size="small" wrap style={{ marginTop: 30 }}>
                 <Button
                   icon={<DownloadOutlined />}
                   onClick={handleDownloadTemplate}
-                  size="large"
                   type="primary"
                   loading={loading}
+                  size="middle"
                 >
-                  Download Template Excel
+                  Download Template
                 </Button>
-              </div>
-              <div>
-                <Text type="secondary">
-                  Template includes Instructions sheet and Students sheet with sample data. See Instructions sheet for detailed requirements.
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Template includes Instructions and Students sheets
                 </Text>
-              </div>
-            </Space>
-          </Card>
+              </Space>
+            </Col>
+          </Row>
+
+            {/* Quick Guide - Compact */}
+            <Alert
+              message="Quick Guide"
+              description="Required: FirstName, LastName, Email, Gender, Dob. Optional: Address, PhoneNumber."
+              type="info"
+              showIcon
+              style={{ marginBottom: 12, padding: "8px 12px", fontSize: 12 }}
+            />
+          </Form>
         </div>
 
-        {/* Upload */}
-        <div style={{ marginBottom: 24 }}>
+        {/* Upload - Compact */}
+        <div style={{ marginBottom: 16, padding: "0 8px" }}>
           <Upload.Dragger
             name="file"
             accept=".xlsx,.xls"
             beforeUpload={handleFileUpload}
             showUploadList={false}
-            disabled={previewLoading || !form.getFieldValue("levelId")}
+            disabled={previewLoading}
+            style={{ 
+              padding: "20px",
+              cursor: previewLoading ? "not-allowed" : "pointer",
+              opacity: previewLoading ? 0.6 : 1
+            }}
           >
-            <p className="ant-upload-drag-icon">
-              <UploadOutlined style={{ fontSize: 48, color: "#1890ff" }} />
+            <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
+              <UploadOutlined style={{ fontSize: 40, color: previewLoading ? "#999" : "#1890ff" }} />
             </p>
-            <p className="ant-upload-text">Click or drag file to this area to upload</p>
-            <p className="ant-upload-hint">
-              Support for Excel files (.xlsx, .xls) only. Please select level first.
+            <p className="ant-upload-text" style={{ fontSize: 14, marginBottom: 4 }}>
+              Click or drag file to this area to upload
+            </p>
+            <p className="ant-upload-hint" style={{ fontSize: 12 }}>
+              Support for Excel files (.xlsx, .xls) only. {!levelId && "Please select level first."}
             </p>
           </Upload.Dragger>
           {previewLoading && (
-            <div style={{ textAlign: "center", padding: 20 }}>
-              <Text>Processing file, please wait...</Text>
+            <div style={{ textAlign: "center", padding: 12 }}>
+              <Text style={{ fontSize: 13 }}>Processing file, please wait...</Text>
             </div>
           )}
         </div>
@@ -455,26 +471,28 @@ export default function ImportStudent() {
         {/* Preview Table */}
         {previewData && (
           <>
-            <Divider />
-            <div style={{ marginBottom: 16 }}>
-              <Space>
-                <Title level={4} style={{ margin: 0 }}>Preview</Title>
+            <Divider style={{ margin: "16px 0" }} />
+            <div style={{ marginBottom: 12, padding: "0 8px" }}>
+              <Space size="small">
+                <Title level={4} style={{ margin: 0, fontSize: 18 }}>Preview</Title>
                 <Tag color="blue">Total: {previewData.totalRows}</Tag>
                 <Tag color="success">Valid: {previewData.validRows}</Tag>
                 <Tag color="error">Invalid: {previewData.invalidRows}</Tag>
               </Space>
             </div>
 
-            <Table
-              columns={previewColumns}
-              dataSource={previewData.students}
-              rowKey="rowNumber"
-              pagination={{ pageSize: 10 }}
-              scroll={{ x: 1200 }}
-              style={{ marginBottom: 24 }}
-            />
+            <div style={{ padding: "0 8px" }}>
+              <Table
+                columns={previewColumns}
+                dataSource={previewData.students}
+                rowKey="rowNumber"
+                pagination={{ pageSize: 10, showSizeChanger: false }}
+                size="small"
+                style={{ marginBottom: 24, width: "100%" }}
+              />
+            </div>
 
-            <div style={{ textAlign: "right" }}>
+            <div style={{ textAlign: "right", padding: "0 8px" }}>
               <Space>
                 <Button
                   icon={<ReloadOutlined />}
