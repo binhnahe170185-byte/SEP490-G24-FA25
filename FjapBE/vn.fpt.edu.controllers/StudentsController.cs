@@ -80,6 +80,16 @@ public class StudentsController : ControllerBase
         return Ok(new { code = 200, data = gpa });
     }
 
+    /// Lấy Academic Transcript (bảng điểm tổng hợp) của sinh viên
+    /// GET: api/Students/{id}/academic-transcript
+    [HttpGet("{id:int}/academic-transcript")]
+    [ProducesResponseType(typeof(AcademicTranscriptDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAcademicTranscript(int id)
+    {
+        var transcript = await _studentService.GetAcademicTranscriptAsync(id);
+        return Ok(new { code = 200, data = transcript });
+    }
+
     /// <summary>
     /// Lấy danh sách tất cả môn học active trong curriculum với search và pagination
     /// GET: api/Students/curriculum-subjects?search=&page=1&pageSize=20

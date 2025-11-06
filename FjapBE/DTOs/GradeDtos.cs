@@ -224,4 +224,27 @@ namespace FJAP.vn.fpt.edu.models
         public decimal Weight { get; set; }
         public decimal MaxScore { get; set; }
     }
+
+    /// DTO cho môn học trong Academic Transcript (bảng điểm tổng hợp)
+    public class AcademicTranscriptCourseDto
+    {
+        public int CourseId { get; set; }
+        public string SubjectCode { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+        public decimal? Grade { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string SemesterName { get; set; } = string.Empty;
+        public int SemesterId { get; set; }
+    }
+
+    /// DTO cho Academic Transcript (bảng điểm tổng hợp)
+    public class AcademicTranscriptDto
+    {
+        public decimal AverageGPA { get; set; }
+        public int TotalCourses { get; set; }
+        public int PassedCourses { get; set; }
+        public int FailedCourses { get; set; }
+        public int InProgressCourses { get; set; }
+        public List<AcademicTranscriptCourseDto> Courses { get; set; } = new();
+    }
 }

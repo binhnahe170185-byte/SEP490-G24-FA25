@@ -74,7 +74,8 @@ public class StudentService : IStudentService
 
     public async Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId)
         => await _studentRepository.GetStudentSemesterGPAAsync(studentId, semesterId);
-
+    public async Task<AcademicTranscriptDto> GetAcademicTranscriptAsync(int studentId)
+        => await _studentRepository.GetAcademicTranscriptAsync(studentId);
     // Import methods
     public async Task<ImportStudentPreviewResponse> PreviewImportAsync(Stream excelStream, int enrollmentSemesterId, int levelId)
     {

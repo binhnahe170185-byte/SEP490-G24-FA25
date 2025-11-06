@@ -307,4 +307,64 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
 
         return (subjectsData, totalCount);
     }
+
+    /// Lấy Academic Transcript (bảng điểm tổng hợp) của sinh viên
+    public async Task<AcademicTranscriptDto> GetAcademicTranscriptAsync(int studentId)
+    {
+        // Lấy tất cả các lớp mà sinh viên đã tham gia
+        var classes = await _context.Classes
+            .Include(c => c.Subject)
+            .Include(c => c.Semester)
+            .Where(c => c.Students.Any(s => s.StudentId == studentId))
+            .ToListAsync();
+
+        // Lấy tất cả các điểm của sinh viên này
+        var subjectIds = classes.Select(c => c.SubjectId).Distinct().ToList();
+        var grades = await _context.Grades
+            .Where(g => g.StudentId == studentId && subjectIds.Contains(g.SubjectId))
+            .ToListAsync();
+
+        var gradeDict = grades.ToDictionary(g => g.SubjectId);
+
+        // Map sang DTO
+        var coursesList = classes.Select(c =>
+        {
+            gradeDict.TryGetValue(c.SubjectId, out var grade);
+            return new AcademicTranscriptCourseDto
+            {
+                CourseId = c.ClassId,
+                SubjectCode = c.Subject.SubjectCode,
+                SubjectName = c.Subject.SubjectName,
+                Grade = grade?.FinalScore,
+                Status = grade != null ? (grade.Status ?? "In Progress") : "Not Started",
+                SemesterName = c.Semester != null ? c.Semester.Name : "N/A",
+                SemesterId = c.SemesterId 
+            };
+        })
+        .OrderByDescending(c => c.SemesterId)
+        .ThenBy(c => c.SubjectCode)
+        .ToList();
+
+        // Tính toán thống kê
+        var totalCourses = coursesList.Count;
+        var completedCourses = coursesList.Where(c => c.Grade.HasValue).ToList();
+        var passedCourses = completedCourses.Count(c => c.Grade >= 5.0m);
+        var failedCourses = completedCourses.Count(c => c.Grade < 5.0m);
+        var inProgressCourses = coursesList.Count(c => !c.Grade.HasValue || c.Status == "In Progress" || c.Status == "Not Started");
+
+        // Tính Average GPA (chỉ tính các môn đã có điểm)
+        var averageGPA = completedCourses.Any()
+            ? completedCourses.Average(c => c.Grade ?? 0m)
+            : 0m;
+
+        return new AcademicTranscriptDto
+        {
+            AverageGPA = averageGPA,
+            TotalCourses = totalCourses,
+            PassedCourses = passedCourses,
+            FailedCourses = failedCourses,
+            InProgressCourses = inProgressCourses,
+            Courses = coursesList
+        };
+    }
 }

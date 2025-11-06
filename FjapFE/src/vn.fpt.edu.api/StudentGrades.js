@@ -66,6 +66,12 @@ class StudentGrades {
       pageSize: response.data?.pageSize || pageSize
     };
   }
+
+  // Lấy Academic Transcript (bảng điểm tổng hợp)
+  static async getAcademicTranscript(studentId) {
+    const response = await api.get(`/api/Students/${studentId}/academic-transcript`);
+    return response.data?.data || response.data;
+  }
 }
 
 export default StudentGrades;

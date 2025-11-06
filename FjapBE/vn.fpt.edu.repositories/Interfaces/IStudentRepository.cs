@@ -14,4 +14,5 @@ public interface IStudentRepository : IGenericRepository<Student>
     Task<StudentGradeDetailDto?> GetStudentGradeDetailsAsync(int studentId, int classId);
     Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId);
     Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize);
+    Task<AcademicTranscriptDto> GetAcademicTranscriptAsync(int studentId);
 }
