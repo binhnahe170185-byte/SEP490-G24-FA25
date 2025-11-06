@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { 
   Button, Input, Space, Table, Tooltip, message, Card, Modal, 
-  Select, Tag, Popconfirm 
+  Select, Tag, Popconfirm, notification
 } from "antd";
 import { 
   SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined, 
@@ -57,6 +57,13 @@ const normalize = (items = []) =>
   items.map((n) => {
     // C# DTO serialize thành PascalCase: Id, Title, Status, CreatorEmail, CreatedAt, etc.
     // Ưu tiên PascalCase trước (từ database/DTO), sau đó fallback về camelCase
+    const rawCreatedBy = n.CreatedBy ?? n.createdBy ?? null;
+    
+    // Debug log để kiểm tra CreatedBy
+    if (rawCreatedBy !== null && rawCreatedBy !== undefined) {
+      console.log(`DEBUG normalize: News ID ${n.Id ?? n.id}, CreatedBy (raw):`, rawCreatedBy, typeof rawCreatedBy);
+    }
+    
     const item = {
       id: n.Id ?? n.id ?? null,
       newsId: n.Id ?? n.id ?? null,
@@ -67,7 +74,7 @@ const normalize = (items = []) =>
       author: n.CreatorEmail ?? n.creatorEmail ?? n.CreatorName ?? n.creatorName ?? n.author ?? "",
       authorEmail: n.CreatorEmail ?? n.creatorEmail ?? null,
       authorName: n.CreatorName ?? n.creatorName ?? null,
-      authorId: n.CreatedBy ?? n.createdBy ?? null,
+      authorId: rawCreatedBy !== null && rawCreatedBy !== undefined ? Number(rawCreatedBy) : null,
       createdDate: formatDate(n.CreatedAt ?? n.createdAt),
       createdAt: n.CreatedAt ?? n.createdAt ?? null,
       updatedAt: n.UpdatedAt ?? n.updatedAt ?? null,
@@ -76,12 +83,6 @@ const normalize = (items = []) =>
       approvedAt: n.ApprovedAt ?? n.approvedAt ?? null,
       __raw: n,
     };
-    
-    // Debug log để kiểm tra data từ database
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Raw item from API:', n);
-      console.log('Normalized news item:', item);
-    }
     
     return item;
   });
@@ -122,13 +123,61 @@ const getCurrentRoleId = () => {
   return null;
 };
 
+const getCurrentUserId = () => {
+  try {
+    // Backend dùng "sub" claim trong JWT token để lưu Account.UserId
+    // Account.UserId là UserId từ bảng User (không phải AccountId)
+    // Ưu tiên lấy từ JWT token trước vì đây là nguồn chính xác nhất
+    const token = localStorage.getItem("token");
+    if (token && token.includes(".")) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        console.log("DEBUG getCurrentUserId: JWT payload:", payload);
+        // Backend dùng "sub" claim cho userId (Account.UserId = User.UserId)
+        const fromToken = parseMaybeNumber(payload?.sub);
+        if (fromToken !== null) {
+          console.log("DEBUG getCurrentUserId: Got userId from JWT 'sub' claim:", fromToken);
+          return fromToken;
+        }
+      } catch (e) {
+        console.error("DEBUG getCurrentUserId: Error parsing JWT token:", e);
+      }
+    }
+
+    // Fallback: Lấy userId từ profile
+    const profileStr = localStorage.getItem("profile");
+    if (profileStr) {
+      try {
+        const profile = JSON.parse(profileStr);
+        console.log("DEBUG getCurrentUserId: Profile:", profile);
+        const userId = parseMaybeNumber(
+          profile?.accountId ?? profile?.account_id ?? profile?.userId ?? profile?.user_id ?? profile?.user?.userId ?? profile?.user?.accountId
+        );
+        if (userId !== null) {
+          console.log("DEBUG getCurrentUserId: Got userId from profile:", userId);
+          return userId;
+        }
+      } catch (e) {
+        console.error("DEBUG getCurrentUserId: Error parsing profile:", e);
+      }
+    }
+  } catch (e) {
+    console.error("DEBUG getCurrentUserId: Error getting user ID:", e);
+  }
+  console.log("DEBUG getCurrentUserId: Could not find userId");
+  return null;
+};
+
 export default function NewsList({ title = "News Management" }) {
+  const [api, contextHolder] = notification.useNotification();
+  
   const [loading, setLoading] = useState(true);
   const [news, setNews] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [currentRoleId, setCurrentRoleId] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -144,10 +193,14 @@ export default function NewsList({ title = "News Management" }) {
 
   useEffect(() => {
     const roleId = getCurrentRoleId();
-    console.log("Current role ID:", roleId);
+    const userId = getCurrentUserId();
+    console.log("=== DEBUG: User Info ===");
+    console.log("Current Role ID:", roleId);
+    console.log("Current User ID:", userId);
     console.log("Profile from localStorage:", localStorage.getItem("profile"));
-    console.log("Token from localStorage:", localStorage.getItem("token")?.substring(0, 20) + "...");
+    console.log("Token (first 50 chars):", localStorage.getItem("token")?.substring(0, 50));
     setCurrentRoleId(roleId);
+    setCurrentUserId(userId);
   }, []);
 
   const fetchNews = useCallback(async () => {
@@ -158,9 +211,7 @@ export default function NewsList({ title = "News Management" }) {
         pageSize,
         ...(filters.status ? { status: filters.status } : {}),
       };
-      console.log("Fetching news with params:", params);
       const response = await NewsApi.getNews(params);
-      console.log("News API response:", response);
       const { total, items } = response;
 
       if (!items || !Array.isArray(items)) {
@@ -168,8 +219,6 @@ export default function NewsList({ title = "News Management" }) {
         message.error("Invalid data format");
         return;
       }
-
-      console.log("Raw news items from API:", items);
 
       // Apply client-side filtering for search only (status is now filtered server-side)
       let filteredItems = items;
@@ -182,9 +231,7 @@ export default function NewsList({ title = "News Management" }) {
         );
       }
 
-      console.log("Filtered items:", filteredItems);
       const normalized = normalize(filteredItems);
-      console.log("Normalized news:", normalized);
       
       setTotal(total); // Use server-side total
       setNews(normalized);
@@ -231,22 +278,42 @@ export default function NewsList({ title = "News Management" }) {
   const handleDelete = async (record) => {
     try {
       await NewsApi.deleteNews(record.id);
-      message.success("News deleted successfully");
+      api.success({
+        message: "Success",
+        description: "News deleted successfully",
+        placement: "topRight",
+        duration: 3,
+      });
       fetchNews();
     } catch (e) {
       console.error("Error deleting news:", e);
-      message.error(`Failed to delete news: ${e.response?.data?.message ?? e.message}`);
+      api.error({
+        message: "Error",
+        description: `Failed to delete news: ${e.response?.data?.message ?? e.message}`,
+        placement: "topRight",
+        duration: 3,
+      });
     }
   };
 
   const handleSubmitForReview = async (record) => {
     try {
       await NewsApi.submitForReview(record.id);
-      message.success("News submitted for review successfully");
+      api.success({
+        message: "Success",
+        description: "News submitted for review successfully",
+        placement: "topRight",
+        duration: 3,
+      });
       fetchNews();
     } catch (e) {
       console.error("Error submitting news:", e);
-      message.error(`Failed to submit news: ${e.response?.data?.message ?? e.message}`);
+      api.error({
+        message: "Error",
+        description: `Failed to submit news: ${e.response?.data?.message ?? e.message}`,
+        placement: "topRight",
+        duration: 3,
+      });
     }
   };
 
@@ -274,16 +341,8 @@ export default function NewsList({ title = "News Management" }) {
 
   // Mapping vai trò
   const isStaff = [6, 7].includes(Number(currentRoleId));
+  const isStaffRole6 = Number(currentRoleId) === 6; // Chỉ role 6 mới được xóa
   const isHead = [2, 5].includes(Number(currentRoleId));
-  
-  // Debug log để kiểm tra role detection
-  useEffect(() => {
-    console.log("Role detection:", {
-      currentRoleId,
-      isStaff,
-      isHead
-    });
-  }, [currentRoleId, isStaff, isHead]);
 
   const columns = useMemo(
     () => [
@@ -336,43 +395,44 @@ export default function NewsList({ title = "News Management" }) {
         width: 220,
         fixed: "right",
         render: (_, record) => {
-          const status = record.status?.toLowerCase();
+          // Đảm bảo status được normalize đúng
+          const rawStatus = record.status ?? record.__raw?.Status ?? record.__raw?.status ?? "";
+          const status = String(rawStatus).toLowerCase().trim();
           
-          // Debug logs
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Render actions for record:', {
-              id: record.id,
-              status: status,
-              recordStatus: record.status,
-              isStaff,
-              isHead,
-              currentRoleId
-            });
+          // Đảm bảo authorId và currentUserId được so sánh đúng kiểu (Number)
+          const recordAuthorId = record.authorId ? Number(record.authorId) : null;
+          const currentUserIdNum = currentUserId ? Number(currentUserId) : null;
+          const isOwner = recordAuthorId !== null && currentUserIdNum !== null && recordAuthorId === currentUserIdNum;
+          
+          // Debug logs cho submit
+          if (status === "draft" && isStaffRole6) {
+            console.log(`=== DEBUG Submit - News ID: ${record.id || record.newsId} ===`);
+            console.log("Record:", record);
+            console.log("record.authorId (raw):", record.authorId);
+            console.log("record.authorId (Number):", recordAuthorId);
+            console.log("currentUserId (raw):", currentUserId);
+            console.log("currentUserId (Number):", currentUserIdNum);
+            console.log("isOwner:", isOwner);
+            console.log("status:", status);
+            console.log("isStaffRole6:", isStaffRole6);
+            console.log("canSubmit:", isStaffRole6 && status === "draft" && isOwner);
           }
           
           // Điều kiện cho Staff:
-          // - Draft: View, Edit, Delete, Submit
+          // - Draft: View, Edit, Delete, Submit (chỉ người tạo mới được submit)
           // - Pending: View, Edit, Delete
           // - Published: View, Delete
           // - Rejected: View, Edit, Delete
           const showEdit = isStaff && (status === "draft" || status === "pending" || status === "rejected");
-          const showDelete = isStaff && (status === "draft" || status === "pending" || status === "published" || status === "rejected");
-          const canSubmit = isStaff && status === "draft";
+          // Delete: Chỉ role 6 mới được xóa, và chỉ xóa được khi status là draft, pending, published hoặc rejected
+          const showDelete = isStaffRole6 && (status === "draft" || status === "pending" || status === "published" || status === "rejected");
+          // Submit: chỉ người tạo (role 6) mới được submit khi status là draft
+          const canSubmit = isStaffRole6 && status === "draft" && isOwner;
           
           // Điều kiện cho Head:
           // - Pending: Approve, Reject
           const canApprove = isHead && status === "pending";
           const canReject = isHead && status === "pending";
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Button visibility:', {
-              showEdit,
-              showDelete,
-              canSubmit,
-              canApprove,
-              canReject
-            });
-          }
 
           return (
             <Space size={[4, 8]} wrap>
@@ -434,9 +494,17 @@ export default function NewsList({ title = "News Management" }) {
                 )}
               </Tooltip>
               
-              {/* Submit Button - Luôn hiện (chỉ khi Staff), disabled khi không có chức năng, đặt ở cuối */}
-              {isStaff && (
-                <Tooltip title={canSubmit ? "Submit for Review" : "Cannot submit this news"}>
+              {/* Submit Button - Hiện ở tất cả các dòng, chỉ enable khi có thể submit */}
+              {isStaffRole6 && (
+                <Tooltip title={
+                  canSubmit 
+                    ? "Submit for Review" 
+                    : status !== "draft" 
+                      ? "Only draft news can be submitted" 
+                      : !isOwner 
+                        ? "You can only submit your own news" 
+                        : "Cannot submit this news"
+                }>
                   {canSubmit ? (
                     <Popconfirm
                       title="Submit for review?"
@@ -542,11 +610,12 @@ export default function NewsList({ title = "News Management" }) {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isStaff, isHead]
+    [isStaff, isStaffRole6, isHead, currentUserId]
   );
 
   return (
     <>
+      {contextHolder}
       <Card 
         bodyStyle={{ padding: 24 }} 
         style={{ 
