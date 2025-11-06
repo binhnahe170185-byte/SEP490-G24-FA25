@@ -10,24 +10,12 @@ const layoutStyles = {
   backgroundColor: "#f5f5f5",
 };
 
-const bodyStyles = {
-  display: "flex",
-  flex: 1,
-  overflow: "hidden",
-};
-
-const sidebarStyles = {
-  width: 220,
-  borderRight: "1px solid #f0f0f0",
-  background: "#fff",
-  flexShrink: 0,
-};
-
 const mainStyles = {
-  flex: 1,
+  marginLeft: 260,
+  marginTop: 64, // Space for fixed header
   padding: "24px",
   background: "#fff",
-  overflowY: "auto",
+  minHeight: "calc(100vh - 64px)",
 };
 
 const StaffAcademicLayout = ({ children }) => {
@@ -35,15 +23,10 @@ const StaffAcademicLayout = ({ children }) => {
 
   return (
     <div style={layoutStyles}>
-  <StaffHeader />
+      <StaffHeader />
+      <StaffAcademicSidebar />
 
-      <div style={bodyStyles}>
-        <aside style={sidebarStyles}>
-          <StaffAcademicSidebar />
-        </aside>
-
-        <main style={mainStyles}>{bodyContent}</main>
-      </div>
+      <main style={mainStyles}>{bodyContent}</main>
     </div>
   );
 };

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, Radio, Alert } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Modal, Form, Input, Select, Alert } from 'antd';
 import { getSubjects } from '../../../vn.fpt.edu.api/Material';
 
 const { Option } = Select;
@@ -9,16 +9,44 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
   const [errors, setErrors] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
+
+  const checkFormErrors = useCallback(async () => {
+    try {
+      await form.validateFields();
+      setHasValidationErrors(false);
+      setErrors([]);
+    } catch (err) {
+      if (err && err.errorFields) {
+        setHasValidationErrors(err.errorFields.length > 0);
+      }
+    }
+  }, [form]);
 
   React.useEffect(() => {
-    if (record) form.setFieldsValue({ 
-      name: record.title || record.name, 
-      subject: record.subjectId || (record.Subject && record.Subject.subjectId) || (record.subject && record.subject.subjectId) || record.subjectId,
-      description: record.description, 
-      status: record.status, 
-      link: record.filePath || record.link 
-    });
-  }, [record, form]);
+    if (record) {
+      form.setFieldsValue({ 
+        name: record.title || record.name, 
+        subject: record.subjectId || (record.Subject && record.Subject.subjectId) || (record.subject && record.subject.subjectId) || record.subjectId,
+        description: record.description, 
+        status: record.status, 
+        link: record.filePath || record.link 
+      });
+      // Validate after setting values
+      setTimeout(() => {
+        checkFormErrors();
+      }, 100);
+    }
+  }, [record, form, checkFormErrors]);
+
+  React.useEffect(() => {
+    if (visible) {
+      setHasValidationErrors(false);
+      setErrors([]);
+    } else {
+      form.resetFields();
+    }
+  }, [visible, form]);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -40,10 +68,26 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
   }, [visible]);
 
   const handleOk = async () => {
-    const values = await form.validateFields();
-    // Chờ lưu thành công rồi mới reset form
-    await onSave(values);
-    form.resetFields();
+    try {
+      const values = await form.validateFields();
+      await onSave(values);
+      form.resetFields();
+      setErrors([]);
+    } catch (err) {
+      // Validation errors from antd
+      if (err && err.errorFields) {
+        const list = (err.errorFields || []).map((f) => {
+          const name = Array.isArray(f.name) ? f.name.join('.') : f.name;
+          return `${name}: ${f.errors.join(', ')}`;
+        });
+        setErrors(list);
+        try { form.scrollToField(err.errorFields[0].name); } catch (e) {}
+        return; // Do not call backend
+      }
+      // Backend or unexpected error
+      const apiMsg = err?.response?.data?.message || err?.message || 'An error occurred while saving';
+      setErrors([apiMsg]);
+    }
   };
 
   const onFinishFailed = ({ errorFields }) => {
@@ -52,9 +96,17 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
       return `${name}: ${f.errors.join(', ')}`;
     });
     setErrors(list);
+    setHasValidationErrors(errorFields && errorFields.length > 0);
     if (errorFields && errorFields.length) {
       try { form.scrollToField(errorFields[0].name); } catch (e) {}
     }
+  };
+
+  const handleValuesChange = () => {
+    // Validate real-time when values change
+    setTimeout(() => {
+      checkFormErrors();
+    }, 100);
   };
 
   return (
@@ -64,10 +116,11 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
       onOk={handleOk} 
       onCancel={onCancel} 
       okText="Save"
+      okButtonProps={{ disabled: hasValidationErrors }}
       width={800}
       bodyStyle={{ padding: '24px' }}
     >
-      <Form form={form} layout="vertical" onFinishFailed={onFinishFailed}>
+      <Form form={form} layout="vertical" onFinishFailed={onFinishFailed} onValuesChange={handleValuesChange}>
         {errors.length > 0 && (
           <Alert
             type="error"
@@ -123,7 +176,8 @@ export default function EditMaterialModal({ visible, record, onCancel, onSave })
           label="Material Link"
           rules={[
             { required: true, message: 'Please enter material link' },
-            { type: 'url', message: 'Please enter valid URL' }
+            { type: 'url', message: 'Please enter valid URL' },
+            { pattern: /^https?:\/\//i, message: 'URL must start with http:// or https://' }
           ]}
         >
           <Input 

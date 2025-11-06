@@ -9,6 +9,7 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
   const [errors, setErrors] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -26,15 +27,29 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
 
     if (visible) {
       fetchSubjects();
+      setHasValidationErrors(false);
+      setErrors([]);
+    } else {
+      form.resetFields();
     }
-  }, [visible]);
+  }, [visible, form]);
 
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
       await onCreate(values);
       form.resetFields();
+      setErrors([]);
     } catch (err) {
+      if (err && err.errorFields) {
+        const list = (err.errorFields || []).map((f) => {
+          const name = Array.isArray(f.name) ? f.name.join('.') : f.name;
+          return `${name}: ${f.errors.join(', ')}`;
+        });
+        setErrors(list);
+        try { form.scrollToField(err.errorFields[0].name); } catch (e) {}
+        return;
+      }
       const apiMsg = err?.response?.data?.message || err?.message || 'An error occurred while saving';
       setErrors([apiMsg]);
     }
@@ -47,10 +62,30 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
       return `${name}: ${f.errors.join(', ')}`;
     });
     setErrors(list);
+    setHasValidationErrors(errorFields && errorFields.length > 0);
     if (errorFields && errorFields.length) {
       // scroll to first field with error
       try { form.scrollToField(errorFields[0].name); } catch (e) {}
     }
+  };
+
+  const checkFormErrors = async () => {
+    try {
+      await form.validateFields();
+      setHasValidationErrors(false);
+      setErrors([]);
+    } catch (err) {
+      if (err && err.errorFields) {
+        setHasValidationErrors(err.errorFields.length > 0);
+      }
+    }
+  };
+
+  const handleValuesChange = () => {
+    // Validate real-time when values change
+    setTimeout(() => {
+      checkFormErrors();
+    }, 100);
   };
 
   return (
@@ -60,10 +95,11 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
       onOk={handleOk} 
       onCancel={onCancel} 
       okText="Create"
+      okButtonProps={{ disabled: hasValidationErrors }}
       width={800}
       bodyStyle={{ padding: '24px' }}
     >
-      <Form form={form} layout="vertical" onFinishFailed={onFinishFailed}>
+      <Form form={form} layout="vertical" onFinishFailed={onFinishFailed} onValuesChange={handleValuesChange}>
         {errors.length > 0 && (
           <Alert
             type="error"
@@ -119,7 +155,8 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
           label="Material Link"
           rules={[
             { required: true, message: 'Please enter material link' },
-            { type: 'url', message: 'Please enter valid URL' }
+            { type: 'url', message: 'Please enter valid URL' },
+            { pattern: /^https?:\/\//i, message: 'URL must start with http:// or https://' }
           ]}
         >
           <Input 

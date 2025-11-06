@@ -48,6 +48,8 @@ export async function getMaterials(params = {}) {
       createBy: it.createdBy || null,
       createByName: it.creatorName || null,
       creator: it.creatorEmail || it.creatorName || it.createdBy || null,
+      // updater (prefer email)
+      updatedByEmail: it.updatedByEmail || it.updaterEmail || it.UpdatedByEmail || null,
       updateBy: it.updatedBy || null,
       updateByName: it.updatedByName || null,
       // created/updated dates
