@@ -5,11 +5,11 @@ import { api } from "../../vn.fpt.edu.api/http";
 import { useAuth } from "./AuthContext";
 import "./login.css";
 import { notification } from "antd";
-import 'antd/dist/reset.css';
+import "antd/dist/reset.css";
+
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-
   const [notiApi, contextHolder] = notification.useNotification();
 
   async function onSuccess(credentialResponse) {
@@ -47,18 +47,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="lp">
+    <div className="lp" aria-label="FPT Japan Academy Login Page">
       {contextHolder}
-      <div className="lp-left">
-        <div className="lp-card">
-          <div className="lp-logo"> </div>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-            <img src="/FJAP.png" alt="FJAP Logo" style={{ width: 64, height: 64, objectFit: "contain", marginRight: 16 }} />
-            <h2 className="lp-title">Login</h2>
-          </div>
+
+      <section className="lp-left" aria-label="Login area">
+        <div className="lp-card" role="group" aria-labelledby="lp-title">
+          <img 
+            id="lp-title" 
+            className="lp-hero-title" 
+            src="/FJAP.png" 
+            alt="FPT Japan Academy"
+          />
 
           <p className="lp-subtitle">
-            Students, Lecturers, Managers of FPT Japan Academy
+            Students, Lecturers, Staffs of FPT Japan Academy
           </p>
 
           <div className="lp-actions">
@@ -79,13 +81,15 @@ export default function LoginPage() {
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      <div
+      <section
         className="lp-right"
-        style={{ backgroundImage: `url('loginImage.jpg')` }}
-        aria-label="Campus"
-      />
+        style={{ backgroundImage: `url('/loginImage.jpg')` }}
+        aria-hidden="true"
+      >
+        <div className="lp-right-overlay" />
+      </section>
     </div>
   );
 }
