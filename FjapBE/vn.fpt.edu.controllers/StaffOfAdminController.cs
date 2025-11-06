@@ -404,6 +404,10 @@ public class StaffOfAdminController : ControllerBase
             semester = await _db.Semesters.AsNoTracking().OrderByDescending(s => s.StartDate).FirstOrDefaultAsync();
         }
 
+        Console.WriteLine($"=== Student Creation Debug ===");
+        Console.WriteLine($"Today: {today}");
+        Console.WriteLine($"Semester found: {(semester != null ? $"Yes - ID: {semester.SemesterId}, Name: {semester.Name}, Code: {semester.SemesterCode}" : "No - No semester found in database")}");
+
         // Generate student code if missing: {SemesterCode}{LevelCode}{Sequence}
         string levelCode = ExtractLevelCode(level.LevelName);
         string semesterCode = semester?.SemesterCode ?? "";
@@ -439,8 +443,12 @@ public class StaffOfAdminController : ControllerBase
             EnrollmentDate = DateOnly.FromDateTime(DateTime.UtcNow.Date)
         };
 
+        Console.WriteLine($"Creating student with: UserId={student.UserId}, LevelId={student.LevelId}, SemesterId={student.SemesterId}, StudentCode={student.StudentCode}");
+
         await _db.Students.AddAsync(student);
         await _db.SaveChangesAsync();
+
+        Console.WriteLine($"Student created successfully with ID: {student.StudentId}, SemesterId: {student.SemesterId}");
 
         return Created($"/api/Students/{student.StudentId}", new
         {
