@@ -26,8 +26,8 @@ public class NewsService : INewsService
             NewsImage = request.NewsImage?.Trim(),
             Status = "draft",
             CreatedBy = userId,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.Now,
+            
         };
 
         await _newsRepository.AddAsync(news);
@@ -53,7 +53,7 @@ public class NewsService : INewsService
         news.Content = request.Content?.Trim();
         news.NewsImage = request.NewsImage?.Trim();
         news.UpdatedBy = userId;
-        news.UpdatedAt = DateTime.UtcNow;
+        news.UpdatedAt = DateTime.Now;
 
         _newsRepository.Update(news);
         await _newsRepository.SaveChangesAsync();
@@ -74,7 +74,7 @@ public class NewsService : INewsService
 
         news.Status = "pending";
         news.UpdatedBy = userId;
-        news.UpdatedAt = DateTime.UtcNow;
+        news.UpdatedAt = DateTime.Now;
 
         _newsRepository.Update(news);
         await _newsRepository.SaveChangesAsync();
@@ -92,9 +92,9 @@ public class NewsService : INewsService
 
         news.Status = "published";
         news.ApprovedBy = headUserId;
-        news.ApprovedAt = DateTime.UtcNow;
+        news.ApprovedAt = DateTime.Now;
         news.UpdatedBy = headUserId;
-        news.UpdatedAt = DateTime.UtcNow;
+        news.UpdatedAt = DateTime.Now;
 
         _newsRepository.Update(news);
         await _newsRepository.SaveChangesAsync();
@@ -103,7 +103,8 @@ public class NewsService : INewsService
 
     public async Task<bool> RejectAsync(int id, string reviewComment, int headUserId)
     {
-        var news = await _newsRepository.GetByIdAsync(id);
+        // Sử dụng _context.News trực tiếp để đảm bảo entity được track đúng cách
+        var news = await _context.News.FirstOrDefaultAsync(n => n.Id == id);
         if (news == null) return false;
 
         // Chỉ được từ chối khi status là pending
@@ -113,13 +114,15 @@ public class NewsService : INewsService
         if (string.IsNullOrWhiteSpace(reviewComment))
             throw new ArgumentException("Review comment is required when rejecting");
 
+        // Set properties - entity đã được track nên không cần mark IsModified
         news.Status = "rejected";
         news.ReviewComment = reviewComment.Trim();
+        news.ApprovedBy = headUserId; // Set ApprovedBy khi reject (người đã review)
+        news.ApprovedAt = DateTime.Now; // Set ApprovedAt khi reject (thời gian review)
         news.UpdatedBy = headUserId;
-        news.UpdatedAt = DateTime.UtcNow;
+        news.UpdatedAt = DateTime.Now;
 
-        _newsRepository.Update(news);
-        await _newsRepository.SaveChangesAsync();
+        await _context.SaveChangesAsync();
         return true;
     }
 
@@ -128,13 +131,24 @@ public class NewsService : INewsService
         var news = await _newsRepository.GetByIdAsync(id);
         if (news == null) return false;
 
-        // Chỉ Staff (roleId 6) được xóa news
-        if (roleId != 6)
-            throw new UnauthorizedAccessException("Only Staff (roleId 6) can delete news");
-
-        // Staff chỉ xóa được khi status là draft, pending, published hoặc rejected (không cần là người tạo)
-        if (news.Status != "draft" && news.Status != "pending" && news.Status != "published" && news.Status != "rejected")
-            throw new InvalidOperationException("News can only be deleted when status is 'draft', 'pending', 'published' or 'rejected'");
+        // Head (roleId 2) có thể xóa pending, published, rejected (không được xóa draft)
+        if (roleId == 2)
+        {
+            if (news.Status == "draft")
+                throw new InvalidOperationException("Head cannot delete draft news");
+            // Head có thể xóa pending, published, rejected
+        }
+        // Staff (roleId 6) chỉ xóa được draft, pending, published, rejected
+        else if (roleId == 6)
+        {
+            // Staff chỉ xóa được khi status là draft, pending, published hoặc rejected (không cần là người tạo)
+            if (news.Status != "draft" && news.Status != "pending" && news.Status != "published" && news.Status != "rejected")
+                throw new InvalidOperationException("News can only be deleted when status is 'draft', 'pending', 'published' or 'rejected'");
+        }
+        else
+        {
+            throw new UnauthorizedAccessException("Only Head or Staff can delete news");
+        }
 
         _newsRepository.Remove(news);
         await _newsRepository.SaveChangesAsync();
@@ -151,7 +165,11 @@ public class NewsService : INewsService
         {
             query = query.Where(n => n.Status == "published");
         }
-        // Head (roleId == 2) - xem tất cả, không filter
+        // Head (roleId == 2) - xem tất cả trừ draft
+        else if (roleId == 2)
+        {
+            query = query.Where(n => n.Status != "draft");
+        }
 
         // Filter by status nếu có
         if (!string.IsNullOrWhiteSpace(status))

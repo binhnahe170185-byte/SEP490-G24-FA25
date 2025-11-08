@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Modal, Tag, Typography, Alert } from "antd";
+import UserApi from "../../../vn.fpt.edu.api/Admin";
+import { formatDateTimeWithTimezone, formatApprovedAt } from "./dateUtils";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -9,33 +11,6 @@ const formatNewsId = (id) => {
   const numId = typeof id === "number" ? id : parseInt(id, 10);
   if (isNaN(numId)) return `NEW${String(id).padStart(4, "0")}`;
   return `NEW${String(numId).padStart(4, "0")}`;
-};
-
-// Helper để format date với timezone GMT+8
-const formatDateTimeWithTimezone = (dateStr) => {
-  if (!dateStr) return "N/A";
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
-    
-    // Convert to GMT+8 (Vietnam timezone)
-    const gmt8Date = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-    
-    const year = gmt8Date.getUTCFullYear();
-    const month = String(gmt8Date.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(gmt8Date.getUTCDate()).padStart(2, "0");
-    
-    let hours = gmt8Date.getUTCHours();
-    const minutes = String(gmt8Date.getUTCMinutes()).padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    hours = hours ? hours : 12; // 0 should be 12
-    const formattedHours = String(hours).padStart(2, "0");
-    
-    return `${year}-${month}-${day} ${formattedHours}:${minutes} ${ampm} (GMT+8)`;
-  } catch {
-    return dateStr;
-  }
 };
 
 const STATUS_COLORS = {
@@ -59,11 +34,11 @@ const processImageUrl = (imageUrl) => {
   const trimmedUrl = imageUrl.trim();
   if (!trimmedUrl) return null;
   
-  // Cảnh báo nếu là Pinterest pin URL (không phải direct image URL)
+  // Check if URL is invalid (e.g., Pinterest pin URL that is not a direct image)
   if (trimmedUrl.includes("pinterest.com/pin/") && !trimmedUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)) {
-    console.warn("Pinterest pin URL detected. Pinterest không hỗ trợ hotlinking. Vui lòng sử dụng direct image URL.");
-    console.warn("Hướng dẫn: Click chuột phải vào ảnh trên Pinterest > 'Copy image address' để lấy direct URL.");
-    // Không return URL Pinterest vì sẽ không load được
+    console.warn("Invalid image URL detected. Pinterest pin URLs are not supported. Please use a direct image URL.");
+    console.warn("Guide: Right-click on the image on Pinterest > 'Copy image address' to get the direct URL.");
+    // Don't return Pinterest URL as it won't load
     return null;
   }
   
@@ -88,6 +63,9 @@ const processImageUrl = (imageUrl) => {
 export default function ViewNewsModal({ visible, news, onCancel }) {
   // Hooks phải khai báo trước mọi return
   const [imageError, setImageError] = useState(false);
+  const [approvedByInfo, setApprovedByInfo] = useState(null);
+  const [updatedByInfo, setUpdatedByInfo] = useState(null);
+  
   useEffect(() => {
     setImageError(false);
   }, [news?.newsImage, news?.__raw?.NewsImage, news?.id]);
@@ -107,18 +85,131 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
     setDisplayUrl(newsImage || null);
   }, [newsImage, newsId]);
 
-  if (!news) return null;
-  
-  // Kiểm tra nếu URL là Pinterest pin (không phải direct image)
-  const isPinterestPin = rawImageUrl && 
+  // Check if image URL is invalid
+  const isInvalidImageUrl = rawImageUrl && 
     rawImageUrl.includes("pinterest.com/pin/") && 
     !rawImageUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
-  const status = (news.status || news.__raw?.Status || "").toLowerCase();
-  const authorName = news.authorName || news.__raw?.CreatorName || null;
-  const authorEmail = news.authorEmail || news.__raw?.CreatorEmail || news.author || null;
+  const status = (news?.status || news?.__raw?.Status || "").toLowerCase();
+  const authorName = news?.authorName || news?.__raw?.CreatorName || null;
+  const authorEmail = news?.authorEmail || news?.__raw?.CreatorEmail || news?.author || null;
   const author = authorName || authorEmail || "N/A";
-  const createdAt = news.createdAt || news.__raw?.CreatedAt || null;
-  const updatedAt = news.updatedAt || news.__raw?.UpdatedAt || null;
+  const createdAt = news?.createdAt || news?.__raw?.CreatedAt || null;
+  const updatedAt = news?.updatedAt || news?.__raw?.UpdatedAt || null;
+  const approvedAt = news?.approvedAt || news?.__raw?.ApprovedAt || null;
+  
+  // Lấy UpdatedBy và UpdatedByNavigation
+  const updatedByNavigation = news?.__raw?.UpdatedByNavigation || null;
+  const updatedById = news?.updatedBy || 
+                     news?.__raw?.UpdatedBy || 
+                     news?.__raw?.data?.UpdatedBy ||
+                     (news?.__raw?._fullResponse && (news.__raw._fullResponse.UpdatedBy || news.__raw._fullResponse.updatedBy)) ||
+                     (news?.__raw && typeof news.__raw === 'object' && 'UpdatedBy' in news.__raw ? news.__raw.UpdatedBy : null) ||
+                     null;
+  
+  // Kiểm tra xem đã được update chưa (dựa vào UpdatedBy có giá trị không)
+  const hasBeenUpdated = updatedById !== null && updatedById !== undefined;
+  const reviewComment = news?.reviewComment || news?.__raw?.ReviewComment || null;
+  
+  const approvedByNavigation = news?.__raw?.ApprovedByNavigation || null;
+  
+  // Lấy approvedById từ nhiều nguồn để đảm bảo không bị miss
+  const approvedById = news?.approvedBy || 
+                       news?.__raw?.ApprovedBy || 
+                       news?.__raw?.data?.ApprovedBy ||
+                       (news?.__raw?._fullResponse && (news.__raw._fullResponse.ApprovedBy || news.__raw._fullResponse.approvedBy)) ||
+                       (news?.__raw && typeof news.__raw === 'object' && 'ApprovedBy' in news.__raw ? news.__raw.ApprovedBy : null) ||
+                       null;
+  
+  // Debug log để kiểm tra approvedById từ các nguồn
+  if ((status === "published" || status === "rejected") && news) {
+    console.log("=== DEBUG ViewNewsModal - ApprovedBy Extraction ===");
+    console.log("news?.approvedBy:", news?.approvedBy);
+    console.log("news?.__raw?.ApprovedBy:", news?.__raw?.ApprovedBy);
+    console.log("news?.__raw?.data?.ApprovedBy:", news?.__raw?.data?.ApprovedBy);
+    console.log("Final approvedById:", approvedById);
+    console.log("approvedByNavigation:", approvedByNavigation);
+    console.log("news.__raw:", news.__raw);
+  }
+  
+  // Fetch approvedBy user info nếu không có ApprovedByNavigation
+  useEffect(() => {
+    const fetchApprovedByInfo = async () => {
+      // Chỉ fetch nếu: status là published/rejected, có approvedById, không có ApprovedByNavigation, và có news
+      if ((status === "published" || status === "rejected") && approvedById && !approvedByNavigation && news) {
+        try {
+          console.log("=== DEBUG ViewNewsModal - Fetching ApprovedBy Info ===");
+          console.log("approvedById:", approvedById);
+          const userInfo = await UserApi.getUserById(approvedById);
+          console.log("Fetched userInfo:", userInfo);
+          setApprovedByInfo(userInfo);
+        } catch (error) {
+          console.error("Error fetching approvedBy user info:", error);
+          console.error("Error details:", error.response?.data || error.message);
+        }
+      } else {
+        // Reset nếu không cần fetch
+        if (!approvedById || approvedByNavigation) {
+          setApprovedByInfo(null);
+        }
+      }
+    };
+    
+    fetchApprovedByInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, approvedById, approvedByNavigation, news?.id, news?.newsId, news]);
+
+  // Fetch updatedBy user info nếu không có UpdatedByNavigation
+  useEffect(() => {
+    const fetchUpdatedByInfo = async () => {
+      // Chỉ fetch nếu: có updatedById, không có UpdatedByNavigation, và có news
+      if (updatedById && !updatedByNavigation && news) {
+        try {
+          const userInfo = await UserApi.getUserById(updatedById);
+          setUpdatedByInfo(userInfo);
+        } catch (error) {
+          console.error("Error fetching updatedBy user info:", error);
+          console.error("Error details:", error.response?.data || error.message);
+        }
+      } else {
+        // Reset nếu không cần fetch
+        if (!updatedById || updatedByNavigation) {
+          setUpdatedByInfo(null);
+        }
+      }
+    };
+    
+    fetchUpdatedByInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updatedById, updatedByNavigation, news?.id, news?.newsId, news]);
+  
+  if (!news) return null;
+  
+  // Debug log để kiểm tra ApprovedByNavigation
+  if (status === "published" || status === "rejected") {
+    console.log("=== DEBUG Approved Info ===");
+    console.log("status:", status);
+    console.log("approvedAt:", approvedAt);
+    console.log("approvedById:", approvedById);
+    console.log("approvedByNavigation:", approvedByNavigation);
+    console.log("approvedByInfo (fetched):", approvedByInfo);
+    console.log("news.__raw:", news.__raw);
+  }
+  
+  // Lấy thông tin từ ApprovedByNavigation hoặc từ fetched approvedByInfo
+  const approvedByData = approvedByNavigation || approvedByInfo;
+  const approvedByName = approvedByData 
+    ? `${approvedByData.FirstName || approvedByData.firstName || ''} ${approvedByData.LastName || approvedByData.lastName || ''}`.trim() 
+    : null;
+  const approvedByEmail = approvedByData?.Email || approvedByData?.email || null;
+  const approvedBy = approvedByName || approvedByEmail || null;
+
+  // Lấy thông tin từ UpdatedByNavigation hoặc từ fetched updatedByInfo
+  const updatedByData = updatedByNavigation || updatedByInfo;
+  const updatedByName = updatedByData 
+    ? `${updatedByData.FirstName || updatedByData.firstName || ''} ${updatedByData.LastName || updatedByData.lastName || ''}`.trim() 
+    : null;
+  const updatedByEmail = updatedByData?.Email || updatedByData?.email || null;
+  const updatedBy = updatedByName || updatedByEmail || null;
 
   return (
     <Modal
@@ -200,24 +291,43 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
           </Text>
           <Text style={{ color: "#1f1f1f" }}>{formatDateTimeWithTimezone(createdAt)}</Text>
         </div>
+        {/* Updated By và Updated Time - Chỉ hiển thị nếu đã được update (có UpdatedBy) */}
+        {hasBeenUpdated && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 8px",
+                borderBottom: "1px solid #f0f0f0",
+              }}
+            >
+              <Text strong style={{ color: "#434343", minWidth: 150 }}>
+                Updated By:
+              </Text>
+              <Text style={{ color: "#1f1f1f" }}>{updatedBy || "N/A"}</Text>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 8px",
+                borderBottom: "1px solid #f0f0f0",
+              }}
+            >
+              <Text strong style={{ color: "#434343", minWidth: 150 }}>
+                Updated Time:
+              </Text>
+              <Text style={{ color: "#1f1f1f" }}>{formatDateTimeWithTimezone(updatedAt)}</Text>
+            </div>
+          </>
+        )}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             padding: "10px 8px",
-            borderBottom: "1px solid #f0f0f0",
-          }}
-        >
-          <Text strong style={{ color: "#434343", minWidth: 150 }}>
-            Updated Time:
-          </Text>
-          <Text style={{ color: "#1f1f1f" }}>{formatDateTimeWithTimezone(updatedAt)}</Text>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "10px 8px",
+            borderBottom: status === "published" ? "1px solid #f0f0f0" : "none",
             alignItems: "center",
           }}
         >
@@ -228,19 +338,80 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
             {STATUS_LABELS[status] || status}
           </Tag>
         </div>
+        {/* Approved By and Approved At - Hiển thị cho cả published và rejected news (luôn hiển thị, kể cả khi không có dữ liệu) */}
+        {(status === "published" || status === "rejected") && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 8px",
+                borderBottom: "1px solid #f0f0f0",
+              }}
+            >
+              <Text strong style={{ color: "#434343", minWidth: 150 }}>
+                Approved At:
+              </Text>
+              <Text style={{ color: "#1f1f1f" }}>
+                {approvedAt ? formatApprovedAt(approvedAt) : "N/A"}
+              </Text>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 8px",
+              }}
+            >
+              <Text strong style={{ color: "#434343", minWidth: 150 }}>
+                Approved By:
+              </Text>
+              <Text style={{ color: "#1f1f1f" }}>{approvedBy || "N/A"}</Text>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Image Section */}
-      {isPinterestPin && (
+      {/* Review Comment Section - Hiển thị khi news bị rejected */}
+      {status === "rejected" && reviewComment && (
         <Alert
-          message="URL ảnh không hợp lệ"
+          message="Rejection Review Comment"
+          description={
+            <div>
+              <p style={{ marginBottom: 8, fontWeight: 500, color: "#1f1f1f" }}>
+                This news was rejected. Review comment:
+              </p>
+              <div style={{
+                background: "#fafafa",
+                padding: "12px 16px",
+                borderRadius: 6,
+                border: "1px solid #f0f0f0",
+                marginTop: 8,
+                color: "#434343",
+                whiteSpace: "pre-wrap",
+                lineHeight: 1.6,
+              }}>
+                {reviewComment}
+              </div>
+            </div>
+          }
+          type="error"
+          showIcon
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
+      {/* Image Section */}
+      {(isInvalidImageUrl || imageError) && (
+        <Alert
+          message="Invalid Image URL"
           description={
             <div>
               <p style={{ marginBottom: 8 }}>
-                Link Pinterest pin không thể hiển thị trực tiếp. Vui lòng sử dụng <strong>direct image URL</strong>.
+                The image URL is invalid or cannot be loaded. Please use a <strong>direct image URL</strong>.
               </p>
               <p style={{ margin: 0, fontSize: 13 }}>
-                <strong>Hướng dẫn:</strong> Click chuột phải vào ảnh trên Pinterest → chọn "Copy image address" hoặc "Open image in new tab" để lấy direct URL.
+                <strong>Guide:</strong> Right-click on the image → select "Copy image address" or "Open image in new tab" to get the direct URL.
               </p>
             </div>
           }
@@ -249,7 +420,7 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
           style={{ marginBottom: 24 }}
         />
       )}
-      {/* Khung ảnh luôn hiển thị (giữ UI như cũ); ảnh bên trong ẩn nếu lỗi */}
+      {/* Image frame always displays; image inside is hidden if error */}
       <div
         style={{
           marginBottom: 20,
@@ -289,7 +460,7 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
             No image provided
           </div>
         )}
-        {imageError && newsImage && (
+        {(imageError || isInvalidImageUrl) && newsImage && (
           <div style={{ color: "#fa541c", fontSize: 13 }}>
             Cannot load image. Please check the URL.
           </div>
@@ -297,7 +468,7 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
       </div>
 
       {/* Content Section */}
-      <div style={{ marginTop: newsImage || isPinterestPin ? 0 : 12 }}>
+      <div style={{ marginTop: newsImage || isInvalidImageUrl ? 0 : 12 }}>
         <Title
           level={2}
           style={{
