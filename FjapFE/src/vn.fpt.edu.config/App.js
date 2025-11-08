@@ -21,6 +21,7 @@ import AcademicTranscript from "../vn.fpt.edu.pages/student/AcademicTranscript";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import LecturerLayout from "../vn.fpt.edu.pages/layouts/lecturer-layout";
+import HeadOfAdminLayout from "../vn.fpt.edu.pages/layouts/headOfAdmin_layout";
 import ClassPage from "../vn.fpt.edu.pages/staffAcademic/class";
 import ClassDetail from "../vn.fpt.edu.pages/staffAcademic/class/ClassDetail";
 import ClassStudents from "../vn.fpt.edu.pages/staffAcademic/class/ClassStudents";
@@ -41,6 +42,12 @@ import Attendance from "../vn.fpt.edu.pages/lecturer/Attendance/Attendance";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
 import CreateSchedule from "../vn.fpt.edu.pages/headOfAcademic/createSchedule/CreateSchedule";
 import CurriculumSubjects from "../vn.fpt.edu.pages/student/CurriculumSubjects";
+import HeadOfAdminDashboard from "../vn.fpt.edu.pages/headOfAdmin/Dashboard";
+import NewsList from "../vn.fpt.edu.pages/admin/News/NewsList";
+import SemesterList from "../vn.fpt.edu.pages/admin/SemesterList";
+import AddSemesterWithHolidays from "../vn.fpt.edu.pages/admin/AddSemesterWithHolidays";
+import EditSemester from "../vn.fpt.edu.pages/admin/EditSemester";
+import AdministrationStaffList from "../vn.fpt.edu.pages/headOfAdmin/AdministrationStaffList";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 import { NotificationProvider } from "../vn.fpt.edu.common/notifications";
@@ -98,6 +105,14 @@ function RequireHeadOfAcademic({ children }) {
   return children;
 }
 
+function RequireHeadOfAdministration({ children }) {
+  const { user } = useAuth();
+  if (!user || Number(user.roleId) !== 2) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
 function RoleBasedRedirect() {
   const { user } = useAuth();
   if (!user) {
@@ -109,6 +124,10 @@ function RoleBasedRedirect() {
   }
   if (roleId === 4) {
     return <Navigate to="/" replace />;
+  }
+  if (roleId === 2) {
+    // Head of Administration Department
+    return <Navigate to="/headOfAdmin/dashboard" replace />;
   }
   if (roleId === 5) {
     return <Navigate to="/createSchedule" replace />;
@@ -128,6 +147,7 @@ function ProtectedLayout() {
   const isStudent = user && Number(user.roleId) === 4;
   const hideHeader =
     location.pathname.startsWith("/staffAcademic") ||
+    location.pathname.startsWith("/headOfAdmin") ||
     location.pathname.startsWith("/lecturer") ||
     location.pathname.startsWith("/student") ||
     location.pathname === "/weeklyTimetable" ||
@@ -199,7 +219,7 @@ export default function App() {
                   <Route index element={<WeeklyTimetable />} />
                 </Route>
 
-                /* Tạm thời headOfacademic sẽ login vào /createSchedule */
+                {/* Tạm thời headOfacademic sẽ login vào /createSchedule */}
                 <Route
                   path="/createSchedule"
                   element={
@@ -218,7 +238,6 @@ export default function App() {
                     </RequireManager>
                   }
                 >
-                  
                 </Route>
 
                 <Route
@@ -276,6 +295,22 @@ export default function App() {
                   <Route path="grades/:courseId" element={<GradeDetails />} />
                   <Route path="grades/enter/:courseId" element={<GradeEntry />} />
                   <Route path="class/:classId/students" element={<ClassStudentsList />} />
+                </Route>
+
+                <Route
+                  path="/headOfAdmin/*"
+                  element={
+                    <RequireHeadOfAdministration>
+                      <HeadOfAdminLayout />
+                    </RequireHeadOfAdministration>
+                  }
+                >
+                  <Route path="dashboard" element={<HeadOfAdminDashboard />} />
+                  <Route path="news" element={<NewsList title="News Management" />} />
+                  <Route path="semesters" element={<SemesterList title="Semester Management" />} />
+                  <Route path="semesters/add" element={<AddSemesterWithHolidays />} />
+                  <Route path="semesters/edit/:id" element={<EditSemester />} />
+                  <Route path="staff" element={<AdministrationStaffList />} />
                 </Route>
               </Route>
 
