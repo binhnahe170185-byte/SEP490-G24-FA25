@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   Select,
@@ -7,30 +7,27 @@ import {
   Button,
   Space,
   Typography,
-  Row,
-  Col,
   message,
   Spin,
   Empty,
+  Row,
+  Col,
 } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ClockCircleOutlined,
-  FileDoneOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
 import AttendanceApi from "../../../vn.fpt.edu.api/Attendance";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./Attendance.css";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 const STATUS_OPTIONS = [
-  { value: "Present", label: "Present", color: "green", icon: <CheckCircleOutlined /> },
   { value: "Absent", label: "Absent", color: "red", icon: <CloseCircleOutlined /> },
-  { value: "Late", label: "Late", color: "orange", icon: <ClockCircleOutlined /> },
-  { value: "Excused", label: "Excused", color: "blue", icon: <FileDoneOutlined /> },
+  { value: "Present", label: "Present", color: "green", icon: <CheckCircleOutlined /> },
 ];
 
 export default function Attendance() {
@@ -43,13 +40,23 @@ export default function Attendance() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attendanceMap, setAttendanceMap] = useState({}); // { studentId: status }
-
-  // Load classes on mount
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [prefillClassId, setPrefillClassId] = useState(location.state?.classId || null);
+  const [prefillLessonId, setPrefillLessonId] = useState(location.state?.lessonId || null);
+  const [prefillClassApplied, setPrefillClassApplied] = useState(false);
+  const [prefillLessonApplied, setPrefillLessonApplied] = useState(false);
   useEffect(() => {
-    loadClasses();
-  }, []);
+    const state = location.state;
+    if (state && (state.classId || state.lessonId)) {
+      setPrefillClassId(state.classId || null);
+      setPrefillLessonId(state.lessonId || null);
+      setPrefillClassApplied(false);
+      setPrefillLessonApplied(false);
+    }
+  }, [location.state]);
 
-  const loadClasses = async () => {
+  const loadClasses = useCallback(async () => {
     try {
       setLoading(true);
       console.log("Loading classes...");
@@ -67,9 +74,14 @@ export default function Attendance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadLessons = async (classId) => {
+  // Load classes on mount
+  useEffect(() => {
+    loadClasses();
+  }, [loadClasses]);
+
+  const loadLessons = useCallback(async (classId) => {
     if (!classId) return;
 
     try {
@@ -86,9 +98,9 @@ export default function Attendance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadStudents = async (lessonId) => {
+  const loadStudents = useCallback(async (lessonId) => {
     if (!lessonId) return;
 
     try {
@@ -107,7 +119,7 @@ export default function Attendance() {
         // Initialize attendance map
         const map = {};
         data.students.forEach((student) => {
-          map[student.studentId] = student.status || "Present";
+          map[student.studentId] = student.status || "Absent";
         });
         setAttendanceMap(map);
         setStudents(data.students);
@@ -118,7 +130,7 @@ export default function Attendance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleClassChange = (classId) => {
     setSelectedClassId(classId);
@@ -144,8 +156,8 @@ export default function Attendance() {
     }
 
     const hasChanges = students.some((student) => {
-      const originalStatus = student.status || "Present";
-      const currentStatus = attendanceMap[student.studentId] || "Present";
+      const originalStatus = student.status || "Absent";
+      const currentStatus = attendanceMap[student.studentId] || "Absent";
       return originalStatus !== currentStatus;
     });
 
@@ -158,7 +170,7 @@ export default function Attendance() {
       setSaving(true);
       const attendances = students.map((student) => ({
         studentId: student.studentId,
-        status: attendanceMap[student.studentId] || "Present",
+        status: attendanceMap[student.studentId] || "Absent",
       }));
 
       await AttendanceApi.updateBulkAttendance(selectedLessonId, attendances);
@@ -173,6 +185,59 @@ export default function Attendance() {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!prefillClassApplied && prefillClassId && classes.length > 0) {
+      const classExists = classes.some((cls) => cls.classId === prefillClassId);
+      if (classExists) {
+        setSelectedClassId(prefillClassId);
+        loadLessons(prefillClassId);
+      }
+      setPrefillClassApplied(true);
+    }
+  }, [classes, prefillClassApplied, prefillClassId, loadLessons]);
+
+  useEffect(() => {
+    if (
+      !prefillLessonApplied &&
+      prefillLessonId &&
+      lessons.length > 0 &&
+      (!prefillClassId || prefillClassId === selectedClassId)
+    ) {
+      const lessonExists = lessons.some((lesson) => lesson.lessonId === prefillLessonId);
+      if (lessonExists) {
+        setSelectedLessonId(prefillLessonId);
+        loadStudents(prefillLessonId);
+      }
+      setPrefillLessonApplied(true);
+    }
+  }, [
+    lessons,
+    prefillLessonApplied,
+    prefillLessonId,
+    prefillClassId,
+    selectedClassId,
+    loadStudents,
+  ]);
+
+  useEffect(() => {
+    if (
+      prefillClassApplied &&
+      prefillLessonApplied &&
+      (prefillClassId || prefillLessonId) &&
+      location.state
+    ) {
+      navigate(location.pathname, { replace: true });
+    }
+  }, [
+    prefillClassApplied,
+    prefillLessonApplied,
+    prefillClassId,
+    prefillLessonId,
+    location.pathname,
+    location.state,
+    navigate,
+  ]);
 
   const columns = [
     {
@@ -199,25 +264,22 @@ export default function Attendance() {
       key: "status",
       width: 200,
       render: (_value, record) => {
-        const currentStatus = attendanceMap[record.studentId] || record.status || "Present";
+        const currentStatus = attendanceMap[record.studentId] || record.status || "Absent";
         const statusOption = STATUS_OPTIONS.find((opt) => opt.value === currentStatus);
 
         return (
-          <Select
-            value={currentStatus}
-            onChange={(value) => handleStatusChange(record.studentId, value)}
-            style={{ width: "100%" }}
-            size="large"
-          >
+          <Space>
             {STATUS_OPTIONS.map((opt) => (
-              <Option key={opt.value} value={opt.value}>
-                <Space>
-                  {opt.icon}
-                  {opt.label}
-                </Space>
-              </Option>
+              <Button
+                key={opt.value}
+                type={currentStatus === opt.value ? "primary" : "default"}
+                icon={opt.icon}
+                onClick={() => handleStatusChange(record.studentId, opt.value)}
+              >
+                {opt.label}
+              </Button>
             ))}
-          </Select>
+          </Space>
         );
       },
     },
@@ -227,7 +289,7 @@ export default function Attendance() {
       width: 150,
       align: "center",
       render: (_value, record) => {
-        const originalStatus = record.status || "Present";
+        const originalStatus = record.status || "Absent";
         const statusOption = STATUS_OPTIONS.find((opt) => opt.value === originalStatus);
         return (
           <Tag color={statusOption?.color} icon={statusOption?.icon}>
@@ -238,9 +300,6 @@ export default function Attendance() {
     },
   ];
 
-  const selectedClass = classes.find((c) => c.classId === selectedClassId);
-  const selectedLesson = lessons.find((l) => l.lessonId === selectedLessonId);
-
   return (
     <div className="attendance-container">
       <Card>
@@ -248,65 +307,7 @@ export default function Attendance() {
           Take Attendance
         </Title>
 
-        {/* Filters */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} md={8}>
-            <div>
-              <Text strong>Select Class:</Text>
-              <Select
-                placeholder="Choose a class"
-                style={{ width: "100%", marginTop: 8 }}
-                size="large"
-                value={selectedClassId}
-                onChange={handleClassChange}
-                loading={loading}
-              >
-                {classes.map((cls) => (
-                  <Option key={cls.classId} value={cls.classId}>
-                    {cls.className} - {cls.subjectName}
-                  </Option>
-                ))}
-              </Select>
-            </div>
-          </Col>
 
-          <Col xs={24} sm={12} md={8}>
-            <div>
-              <Text strong>Select Lesson:</Text>
-              <Select
-                placeholder="Choose a lesson"
-                style={{ width: "100%", marginTop: 8 }}
-                size="large"
-                value={selectedLessonId}
-                onChange={handleLessonChange}
-                loading={loading}
-                disabled={!selectedClassId || lessons.length === 0}
-              >
-                {lessons.map((lesson) => (
-                  <Option key={lesson.lessonId} value={lesson.lessonId}>
-                    {lesson.date} - {lesson.timeSlot} ({lesson.roomName})
-                  </Option>
-                ))}
-              </Select>
-            </div>
-          </Col>
-
-          <Col xs={24} sm={24} md={8}>
-            <div style={{ marginTop: 32 }}>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                size="large"
-                onClick={handleSave}
-                loading={saving}
-                disabled={!selectedLessonId || students.length === 0}
-                block
-              >
-                Save Attendance
-              </Button>
-            </div>
-          </Col>
-        </Row>
 
         {/* Lesson Info */}
         {lessonInfo && (
@@ -358,21 +359,35 @@ export default function Attendance() {
           <Empty description="Please select a class and lesson to view students" />
         )}
 
-        {/* Status Legend */}
         {students.length > 0 && (
-          <Card
-            style={{ marginTop: 24 }}
-            title="Status Legend"
-            bodyStyle={{ padding: "12px 24px" }}
-          >
-            <Space wrap>
-              {STATUS_OPTIONS.map((opt) => (
-                <Tag key={opt.value} color={opt.color} icon={opt.icon}>
-                  {opt.label}
-                </Tag>
-              ))}
-            </Space>
-          </Card>
+          <>
+            <Card
+              style={{ marginTop: 24 }}
+              title="Status Legend"
+              bodyStyle={{ padding: "12px 24px" }}
+            >
+              <Space wrap>
+                {STATUS_OPTIONS.map((opt) => (
+                  <Tag key={opt.value} color={opt.color} icon={opt.icon}>
+                    {opt.label}
+                  </Tag>
+                ))}
+              </Space>
+            </Card>
+
+            <div style={{ marginTop: 24, textAlign: "right" }}>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                size="large"
+                onClick={handleSave}
+                loading={saving}
+                disabled={!selectedLessonId || students.length === 0}
+              >
+                Save Attendance
+              </Button>
+            </div>
+          </>
         )}
       </Card>
     </div>

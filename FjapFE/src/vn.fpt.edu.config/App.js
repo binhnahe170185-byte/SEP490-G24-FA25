@@ -192,7 +192,7 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
-              <Route path="/attendance" element={<Attendance />} />
+
 
 
               <Route element={<ProtectedLayout />}>
@@ -285,6 +285,7 @@ export default function App() {
                   <Route index element={<Navigate to="homepage" replace />} />
                   <Route path="homepage" element={<LecturerHomepage />} />
                   <Route path="schedule" element={<Schedule />} />
+                  <Route path="attendance" element={<Attendance />} />
                   <Route
                     path="classes"
                     element={<div style={{ padding: 16 }}><h3>Lecturer Classes (coming soon)</h3></div>}
