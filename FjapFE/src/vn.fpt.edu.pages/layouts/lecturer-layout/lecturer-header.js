@@ -1,8 +1,9 @@
 ﻿import React from 'react';
 import { Dropdown, Badge, Avatar } from 'antd';
-import { BellOutlined, UserOutlined, LogoutOutlined, HomeOutlined, CalendarOutlined, FileTextOutlined, BookOutlined, NotificationOutlined } from '@ant-design/icons';
+import { BellOutlined, UserOutlined, LogoutOutlined, HomeOutlined, CalendarOutlined, FileTextOutlined, BookOutlined, NotificationOutlined, ReadOutlined } from '@ant-design/icons';
 import { useAuth } from '../../login/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import './LecturerHomepage.css';
 
 const LecturerHeader = () => {
   const { user, logout } = useAuth();
@@ -14,6 +15,7 @@ const LecturerHeader = () => {
     { key: '/lecturer/schedule', label: 'Schedule', icon: <CalendarOutlined />, path: '/lecturer/schedule' },
     { key: '/lecturer/homework', label: 'Homework', icon: <FileTextOutlined />, path: '/lecturer/homework' },
     { key: '/lecturer/grades', label: 'Grades', icon: <BookOutlined />, path: '/lecturer/grades' },
+    { key: '/lecturer/subjects', label: 'Curriculum Subjects', icon: <ReadOutlined />, path: '/lecturer/subjects' },
     { key: '/lecturer/news', label: 'News', icon: <NotificationOutlined />, path: '/lecturer/news' }
   ];
 
@@ -22,11 +24,60 @@ const LecturerHeader = () => {
   };
 
   return (
-    <header className="student-header" style={{ position: 'sticky', top: 0, zIndex: 1000 }}>
+    <header className="student-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, width: '100%' }}>
       <div className="student-header-content">
         <div className="student-header-left">
-          <div className="student-logo">
-            <img src="/FJAP.png" alt="FJAP" className="logo-icon" style={{ width: 150, height: 80, objectFit: 'contain' }} />
+          <div 
+            className="student-logo lecturer-logo-no-hover" 
+            style={{ 
+              pointerEvents: 'auto',
+              background: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              const img = e.currentTarget.querySelector('img');
+              if (img) {
+                img.style.filter = 'none';
+                img.style.opacity = '1';
+                img.style.webkitFilter = 'none';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              const img = e.currentTarget.querySelector('img');
+              if (img) {
+                img.style.filter = 'none';
+                img.style.opacity = '1';
+                img.style.webkitFilter = 'none';
+              }
+            }}
+          >
+            <img 
+              src="/FJAP.png" 
+              alt="FJAP" 
+              className="logo-icon lecturer-logo-img" 
+              style={{ 
+                width: 150, 
+                height: 80, 
+                objectFit: 'contain',
+                filter: 'none',
+                opacity: 1,
+                WebkitFilter: 'none',
+                transition: 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                e.currentTarget.style.filter = 'none';
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.webkitFilter = 'none';
+              }}
+              onMouseLeave={(e) => {
+                e.stopPropagation();
+                e.currentTarget.style.filter = 'none';
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.webkitFilter = 'none';
+              }}
+            />
           </div>
         </div>
 

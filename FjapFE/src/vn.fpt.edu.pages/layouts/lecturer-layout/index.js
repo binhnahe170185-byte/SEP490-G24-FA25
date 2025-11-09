@@ -12,6 +12,7 @@ const layoutStyles = {
 const mainStyles = {
   flex: 1,
   overflowY: "auto",
+  paddingTop: "64px", // Padding để tránh bị header fixed che
 };
 
 const LecturerLayout = () => {

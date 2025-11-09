@@ -46,6 +46,7 @@ import StudentNewsList from "../vn.fpt.edu.pages/student/StudentNewsList";
 import StudentNewsDetail from "../vn.fpt.edu.pages/student/StudentNewsDetail";
 import LecturerNewsList from "../vn.fpt.edu.pages/lecturer/LecturerNewsList";
 import LecturerNewsDetail from "../vn.fpt.edu.pages/lecturer/LecturerNewsDetail";
+import LecturerCurriculumSubjects from "../vn.fpt.edu.pages/lecturer/LecturerCurriculumSubjects";
 import HeadOfAdminDashboard from "../vn.fpt.edu.pages/headOfAdmin/Dashboard";
 import NewsList from "../vn.fpt.edu.pages/admin/News/NewsList";
 import SemesterList from "../vn.fpt.edu.pages/admin/SemesterList";
@@ -289,10 +290,7 @@ export default function App() {
                     path="classes"
                     element={<div style={{ padding: 16 }}><h3>Lecturer Classes (coming soon)</h3></div>}
                   />
-                  <Route
-                    path="subjects"
-                    element={<div style={{ padding: 16 }}><h3>Lecturer Subjects (coming soon)</h3></div>}
-                  />
+                  <Route path="subjects" element={<LecturerCurriculumSubjects />} />
                   <Route
                     path="homework"
                     element={<HomeworkManage />}

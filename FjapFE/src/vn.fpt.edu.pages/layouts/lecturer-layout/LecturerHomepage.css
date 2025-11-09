@@ -5,6 +5,41 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Override logo hover effect for lecturer header */
+.student-header .lecturer-logo-no-hover:hover,
+.student-header .lecturer-logo-no-hover:hover img,
+.student-header .lecturer-logo-no-hover img:hover,
+.student-header .lecturer-logo-img:hover,
+.student-header .lecturer-logo-img {
+  filter: none !important;
+  opacity: 1 !important;
+  -webkit-filter: none !important;
+  transition: none !important;
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+}
+
+.student-header .lecturer-logo-no-hover img,
+.student-header .lecturer-logo-img {
+  filter: none !important;
+  opacity: 1 !important;
+  -webkit-filter: none !important;
+  transition: none !important;
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+}
+
+/* Override any global styles */
+.student-header .student-logo.lecturer-logo-no-hover {
+  background-color: transparent !important;
+}
+
+.student-header .student-logo.lecturer-logo-no-hover:hover {
+  background-color: transparent !important;
+}
+
 /* Welcome Section */
 .welcome-section {
   padding: 40px 24px;
