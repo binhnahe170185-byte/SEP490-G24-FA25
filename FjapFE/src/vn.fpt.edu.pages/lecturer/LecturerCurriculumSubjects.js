@@ -26,7 +26,7 @@ const getLevelDisplay = (levelId, levelName) => {
   return levelName || `N${levelId}` || "N/A";
 };
 
-export default function CurriculumSubjects() {
+export default function LecturerCurriculumSubjects() {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -35,7 +35,7 @@ export default function CurriculumSubjects() {
   const [selectedMaterials, setSelectedMaterials] = useState([]);
   const [selectedSubjectForMaterials, setSelectedSubjectForMaterials] = useState(null);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
-  const [materialsCountMap, setMaterialsCountMap] = useState({}); // Map subjectCode -> count
+  const [materialsCountMap, setMaterialsCountMap] = useState({});
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState(null);
   const [pagination, setPagination] = useState({
@@ -104,11 +104,8 @@ export default function CurriculumSubjects() {
 
   const loadMaterialsCounts = async (subjectsList) => {
     try {
-      // Fetch materials count cho tất cả subjects song song
-      // Sử dụng page=1, pageSize=1 để lấy total từ backend
       const countPromises = subjectsList.map(async (subject) => {
         try {
-          // Gọi API với pagination để lấy total từ backend
           const res = await api.get("/api/materials", {
             params: {
               subject: subject.subjectCode,
@@ -118,7 +115,6 @@ export default function CurriculumSubjects() {
             }
           });
           
-          // Lấy total từ response
           const raw = res?.data?.data || res?.data || {};
           const total = raw.total || (Array.isArray(raw.items) ? raw.items.length : (Array.isArray(raw) ? raw.length : 0));
           
@@ -229,20 +225,18 @@ export default function CurriculumSubjects() {
     setLoadingMaterials(true);
     
     try {
-      // Fetch materials từ API theo subjectCode và status=active
       const response = await getMaterials({
         subject: record.subjectCode,
         status: "active"
       });
       
       const materials = response.items || [];
-      // Sắp xếp materials mới nhất trước
       const sortedMaterials = [...materials].sort((a, b) => {
         const dateA = a.createdAt || a.createdDate || a.created || null;
         const dateB = b.createdAt || b.createdDate || b.created || null;
         const timeA = dateA ? new Date(dateA).getTime() : 0;
         const timeB = dateB ? new Date(dateB).getTime() : 0;
-        return timeB - timeA; // DESC - mới nhất trước
+        return timeB - timeA;
       });
       
       setSelectedMaterials(sortedMaterials);
@@ -376,7 +370,7 @@ export default function CurriculumSubjects() {
     },
   ];
 
-  if (loading) {
+  if (loading && subjects.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "50px" }}>
         <Spin size="large" />
@@ -405,6 +399,7 @@ export default function CurriculumSubjects() {
           <Card 
             size="small" 
             style={{ 
+              //background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               border: "none",
               borderRadius: 8
             }}
@@ -415,7 +410,7 @@ export default function CurriculumSubjects() {
                   <Search
                     placeholder="Search by subject code, name, or description..."
                     allowClear
-                    enterButton={<SearchOutlined />}
+                    enterButton={<SearchOutlined style={{ color: "#fff" }} />}
                     size="large"
                     value={search}
                     onSearch={handleSearch}
@@ -438,7 +433,7 @@ export default function CurriculumSubjects() {
                     value={levelFilter}
                     onChange={handleLevelFilterChange}
                     style={{ width: "100%", borderRadius: 6 }}
-                    suffixIcon={<FilterOutlined />}
+                    suffixIcon={<FilterOutlined style={{ color: "#fff" }} />}
                   >
                     <Option value="N1">N1</Option>
                     <Option value="N2">N2</Option>
@@ -471,6 +466,7 @@ export default function CurriculumSubjects() {
         </Space>
       </Card>
 
+      {/* Subject Detail Modal */}
       <Modal
         title="Subject Details"
         open={detailModalVisible}
