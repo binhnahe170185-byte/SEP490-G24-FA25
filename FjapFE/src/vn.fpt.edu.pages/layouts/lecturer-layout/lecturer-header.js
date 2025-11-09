@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { Dropdown, Badge, Avatar } from 'antd';
-import { BellOutlined, UserOutlined, LogoutOutlined, HomeOutlined, CalendarOutlined, FileTextOutlined, BookOutlined } from '@ant-design/icons';
+import { BellOutlined, UserOutlined, LogoutOutlined, HomeOutlined, CalendarOutlined, FileTextOutlined, BookOutlined, NotificationOutlined } from '@ant-design/icons';
 import { useAuth } from '../../login/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -13,7 +13,8 @@ const LecturerHeader = () => {
     { key: '/lecturer/homepage', label: 'Home', icon: <HomeOutlined />, path: '/lecturer/homepage' },
     { key: '/lecturer/schedule', label: 'Schedule', icon: <CalendarOutlined />, path: '/lecturer/schedule' },
     { key: '/lecturer/homework', label: 'Homework', icon: <FileTextOutlined />, path: '/lecturer/homework' },
-    { key: '/lecturer/grades', label: 'Grades', icon: <BookOutlined />, path: '/lecturer/grades' }
+    { key: '/lecturer/grades', label: 'Grades', icon: <BookOutlined />, path: '/lecturer/grades' },
+    { key: '/lecturer/news', label: 'News', icon: <NotificationOutlined />, path: '/lecturer/news' }
   ];
 
   const handleMenuClick = (path) => {
