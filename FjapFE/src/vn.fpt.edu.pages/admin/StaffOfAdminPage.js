@@ -1,6 +1,6 @@
 // src/vn.fpt.edu.pages/admin/AdminPage.js
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Layout, Menu, Button, Space, Typography, Card } from "antd";
 import {
   TeamOutlined, UserAddOutlined, EditOutlined,
@@ -16,6 +16,7 @@ import EditSemester from "./EditSemester";
 import NewsList from "./News/NewsList";
 import AddStaff from "./AddStaff";
 import AddStudent from "./AddStudent";
+import { useAuth } from "../login/AuthContext";
 import "./admin.css";
 
 const { Header, Sider, Content } = Layout;
@@ -90,6 +91,8 @@ const ADMIN_MENU = [
 
 export default function StaffOfAdminPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [activeKey, setActiveKey] = useState(() => {
     // Initialize from location state on mount
@@ -103,6 +106,11 @@ export default function StaffOfAdminPage() {
       setActiveKey(stateKey);
     }
   }, [location.pathname, location.state]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const renderContent = () => {
     if (activeKey.startsWith("users:list")) {
@@ -243,7 +251,7 @@ export default function StaffOfAdminPage() {
           <Space>
             <Button icon={<BellOutlined />}>Notifications</Button>
             <Button icon={<UserOutlined />}>Profile</Button>
-            <Button danger icon={<LogoutOutlined />}>Logout</Button>
+            <Button danger icon={<LogoutOutlined />} onClick={handleLogout}>Logout</Button>
           </Space>
         </Header>
 
