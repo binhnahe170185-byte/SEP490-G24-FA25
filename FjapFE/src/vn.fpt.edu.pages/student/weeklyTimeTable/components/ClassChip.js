@@ -2,9 +2,9 @@ import React from "react";
 import { Card, Typography } from "antd";
 
 const STATUS = {
-    pending: { color: "#3b82f6", text: "Not Yet" },
-    done: { color: "#22c55e", text: "Present" },
-    absent: { color: "#ef4444", text: "Absent" },
+    pending: { color: "#3b82f6", background: "#e0f2fe", text: "Not Yet" },
+    done: { color: "#78dc9dff", background: "#dcfce7", text: "Present" },
+    absent: { color: "#ef4444", background: "#fee2e2", text: "Absent" },
 };
 
 export default function ClassChip({ item, onClick }) {
@@ -18,7 +18,7 @@ export default function ClassChip({ item, onClick }) {
             bordered
             style={{
                 borderColor: s.color,
-                background: "#fff",
+                background: s.background || "#fff",
                 cursor: onClick ? "pointer" : "default",
                 transition: "all 0.2s"
             }}

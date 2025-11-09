@@ -79,12 +79,7 @@ function RequireStaffAcademic({ children }) {
   }
   return children;
 }
-/*
-Hiện tại đang để 2 hàm này neverUsed vì chưa có phân quyền rõ ràng cho student và lecturer
-Khi có phân quyền rõ ràng thì sẽ dùng 2 hàm này để bảo vệ route
-chưa nghĩ ra việc có màn nào đặc biệt chỉ có student hay lecturer mới vào được hay không nên viết sẵn để đấy
-Author: Huy
-*/
+
 function RequireStudent({ children }) {
   const { user } = useAuth();
   if (!user || Number(user.roleId) !== 4) {
