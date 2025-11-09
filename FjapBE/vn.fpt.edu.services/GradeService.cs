@@ -1,3 +1,4 @@
+using FJAP.DTOs;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
@@ -13,11 +14,13 @@ namespace FJAP.Services
     {
         private readonly IGradeRepository _gradeRepository;
         private readonly FjapDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public GradeService(IGradeRepository gradeRepository, FjapDbContext context)
+        public GradeService(IGradeRepository gradeRepository, FjapDbContext context, INotificationService notificationService)
         {
             _gradeRepository = gradeRepository;
             _context = context;
+            _notificationService = notificationService;
         }
 
         public async Task<PagedResult<GradeListDto>> GetGradesAsync(GradeFilterRequest filter)
@@ -189,7 +192,9 @@ namespace FJAP.Services
         {
             var strategy = _context.Database.CreateExecutionStrategy();
 
-            return await strategy.ExecuteAsync(async () =>
+            GradeNotificationContext? notificationContext = null;
+
+            var result = await strategy.ExecuteAsync(async () =>
             {
                 await using var transaction = await _context.Database.BeginTransactionAsync();
                 try
@@ -197,6 +202,9 @@ namespace FJAP.Services
                     // Get the grade with its components
                     var grade = await _context.Grades
                         .Include(g => g.GradeTypes)
+                        .Include(g => g.Student)
+                            .ThenInclude(s => s.User)
+                        .Include(g => g.Subject)
                         .FirstOrDefaultAsync(g => g.GradeId == request.GradeId);
 
                     if (grade == null)
@@ -242,6 +250,13 @@ namespace FJAP.Services
                     // Recalculate final score
                     await RecalculateFinalScoreAsync(request.GradeId);
 
+                    if (grade.Student?.User != null && grade.Subject != null)
+                    {
+                        notificationContext = new GradeNotificationContext(
+                            grade.Student.UserId,
+                            grade.Subject.SubjectName);
+                    }
+
                     return true;
                 }
                 catch (Exception)
@@ -250,6 +265,20 @@ namespace FJAP.Services
                     throw;
                 }
             });
+
+            if (result && notificationContext != null)
+            {
+                await _notificationService.CreateAsync(new CreateNotificationRequest(
+                    notificationContext.UserId,
+                    $"{notificationContext.SubjectName} grade has been updated",
+                    $"Your grade for {notificationContext.SubjectName} has just been updated. Please review the latest details.",
+                    "grade"
+                ));
+            }
+
+            return result;
         }
+
+        private sealed record GradeNotificationContext(int UserId, string SubjectName);
     }
 }

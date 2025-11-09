@@ -398,6 +398,131 @@
   right: 8px;
 }
 
+.notification-dropdown-wrapper .ant-dropdown-menu {
+  padding: 0;
+}
+
+.notification-dropdown {
+  width: 320px;
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.notification-dropdown-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notification-dropdown-title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.notification-dropdown-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-connection-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.notification-connection-connected {
+  background-color: #52c41a;
+}
+
+.notification-connection-reconnecting {
+  background-color: #faad14;
+}
+
+.notification-connection-failed,
+.notification-connection-disconnected {
+  background-color: #f5222d;
+}
+
+.notification-connection-icon {
+  color: #8c8c8c;
+}
+
+.notification-dropdown-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.notification-dropdown-loading,
+.notification-dropdown-empty {
+  padding: 32px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.notification-dropdown-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.notification-dropdown-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.notification-dropdown-item.unread {
+  background-color: #f0f7ff;
+}
+
+.notification-dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.notification-dropdown-item-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.notification-dropdown-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-dropdown-item-title {
+  font-weight: 500;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-dropdown-item-text {
+  display: block;
+  font-size: 12px;
+  max-height: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-dropdown-item-time {
+  font-size: 12px;
+  display: block;
+  margin-top: 4px;
+}
+
 /* Schedule Preview */
 .schedule-preview {
   margin-top: 16px;
