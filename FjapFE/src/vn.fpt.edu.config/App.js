@@ -42,6 +42,10 @@ import Attendance from "../vn.fpt.edu.pages/lecturer/Attendance/Attendance";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
 import CreateSchedule from "../vn.fpt.edu.pages/headOfAcademic/createSchedule/CreateSchedule";
 import CurriculumSubjects from "../vn.fpt.edu.pages/student/CurriculumSubjects";
+import StudentNewsList from "../vn.fpt.edu.pages/student/StudentNewsList";
+import StudentNewsDetail from "../vn.fpt.edu.pages/student/StudentNewsDetail";
+import LecturerNewsList from "../vn.fpt.edu.pages/lecturer/LecturerNewsList";
+import LecturerNewsDetail from "../vn.fpt.edu.pages/lecturer/LecturerNewsDetail";
 import HeadOfAdminDashboard from "../vn.fpt.edu.pages/headOfAdmin/Dashboard";
 import NewsList from "../vn.fpt.edu.pages/admin/News/NewsList";
 import SemesterList from "../vn.fpt.edu.pages/admin/SemesterList";
@@ -205,6 +209,8 @@ export default function App() {
                   <Route path="attendance" element={<AttendanceReportPage />} />
                   <Route path="homework" element={<HomeworkPage />} />
                   <Route path="curriculum-subjects" element={<CurriculumSubjects />} />
+                  <Route path="news" element={<StudentNewsList />} />
+                  <Route path="news/:id" element={<StudentNewsDetail />} />
                   <Route path="class/:classId/students" element={<ClassStudentsList />} />
                 </Route>
                 <Route path="/" element={<Home />} />
@@ -294,6 +300,8 @@ export default function App() {
                   <Route path="grades" element={<GradeManage />} />
                   <Route path="grades/:courseId" element={<GradeDetails />} />
                   <Route path="grades/enter/:courseId" element={<GradeEntry />} />
+                  <Route path="news" element={<LecturerNewsList />} />
+                  <Route path="news/:id" element={<LecturerNewsDetail />} />
                   <Route path="class/:classId/students" element={<ClassStudentsList />} />
                 </Route>
 
