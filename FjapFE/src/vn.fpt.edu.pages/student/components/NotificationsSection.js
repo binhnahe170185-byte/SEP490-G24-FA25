@@ -1,84 +1,28 @@
-import React, { useState } from 'react';
-import { Card, Typography, Badge, Empty } from 'antd';
-import { BellOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import React, { useMemo } from 'react';
+import { Card, Typography, Badge, Empty, Spin, Tooltip } from 'antd';
+import { BellOutlined, WifiOutlined } from '@ant-design/icons';
+import {
+  describeConnectionState,
+  formatNotificationTime,
+  getNotificationIcon,
+  useRealtimeNotifications,
+} from '../../../vn.fpt.edu.common/hooks/useRealtimeNotifications';
 
 const { Title, Text } = Typography;
 
 const NotificationsSection = () => {
-  // Hardcoded notifications data
-  const [notifications] = useState([
-    {
-      id: 1,
-      content: 'You have a new assignment: PRF192 - Assignment 5',
-      time: '2024-12-20 10:30',
-      read: false,
-      type: 'homework'
-    },
-    {
-      id: 2,
-      content: 'MAE101 grades have been updated',
-      time: '2024-12-19 14:20',
-      read: false,
-      type: 'grade'
-    },
-    {
-      id: 3,
-      content: 'Schedule change for next week - Please check',
-      time: '2024-12-18 09:15',
-      read: true,
-      type: 'schedule'
-    },
-    {
-      id: 4,
-      content: 'Reminder: SWP391 assignment due in 2 days',
-      time: '2024-12-17 16:45',
-      read: true,
-      type: 'reminder'
-    },
-    {
-      id: 5,
-      content: 'Attendance notice: You have missed 2 PRF192 classes',
-      time: '2024-12-16 11:00',
-      read: true,
-      type: 'attendance'
-    }
-  ]);
+  const {
+    notifications,
+    loading,
+    error,
+    connectionState,
+    unreadCount,
+    markAsRead,
+  } = useRealtimeNotifications(20);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const formatDateTime = (datetime) => {
-    const date = dayjs(datetime);
-    const now = dayjs();
-    const diffDays = now.diff(date, 'day');
-    
-    if (diffDays === 0) {
-      return date.format('HH:mm');
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    } else {
-      return date.format('DD/MM/YYYY');
-    }
-  };
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'homework':
-        return '📝';
-      case 'grade':
-        return '📊';
-      case 'schedule':
-        return '📅';
-      case 'reminder':
-        return '⏰';
-      case 'attendance':
-        return '✓';
-      default:
-        return '🔔';
-    }
-  };
+  const connectionTooltip = useMemo(() => {
+    return describeConnectionState(connectionState);
+  }, [connectionState]);
 
   return (
     <Card 
@@ -89,37 +33,67 @@ const NotificationsSection = () => {
             <BellOutlined className="section-card-icon" />
           </Badge>
           <Title level={4} className="section-card-title">Notifications</Title>
+          <Tooltip title={connectionTooltip}>
+            <WifiOutlined
+              style={{
+                marginLeft: 'auto',
+                color:
+                  connectionState === 'connected'
+                    ? '#52c41a'
+                    : connectionState === 'reconnecting'
+                    ? '#faad14'
+                    : '#f5222d',
+              }}
+            />
+          </Tooltip>
         </div>
       }
     >
       <div className="section-card-content">
-        {notifications.length > 0 ? (
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+            <Spin />
+          </div>
+        ) : error ? (
+          <Empty
+            description="Unable to load notifications"
+            style={{ margin: '20px 0' }}
+          />
+        ) : notifications.length > 0 ? (
           notifications.map((notification) => (
-            <div 
-              key={notification.id} 
+            <div
+              key={notification.id}
               className="notification-item"
               onClick={() => {
-                // Handle notification click
-                console.log('View notification:', notification.id);
+                markAsRead(notification.id);
               }}
               style={{
                 backgroundColor: !notification.read ? '#e6f7ff' : 'transparent',
-                fontWeight: !notification.read ? 500 : 400
+                fontWeight: !notification.read ? 500 : 400,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <span style={{ fontSize: 16 }}>{getNotificationIcon(notification.type)}</span>
+                <span style={{ fontSize: 16 }}>
+                  {getNotificationIcon(notification.type)}
+                </span>
                 <div style={{ flex: 1 }}>
-                  <div className="notification-content">{notification.content}</div>
+                  <div className="notification-content">
+                    {notification.title || notification.content}
+                  </div>
+                  {notification.content && notification.title && (
+                    <Text type="secondary" style={{ display: 'block' }}>
+                      {notification.content}
+                    </Text>
+                  )}
                   <Text className="notification-time">
-                    {formatDateTime(notification.time)}
+                    {formatNotificationTime(notification.createdTime)}
                   </Text>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <Empty 
+          <Empty
             description="No new notifications"
             style={{ margin: '20px 0' }}
           />
@@ -130,4 +104,3 @@ const NotificationsSection = () => {
 };
 
 export default NotificationsSection;
-

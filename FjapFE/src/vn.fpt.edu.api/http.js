@@ -1,7 +1,7 @@
 
 import axios from "axios";
 
-function resolveBaseUrl() {
+export function resolveBaseUrl() {
   const fromEnv = process.env.REACT_APP_API_BASE;
   if (typeof fromEnv === "string" && fromEnv.trim()) {
     return fromEnv.trim();
@@ -21,8 +21,10 @@ function resolveBaseUrl() {
   return undefined;
 }
 
+export const API_BASE_URL = resolveBaseUrl();
+
 export const api = axios.create({
-  baseURL: resolveBaseUrl(),
+  baseURL: API_BASE_URL,
 });
 
 export function setAuthToken(token) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Dropdown, Avatar, Badge } from 'antd';
+import { Dropdown, Avatar, Badge, Spin, Empty, Typography, Button, Tooltip } from 'antd';
 import { 
   CalendarOutlined,
   FileTextOutlined,
@@ -9,15 +9,33 @@ import {
   HomeOutlined,
   UserOutlined,
   LogoutOutlined,
-  BellOutlined
+  BellOutlined,
+  WifiOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../login/AuthContext';
 import '../../student/StudentHomepage.css';
+import {
+  describeConnectionState,
+  formatNotificationTime,
+  getNotificationIcon,
+  useRealtimeNotifications,
+} from '../../../vn.fpt.edu.common/hooks/useRealtimeNotifications';
+
+const { Text } = Typography;
 
 const StudentLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const {
+    notifications,
+    loading: notificationsLoading,
+    error: notificationsError,
+    connectionState,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+  } = useRealtimeNotifications(20);
 
   const menuItems = [
     {
@@ -118,9 +136,90 @@ const StudentLayout = ({ children }) => {
           {/* Right: User Menu & Notifications */}
           <div className="student-header-right">
             <div className="notifications">
-              <Badge dot>
-                <BellOutlined style={{ fontSize: 18, cursor: 'pointer', marginRight: 16 }} />
-              </Badge>
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                overlayClassName="notification-dropdown-wrapper"
+                dropdownRender={() => (
+                  <div className="notification-dropdown">
+                    <div className="notification-dropdown-header">
+                      <div className="notification-dropdown-title">Notifications</div>
+                      <div className="notification-dropdown-meta">
+                        <span
+                          className={`notification-connection-indicator notification-connection-${connectionState}`}
+                        />
+                        <Tooltip title={describeConnectionState(connectionState)}>
+                          <WifiOutlined className="notification-connection-icon" />
+                        </Tooltip>
+                        <Button
+                          type="link"
+                          size="small"
+                          disabled={unreadCount === 0}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            markAllAsRead();
+                          }}
+                        >
+                          Mark all read
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="notification-dropdown-body">
+                      {notificationsLoading ? (
+                        <div className="notification-dropdown-loading">
+                          <Spin />
+                        </div>
+                      ) : notificationsError ? (
+                        <div className="notification-dropdown-empty">
+                          <Empty description="Could not load notifications" />
+                        </div>
+                      ) : notifications.length === 0 ? (
+                        <div className="notification-dropdown-empty">
+                          <Empty description="No notifications" />
+                        </div>
+                      ) : (
+                        <div className="notification-dropdown-list">
+                          {notifications.map((notification) => (
+                            <div
+                              key={notification.id}
+                              className={`notification-dropdown-item ${
+                                notification.read ? 'read' : 'unread'
+                              }`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                markAsRead(notification.id);
+                              }}
+                            >
+                              <div className="notification-dropdown-item-icon">
+                                {getNotificationIcon(notification.type)}
+                              </div>
+                              <div className="notification-dropdown-item-content">
+                                <div className="notification-dropdown-item-title">
+                                  {notification.title || notification.content}
+                                </div>
+                                {notification.content && notification.title && (
+                                  <Text type="secondary" className="notification-dropdown-item-text">
+                                    {notification.content}
+                                  </Text>
+                                )}
+                                <Text type="secondary" className="notification-dropdown-item-time">
+                                  {formatNotificationTime(notification.createdTime)}
+                                </Text>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              >
+                <Badge count={unreadCount} overflowCount={99} offset={[0, 8]}>
+                  <BellOutlined style={{ fontSize: 18, cursor: 'pointer', marginRight: 16 }} />
+                </Badge>
+              </Dropdown>
             </div>
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <div className="user-menu-trigger">

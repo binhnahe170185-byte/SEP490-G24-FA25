@@ -1,6 +1,7 @@
 using System.Text;
 using System.Security.Claims;
 using Dapper;
+using FJAP.Hubs;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories;
 using FJAP.Repositories.Interfaces;
@@ -88,9 +89,12 @@ builder.Services.AddScoped<IGradeService, GradeService>();
 
 builder.Services.AddScoped<INewsRepository, NewsRepository>();
 builder.Services.AddScoped<INewsService, NewsService>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // ----- HttpClient for external APIs -----
 builder.Services.AddHttpClient();
+builder.Services.AddSignalR();
 
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";
@@ -102,7 +106,8 @@ builder.Services.AddCors(opt =>
             "https://gray-plant-0778b1000.3.azurestaticapps.net"
         )
          .AllowAnyHeader()
-         .AllowAnyMethod());
+         .AllowAnyMethod()
+         .AllowCredentials());
 });
 
 // ----- JWT -----
@@ -125,6 +130,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtOpt.Audience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30)
+        };
+        o.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/hubs/notifications", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -198,6 +219,7 @@ app.UseAuthentication();   // phải trước Authorization
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications").RequireAuthorization();
 
 // Endpoint test claims nhanh
 app.MapGet("/api/auth/me", (ClaimsPrincipal user) =>
