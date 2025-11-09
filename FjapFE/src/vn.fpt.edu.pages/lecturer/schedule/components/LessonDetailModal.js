@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, Tabs, Typography, Card, Avatar, Button, Space } from "antd";
+import { Modal, Tabs, Typography, Card, Avatar, Button, Space, message } from "antd";
 import {
     CalendarOutlined,
     ClockCircleOutlined,
@@ -8,7 +8,8 @@ import {
     CloseOutlined,
     VideoCameraOutlined,
     BookOutlined,
-    LinkOutlined
+    LinkOutlined,
+    CheckSquareOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -40,12 +41,28 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
     const instructorCode = lesson?.instructor || "N/A";
     const studentGroupCode = lesson?.studentGroup || "N/A";
     const classId = lesson?.classId || lesson?.class_id || null;
+    const lessonId = lesson?.lessonId || lesson?.lesson_id || null;
+    const canTakeAttendance = Boolean(classId && lessonId);
 
     const handleViewStudents = () => {
         if (classId) {
             navigate(`/lecturer/class/${classId}/students`);
             onClose();
         }
+    };
+
+    const handleTakeAttendance = () => {
+        if (!canTakeAttendance) {
+            message.warning("Attendance information for this lesson is missing.");
+            return;
+        }
+        navigate("/lecturer/attendance", {
+            state: {
+                classId,
+                lessonId
+            }
+        });
+        onClose();
     };
 
     return (
@@ -141,18 +158,41 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                     }
                                 >
                                     <Space direction="vertical" size="large" style={{ width: "100%" }}>
-                                        {/* Instructor */}
+                                        {/* Attendance */}
                                         <div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                                <UserOutlined style={{ fontSize: 16 }} />
-                                                <Text strong>Lecturer</Text>
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 12,
+                                                    marginBottom: 12,
+                                                    padding: "12px 16px",
+                                                    borderRadius: 8,
+                                                    border: "1px solid",
+                                                    borderColor: canTakeAttendance ? "#b7eb8f" : "#d9d9d9",
+                                                    background: canTakeAttendance ? "#f6ffed" : "#fafafa",
+                                                    cursor: canTakeAttendance ? "pointer" : "not-allowed",
+                                                    transition: "box-shadow 0.2s ease"
+                                                }}
+                                                onClick={handleTakeAttendance}
+                                            >
+                                                <CheckSquareOutlined style={{ fontSize: 20, color: canTakeAttendance ? "#52c41a" : "#999" }} />
+                                                <div>
+                                                    <Text strong style={{ color: canTakeAttendance ? "#389e0d" : "#999" }}>
+                                                        Attendance
+                                                    </Text>
+                                                    <div>
+                                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                                            Record attendance for this lesson
+                                                        </Text>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 24 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 4 }}>
                                                 <Avatar size={24} style={{ backgroundColor: "#f0f0f0", color: "#000" }}>
                                                     {instructorCode.charAt(0)}
                                                 </Avatar>
                                                 <Text>{instructorCode}</Text>
-                                                <LinkOutlined style={{ fontSize: 12, color: "#666" }} />
                                             </div>
                                         </div>
 
