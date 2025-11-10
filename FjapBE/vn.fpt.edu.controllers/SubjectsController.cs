@@ -1,3 +1,4 @@
+using System;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -33,17 +34,39 @@ namespace FJAP.Controllers.Manager
         [HttpPost]
         public async Task<IActionResult> Create(CreateSubjectRequest request)
         {
-            var created = await _subjectService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = created.SubjectId },
-                new { code = 201, data = created });
+            try
+            {
+                var created = await _subjectService.CreateAsync(request);
+                return CreatedAtAction(nameof(GetById), new { id = created.SubjectId },
+                    new { code = 201, data = created });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { code = 400, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { code = 400, message = ex.Message });
+            }
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, UpdateSubjectRequest request)
         {
-            var ok = await _subjectService.UpdateAsync(id, request);
-            if (!ok) return NotFound();
-            return NoContent();
+            try
+            {
+                var ok = await _subjectService.UpdateAsync(id, request);
+                if (!ok) return NotFound(new { code = 404, message = "Subject not found" });
+                return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { code = 400, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { code = 400, message = ex.Message });
+            }
         }
 
         [HttpDelete("{id:int}")]
