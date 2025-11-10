@@ -4,8 +4,11 @@
  * Calculate total weight from grade types array
  */
 export const calculateTotalWeight = (gradeTypes) => {
-  if (!gradeTypes || gradeTypes.length === 0) return 0;
-  return gradeTypes.reduce((sum, gt) => {
+  if (!gradeTypes) return 0;
+  // Ensure gradeTypes is an array
+  const array = Array.isArray(gradeTypes) ? gradeTypes : [];
+  if (array.length === 0) return 0;
+  return array.reduce((sum, gt) => {
     const weight = parseFloat(gt?.weight);
     return sum + (isNaN(weight) ? 0 : weight);
   }, 0);

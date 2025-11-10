@@ -39,13 +39,19 @@ namespace FJAP.Services
                 await using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // 3. Check for duplicates
+                    // 3. Check for duplicate subject code
                     if (await _context.Subjects.AnyAsync(s => s.SubjectCode == request.SubjectCode))
                     {
                         throw new InvalidOperationException($"Subject code '{request.SubjectCode}' already exists.");
                     }
 
-                    // 4. Map request to the entity
+                    // 4. Check for duplicate subject name (case-insensitive)
+                    if (await _context.Subjects.AnyAsync(s => s.SubjectName.ToLower() == request.SubjectName.ToLower()))
+                    {
+                        throw new InvalidOperationException($"Subject name '{request.SubjectName}' already exists.");
+                    }
+
+                    // 5. Map request to the entity
                     var subject = new Subject
                     {
                         SubjectCode = request.SubjectCode,
@@ -57,7 +63,7 @@ namespace FJAP.Services
                         CreatedAt = DateTime.UtcNow
                     };
 
-                    // 5. Add grade types if they exist
+                    // 6. Add grade types if they exist
                     if (request.GradeTypes != null && request.GradeTypes.Any())
                     {
                         subject.SubjectGradeTypes = request.GradeTypes.Select(gt => new SubjectGradeType
@@ -72,7 +78,7 @@ namespace FJAP.Services
                     
                     await _context.Subjects.AddAsync(subject);
 
-                    // 6. Save all changes at once
+                    // 7. Save all changes at once
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
@@ -112,20 +118,35 @@ namespace FJAP.Services
                         throw new InvalidOperationException($"Subject code '{request.SubjectCode}' already exists.");
                     }
 
-                    // 5. Update subject's main properties
+                    // 5. Check for duplicate subject name (case-insensitive)
+                    if (await _context.Subjects.AnyAsync(s => s.SubjectName.ToLower() == request.SubjectName.ToLower() && s.SubjectId != id))
+                    {
+                        throw new InvalidOperationException($"Subject name '{request.SubjectName}' already exists.");
+                    }
+
+                    // 6. Update subject's main properties
                     existingSubject.SubjectCode = request.SubjectCode;
                     existingSubject.SubjectName = request.SubjectName;
                     existingSubject.Description = request.Description;
                     existingSubject.PassMark = request.PassMark ?? 5.0m;
                     existingSubject.LevelId = request.LevelId;
 
-                    // 6. Handle Grade Type updates (Delete, Update, Add)
+                    // 7. Handle Grade Type updates (Delete, Update, Add)
                     var gradeTypesFromRequest = request.GradeTypes ?? new List<GradeTypeDto>();
-                    var requestGradeTypeIds = gradeTypesFromRequest.Select(r => r.SubjectGradeTypeId).ToHashSet();
+                    
+                    // Separate existing grade types (with ID > 0) and new grade types (with ID = 0)
+                    var existingGradeTypeIds = gradeTypesFromRequest
+                        .Where(r => r.SubjectGradeTypeId > 0)
+                        .Select(r => r.SubjectGradeTypeId)
+                        .ToHashSet();
+                    
+                    var newGradeTypes = gradeTypesFromRequest
+                        .Where(r => r.SubjectGradeTypeId <= 0)
+                        .ToList();
 
-                    // Delete grade types that are not in the request
+                    // Delete grade types that are not in the request (only check existing ones with ID > 0)
                     var gradeTypesToDelete = existingSubject.SubjectGradeTypes
-                        .Where(dbGt => !requestGradeTypeIds.Contains(dbGt.SubjectGradeTypeId))
+                        .Where(dbGt => !existingGradeTypeIds.Contains(dbGt.SubjectGradeTypeId))
                         .ToList();
 
                     if (gradeTypesToDelete.Any())
@@ -134,30 +155,32 @@ namespace FJAP.Services
                         _context.SubjectGradeTypes.RemoveRange(gradeTypesToDelete);
                     }
 
-                    // Update existing or add new grade types
-                    foreach (var reqGt in gradeTypesFromRequest)
+                    // Update existing grade types (with ID > 0)
+                    foreach (var reqGt in gradeTypesFromRequest.Where(r => r.SubjectGradeTypeId > 0))
                     {
                         var existingGradeType = existingSubject.SubjectGradeTypes
                             .FirstOrDefault(dbGt => dbGt.SubjectGradeTypeId == reqGt.SubjectGradeTypeId);
 
-                        if (existingGradeType != null) // Update
+                        if (existingGradeType != null)
                         {
                             existingGradeType.GradeTypeName = reqGt.GradeTypeName;
                             existingGradeType.Weight = reqGt.Weight;
                             existingGradeType.UpdatedAt = DateTime.UtcNow;
                         }
-                        else // Add new one
+                    }
+
+                    // Add new grade types (with ID = 0 or null)
+                    foreach (var newGt in newGradeTypes)
+                    {
+                        existingSubject.SubjectGradeTypes.Add(new SubjectGradeType
                         {
-                            existingSubject.SubjectGradeTypes.Add(new SubjectGradeType
-                            {
-                                SubjectId = existingSubject.SubjectId,
-                                GradeTypeName = reqGt.GradeTypeName,
-                                Weight = reqGt.Weight,
-                                MaxScore = 10.0m,
-                                Status = "Active",
-                                CreatedAt = DateTime.UtcNow
-                            });
-                        }
+                            SubjectId = existingSubject.SubjectId,
+                            GradeTypeName = newGt.GradeTypeName,
+                            Weight = newGt.Weight,
+                            MaxScore = 10.0m,
+                            Status = "Active",
+                            CreatedAt = DateTime.UtcNow
+                        });
                     }
 
                     // 7. Save all changes and commit
@@ -240,25 +263,41 @@ namespace FJAP.Services
                 throw new InvalidOperationException("At least one grade type is required.");
             }
 
+            // Validate each grade type individually
+            for (int i = 0; i < gradeTypes.Count; i++)
+            {
+                var gt = gradeTypes[i];
+                var index = i + 1;
+
+                // Check for empty or whitespace name
+                if (string.IsNullOrWhiteSpace(gt.GradeTypeName))
+                {
+                    throw new InvalidOperationException($"Grade type #{index}: Name is required and cannot be empty.");
+                }
+
+                // Check for invalid weight (null, zero, negative, or greater than 100)
+                if (gt.Weight <= 0)
+                {
+                    throw new InvalidOperationException($"Grade type #{index} ({gt.GradeTypeName}): Weight is required and must be greater than 0.");
+                }
+
+                if (gt.Weight > 100)
+                {
+                    throw new InvalidOperationException($"Grade type #{index} ({gt.GradeTypeName}): Weight cannot exceed 100%.");
+                }
+            }
+
+            // Check for duplicate names (case-insensitive)
             if (gradeTypes.GroupBy(gt => gt.GradeTypeName.Trim().ToLower()).Any(g => g.Count() > 1))
             {
                 throw new InvalidOperationException("Duplicate grade type names are not allowed.");
             }
 
+            // Check total weight
             var totalWeight = gradeTypes.Sum(gt => gt.Weight);
             if (Math.Abs(totalWeight - 100) > 0.01m)
             {
                 throw new InvalidOperationException($"Total weight must be 100%. Current total: {totalWeight}%.");
-            }
-
-            if (gradeTypes.Any(gt => gt.Weight <= 0 || gt.Weight > 100))
-            {
-                throw new InvalidOperationException("Each grade type weight must be between 1 and 100.");
-            }
-
-            if (gradeTypes.Any(gt => string.IsNullOrWhiteSpace(gt.GradeTypeName)))
-            {
-                throw new InvalidOperationException("Grade type name cannot be empty.");
             }
         }
     }

@@ -1,16 +1,14 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { 
   Button, Input, Select, Space, Table, Tooltip, Switch, 
-  message, Tag, Modal 
+  message, Tag
 } from "antd";
 import { 
   PlusOutlined, SearchOutlined, EditOutlined, 
-  DeleteOutlined, EyeOutlined, ExclamationCircleOutlined 
+  EyeOutlined
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import SubjectListApi from "../../../vn.fpt.edu.api/SubjectList";
-
-const { confirm } = Modal;
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -115,33 +113,6 @@ export default function SubjectList() {
     }
   };
 
-  const handleDelete = (record) => {
-    confirm({
-      title: 'Are you sure you want to delete this subject?',
-      icon: <ExclamationCircleOutlined />,
-      content: (
-        <div>
-          <p><strong>Subject:</strong> {record.subjectName} ({record.subjectCode})</p>
-          <p style={{ color: '#ff4d4f' }}>
-            This action cannot be undone. All related grade configurations will be deleted.
-          </p>
-        </div>
-      ),
-      okText: 'Yes, Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await SubjectListApi.delete(record.subjectId);
-          setSubjects(prev => prev.filter(item => item.subjectId !== record.subjectId));
-          message.success(`Deleted subject "${record.subjectName}"`);
-        } catch (error) {
-          const errorMsg = error.response?.data?.message || "Failed to delete subject";
-          message.error(errorMsg);
-        }
-      },
-    });
-  };
 
   const columns = [
     {
@@ -194,7 +165,7 @@ export default function SubjectList() {
       title: "Actions",
       key: "actions",
       align: "center",
-      width: 170,
+      width: 120,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -210,13 +181,6 @@ export default function SubjectList() {
               type="text"
               icon={<EditOutlined style={{ color: "#1890ff" }}/>} 
               onClick={() => navigate(`${basePrefix}/subject/edit/${record.subjectId}`)}
-            />
-          </Tooltip>
-          <Tooltip title="Delete">
-            <Button
-              type="text"
-              icon={<DeleteOutlined style={{ color: "#ff4d4f" }}/>} 
-              onClick={() => handleDelete(record)}
             />
           </Tooltip>
         </Space>

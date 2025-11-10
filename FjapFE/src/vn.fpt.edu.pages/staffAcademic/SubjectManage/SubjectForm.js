@@ -13,6 +13,7 @@ import {
   calculateTotalWeight, 
   GRADE_TYPE_PRESETS 
 } from "./SubjectValidationUtils";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -27,6 +28,7 @@ export default function SubjectForm({ mode = "create" }) {
   const navigate = useNavigate();
   const location = useLocation();
   const basePrefix = location.pathname.startsWith('/manager') ? '/manager' : '/staffAcademic';
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } = useNotify();
 
   const isEditMode = mode === "edit";
 
@@ -97,18 +99,50 @@ export default function SubjectForm({ mode = "create" }) {
   }));
 
   const validateGradeTypes = (_, gradeTypes) => {
-    if (!gradeTypes || gradeTypes.length === 0) {
+    // Always use gradeTypesData from state as source of truth
+    // since the Table component doesn't automatically update the form value
+    // The form value might be undefined, null, or not an array
+    const gradeTypesArray = Array.isArray(gradeTypesData) && gradeTypesData.length > 0
+      ? gradeTypesData
+      : (Array.isArray(gradeTypes) ? gradeTypes : []);
+    
+    if (!gradeTypesArray || gradeTypesArray.length === 0) {
       return Promise.reject(new Error("At least one grade type is required"));
     }
 
-    const total = calculateTotalWeight(gradeTypes);
+    // Validate each grade type: name and weight must not be empty
+    for (let i = 0; i < gradeTypesArray.length; i++) {
+      const gt = gradeTypesArray[i];
+      const gradeTypeName = gt?.gradeTypeName?.trim() || '';
+      const weight = gt?.weight;
+
+      if (!gradeTypeName || gradeTypeName === '') {
+        return Promise.reject(
+          new Error(`Grade type #${i + 1}: Name is required and cannot be empty`)
+        );
+      }
+
+      if (weight === null || weight === undefined || weight === '' || weight <= 0) {
+        return Promise.reject(
+          new Error(`Grade type #${i + 1} (${gradeTypeName}): Weight is required and must be greater than 0`)
+        );
+      }
+
+      if (weight > 100) {
+        return Promise.reject(
+          new Error(`Grade type #${i + 1} (${gradeTypeName}): Weight cannot exceed 100%`)
+        );
+      }
+    }
+
+    const total = calculateTotalWeight(gradeTypesArray);
     if (Math.abs(total - 100) > 0.01) {
       return Promise.reject(
         new Error(`Total weight must equal 100%. Current total: ${total.toFixed(2)}%`)
       );
     }
 
-    const names = gradeTypes.map(gt => gt?.gradeTypeName?.trim().toLowerCase()).filter(Boolean);
+    const names = gradeTypesArray.map(gt => gt?.gradeTypeName?.trim().toLowerCase()).filter(Boolean);
     const uniqueNames = new Set(names);
     if (names.length !== uniqueNames.size) {
       return Promise.reject(new Error("Grade type names must be unique"));
@@ -118,29 +152,120 @@ export default function SubjectForm({ mode = "create" }) {
   };
 
   const handleSubmit = async (values) => {
-    setSubmitting(true);
+    let notifyKey = null;
+    const actionType = isEditMode ? "update" : "create";
+    
     try {
+      // Additional validation before submit - check for empty names or weights
+      const invalidGradeTypes = [];
+      gradeTypesData.forEach((gt, index) => {
+        const name = (gt?.gradeTypeName || '').trim();
+        const weight = gt?.weight;
+        
+        if (!name || name === '') {
+          invalidGradeTypes.push(`Grade type #${index + 1}: Name is required`);
+        }
+        if (weight === null || weight === undefined || weight === '' || weight <= 0) {
+          invalidGradeTypes.push(`Grade type #${index + 1}${name ? ` (${name})` : ''}: Weight is required and must be greater than 0`);
+        }
+        if (weight > 100) {
+          invalidGradeTypes.push(`Grade type #${index + 1}${name ? ` (${name})` : ''}: Weight cannot exceed 100%`);
+        }
+      });
+      
+      if (invalidGradeTypes.length > 0) {
+        const errorKey = `subject-validation-error-${Date.now()}`;
+        notifyError(
+          errorKey,
+          "Validation Failed",
+          `Please fix the following errors:\n${invalidGradeTypes.join('\n')}`
+        );
+        return; // Stop submission
+      }
+      
+      // Normalize grade types: 
+      // - Existing grade types (from DB) will have subjectGradeTypeId > 0
+      // - New grade types (added in UI) will have subjectGradeTypeId = 0, null, or undefined
+      const normalizedGradeTypes = gradeTypesData
+        .map(gt => {
+          // Preserve existing ID if present and valid (> 0), otherwise set to 0 for new ones
+          const id = (gt.subjectGradeTypeId && gt.subjectGradeTypeId > 0) 
+            ? gt.subjectGradeTypeId 
+            : 0;
+          return {
+            subjectGradeTypeId: id,
+            gradeTypeName: (gt.gradeTypeName || '').trim(),
+            weight: gt.weight || 0
+          };
+        })
+        // Filter out invalid grade types (should not happen if validation passed, but safety check)
+        .filter(gt => gt.gradeTypeName && gt.gradeTypeName !== '' && gt.weight > 0);
+      
+      if (normalizedGradeTypes.length === 0) {
+        message.error("At least one valid grade type is required");
+        return;
+      }
+      
       const submitData = {
         ...values,
-        gradeTypes: gradeTypesData.filter(gt => 
-          gt.gradeTypeName && gt.gradeTypeName.trim() !== '' && gt.weight > 0
-        )
+        gradeTypes: normalizedGradeTypes
       };
 
+      const subjectName = values.subjectName?.trim() || values.subjectCode || "Subject";
+      notifyKey = `subject-${actionType}-${isEditMode ? subjectId : Date.now()}`;
+      
+      notifyPending(
+        notifyKey,
+        isEditMode ? "Updating subject" : "Creating subject",
+        `Processing ${subjectName}...`
+      );
+
+      setSubmitting(true);
       if (isEditMode) {
         await SubjectListApi.update(subjectId, submitData);
-        message.success("Subject updated successfully!");
+        notifySuccess(
+          notifyKey,
+          "Subject updated",
+          `${subjectName} updated successfully.`
+        );
       } else {
         await SubjectListApi.create(submitData);
-        message.success("Subject created successfully!");
+        notifySuccess(
+          notifyKey,
+          "Subject created",
+          `${subjectName} created successfully.`
+        );
       }
       navigate(`${basePrefix}/subject`);
     } catch (error) {
       console.error("Submit error:", error);
-      const errorMsg = error.response?.data?.message 
-        || error.message 
-        || "Operation failed";
-      message.error(errorMsg);
+      
+      // Extract error message from response
+      let errorMsg = "Operation failed";
+      let errorTitle = "Save failed";
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        errorMsg = errorData.message || errorData.error || errorMsg;
+        
+        // Check for duplicate subject code or name
+        const errorLower = errorMsg.toLowerCase();
+        if (errorLower.includes("subject code") && (errorLower.includes("already exists") || errorLower.includes("exist"))) {
+          errorTitle = "Subject code already exists";
+          errorMsg = errorMsg || "This subject code is already in use. Please use a different code.";
+        } else if (errorLower.includes("subject name") && (errorLower.includes("already exists") || errorLower.includes("exist"))) {
+          errorTitle = "Subject name already exists";
+          errorMsg = errorMsg || "This subject name is already in use. Please use a different name.";
+        }
+      } else if (error?.message) {
+        errorMsg = error.message;
+      }
+      
+      notifyError(
+        notifyKey ?? `subject-${actionType}-error`,
+        errorTitle,
+        errorMsg
+      );
     } finally {
       setSubmitting(false);
     }
