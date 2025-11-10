@@ -7,10 +7,17 @@ import PickSemesterAndClass from './components/PickSemesterAndClass';
 import LecturerSelector from './components/LecturerSelector';
 import WeeklyPatterns from './components/WeeklyPatterns';
 import SaveButton from './components/SaveButton';
+import SemesterApi from '../../../vn.fpt.edu.api/Semester';
+import RoomApi from '../../../vn.fpt.edu.api/Room';
+import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
+import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
+import ClassList from '../../../vn.fpt.edu.api/ClassList';
+import { message } from 'antd';
 
 const CreateSchedule = () => {
   const [semesterId, setSemesterId] = useState('');
   const [classId, setClassId] = useState('');
+  const [subjectCode, setSubjectCode] = useState('');
   const [subjectName, setSubjectName] = useState('');
   const [lecturerId, setLecturerId] = useState('');
   const [weekday, setWeekday] = useState('');
@@ -24,22 +31,16 @@ const CreateSchedule = () => {
 
   const [semester, setSemester] = useState({ id: null, start: null, end: null });
 
-  // Mock data
-  const semesters = [
-    { value: 'FA25', label: 'FA25 (2025-09-01 → 2025-12-20)', start: '2025-09-01', end: '2025-12-20' },
-    { value: 'SU25', label: 'SU25 (2025-05-05 → 2025-08-15)', start: '2025-05-05', end: '2025-08-15' },
-  ];
+  // State for API data
+  const [semesterData, setSemesterData] = useState([]);
+  const [roomData, setRoomData] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [timeslots, setTimeslots] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const classes = [
-    { value: 'PRJ301-SE1', label: 'PRJ301-SE1' },
-    { value: 'JPD203-SE1', label: 'JPD203-SE1' },
-  ];
-
-  const lecturers = [
-    { value: 'Ms.TranThiB', label: 'Ms. Tran Thi B' },
-    { value: 'Mr.NguyenVanA', label: 'Mr. Nguyen Van A' },
-  ];
-
+  // Static data
   const weekdays = [
     { value: '2', label: 'Mon' },
     { value: '3', label: 'Tue' },
@@ -48,36 +49,14 @@ const CreateSchedule = () => {
     { value: '6', label: 'Fri' },
   ];
 
-  const slots = Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
-  const rooms = [
-    { value: 'E101', label: 'E101' },
-    { value: 'E205', label: 'E205' },
-    { value: 'LAB-A1', label: 'LAB-A1' },
-  ];
-
-  const semesterData = [
-    { code: 'FA25', start: '2025-09-01', end: '2025-12-20', status: 'Active' },
-    { code: 'SU25', start: '2025-05-05', end: '2025-08-15', status: 'Archived' },
-    { code: 'SP25', start: '2025-01-15', end: '2025-04-30', status: 'Archived' },
-  ];
-
-  const roomData = [
-    { room: 'E101', capacity: 40, type: 'Theory' },
-    { room: 'E205', capacity: 35, type: 'Theory' },
-    { room: 'LAB-A1', capacity: 28, type: 'Lab' },
-  ];
-
-  const timeslots = [
-    { slot: '1', start: '08:00', end: '09:40' },
-    { slot: '2', start: '10:00', end: '11:40' },
-    { slot: '3', start: '13:00', end: '14:40' },
-    { slot: '4', start: '15:00', end: '16:40' },
-  ];
-
-  const holidays = [
-    { date: '2025-10-20', reason: 'Midterm Break' },
-    { date: '2025-11-01', reason: 'University Event' },
-  ];
+  // Generate slots from timeslots (will be updated when timeslots are loaded)
+  // Slots should map to timeId from timeslots
+  const slots = timeslots.length > 0
+    ? timeslots.map((ts) => ({
+      value: String(ts.timeId),
+      label: `Slot ${ts.timeId} (${ts.startTime}-${ts.endTime})`
+    }))
+    : Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Slot ${i + 1}` }));
 
   // Helper functions
   const toYMD = (date) => {
@@ -121,6 +100,120 @@ const CreateSchedule = () => {
     return `Week ${toYMD(weekStart)} → ${toYMD(addDays(weekStart, 4))}`;
   };
 
+  // Fetch data from APIs
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch semesters
+        const semestersResponse = await SemesterApi.getSemesters({ pageSize: 100 });
+        const semestersList = semestersResponse.items || [];
+        const formattedSemesters = semestersList.map(sem => ({
+          code: sem.semesterCode || sem.name,
+          start: sem.startDate,
+          end: sem.endDate,
+          status: new Date(sem.endDate) >= new Date() ? 'Active' : 'Archived'
+        }));
+        setSemesterData(formattedSemesters);
+
+        // Fetch rooms
+        console.log('Fetching rooms...');
+        const roomsResponse = await RoomApi.getRooms({ pageSize: 100 });
+        console.log('Rooms response:', roomsResponse);
+        const roomsList = roomsResponse.items || [];
+        console.log('Rooms list:', roomsList);
+
+        if (roomsList.length === 0) {
+          console.warn('No rooms found in response');
+        }
+
+        const formattedRooms = roomsList.map(room => ({
+          value: String(room.roomId),
+          label: room.roomName
+        }));
+        console.log('Formatted rooms:', formattedRooms);
+        setRooms(formattedRooms);
+
+        // Format room data for table
+        const formattedRoomData = roomsList.map(room => ({
+          room: room.roomName,
+          type: room.status || '-'
+        }));
+        setRoomData(formattedRoomData);
+
+        // Fetch timeslots
+        const timeslotsList = await TimeslotApi.getTimeslots();
+        setTimeslots(timeslotsList);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          statusText: error.response?.statusText
+        });
+        // Set empty arrays on error to prevent crashes
+        setRooms([]);
+        setRoomData([]);
+        setTimeslots([]);
+        setSemesterData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Sync semester.id when semesterId changes (from dropdown selection)
+  useEffect(() => {
+    if (semesterId && semesterId !== semester.id) {
+      // Find semester data to get start/end dates
+      const semData = semesterData.find(s => s.code === semesterId || String(s.code) === String(semesterId));
+      if (semData) {
+        setSemester({
+          id: semesterId,
+          start: fromYMD(semData.start),
+          end: fromYMD(semData.end)
+        });
+        console.log('Synced semester from semesterId:', { id: semesterId, start: semData.start, end: semData.end });
+      } else if (semesterId) {
+        // If we have semesterId but no data yet, at least set the id
+        setSemester(prev => ({
+          ...prev,
+          id: semesterId
+        }));
+        console.log('Set semester.id from semesterId:', semesterId);
+      }
+    }
+  }, [semesterId, semesterData, semester.id]);
+
+  // Fetch holidays when semester is selected
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      const semId = semester.id || semesterId;
+      if (!semId) {
+        setHolidays([]);
+        return;
+      }
+
+      try {
+        const holidaysList = await HolidayApi.getHolidaysBySemester(semId);
+        const formattedHolidays = holidaysList.map(holiday => ({
+          date: holiday.date,
+          reason: holiday.name || holiday.description || ''
+        }));
+        setHolidays(formattedHolidays);
+      } catch (error) {
+        console.error('Error fetching holidays:', error);
+        setHolidays([]);
+      }
+    };
+
+    fetchHolidays();
+  }, [semester.id, semesterId]);
+
   // Initialize week
   useEffect(() => {
     const today = new Date();
@@ -129,13 +222,13 @@ const CreateSchedule = () => {
     setPreviewWeekStart(new Date(initWeek));
   }, []);
 
-  // Regenerate lessons when lecturer changes (if patterns exist and class is loaded)
+  // Regenerate lessons when lecturer, patterns, semester, holidays, or rooms change
   useEffect(() => {
-    if (patterns.length > 0 && semester.start && semester.end && classId) {
+    if (patterns.length > 0 && semester.start && semester.end && classId && rooms.length > 0) {
       const newLessons = generateLessonsFromPatterns(patterns, semester.start, semester.end, lecturerId);
       setLessons(newLessons);
     }
-  }, [lecturerId, patterns, semester.start, semester.end, classId]);
+  }, [lecturerId, patterns, semester.start, semester.end, classId, rooms, holidays]);
 
   // Generate lessons from patterns for entire semester
   const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer) => {
@@ -165,11 +258,16 @@ const CreateSchedule = () => {
 
         patterns.forEach(pattern => {
           if (pattern.weekday === normalizedWeekday) {
+            // Find room name from roomId
+            const room = rooms.find(r => r.value === pattern.room);
+            const roomName = room ? room.label : pattern.room;
             generatedLessons.push({
               date: dateStr,
               weekday: normalizedWeekday,
-              slot: pattern.slot,
-              room: pattern.room,
+              slot: pattern.slot, // This is timeId
+              timeId: pattern.slot, // Also store as timeId for consistency
+              room: roomName,
+              roomId: pattern.room,
               lecturer: lecturer || '',
             });
           }
@@ -242,7 +340,14 @@ const CreateSchedule = () => {
 
       console.log('Converted lessons:', convertedLessons);
       setLessons(convertedLessons);
-      setSubjectName(schedule[0]?.subjectCode || schedule[0]?.className || '');
+      
+      // Set subject code and name from schedule
+      const firstSubjectCode = schedule[0]?.subjectCode || '';
+      const firstSubjectName = schedule[0]?.subjectName || schedule[0]?.className || '';
+      if (firstSubjectCode) {
+        setSubjectCode(firstSubjectCode);
+      }
+      setSubjectName(firstSubjectName);
 
       // Also update semesterId and classId in parent state
       setSemesterId(semId);
@@ -251,81 +356,9 @@ const CreateSchedule = () => {
       return;
     }
 
-    // Fallback: xử lý theo cách cũ nếu không có data từ API
-    if (!semesterId) {
-      alert('Pick semester');
-      return;
-    }
-    if (!classId) {
-      alert('Pick class');
-      return;
-    }
-
-    const selectedSem = semesters.find(s => s.value === semesterId);
-    if (selectedSem) {
-      const semStart = fromYMD(selectedSem.start);
-      const semEnd = fromYMD(selectedSem.end);
-
-      setSemester({
-        id: semesterId,
-        start: semStart,
-        end: semEnd,
-      });
-
-      const today = new Date();
-      let base = mondayOf(today);
-      const semStartMonday = mondayOf(semStart);
-      if (base < semStartMonday) base = semStartMonday;
-
-      const clampedWeek = clampWeekStartWithinSemester(base, semStart, semEnd);
-      setCurrentWeekStart(clampedWeek);
-      setPreviewWeekStart(new Date(clampedWeek));
-
-      // Generate lessons for entire semester
-      let allLessons = [];
-
-      // If patterns exist, generate from patterns
-      if (patterns.length > 0) {
-        allLessons = generateLessonsFromPatterns(patterns, semStart, semEnd, lecturerId);
-      } else {
-        // Otherwise, generate mock lessons for several weeks
-        const weekStartDates = [];
-        let weekDate = mondayOf(semStart);
-        while (weekDate <= semEnd) {
-          weekStartDates.push(new Date(weekDate));
-          weekDate = addDays(weekDate, 7);
-          if (weekStartDates.length >= 8) break; // Limit to first 8 weeks
-        }
-
-        weekStartDates.forEach(weekStart => {
-          // Add lessons for Monday (weekday 2) and Friday (weekday 6)
-          if (weekStart >= semStart && weekStart <= semEnd) {
-            allLessons.push({
-              date: toYMD(weekStart),
-              weekday: 2, // Monday
-              slot: 1,
-              room: 'E101',
-              lecturer: 'Ms. Tran Thi B'
-            });
-
-            const fridayDate = addDays(weekStart, 4);
-            if (fridayDate <= semEnd) {
-              allLessons.push({
-                date: toYMD(fridayDate),
-                weekday: 6, // Friday
-                slot: 3,
-                room: 'LAB-A1',
-                lecturer: 'Mr. Nguyen Van A'
-              });
-            }
-          }
-        });
-      }
-
-      setLessons(allLessons);
-    }
-
-    setSubjectName(classId.includes('PRJ') ? 'Project Management' : 'Japanese Language');
+    // Fallback: should not happen since PickSemesterAndClass handles API calls
+    // But keep this as a safety check
+    console.warn('handleLoadClass: No schedule data received from API');
   };
 
   const handleAddPattern = () => {
@@ -394,42 +427,141 @@ const CreateSchedule = () => {
     setPreviewWeekStart(newWeek);
   };
 
-  const handleSave = () => {
-    if (!semester.id || !classId) {
-      alert('Pick semester & class');
+  const handleSave = async () => {
+    console.log('=== handleSave called ===');
+    console.log('Current state:', {
+      semesterId: semester.id,
+      classId: classId,
+      lecturerId: lecturerId,
+      patternsCount: patterns.length,
+      patterns: patterns
+    });
+
+    // Use semester.id or fallback to semesterId
+    const effectiveSemesterId = semester.id || semesterId;
+    if (!effectiveSemesterId || !classId) {
+      console.warn('Validation failed: Missing semester or class', {
+        semesterId: effectiveSemesterId,
+        classId: classId,
+        semester: semester
+      });
+      message.error('Vui lòng chọn semester và class');
       return;
     }
     if (patterns.length === 0) {
-      alert('Add at least 1 pattern');
+      console.warn('Validation failed: No patterns');
+      message.error('Vui lòng thêm ít nhất 1 pattern');
       return;
     }
     if (!lecturerId) {
-      alert('Pick lecturer');
+      console.warn('Validation failed: Missing lecturer');
+      message.error('Vui lòng chọn lecturer');
       return;
     }
 
-    console.log('Saving:', {
-      semester_id: semester.id,
-      class_id: classId,
-      patterns: patterns,
-      lecturer_id: lecturerId,
-    });
+    try {
+      setSaving(true);
+      console.log('Starting save process...');
 
-    alert('Saved (mock - no backend connection)');
+      // Format patterns for API
+      const formattedPatterns = patterns.map(pattern => {
+        const formatted = {
+          weekday: pattern.weekday, // 2=Mon, 3=Tue, etc.
+          timeId: parseInt(pattern.slot), // timeId from slot
+          roomId: parseInt(pattern.room) // roomId
+        };
+        console.log('Formatted pattern:', formatted, 'from original:', pattern);
+        return formatted;
+      });
+
+      // Use semester.id or fallback to semesterId
+      const effectiveSemesterId = semester.id || semesterId;
+      const payload = {
+        semesterId: parseInt(effectiveSemesterId),
+        classId: parseInt(classId),
+        lecturerId: parseInt(lecturerId),
+        patterns: formattedPatterns
+      };
+
+      console.log('Saving schedule with payload:', payload);
+      console.log('Payload JSON:', JSON.stringify(payload, null, 2));
+
+      const response = await ClassList.createSchedule(payload);
+      console.log('Schedule saved successfully, response:', response);
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', response ? Object.keys(response) : 'null');
+      console.log('Full response structure:', JSON.stringify(response, null, 2));
+
+      // Extract lessonsCreated from response
+      // Backend returns: { code: 200, message: "...", data: { lessonsCreated: ... } }
+      let lessonsCreated = 0;
+      if (response?.data?.lessonsCreated !== undefined) {
+        lessonsCreated = response.data.lessonsCreated;
+      } else if (response?.lessonsCreated !== undefined) {
+        lessonsCreated = response.lessonsCreated;
+      }
+      
+      console.log('Lessons created:', lessonsCreated);
+
+      if (lessonsCreated > 0) {
+        message.success(`Đã lưu schedule thành công! Đã tạo ${lessonsCreated} lessons.`);
+      } else {
+        message.success('Đã lưu schedule thành công!');
+      }
+      
+      // Optionally reload the schedule to show the saved data
+      // You can trigger a reload here if needed
+    } catch (error) {
+      console.error('=== Error saving schedule ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error response status:', error?.response?.status);
+      console.error('Error stack:', error?.stack);
+      
+      let errorMessage = 'Không thể lưu schedule. Vui lòng thử lại.';
+      
+      if (error?.response?.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error('Displaying error message:', errorMessage);
+      message.error(errorMessage);
+    } finally {
+      setSaving(false);
+      console.log('Save process completed');
+    }
   };
 
   const renderCalendar = (weekStart, isPreview = false) => {
-    const calendarData = Array(8).fill(null).map((_, slotIdx) => {
-      const slot = slotIdx + 1;
+    // Use timeslots if available, otherwise use default 8 slots
+    const slotsToRender = timeslots.length > 0
+      ? timeslots.map(ts => ({ timeId: ts.timeId, label: `Slot ${ts.timeId}` }))
+      : Array.from({ length: 8 }, (_, i) => ({ timeId: i + 1, label: `Slot ${i + 1}` }));
+
+    const calendarData = slotsToRender.map((slotInfo) => {
+      const slot = slotInfo.timeId;
       const dayCells = Array(5).fill(null).map((_, dayIdx) => {
         const weekdayNum = dayIdx + 2; // Mon=2, Tue=3, etc.
 
         if (isPreview) {
-          const patternMatch = patterns.find(p => p.weekday === weekdayNum && p.slot === slot);
+          const patternMatch = patterns.find(p => p.weekday === weekdayNum && parseInt(p.slot) === slot);
           if (patternMatch) {
+            // Find room name from roomId
+            const room = rooms.find(r => r.value === patternMatch.room);
+            const roomName = room ? room.label : patternMatch.room;
             return (
               <td key={dayIdx}>
-                <div>{patternMatch.room}{lecturerId ? ` | ${lecturerId}` : ''}</div>
+                <div>{roomName}{lecturerId ? ` | ${lecturerId}` : ''}</div>
               </td>
             );
           }
@@ -451,9 +583,10 @@ const CreateSchedule = () => {
               const weekEnd = addDays(weekStart, 4); // Friday of the week
               const isInWeek = lessonDate >= weekStart && lessonDate <= weekEnd;
 
-              // Match both weekday and slot
+              // Match both weekday and slot (using timeId)
               const matchesWeekday = lessonWeekday === weekdayNum;
-              const matchesSlot = l.slot === slot;
+              const lessonTimeId = l.timeId || l.slot;
+              const matchesSlot = parseInt(lessonTimeId) === slot;
 
               return isInWeek && matchesWeekday && matchesSlot;
             } catch (error) {
@@ -475,8 +608,8 @@ const CreateSchedule = () => {
       });
 
       return (
-        <tr key={slotIdx}>
-          <th>Slot {slot}</th>
+        <tr key={slot}>
+          <th>{slotInfo.label}</th>
           {dayCells}
         </tr>
       );
@@ -487,6 +620,16 @@ const CreateSchedule = () => {
 
   const weekdayMap = { 2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri' };
 
+  if (loading) {
+    return (
+      <div className="create-schedule-app">
+        <main className="create-schedule-main" style={{ padding: '20px', textAlign: 'center' }}>
+          <p>Loading data...</p>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="create-schedule-app">
       <main className="create-schedule-main">
@@ -495,11 +638,14 @@ const CreateSchedule = () => {
           <PickSemesterAndClass
             semesterId={semesterId}
             classId={classId}
+            subjectCode={subjectCode}
             subjectName={subjectName}
-            semesters={semesters}
-            classes={classes}
             onSemesterChange={setSemesterId}
             onClassChange={setClassId}
+            onSubjectChange={(code, name) => {
+              setSubjectCode(code);
+              setSubjectName(name);
+            }}
             onLoadClass={handleLoadClass}
           />
           <LecturerSelector
@@ -554,7 +700,7 @@ const CreateSchedule = () => {
         </div>
 
         {/* SAVE */}
-        <SaveButton onSave={handleSave} />
+        <SaveButton onSave={handleSave} saving={saving} />
       </main>
     </div>
   );

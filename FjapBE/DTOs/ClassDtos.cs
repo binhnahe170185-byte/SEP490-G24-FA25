@@ -12,3 +12,18 @@ public class ClassScheduleDto
     public string SubjectCode { get; set; } = "";
 }
 
+public class SchedulePatternDto
+{
+    public int Weekday { get; set; } // 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri
+    public int TimeId { get; set; } // Slot ID
+    public int RoomId { get; set; } // Room ID
+}
+
+public class CreateScheduleRequest
+{
+    public int SemesterId { get; set; }
+    public int ClassId { get; set; }
+    public int LecturerId { get; set; }
+    public List<SchedulePatternDto> Patterns { get; set; } = new();
+}
+

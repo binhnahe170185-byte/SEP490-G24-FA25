@@ -5,6 +5,7 @@ import {
     ClockCircleOutlined,
     UserOutlined,
     TeamOutlined,
+    ScheduleOutlined,
     CloseOutlined,
     VideoCameraOutlined,
     BookOutlined,
@@ -160,40 +161,28 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                     <Space direction="vertical" size="large" style={{ width: "100%" }}>
                                         {/* Attendance */}
                                         <div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                                <ScheduleOutlined style={{ fontSize: 16 }} />
+                                                <Text strong>Take Attendance</Text>
+                                            </div>
                                             <div
                                                 style={{
                                                     display: "flex",
                                                     alignItems: "center",
-                                                    gap: 12,
-                                                    marginBottom: 12,
-                                                    padding: "12px 16px",
-                                                    borderRadius: 8,
-                                                    border: "1px solid",
-                                                    borderColor: canTakeAttendance ? "#b7eb8f" : "#d9d9d9",
-                                                    background: canTakeAttendance ? "#f6ffed" : "#fafafa",
-                                                    cursor: canTakeAttendance ? "pointer" : "not-allowed",
-                                                    transition: "box-shadow 0.2s ease"
+                                                    gap: 8,
+                                                    marginLeft: 24,
+                                                    cursor: classId ? "pointer" : "default"
                                                 }}
                                                 onClick={handleTakeAttendance}
                                             >
-                                                <CheckSquareOutlined style={{ fontSize: 20, color: canTakeAttendance ? "#52c41a" : "#999" }} />
-                                                <div>
-                                                    <Text strong style={{ color: canTakeAttendance ? "#389e0d" : "#999" }}>
-                                                        Attendance
-                                                    </Text>
-                                                    <div>
-                                                        <Text type="secondary" style={{ fontSize: 12 }}>
-                                                            Record attendance for this lesson
-                                                        </Text>
-                                                    </div>
-                                                </div>
+
+                                                <Text strong style={{ color: canTakeAttendance ? "#389e0d" : "#999" }}>
+                                                    Attendance - {studentGroupCode}
+                                                </Text>
+                                                <LinkOutlined style={{ fontSize: 12, color: classId ? "#389e0d" : "#999" }} />
+
                                             </div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 4 }}>
-                                                <Avatar size={24} style={{ backgroundColor: "#f0f0f0", color: "#000" }}>
-                                                    {instructorCode.charAt(0)}
-                                                </Avatar>
-                                                <Text>{instructorCode}</Text>
-                                            </div>
+
                                         </div>
 
                                         {/* List student in class */}
@@ -212,9 +201,7 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                                 }}
                                                 onClick={handleViewStudents}
                                             >
-                                                <Avatar size={24} style={{ backgroundColor: "#f0f0f0", color: "#000" }}>
-                                                    {studentGroupCode.charAt(0)}
-                                                </Avatar>
+
                                                 <Text style={{ color: classId ? "#1890ff" : "inherit" }}>
                                                     {studentGroupCode}
                                                 </Text>

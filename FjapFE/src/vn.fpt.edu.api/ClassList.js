@@ -50,6 +50,38 @@ class ClassList {
     return response.data?.data ?? response.data;
   }
 
+  // POST /api/staffAcademic/classes/schedule - Create schedule from patterns
+  static async createSchedule(payload) {
+    console.log('ClassList.createSchedule - Request payload:', payload);
+    try {
+      const response = await api.post("/api/staffAcademic/classes/schedule", payload);
+      console.log('ClassList.createSchedule - Raw response:', response);
+      console.log('ClassList.createSchedule - Response data:', response.data);
+      
+      // Handle different response formats
+      if (response.data?.data) {
+        return response.data.data;
+      }
+      if (response.data) {
+        return response.data;
+      }
+      return response;
+    } catch (error) {
+      console.error('ClassList.createSchedule - Error:', error);
+      console.error('ClassList.createSchedule - Error response:', error.response);
+      console.error('ClassList.createSchedule - Error data:', error.response?.data);
+      throw error;
+    }
+  }
+
+  // GET /api/staffAcademic/classes/schedule - Get class schedule
+  static async getSchedule(semesterId, classId) {
+    const response = await api.get("/api/staffAcademic/classes/schedule", {
+      params: { semesterId, classId }
+    });
+    return response.data?.data ?? response.data;
+  }
+
   static async delete(classId) {
     const response = await api.delete(`/api/staffAcademic/classes/${classId}`);
     return response.data?.data ?? response.data;
