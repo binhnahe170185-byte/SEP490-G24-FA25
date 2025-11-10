@@ -37,6 +37,7 @@ import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
 import StaffMaterialList from "../vn.fpt.edu.pages/staffAcademic/materials/MaterialList";
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
+import HomeworkDetail from "../vn.fpt.edu.pages/lecturer/HomeworkManage/HomeworkDetail";
 import Schedule from "../vn.fpt.edu.pages/lecturer/schedule/Schedule";
 import Attendance from "../vn.fpt.edu.pages/lecturer/Attendance/Attendance";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/admin/StaffOfAdminPage";
@@ -290,6 +291,10 @@ export default function App() {
                   <Route
                     path="homework"
                     element={<HomeworkManage />}
+                  />
+                  <Route
+                    path="homework/:classId/:lessonId"
+                    element={<HomeworkDetail />}
                   />
                   <Route path="grades" element={<GradeManage />} />
                   <Route path="grades/:courseId" element={<GradeDetails />} />

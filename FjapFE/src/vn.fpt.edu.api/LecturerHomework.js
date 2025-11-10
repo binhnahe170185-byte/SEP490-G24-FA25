@@ -189,6 +189,12 @@ class LecturerHomework {
         totalStudents: hw.totalStudents || 0,
         createdAt: hw.createdAt,
         lessonId: hw.lessonId || lessonId,
+        createdBy: hw.createdBy || hw.created_by,
+        createdByName:
+          hw.createdByName ||
+          hw.createdByFullName ||
+          hw.createdByUser?.fullName ||
+          hw.created_by_name,
       }));
     } catch (error) {
       console.error("Failed to load homeworks:", error);
@@ -260,4 +266,3 @@ class LecturerHomework {
 }
 
 export default LecturerHomework;
-

@@ -41,28 +41,28 @@ export default function HomeworkForm({ visible, slot, homework, onClose, onSucce
       if (homework) {
         // Update
         await LecturerHomework.updateHomework(homework.homeworkId, data);
-        message.success("Cập nhật bài tập thành công");
+        message.success("Homework updated successfully");
       } else {
         // Create
         await LecturerHomework.createHomework(data);
-        message.success("Tạo bài tập thành công");
+        message.success("Homework created successfully");
       }
 
       onSuccess();
     } catch (error) {
       console.error("Failed to save homework:", error);
-      message.error(homework ? "Không thể cập nhật bài tập" : "Không thể tạo bài tập");
+      message.error(homework ? "Unable to update homework" : "Unable to create homework");
     }
   };
 
   return (
     <Modal
-      title={homework ? "Chỉnh sửa bài tập" : "Thêm bài tập mới"}
+      title={homework ? "Edit homework" : "Add new homework"}
       open={visible}
       onOk={handleSubmit}
       onCancel={onClose}
-      okText={homework ? "Cập nhật" : "Tạo"}
-      cancelText="Hủy"
+      okText={homework ? "Update" : "Create"}
+      cancelText="Cancel"
       width={600}
     >
       <Form
@@ -74,41 +74,41 @@ export default function HomeworkForm({ visible, slot, homework, onClose, onSucce
       >
         <Form.Item
           name="title"
-          label="Tiêu đề bài tập"
-          rules={[{ required: true, message: "Vui lòng nhập tiêu đề" }]}
+          label="Homework title"
+          rules={[{ required: true, message: "Please enter a title" }]}
         >
-          <Input placeholder="Nhập tiêu đề bài tập" />
+          <Input placeholder="Enter the homework title" />
         </Form.Item>
 
         <Form.Item
           name="content"
-          label="Nội dung"
-          rules={[{ required: true, message: "Vui lòng nhập nội dung" }]}
+          label="Description"
+          rules={[{ required: true, message: "Please enter the homework description" }]}
         >
           <TextArea
             rows={6}
-            placeholder="Nhập nội dung bài tập và hướng dẫn..."
+            placeholder="Add homework instructions and details..."
           />
         </Form.Item>
 
         <Form.Item
           name="deadline"
-          label="Hạn nộp"
+          label="Deadline"
         >
           <DatePicker
             showTime
             format="DD/MM/YYYY HH:mm"
             style={{ width: "100%" }}
-            placeholder="Chọn hạn nộp bài"
+            placeholder="Select the due date"
           />
         </Form.Item>
 
         <Form.Item
           name="file"
-          label="File đính kèm"
+          label="Attachments"
         >
           <Upload beforeUpload={() => false}>
-            <Button icon={<UploadOutlined />}>Chọn file</Button>
+            <Button icon={<UploadOutlined />}>Choose file</Button>
           </Upload>
         </Form.Item>
       </Form>
