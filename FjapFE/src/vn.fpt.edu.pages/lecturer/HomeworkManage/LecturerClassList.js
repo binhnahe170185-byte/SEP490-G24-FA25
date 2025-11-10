@@ -7,7 +7,7 @@ export default function LecturerClassList({ classes, selectedClass, onSelectClas
     <Card
       title={
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Chọn lớp</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Select class</div>
           <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 400 }}>
             {semester?.name}
           </div>
@@ -20,7 +20,7 @@ export default function LecturerClassList({ classes, selectedClass, onSelectClas
           <Spin />
         </div>
       ) : classes.length === 0 ? (
-        <Empty description="Không có lớp nào" />
+        <Empty description="No classes found" />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {classes.map((classItem) => (
@@ -46,7 +46,7 @@ export default function LecturerClassList({ classes, selectedClass, onSelectClas
                 </Tag>
                 {selectedClass?.classId === classItem.classId && (
                   <Tag color="green" style={{ margin: 0 }}>
-                    <CheckCircleOutlined /> Đang hiển thị
+                    <CheckCircleOutlined /> Selected
                   </Tag>
                 )}
               </div>
@@ -61,7 +61,7 @@ export default function LecturerClassList({ classes, selectedClass, onSelectClas
                 )}
                 {classItem.startDate && classItem.endDate && (
                   <div>
-                    {new Date(classItem.startDate).toLocaleDateString('vi-VN')} - {new Date(classItem.endDate).toLocaleDateString('vi-VN')}
+                    {new Date(classItem.startDate).toLocaleDateString('en-GB')} - {new Date(classItem.endDate).toLocaleDateString('en-GB')}
                   </div>
                 )}
               </div>
@@ -72,4 +72,3 @@ export default function LecturerClassList({ classes, selectedClass, onSelectClas
     </Card>
   );
 }
-

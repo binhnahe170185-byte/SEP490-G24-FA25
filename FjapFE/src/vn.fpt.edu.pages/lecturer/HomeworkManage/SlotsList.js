@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, Table, Tag, Spin, message, Empty, Button, Badge } from "antd";
-import { CalendarOutlined, ClockCircleOutlined, HomeOutlined, FileTextOutlined } from "@ant-design/icons";
+import { CalendarOutlined, ClockCircleOutlined, FileTextOutlined } from "@ant-design/icons";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
 import dayjs from "dayjs";
-import HomeworkModal from "./HomeworkModal";
 
 export default function SlotsList({ course, lecturerId }) {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [homeworkModalVisible, setHomeworkModalVisible] = useState(false);
   const [homeworksMap, setHomeworksMap] = useState({}); // Map lessonId -> homeworks[]
+  const navigate = useNavigate();
 
   const loadSlots = useCallback(async () => {
     if (!course || !course.classId) return;
@@ -34,10 +33,12 @@ export default function SlotsList({ course, lecturerId }) {
           map[lessonId] = homeworks;
         });
         setHomeworksMap(map);
+      } else {
+        setHomeworksMap({});
       }
     } catch (error) {
       console.error("Failed to load slots:", error);
-      message.error("Không thể tải danh sách slot");
+      message.error("Unable to load slots");
     } finally {
       setLoading(false);
     }
@@ -49,12 +50,51 @@ export default function SlotsList({ course, lecturerId }) {
     }
   }, [course, loadSlots]);
 
+  const getPrimaryHomework = useCallback(
+    (lessonId) => {
+      const lessonHomeworks = homeworksMap[lessonId] || [];
+      if (!lessonHomeworks.length) return null;
+      const getTimestamp = (hw) => {
+        if (!hw) return null;
+        const reference = hw.createdAt || hw.deadline;
+        return reference ? dayjs(reference) : null;
+      };
+
+      return lessonHomeworks.reduce((latest, current) => {
+        if (!latest) return current;
+        const latestTime = getTimestamp(latest);
+        const currentTime = getTimestamp(current);
+
+        if (!currentTime && !latestTime) return latest;
+        if (!latestTime) return current;
+        if (!currentTime) return latest;
+
+        return currentTime.isAfter(latestTime) ? current : latest;
+      }, null);
+    },
+    [homeworksMap]
+  );
+
+  const getSubmissionSummary = useCallback(
+    (lessonId) => {
+      const homework = getPrimaryHomework(lessonId);
+      if (!homework) {
+        return { submitted: 0, total: 0 };
+      }
+      return {
+        submitted: homework.submissions || 0,
+        total: homework.totalStudents || homework.maxStudents || 0,
+      };
+    },
+    [getPrimaryHomework]
+  );
+
   const columns = [
     {
       title: "Slot",
       dataIndex: "slotId",
       key: "slotId",
-      width: 100,
+      width: 90,
       render: (slotId) => (
         <Tag color="blue" style={{ fontSize: 14, padding: "4px 12px" }}>
           Slot {slotId}
@@ -62,7 +102,7 @@ export default function SlotsList({ course, lecturerId }) {
       ),
     },
     {
-      title: "Ngày",
+      title: "Date",
       dataIndex: "date",
       key: "date",
       width: 150,
@@ -78,7 +118,7 @@ export default function SlotsList({ course, lecturerId }) {
       },
     },
     {
-      title: "Thời gian",
+      title: "Time",
       key: "time",
       width: 150,
       render: (_, record) => (
@@ -93,31 +133,85 @@ export default function SlotsList({ course, lecturerId }) {
       ),
     },
     {
-      title: "Phòng học",
-      dataIndex: "roomName",
-      key: "roomName",
-      width: 150,
-      render: (roomName) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <HomeOutlined style={{ color: "#8c8c8c" }} />
-          <span>{roomName || "N/A"}</span>
-        </div>
-      ),
-    },
-    {
-      title: "Mã môn",
+      title: "Subject Code",
       dataIndex: "subjectCode",
       key: "subjectCode",
-      width: 120,
+      width: 130,
     },
     {
-      title: "Lớp",
+      title: "Class",
       dataIndex: "className",
       key: "className",
       width: 150,
     },
     {
-      title: "Bài tập",
+      title: "Homework Title",
+      key: "homeworkTitle",
+      width: 220,
+      render: (_, record) => {
+        const homework = getPrimaryHomework(record.lessonId);
+        return homework ? (
+          <span style={{ fontWeight: 500 }}>{homework.title}</span>
+        ) : (
+          <span style={{ color: "#8c8c8c" }}>No homework</span>
+        );
+      },
+    },
+    {
+      title: "Created At",
+      key: "createdAt",
+      width: 160,
+      render: (_, record) => {
+        const homework = getPrimaryHomework(record.lessonId);
+        return homework?.createdAt
+          ? dayjs(homework.createdAt).format("DD/MM/YYYY HH:mm")
+          : "N/A";
+      },
+      sorter: (a, b) => {
+        const hwA = getPrimaryHomework(a.lessonId);
+        const hwB = getPrimaryHomework(b.lessonId);
+        if (!hwA?.createdAt || !hwB?.createdAt) return 0;
+        return dayjs(hwA.createdAt).unix() - dayjs(hwB.createdAt).unix();
+      },
+    },
+    {
+      title: "Deadline",
+      key: "deadline",
+      width: 160,
+      render: (_, record) => {
+        const homework = getPrimaryHomework(record.lessonId);
+        if (!homework?.deadline) return "N/A";
+        const isLate = dayjs(homework.deadline).isBefore(dayjs());
+        return (
+          <Tag color={isLate ? "red" : "blue"}>
+            {dayjs(homework.deadline).format("DD/MM/YYYY HH:mm")}
+          </Tag>
+        );
+      },
+      sorter: (a, b) => {
+        const hwA = getPrimaryHomework(a.lessonId);
+        const hwB = getPrimaryHomework(b.lessonId);
+        if (!hwA?.deadline || !hwB?.deadline) return 0;
+        return dayjs(hwA.deadline).unix() - dayjs(hwB.deadline).unix();
+      },
+    },
+    {
+      title: "Submissions",
+      key: "submissions",
+      width: 140,
+      align: "center",
+      render: (_, record) => {
+        const { submitted, total } = getSubmissionSummary(record.lessonId);
+        return (
+          <Tag color={submitted > 0 ? "green" : undefined}>
+            {submitted}
+            {total ? `/${total}` : ""}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Homeworks",
       key: "homeworks",
       width: 120,
       align: "center",
@@ -125,29 +219,30 @@ export default function SlotsList({ course, lecturerId }) {
         const homeworks = homeworksMap[record.lessonId] || [];
         return (
           <Badge count={homeworks.length} showZero>
-            <Tag color={homeworks.length > 0 ? "green" : "default"} style={{ cursor: "pointer" }}>
-              {homeworks.length} bài
+            <Tag color={homeworks.length > 0 ? "green" : undefined}>
+              {homeworks.length} item{homeworks.length === 1 ? "" : "s"}
             </Tag>
           </Badge>
         );
       },
     },
     {
-      title: "Thao tác",
+      title: "Actions",
       key: "actions",
-      width: 150,
+      width: 170,
       align: "center",
       render: (_, record) => (
         <Button
           type="primary"
           icon={<FileTextOutlined />}
           size="small"
-          onClick={() => {
-            setSelectedSlot(record);
-            setHomeworkModalVisible(true);
-          }}
+          onClick={() =>
+            navigate(`/lecturer/homework/${record.classId}/${record.lessonId}`, {
+              state: { slot: record, course },
+            })
+          }
         >
-          Quản lý bài tập
+          View detail
         </Button>
       ),
     },
@@ -167,7 +262,7 @@ export default function SlotsList({ course, lecturerId }) {
     return (
       <Card>
         <div style={{ textAlign: "center", padding: "50px", color: "#8c8c8c" }}>
-          <Empty description="Vui lòng chọn môn học để xem danh sách slot" />
+          <Empty description="Select a course to view its slots" />
         </div>
       </Card>
     );
@@ -179,7 +274,7 @@ export default function SlotsList({ course, lecturerId }) {
         title={
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Danh sách slot</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>Slot list</div>
               <div style={{ fontSize: 14, color: "#595959", fontWeight: 400 }}>
                 {course.className} {course.subjectCode && course.subjectName && `- ${course.subjectName} (${course.subjectCode})`}
               </div>
@@ -187,7 +282,7 @@ export default function SlotsList({ course, lecturerId }) {
           </div>
         }
       >
-        <Empty description="Không có slot nào cho môn học này" />
+        <Empty description="No slots available for this course" />
       </Card>
     );
   }
@@ -197,13 +292,13 @@ export default function SlotsList({ course, lecturerId }) {
       title={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Danh sách slot</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>Slot list</div>
               <div style={{ fontSize: 14, color: "#595959", fontWeight: 400 }}>
                 {course.className} {course.subjectCode && course.subjectName && `- ${course.subjectName} (${course.subjectCode})`}
               </div>
             </div>
           <Tag color="green" style={{ fontSize: 14, padding: "4px 12px" }}>
-            {slots.length} slot
+            {slots.length} {slots.length === 1 ? "slot" : "slots"}
           </Tag>
         </div>
       }
@@ -217,34 +312,11 @@ export default function SlotsList({ course, lecturerId }) {
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total, range) =>
-            `${range[0]}-${range[1]} của ${total} slot`,
+            `${range[0]}-${range[1]} of ${total} ${total === 1 ? "slot" : "slots"}`,
         }}
         bordered
         size="middle"
       />
-
-      {selectedSlot && (
-        <HomeworkModal
-          visible={homeworkModalVisible}
-          slot={selectedSlot}
-          homeworks={homeworksMap[selectedSlot.lessonId] || []}
-          onClose={() => {
-            setHomeworkModalVisible(false);
-            setSelectedSlot(null);
-          }}
-          onRefresh={() => {
-            // Reload homeworks for this slot
-            LecturerHomework.getHomeworksBySlot(selectedSlot.lessonId, selectedSlot.classId)
-              .then(homeworks => {
-                setHomeworksMap(prev => ({
-                  ...prev,
-                  [selectedSlot.lessonId]: homeworks
-                }));
-              });
-          }}
-        />
-      )}
     </Card>
   );
 }
-

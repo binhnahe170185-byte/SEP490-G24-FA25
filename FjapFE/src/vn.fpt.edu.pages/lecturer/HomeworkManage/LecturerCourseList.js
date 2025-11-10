@@ -7,9 +7,9 @@ export default function LecturerCourseList({ courses, selectedCourse, onSelectCo
     <Card
       title={
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Chọn môn học</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Select course</div>
           <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 400 }}>
-            {selectedClass?.className || "Chọn lớp trước"}
+            {selectedClass?.className || "Select a class first"}
           </div>
         </div>
       }
@@ -20,7 +20,7 @@ export default function LecturerCourseList({ courses, selectedCourse, onSelectCo
           <Spin />
         </div>
       ) : courses.length === 0 ? (
-        <Empty description="Không có môn học nào" />
+        <Empty description="No courses found" />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {courses.map((course) => (
@@ -47,7 +47,7 @@ export default function LecturerCourseList({ courses, selectedCourse, onSelectCo
                 </Tag>
                 {selectedCourse?.courseId === course.courseId && (
                   <Tag color="green" style={{ margin: 0 }}>
-                    <CheckCircleOutlined /> Đang hiển thị
+                    <CheckCircleOutlined /> Selected
                   </Tag>
                 )}
               </div>
@@ -58,7 +58,7 @@ export default function LecturerCourseList({ courses, selectedCourse, onSelectCo
                 <div>{course.className} - {course.classCode}</div>
                 {course.startDate && course.endDate && (
                   <div>
-                    {new Date(course.startDate).toLocaleDateString('vi-VN')} - {new Date(course.endDate).toLocaleDateString('vi-VN')}
+                    {new Date(course.startDate).toLocaleDateString('en-GB')} - {new Date(course.endDate).toLocaleDateString('en-GB')}
                   </div>
                 )}
               </div>
@@ -69,4 +69,3 @@ export default function LecturerCourseList({ courses, selectedCourse, onSelectCo
     </Card>
   );
 }
-

@@ -24,11 +24,11 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
     try {
       setLoading(true);
       await LecturerHomework.deleteHomework(homeworkId);
-      message.success("Xóa bài tập thành công");
+      message.success("Homework removed successfully");
       onRefresh();
     } catch (error) {
       console.error("Failed to delete homework:", error);
-      message.error("Không thể xóa bài tập");
+      message.error("Unable to delete homework");
     } finally {
       setLoading(false);
     }
@@ -42,20 +42,20 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
 
   const columns = [
     {
-      title: "Tiêu đề",
+      title: "Title",
       dataIndex: "title",
       key: "title",
       render: (text) => <strong>{text}</strong>,
     },
     {
-      title: "Nội dung",
+      title: "Description",
       dataIndex: "content",
       key: "content",
       ellipsis: true,
-      render: (text) => text || "Không có nội dung",
+      render: (text) => text || "No description",
     },
     {
-      title: "Hạn nộp",
+      title: "Deadline",
       dataIndex: "deadline",
       key: "deadline",
       width: 150,
@@ -65,11 +65,11 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
             {dayjs(deadline).format("DD/MM/YYYY HH:mm")}
           </Tag>
         ) : (
-          "Không có"
+          "No deadline"
         ),
     },
     {
-      title: "Số bài nộp",
+      title: "Submissions",
       key: "submissions",
       width: 100,
       align: "center",
@@ -78,7 +78,7 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
       ),
     },
     {
-      title: "Thao tác",
+      title: "Actions",
       key: "actions",
       width: 150,
       render: (_, record) => (
@@ -90,10 +90,10 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
             onClick={() => handleEdit(record)}
           />
           <Popconfirm
-            title="Bạn có chắc muốn xóa bài tập này?"
+            title="Are you sure you want to remove this homework?"
             onConfirm={() => handleDelete(record.homeworkId)}
-            okText="Xóa"
-            cancelText="Hủy"
+            okText="Delete"
+            cancelText="Cancel"
           >
             <Button
               type="text"
@@ -112,7 +112,7 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
       <Modal
         title={
           <div>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>Quản lý bài tập</div>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>Homework manager</div>
             <div style={{ fontSize: 14, color: "#8c8c8c", marginTop: 4 }}>
               Slot {slot?.slotId} - {slot?.date ? dayjs(slot.date).format("DD/MM/YYYY") : ""} 
               {slot?.startTime && slot?.endTime && ` (${slot.startTime} - ${slot.endTime})`}
@@ -123,10 +123,10 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
         onCancel={onClose}
         footer={[
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            Thêm bài tập
+            Add homework
           </Button>,
           <Button key="close" onClick={onClose}>
-            Đóng
+            Close
           </Button>,
         ]}
         width={900}
@@ -134,11 +134,11 @@ export default function HomeworkModal({ visible, slot, homeworks, onClose, onRef
       >
         {homeworks.length === 0 ? (
           <Empty
-            description="Chưa có bài tập nào"
+            description="No homework yet"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Thêm bài tập đầu tiên
+              Add the first homework
             </Button>
           </Empty>
         ) : (

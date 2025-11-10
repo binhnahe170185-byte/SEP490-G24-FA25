@@ -19,23 +19,21 @@ const HomeworkList = () => {
   const [loading, setLoading] = useState(true);
   const [classesLoading, setClassesLoading] = useState(false);
 
-  // Mock lecturerId nếu không có trong user
+  // Fallback lecturerId when payload does not include one
   const lecturerId = user?.lecturerId || user?.id || "MOCK_LECTURER_123";
 
   // Load semesters
   const loadSemesters = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Loading semesters for lecturer:", lecturerId);
       const data = await LecturerHomework.getSemesters(lecturerId);
-      console.log("Semesters loaded:", data);
       setSemesters(data);
       if (data.length > 0) {
         setSelectedSemester(data[0]);
       }
     } catch (error) {
       console.error("Failed to load semesters:", error);
-      message.error("Không thể tải danh sách học kỳ");
+      message.error("Unable to load semesters");
     } finally {
       setLoading(false);
     }
@@ -47,12 +45,10 @@ const HomeworkList = () => {
     
     try {
       setClassesLoading(true);
-      console.log("Loading classes for semester:", selectedSemester.semesterId);
       const data = await LecturerHomework.getClasses(
         lecturerId,
         selectedSemester.semesterId
       );
-      console.log("Classes loaded:", data);
       
       setClasses(data);
       if (data.length > 0) {
@@ -62,18 +58,18 @@ const HomeworkList = () => {
       }
     } catch (error) {
       console.error("Failed to load classes:", error);
-      message.error("Không thể tải danh sách lớp");
+      message.error("Unable to load classes");
     } finally {
       setClassesLoading(false);
     }
   }, [lecturerId, selectedSemester]);
 
-  // Load semesters khi component mount
+  // Load semesters when the component mounts
   useEffect(() => {
     loadSemesters();
   }, [loadSemesters]);
 
-  // Load classes khi chọn semester
+  // Load classes whenever the semester changes
   useEffect(() => {
     if (selectedSemester) {
       loadClasses();
@@ -84,7 +80,7 @@ const HomeworkList = () => {
     return (
       <div style={{ textAlign: "center", padding: "50px" }}>
         <Spin size="large" />
-        <p style={{ marginTop: 16 }}>Đang tải dữ liệu...</p>
+        <p style={{ marginTop: 16 }}>Loading data...</p>
       </div>
     );
   }
@@ -92,8 +88,8 @@ const HomeworkList = () => {
   if (!semesters.length) {
     return (
       <div style={{ padding: "24px", textAlign: "center" }}>
-        <h2>Không có dữ liệu học kỳ</h2>
-        <p>Bạn chưa có môn học nào được gán.</p>
+        <h2>No semester data</h2>
+        <p>You have not been assigned to any classes.</p>
       </div>
     );
   }
@@ -103,20 +99,20 @@ const HomeworkList = () => {
       <Breadcrumb
         style={{ marginBottom: 16 }}
         items={[
-          { title: "Báo cáo" },
-          { title: "Báo cáo học tập" },
-          { title: "Quản lý bài tập" },
+          { title: "Reports" },
+          { title: "Academic Reports" },
+          { title: "Homework Management" },
         ]}
       />
 
-      <h1 style={{ marginBottom: 24, fontSize: 28, fontWeight: 600 }}>Quản lý bài tập</h1>
+      <h1 style={{ marginBottom: 24, fontSize: 28, fontWeight: 600 }}>Homework Management</h1>
 
       <SemesterTabs
         semesters={semesters}
         selectedSemester={selectedSemester}
         onSelectSemester={(semester) => {
           setSelectedSemester(semester);
-          setSelectedClass(null); // Reset selected class khi đổi semester
+          setSelectedClass(null); // Reset class selection when switching semesters
         }}
       />
 
@@ -142,7 +138,7 @@ const HomeworkList = () => {
             textAlign: "center",
             color: "#8c8c8c"
           }}>
-            <p>Vui lòng chọn lớp để xem danh sách slot</p>
+            <p>Select a class to view its slots</p>
           </div>
         )}
       </div>
