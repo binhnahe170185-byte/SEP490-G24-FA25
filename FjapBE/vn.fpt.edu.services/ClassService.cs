@@ -89,4 +89,7 @@ public class ClassService : IClassService
 
     public Task<IEnumerable<ClassScheduleDto>> GetClassScheduleBySemesterAsync(int semesterId, int classId)
         => _classRepository.GetClassScheduleBySemesterAsync(semesterId, classId);
+
+    public Task<int> CreateScheduleFromPatternsAsync(CreateScheduleRequest request)
+        => _classRepository.CreateScheduleFromPatternsAsync(request);
 }

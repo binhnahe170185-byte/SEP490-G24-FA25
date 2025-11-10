@@ -443,6 +443,166 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         return lessons;
     }
 
+    public async Task<int> CreateScheduleFromPatternsAsync(CreateScheduleRequest request)
+    {
+        Console.WriteLine("=== ClassRepository.CreateScheduleFromPatternsAsync called ===");
+        Console.WriteLine($"SemesterId: {request.SemesterId}, ClassId: {request.ClassId}, LecturerId: {request.LecturerId}");
+        Console.WriteLine($"Patterns count: {request.Patterns?.Count ?? 0}");
+
+        // Validate semester exists
+        var semester = await _context.Semesters
+            .FirstOrDefaultAsync(s => s.SemesterId == request.SemesterId);
+        
+        if (semester == null)
+        {
+            throw new ArgumentException($"Semester with ID {request.SemesterId} not found");
+        }
+
+        // Validate class exists and belongs to semester
+        var classEntity = await _context.Classes
+            .FirstOrDefaultAsync(c => c.ClassId == request.ClassId && c.SemesterId == request.SemesterId);
+        
+        if (classEntity == null)
+        {
+            throw new ArgumentException($"Class with ID {request.ClassId} not found or does not belong to semester {request.SemesterId}");
+        }
+
+        // Validate lecturer exists
+        var lecturer = await _context.Lectures
+            .FirstOrDefaultAsync(l => l.LectureId == request.LecturerId);
+        
+        if (lecturer == null)
+        {
+            throw new ArgumentException($"Lecturer with ID {request.LecturerId} not found");
+        }
+
+        // Validate patterns
+        if (request.Patterns == null || request.Patterns.Count == 0)
+        {
+            throw new ArgumentException("At least one pattern is required");
+        }
+
+        // Validate rooms and timeslots exist
+        var roomIds = request.Patterns.Select(p => p.RoomId).Distinct().ToList();
+        var timeIds = request.Patterns.Select(p => p.TimeId).Distinct().ToList();
+
+        var roomsExist = await _context.Rooms
+            .Where(r => roomIds.Contains(r.RoomId))
+            .Select(r => r.RoomId)
+            .ToListAsync();
+        
+        var missingRooms = roomIds.Except(roomsExist).ToList();
+        if (missingRooms.Any())
+        {
+            throw new ArgumentException($"Rooms not found: {string.Join(", ", missingRooms)}");
+        }
+
+        var timeslotsExist = await _context.Timeslots
+            .Where(t => timeIds.Contains(t.TimeId))
+            .Select(t => t.TimeId)
+            .ToListAsync();
+        
+        var missingTimeslots = timeIds.Except(timeslotsExist).ToList();
+        if (missingTimeslots.Any())
+        {
+            throw new ArgumentException($"Timeslots not found: {string.Join(", ", missingTimeslots)}");
+        }
+
+        // Get holidays for this semester
+        var holidays = await _context.Holidays
+            .Where(h => h.SemesterId == request.SemesterId)
+            .Select(h => h.Date)
+            .ToListAsync();
+
+        Console.WriteLine($"Holidays count: {holidays.Count}");
+
+        // Delete existing lessons for this class in this semester (optional - you might want to keep them)
+        // For now, we'll delete existing lessons to avoid duplicates
+        var existingLessons = await _context.Lessons
+            .Where(l => l.ClassId == request.ClassId && 
+                       l.Date >= semester.StartDate && 
+                       l.Date <= semester.EndDate)
+            .ToListAsync();
+        
+        if (existingLessons.Any())
+        {
+            Console.WriteLine($"Deleting {existingLessons.Count} existing lessons");
+            _context.Lessons.RemoveRange(existingLessons);
+            await _context.SaveChangesAsync();
+        }
+
+        // Generate lessons from patterns
+        var lessonsToCreate = new List<Lesson>();
+        var startDate = semester.StartDate;
+        var endDate = semester.EndDate;
+
+        // Find Monday of semester start
+        var startDayOfWeek = (int)startDate.DayOfWeek;
+        var daysToMonday = startDayOfWeek == 0 ? 6 : startDayOfWeek - 1; // Sunday = 0, Monday = 1
+        var mondayOfStart = startDate.AddDays(-daysToMonday);
+
+        var currentDate = mondayOfStart;
+        int lessonCount = 0;
+
+        // Generate lessons for each week in semester
+        while (currentDate <= endDate)
+        {
+            // For each weekday (Mon-Fri, which are days 1-5 in C# DayOfWeek)
+            for (int dayOffset = 0; dayOffset < 5; dayOffset++)
+            {
+                var lessonDate = currentDate.AddDays(dayOffset);
+
+                // Skip if beyond semester end
+                if (lessonDate > endDate) break;
+
+                // Skip if before semester start
+                if (lessonDate < startDate) continue;
+
+                // Skip if holiday
+                if (holidays.Contains(lessonDate)) continue;
+
+                // Get day of week (1=Mon, 2=Tue, ..., 7=Sun)
+                // Convert to our format: Mon=2, Tue=3, Wed=4, Thu=5, Fri=6
+                var dayOfWeek = (int)lessonDate.DayOfWeek;
+                var normalizedWeekday = dayOfWeek == 0 ? 7 : dayOfWeek + 1; // Sunday = 0 -> 7, Monday = 1 -> 2
+
+                // Check if this weekday matches any pattern
+                foreach (var pattern in request.Patterns)
+                {
+                    if (pattern.Weekday == normalizedWeekday)
+                    {
+                        var lesson = new Lesson
+                        {
+                            ClassId = request.ClassId,
+                            RoomId = pattern.RoomId,
+                            TimeId = pattern.TimeId,
+                            LectureId = request.LecturerId,
+                            Date = lessonDate
+                        };
+
+                        lessonsToCreate.Add(lesson);
+                        lessonCount++;
+                    }
+                }
+            }
+
+            // Move to next week
+            currentDate = currentDate.AddDays(7);
+        }
+
+        Console.WriteLine($"Generated {lessonCount} lessons from patterns");
+
+        // Save all lessons
+        if (lessonsToCreate.Any())
+        {
+            await _context.Lessons.AddRangeAsync(lessonsToCreate);
+            await _context.SaveChangesAsync();
+            Console.WriteLine($"Saved {lessonCount} lessons to database");
+        }
+
+        return lessonCount;
+    }
+
     private static decimal? ExtractGradeComponent(List<GradeType> components, params string[] possibleNames)
     {
         var component = components.FirstOrDefault(c =>

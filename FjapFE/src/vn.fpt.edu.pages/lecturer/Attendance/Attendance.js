@@ -283,21 +283,7 @@ export default function Attendance() {
         );
       },
     },
-    {
-      title: "Current Status",
-      key: "currentStatus",
-      width: 150,
-      align: "center",
-      render: (_value, record) => {
-        const originalStatus = record.status || "Absent";
-        const statusOption = STATUS_OPTIONS.find((opt) => opt.value === originalStatus);
-        return (
-          <Tag color={statusOption?.color} icon={statusOption?.icon}>
-            {statusOption?.label}
-          </Tag>
-        );
-      },
-    },
+
   ];
 
   return (

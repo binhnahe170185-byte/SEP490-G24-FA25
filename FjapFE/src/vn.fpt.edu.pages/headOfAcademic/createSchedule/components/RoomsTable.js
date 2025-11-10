@@ -9,7 +9,6 @@ const RoomsTable = ({ data = [] }) => {
         <thead>
           <tr>
             <th>Room</th>
-            <th>Capacity</th>
             <th>Type</th>
           </tr>
         </thead>
@@ -17,7 +16,6 @@ const RoomsTable = ({ data = [] }) => {
           {data.map(r => (
             <tr key={r.room}>
               <td>{r.room}</td>
-              <td>{r.capacity}</td>
               <td>{r.type}</td>
             </tr>
           ))}

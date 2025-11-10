@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import '../CreateSchedule.css';
 import { api } from '../../../../vn.fpt.edu.api/http';
+import SubjectList from '../../../../vn.fpt.edu.api/SubjectList';
 
 const PickSemesterAndClass = ({
   semesterId,
   classId,
+  subjectCode,
   subjectName,
   semesters = [],
   classes = [],
   onSemesterChange,
   onClassChange,
+  onSubjectChange,
   onLoadClass
 }) => {
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [semesterOptions, setSemesterOptions] = useState([]);
   const [allClassesBySemester, setAllClassesBySemester] = useState({}); // { semesterId: [classes] }
+  const [subjectOptions, setSubjectOptions] = useState([]); // [{ value: subjectCode, label: "CODE - Name" }]
 
   // Load semesters and classes grouped by semester from single API
   useEffect(() => {
@@ -72,6 +77,54 @@ const PickSemesterAndClass = ({
     };
 
     fetchScheduleOptions();
+  }, []);
+
+  // Load subjects for dropdown
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        setLoadingSubjects(true);
+        console.log('PickSemesterAndClass - Fetching subjects...');
+        const subjects = await SubjectList.getDropdownOptionsForStaffAcademic();
+        console.log('PickSemesterAndClass - Received subjects:', subjects);
+        
+        if (Array.isArray(subjects) && subjects.length > 0) {
+          const formattedSubjects = subjects.map(subject => {
+            const code = subject.subjectCode || subject.code || '';
+            const name = subject.subjectName || subject.name || '';
+            return {
+              value: code,
+              label: code && name ? `${code} - ${name}` : code || name || 'Unknown',
+              subjectId: subject.subjectId || subject.id || null,
+              subjectCode: code,
+              subjectName: name
+            };
+          });
+          setSubjectOptions(formattedSubjects);
+          console.log('PickSemesterAndClass - Formatted subjects:', formattedSubjects.length, 'items');
+        } else if (Array.isArray(subjects)) {
+          console.warn('PickSemesterAndClass - Subjects array is empty');
+          setSubjectOptions([]);
+        } else {
+          console.warn('PickSemesterAndClass - Unexpected subjects format:', subjects);
+          setSubjectOptions([]);
+        }
+      } catch (error) {
+        console.error('PickSemesterAndClass - Failed to load subjects:', error);
+        console.error('PickSemesterAndClass - Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        setSubjectOptions([]);
+        // Show alert to user
+        alert('Failed to load subjects. Please refresh the page or contact support.');
+      } finally {
+        setLoadingSubjects(false);
+      }
+    };
+
+    fetchSubjects();
   }, []);
 
   // Get classes for selected semester
@@ -162,14 +215,63 @@ const PickSemesterAndClass = ({
           {semesterId && displayClasses.length === 0 && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>No classes for this semester</span>}
         </div>
         <div>
-          <label>Subject</label>
-          <input
-            id="subject_name"
-            type="text"
-            value={subjectName}
-            placeholder="Will be loaded"
-            readOnly
-          />
+          <label htmlFor="subject_code">Subject</label>
+          <select
+            id="subject_code"
+            value={subjectCode || ''}
+            onChange={(e) => {
+              console.log('PickSemesterAndClass - Subject changed:', e.target.value);
+              const selectedSubject = subjectOptions.find(s => s.value === e.target.value);
+              console.log('PickSemesterAndClass - Selected subject:', selectedSubject);
+              if (onSubjectChange) {
+                if (selectedSubject) {
+                  onSubjectChange(selectedSubject.subjectCode, selectedSubject.subjectName);
+                } else {
+                  // Clear selection
+                  onSubjectChange('', '');
+                }
+              }
+            }}
+            required
+            disabled={loadingSubjects}
+            style={{ 
+              width: '100%',
+              padding: '6px 8px',
+              fontSize: '14px',
+              border: '1px solid #d9d9d9',
+              borderRadius: '4px'
+            }}
+          >
+            <option value="">-- Select Subject --</option>
+            {subjectOptions.length === 0 && !loadingSubjects && (
+              <option value="" disabled>No subjects available</option>
+            )}
+            {subjectOptions.map(subject => (
+              <option key={subject.value} value={subject.value}>
+                {subject.label}
+              </option>
+            ))}
+          </select>
+          {loadingSubjects && (
+            <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
+              Loading subjects...
+            </span>
+          )}
+          {!loadingSubjects && subjectOptions.length === 0 && (
+            <span style={{ marginLeft: '8px', fontSize: '12px', color: '#ff4d4f' }}>
+              No subjects available
+            </span>
+          )}
+          {!loadingSubjects && subjectOptions.length > 0 && (
+            <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
+              {subjectOptions.length} subject(s) available
+            </span>
+          )}
+          {subjectName && subjectCode && (
+            <div style={{ marginTop: '4px', fontSize: '12px', color: '#52c41a', fontWeight: '500' }}>
+              Selected: {subjectCode} - {subjectName}
+            </div>
+          )}
         </div>
       </div>
       <div style={{ marginTop: '10px' }} className="create-schedule-toolbar">

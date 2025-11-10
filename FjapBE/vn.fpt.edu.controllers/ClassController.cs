@@ -386,7 +386,7 @@ public class ClassController : ControllerBase
 
     /// <summary>
     /// Lấy lịch học của một lớp theo semester_id và class_id (tuần đầu tiên)
-    /// GET: api/manager/classes/schedule?semesterId={semesterId}&classId={classId}
+    /// GET: api/staffAcademic/classes/schedule?semesterId={semesterId}&classId={classId}
     /// </summary>
     [HttpGet("schedule")]
     [ProducesResponseType(typeof(IEnumerable<ClassScheduleDto>), StatusCodes.Status200OK)]
@@ -400,82 +400,135 @@ public class ClassController : ControllerBase
         }
 
         var lessons = await _classService.GetClassScheduleBySemesterAsync(semesterId, classId);
-        
+
         return Ok(new { code = 200, data = lessons });
+    }
+
+    /// <summary>
+    /// Tạo schedule từ patterns cho một lớp
+    /// POST: api/staffAcademic/classes/schedule
+    /// </summary>
+    [HttpPost("schedule")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateSchedule([FromBody] CreateScheduleRequest request)
+    {
+        try
+        {
+            Console.WriteLine("=== ClassController.CreateSchedule called ===");
+            Console.WriteLine($"Request: SemesterId={request.SemesterId}, ClassId={request.ClassId}, LecturerId={request.LecturerId}");
+            Console.WriteLine($"Patterns count: {request.Patterns?.Count ?? 0}");
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { code = 400, message = "Invalid request", errors = ModelState });
+            }
+
+            if (request.Patterns == null || request.Patterns.Count == 0)
+            {
+                return BadRequest(new { code = 400, message = "At least one pattern is required" });
+            }
+
+            var lessonCount = await _classService.CreateScheduleFromPatternsAsync(request);
+
+            return Ok(new
+            {
+                code = 200,
+                message = "Schedule created successfully",
+                data = new
+                {
+                    semesterId = request.SemesterId,
+                    classId = request.ClassId,
+                    lecturerId = request.LecturerId,
+                    lessonsCreated = lessonCount
+                }
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            Console.WriteLine($"ArgumentException in CreateSchedule: {ex.Message}");
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in CreateSchedule: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
     }
 
     [HttpGet("{classId}/subjects")]
     public async Task<IActionResult> GetSubjects(string classId)
     {
-       var cls = await _classService.GetSubjectsAsync(classId);
-       if (cls == null || cls.Subject == null)
-       {
-           return Ok(new { code = 200, message = "Success", data = Array.Empty<object>() });
-       }
+        var cls = await _classService.GetSubjectsAsync(classId);
+        if (cls == null || cls.Subject == null)
+        {
+            return Ok(new { code = 200, message = "Success", data = Array.Empty<object>() });
+        }
 
-       var subject = cls.Subject;
-       var studentCount = cls.Students?.Count ?? 0;
+        var subject = cls.Subject;
+        var studentCount = cls.Students?.Count ?? 0;
 
-       var lecturerDetails = cls.Lessons?
-           .Where(l => l.Lecture?.User != null)
-           .GroupBy(l => l.LectureId)
-           .Select(group =>
-           {
-               var lecture = group.First().Lecture;
-               var user = lecture?.User;
-               var parts = new List<string>();
-               if (!string.IsNullOrWhiteSpace(user?.FirstName))
-               {
-                   parts.Add(user.FirstName.Trim());
-               }
-               if (!string.IsNullOrWhiteSpace(user?.LastName))
-               {
-                   parts.Add(user.LastName.Trim());
-               }
+        var lecturerDetails = cls.Lessons?
+            .Where(l => l.Lecture?.User != null)
+            .GroupBy(l => l.LectureId)
+            .Select(group =>
+            {
+                var lecture = group.First().Lecture;
+                var user = lecture?.User;
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(user?.FirstName))
+                {
+                    parts.Add(user.FirstName.Trim());
+                }
+                if (!string.IsNullOrWhiteSpace(user?.LastName))
+                {
+                    parts.Add(user.LastName.Trim());
+                }
 
-               var fullName = parts.Count > 0 ? string.Join(" ", parts).Trim() : null;
-               var displayName = string.IsNullOrWhiteSpace(fullName)
-                   ? user?.Email ?? $"Lecture #{group.Key}"
-                   : fullName;
+                var fullName = parts.Count > 0 ? string.Join(" ", parts).Trim() : null;
+                var displayName = string.IsNullOrWhiteSpace(fullName)
+                    ? user?.Email ?? $"Lecture #{group.Key}"
+                    : fullName;
 
-               return (Name: displayName, Email: user?.Email);
-           })
-           .ToList() ?? new List<(string Name, string? Email)>();
+                return (Name: displayName, Email: user?.Email);
+            })
+            .ToList() ?? new List<(string Name, string? Email)>();
 
-       var lectureNames = lecturerDetails
-           .Select(l => l.Name)
-           .Where(name => !string.IsNullOrWhiteSpace(name))
-           .Distinct()
-           .ToList();
+        var lectureNames = lecturerDetails
+            .Select(l => l.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct()
+            .ToList();
 
-       var lectureEmails = lecturerDetails
-           .Select(l => l.Email)
-           .Where(email => !string.IsNullOrWhiteSpace(email))
-           .Distinct()
-           .ToList();
+        var lectureEmails = lecturerDetails
+            .Select(l => l.Email)
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .Distinct()
+            .ToList();
 
-       var lectureNameString = lectureNames.Count > 0 ? string.Join(", ", lectureNames) : null;
-       var lectureEmailString = lectureEmails.Count > 0 ? string.Join(", ", lectureEmails) : null;
-       var enrollmentCounts = await _classService.GetSubjectEnrollmentCountsAsync(cls.ClassId);
-       var totalStudentsInClass = cls.Students?.Select(s => s.StudentId).Distinct().Count() ?? 0;
+        var lectureNameString = lectureNames.Count > 0 ? string.Join(", ", lectureNames) : null;
+        var lectureEmailString = lectureEmails.Count > 0 ? string.Join(", ", lectureEmails) : null;
+        var enrollmentCounts = await _classService.GetSubjectEnrollmentCountsAsync(cls.ClassId);
+        var totalStudentsInClass = cls.Students?.Select(s => s.StudentId).Distinct().Count() ?? 0;
 
-       var subjectPayload = new
-       {
-           classId = cls.ClassId,
-           className = cls.ClassName,
-           subjectId = subject.SubjectId,
-           subjectCode = subject.SubjectCode,
-           subjectName = subject.SubjectName,
-           subjectLevel = subject.Level?.LevelName ?? subject.LevelId.ToString(),
-           levelName = subject.Level?.LevelName,
-           lectureName = lectureNameString,
-           lectureEmail = lectureEmailString,
-           totalStudents = enrollmentCounts.TryGetValue(subject.SubjectId, out var count) && count > 0
-               ? count
-               : totalStudentsInClass > 0 ? totalStudentsInClass : studentCount
-       };
+        var subjectPayload = new
+        {
+            classId = cls.ClassId,
+            className = cls.ClassName,
+            subjectId = subject.SubjectId,
+            subjectCode = subject.SubjectCode,
+            subjectName = subject.SubjectName,
+            subjectLevel = subject.Level?.LevelName ?? subject.LevelId.ToString(),
+            levelName = subject.Level?.LevelName,
+            lectureName = lectureNameString,
+            lectureEmail = lectureEmailString,
+            totalStudents = enrollmentCounts.TryGetValue(subject.SubjectId, out var count) && count > 0
+                ? count
+                : totalStudentsInClass > 0 ? totalStudentsInClass : studentCount
+        };
 
-       return Ok(new { code = 200, message = "Success", data = new[] { subjectPayload } });
+        return Ok(new { code = 200, message = "Success", data = new[] { subjectPayload } });
     }
 
     [HttpPatch("{classId}/status")]
@@ -536,71 +589,109 @@ public class ClassController : ControllerBase
     }
     // Add these endpoints to ClassController.cs
 
-/// <summary>
-/// Lấy danh sách lớp kèm thông tin điểm để quản lý
-/// GET: api/manager/classes/with-grades
-/// </summary>
-[HttpGet("with-grades")]
-public async Task<IActionResult> GetClassesWithGrades([FromQuery] ClassGradeFilterRequest? filter)
-{
-    try
+    /// <summary>
+    /// Lấy danh sách lớp kèm thông tin điểm để quản lý
+    /// GET: api/manager/classes/with-grades
+    /// </summary>
+    [HttpGet("with-grades")]
+    public async Task<IActionResult> GetClassesWithGrades([FromQuery] ClassGradeFilterRequest? filter)
     {
-        var classes = await _classService.GetClassesWithGradesAsync(filter);
-        
-        return Ok(new
+        try
         {
-            code = 200,
-            message = "Success",
-            data = classes
-        });
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new
-        {
-            code = 500,
-            message = $"Internal server error: {ex.Message}"
-        });
-    }
-}
+            var classes = await _classService.GetClassesWithGradesAsync(filter);
 
-/// <summary>
-/// Lấy chi tiết lớp với danh sách sinh viên và điểm
-/// GET: api/manager/classes/{classId}/grade-details
-/// </summary>
-[HttpGet("{classId:int}/grade-details")]
-public async Task<IActionResult> GetClassGradeDetails(int classId)
-{
-    try
-    {
-        var details = await _classService.GetClassGradeDetailsAsync(classId);
-        
-        if (details == null)
-        {
-            return NotFound(new
+            return Ok(new
             {
-                code = 404,
-                message = $"Class with ID {classId} not found or has no subject assigned"
+                code = 200,
+                message = "Success",
+                data = classes
             });
         }
-
-        return Ok(new
+        catch (Exception ex)
         {
-            code = 200,
-            message = "Success",
-            data = details
-        });
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new
-        {
-            code = 500,
-            message = $"Internal server error: {ex.Message}"
-        });
+            return StatusCode(500, new
+            {
+                code = 500,
+                message = $"Internal server error: {ex.Message}"
+            });
         }
     }
 
+    /// <summary>
+    /// Lấy chi tiết lớp với danh sách sinh viên và điểm
+    /// GET: api/manager/classes/{classId}/grade-details
+    /// </summary>
+    [HttpGet("{classId:int}/grade-details")]
+    public async Task<IActionResult> GetClassGradeDetails(int classId)
+    {
+        try
+        {
+            var details = await _classService.GetClassGradeDetailsAsync(classId);
+
+            if (details == null)
+            {
+                return NotFound(new
+                {
+                    code = 404,
+                    message = $"Class with ID {classId} not found or has no subject assigned"
+                });
+            }
+
+            return Ok(new
+            {
+                code = 200,
+                message = "Success",
+                data = details
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                code = 500,
+                message = $"Internal server error: {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách subjects để hiển thị trong dropdown
+    /// GET: api/staffAcademic/classes/subjects/dropdown
+    /// </summary>
+    [HttpGet("subjects/dropdown")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSubjectsDropdown()
+    {
+        try
+        {
+            var subjects = await _db.Subjects
+                .AsNoTracking()
+                .Where(s => s.Status == "Active")
+                .OrderBy(s => s.SubjectCode)
+                .Select(s => new
+                {
+                    subjectId = s.SubjectId,
+                    subjectCode = s.SubjectCode,
+                    subjectName = s.SubjectName
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                code = 200,
+                data = subjects
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetSubjectsDropdown: {ex.Message}");
+            return StatusCode(500, new
+            {
+                code = 500,
+                message = $"Error retrieving subjects: {ex.Message}"
+            });
+        }
+    }
     /// <summary>
     /// Lấy danh sách class có status = "Active", chỉ trả về class_id và class_name
     /// GET: api/staffAcademic/classes/active
