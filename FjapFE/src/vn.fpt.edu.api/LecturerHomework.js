@@ -203,10 +203,20 @@ class LecturerHomework {
   }
 
   // Tạo bài tập mới
-  static async createHomework(data) {
+  static buildMultipartConfig(payload) {
+    if (typeof FormData !== "undefined" && payload instanceof FormData) {
+      return { headers: { "Content-Type": "multipart/form-data" } };
+    }
+    return undefined;
+  }
+
+  static async createHomework(data, isFormData = false) {
     try {
-      // TODO: Thay bằng endpoint thực tế: /api/Homeworks
-      const response = await api.post(`/api/Homeworks`, data);
+      const config =
+        isFormData || (typeof FormData !== "undefined" && data instanceof FormData)
+          ? { headers: { "Content-Type": "multipart/form-data" } }
+          : undefined;
+      const response = await api.post(`/api/Homeworks`, data, config);
       return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to create homework:", error);
@@ -215,10 +225,13 @@ class LecturerHomework {
   }
 
   // Cập nhật bài tập
-  static async updateHomework(homeworkId, data) {
+  static async updateHomework(homeworkId, data, isFormData = false) {
     try {
-      // TODO: Thay bằng endpoint thực tế: /api/Homeworks/{homeworkId}
-      const response = await api.put(`/api/Homeworks/${homeworkId}`, data);
+      const config =
+        isFormData || (typeof FormData !== "undefined" && data instanceof FormData)
+          ? { headers: { "Content-Type": "multipart/form-data" } }
+          : undefined;
+      const response = await api.put(`/api/Homeworks/${homeworkId}`, data, config);
       return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to update homework:", error);

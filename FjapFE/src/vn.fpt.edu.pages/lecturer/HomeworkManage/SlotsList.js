@@ -145,57 +145,6 @@ export default function SlotsList({ course, lecturerId }) {
       width: 150,
     },
     {
-      title: "Homework Title",
-      key: "homeworkTitle",
-      width: 220,
-      render: (_, record) => {
-        const homework = getPrimaryHomework(record.lessonId);
-        return homework ? (
-          <span style={{ fontWeight: 500 }}>{homework.title}</span>
-        ) : (
-          <span style={{ color: "#8c8c8c" }}>No homework</span>
-        );
-      },
-    },
-    {
-      title: "Created At",
-      key: "createdAt",
-      width: 160,
-      render: (_, record) => {
-        const homework = getPrimaryHomework(record.lessonId);
-        return homework?.createdAt
-          ? dayjs(homework.createdAt).format("DD/MM/YYYY HH:mm")
-          : "N/A";
-      },
-      sorter: (a, b) => {
-        const hwA = getPrimaryHomework(a.lessonId);
-        const hwB = getPrimaryHomework(b.lessonId);
-        if (!hwA?.createdAt || !hwB?.createdAt) return 0;
-        return dayjs(hwA.createdAt).unix() - dayjs(hwB.createdAt).unix();
-      },
-    },
-    {
-      title: "Deadline",
-      key: "deadline",
-      width: 160,
-      render: (_, record) => {
-        const homework = getPrimaryHomework(record.lessonId);
-        if (!homework?.deadline) return "N/A";
-        const isLate = dayjs(homework.deadline).isBefore(dayjs());
-        return (
-          <Tag color={isLate ? "red" : "blue"}>
-            {dayjs(homework.deadline).format("DD/MM/YYYY HH:mm")}
-          </Tag>
-        );
-      },
-      sorter: (a, b) => {
-        const hwA = getPrimaryHomework(a.lessonId);
-        const hwB = getPrimaryHomework(b.lessonId);
-        if (!hwA?.deadline || !hwB?.deadline) return 0;
-        return dayjs(hwA.deadline).unix() - dayjs(hwB.deadline).unix();
-      },
-    },
-    {
       title: "Submissions",
       key: "submissions",
       width: 140,
