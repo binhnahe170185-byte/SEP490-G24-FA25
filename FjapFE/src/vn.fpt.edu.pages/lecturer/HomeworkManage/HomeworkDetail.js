@@ -18,6 +18,7 @@ import {
   ClockCircleOutlined,
   DeleteOutlined,
   EditOutlined,
+  FileTextOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -161,16 +162,46 @@ const HomeworkDetail = () => {
         ),
     },
     {
+      title: "Attachment",
+      key: "attachment",
+      width: 160,
+      render: (_, record) =>
+        record.filePath ? (
+          <Button
+            type="link"
+            icon={<FileTextOutlined />}
+            href={record.filePath}
+            target="_blank"
+            rel="noreferrer"
+            download
+            style={{ padding: 0 }}
+          >
+            Download file
+          </Button>
+        ) : (
+          <span style={{ color: "#8c8c8c" }}>No file</span>
+        ),
+    },
+    {
       title: "Submissions",
       key: "submissions",
-      width: 120,
+      width: 160,
       align: "center",
-      render: (_, record) => (
-        <Tag>
-          {record.submissions || 0}
-          {record.totalStudents ? `/${record.totalStudents}` : ""}
-        </Tag>
-      ),
+      render: (_, record) => {
+        const submitted = record.submissions || 0;
+        const total = record.totalStudents || 0;
+        const percent = total ? Math.round((submitted / total) * 100) : 0;
+        return (
+          <div>
+            <Tag color={submitted > 0 ? "green" : undefined}>
+              {submitted}/{total || "-"}
+            </Tag>
+            <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+              {total ? `${percent}% submitted` : "No roster data"}
+            </div>
+          </div>
+        );
+      },
     },
     {
       title: "Actions",

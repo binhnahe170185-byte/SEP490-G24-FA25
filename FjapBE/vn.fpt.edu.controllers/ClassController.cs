@@ -701,6 +701,54 @@ public async Task<IActionResult> GetClassGradeDetails(int classId)
             });
         }
     }
+
+    /// <summary>
+    /// Get all lessons (slots) of a class (accessible via both staffAcademic and general routes)
+    /// GET: api/staffAcademic/classes/{classId}/lessons
+    /// GET: api/Classes/{classId}/lessons
+    /// </summary>
+    [HttpGet("{classId:int}/lessons")]
+    [HttpGet("~/api/Classes/{classId:int}/lessons")]
+    public async Task<IActionResult> GetLessonsByClass(int classId)
+    {
+        if (classId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "classId must be greater than 0" });
+        }
+
+        try
+        {
+            var lessons = await _db.Lessons
+                .AsNoTracking()
+                .Include(l => l.Time)
+                .Include(l => l.Room)
+                .Include(l => l.Class)
+                    .ThenInclude(c => c.Subject)
+                .Where(l => l.ClassId == classId)
+                .OrderBy(l => l.Date)
+                .ThenBy(l => l.Time.StartTime)
+                .Select(l => new
+                {
+                    lessonId = l.LessonId,
+                    classId = l.ClassId,
+                    className = l.Class.ClassName,
+                    subjectCode = l.Class.Subject.SubjectCode,
+                    date = l.Date.ToString("yyyy-MM-dd"),
+                    startTime = l.Time != null ? l.Time.StartTime.ToString("HH:mm") : null,
+                    endTime = l.Time != null ? l.Time.EndTime.ToString("HH:mm") : null,
+                    roomName = l.Room != null ? l.Room.RoomName : null,
+                    roomId = l.RoomId,
+                    slotId = l.TimeId
+                })
+                .ToListAsync();
+
+            return Ok(new { code = 200, data = lessons });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { code = 500, message = $"Failed to load lessons: {ex.Message}" });
+        }
+    }
 }
 
 public class UpdateClassStatusRequest

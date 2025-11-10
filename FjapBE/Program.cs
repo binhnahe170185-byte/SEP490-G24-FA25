@@ -1,5 +1,6 @@
 using System.Text;
 using System.Security.Claims;
+using System.IO;
 using Dapper;
 using FJAP.Hubs;
 using FJAP.vn.fpt.edu.models;
@@ -13,10 +14,19 @@ using Microsoft.OpenApi.Models;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using MySql.Data.MySqlClient;
 using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Ensure web root exists so static files and uploads share same folder
+var runtimeWebRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+Directory.CreateDirectory(runtimeWebRoot);
+builder.Environment.WebRootPath = runtimeWebRoot;
+builder.Environment.WebRootFileProvider = new PhysicalFileProvider(runtimeWebRoot);
+Directory.CreateDirectory(Path.Combine(runtimeWebRoot, "uploads", "homeworks"));
 
 // =================== Services ===================
 
@@ -196,6 +206,25 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".sql"] = "application/octet-stream";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = builder.Environment.WebRootFileProvider,
+    ContentTypeProvider = contentTypeProvider,
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.Context.Request.Path;
+        if (path.HasValue && path.Value.StartsWith("/uploads/homeworks", StringComparison.OrdinalIgnoreCase))
+        {
+            var fileName = Path.GetFileName(path);
+            ctx.Context.Response.Headers["Content-Disposition"] =
+                $"attachment; filename=\"{fileName}\"";
+        }
+    }
+});
 
 // Request logging middleware for debugging
 app.Use(async (context, next) =>
