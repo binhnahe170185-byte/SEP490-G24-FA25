@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row, Col } from "antd";
 import { SaveOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
-import SemesterApi from "../../vn.fpt.edu.api/Semester";
+import SemesterApi from "../../../vn.fpt.edu.api/Semester";
 import dayjs from "dayjs";
 
 const { Title } = Typography;

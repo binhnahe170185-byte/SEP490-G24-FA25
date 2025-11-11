@@ -4,7 +4,7 @@ import {
   Modal, Descriptions, Spin, Form, Input, Select, DatePicker, Button, Space, Row, Col, message,
 } from "antd";
 import dayjs from "dayjs";
-import AdminApi from "../../vn.fpt.edu.api/Admin";
+import AdminApi from "../../../vn.fpt.edu.api/Admin";
 
 const ROLE_OPTIONS = [
   { value: 1, label: "Admin" },

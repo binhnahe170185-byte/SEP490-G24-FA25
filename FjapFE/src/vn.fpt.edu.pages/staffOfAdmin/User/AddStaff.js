@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import AdminApi from "../../vn.fpt.edu.api/Admin";
+import AdminApi from "../../../vn.fpt.edu.api/Admin";
 
 const { Title, Text } = Typography;
 const { Option } = Select;

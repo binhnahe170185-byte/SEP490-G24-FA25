@@ -14,7 +14,7 @@ import AddNewsModal from "./AddNewsModal";
 import ViewNewsModal from "./ViewNewsModal";
 import EditNewsModal from "./EditNewsModal";
 import { formatDateTimeWithTimezone, formatApprovedAt } from "./dateUtils";
-import "../admin.css";
+import "../staffOfAdmin.css";
 
 const STATUS_OPTIONS = [
   { label: "All Statuses", value: "" },

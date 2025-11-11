@@ -11,8 +11,8 @@ import {
   UploadOutlined, FileExcelOutlined, BookOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import AdminApi from "../../vn.fpt.edu.api/Admin";
-import { api } from "../../vn.fpt.edu.api/http";
+import AdminApi from "../../../vn.fpt.edu.api/Admin";
+import { api } from "../../../vn.fpt.edu.api/http";
 import ImportStudent from "./ImportStudent";
 
 const { Title, Text } = Typography;

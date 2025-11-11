@@ -8,19 +8,19 @@ import {
   BellOutlined, UserOutlined, LogoutOutlined, FileTextOutlined,
   IdcardOutlined, BookOutlined, PlusCircleOutlined, HomeOutlined,
 } from "@ant-design/icons";
-import UsersList from "./UserList";
-import SemesterList from "./SemesterList";
-import AddSemester from "./AddSemester";
-import AddSemesterWithHolidays from "./AddSemesterWithHolidays";
-import EditSemester from "./EditSemester";
+import UsersList from "./User/UserList";
+import SemesterList from "./Semester/SemesterList";
+import AddSemester from "./Semester/AddSemester";
+import AddSemesterWithHolidays from "./Semester/AddSemesterWithHolidays";
+import EditSemester from "./Semester/EditSemester";
 import NewsList from "./News/NewsList";
-import AddStaff from "./AddStaff";
-import AddStudent from "./AddStudent";
-import RoomList from "./RoomList";
-import AddRoom from "./AddRoom";
-import EditRoom from "./EditRoom";
+import AddStaff from "./User/AddStaff";
+import AddStudent from "./User/AddStudent";
+import RoomList from "./Room/RoomList";
+import AddRoom from "./Room/AddRoom";
+import EditRoom from "./Room/EditRoom";
 import { useAuth } from "../login/AuthContext";
-import "./admin.css";
+import "./staffOfAdmin.css";
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;

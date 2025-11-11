@@ -9,8 +9,8 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, CalendarOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import AdminApi from "../../vn.fpt.edu.api/Admin";
-import { api } from "../../vn.fpt.edu.api/http";
+import AdminApi from "../../../vn.fpt.edu.api/Admin";
+import { api } from "../../../vn.fpt.edu.api/http";
 
 const { Title, Text } = Typography;
 const { Option } = Select;

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Button, Input, Space, Table, Tooltip, message, Card, Modal, Select, Switch } from "antd";
 import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import RoomApi from "../../vn.fpt.edu.api/Room";
+import RoomApi from "../../../vn.fpt.edu.api/Room";
 
 const normalize = (items = []) =>
   items.map((r) => ({
