@@ -16,6 +16,9 @@ import EditSemester from "./EditSemester";
 import NewsList from "./News/NewsList";
 import AddStaff from "./AddStaff";
 import AddStudent from "./AddStudent";
+import RoomList from "./RoomList";
+import AddRoom from "./AddRoom";
+import EditRoom from "./EditRoom";
 import { useAuth } from "../login/AuthContext";
 import "./admin.css";
 
@@ -73,7 +76,6 @@ const ADMIN_MENU = [
     type: "group", label: "ROOM MANAGEMENT", children: [
       { key: "rooms:list", icon: <AppstoreOutlined />, label: "View List Rooms" },
       { key: "rooms:add", icon: <PlusCircleOutlined />, label: "Add Room" },
-      { key: "rooms:status", icon: <SettingOutlined />, label: "Edit Room's Status" },
     ]
   },
   {
@@ -158,6 +160,22 @@ export default function StaffOfAdminPage() {
       }
       if (activeKey === "sem:edit") {
         return <EditSemester />;
+      }
+    }
+
+    if (activeKey.startsWith("rooms:")) {
+      if (activeKey === "rooms:list") {
+        return <RoomList title="Room Management" />;
+      }
+      if (activeKey === "rooms:add") {
+        return <AddRoom />;
+      }
+      if (activeKey === "rooms:edit") {
+        return <EditRoom />;
+      }
+      if (activeKey === "rooms:status") {
+        // Status editing is handled in RoomList component via inline select
+        return <RoomList title="Room Management" />;
       }
     }
 
