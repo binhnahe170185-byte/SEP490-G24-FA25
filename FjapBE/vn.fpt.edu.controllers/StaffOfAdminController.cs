@@ -502,4 +502,311 @@ public class StaffOfAdminController : ControllerBase
 
         return Ok(data);
     }
+
+    // ===================== Rooms (list) =====================
+    [HttpGet("rooms")]
+    public async Task<IActionResult> GetRooms(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
+    {
+        if (page <= 0) page = 1;
+        if (pageSize <= 0 || pageSize > 500) pageSize = 100;
+
+        try
+        {
+            var baseQuery = _db.Rooms.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                baseQuery = baseQuery.Where(x => x.RoomName.Contains(term));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                baseQuery = baseQuery.Where(x => x.Status.ToLower() == status.ToLower());
+            }
+
+            var total = await baseQuery.CountAsync();
+
+            var rooms = await baseQuery
+                .OrderBy(x => x.RoomName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = rooms.Select(x => new
+            {
+                roomId = x.RoomId,
+                roomName = x.RoomName,
+                status = x.Status
+            }).ToList();
+
+            return Ok(new { total, items });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetRooms: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "An error occurred while fetching rooms", error = ex.Message });
+        }
+    }
+
+    // ===================== Room (detail) =====================
+    [HttpGet("rooms/{id:int}")]
+    public async Task<IActionResult> GetRoomById(int id)
+    {
+        try
+        {
+            var room = await _db.Rooms
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RoomId == id);
+
+            if (room == null)
+            {
+                return NotFound(new { code = 404, message = "Room not found" });
+            }
+
+            return Ok(new
+            {
+                code = 200,
+                data = new
+                {
+                    roomId = room.RoomId,
+                    roomName = room.RoomName,
+                    status = room.Status
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetRoomById: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "An error occurred while fetching room", error = ex.Message });
+        }
+    }
+
+    // ===================== Room (create) =====================
+    [HttpPost("rooms")]
+    public async Task<IActionResult> CreateRoom([FromBody] CreateRoomRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value?.Errors.Count > 0)
+                    .Select(x => new { 
+                        field = x.Key, 
+                        messages = x.Value?.Errors.Select(e => e.ErrorMessage).ToArray() 
+                    })
+                    .ToArray();
+                
+                return BadRequest(new { 
+                    code = 400, 
+                    message = "Validation failed",
+                    errors = errors
+                });
+            }
+
+            // Validate room name is not empty
+            if (string.IsNullOrWhiteSpace(request.RoomName))
+            {
+                return BadRequest(new { code = 400, message = "Room name is required" });
+            }
+
+            // Check if room name already exists
+            var roomNameNormalized = request.RoomName.Trim();
+            var existingRoom = await _db.Rooms
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RoomName.Trim() == roomNameNormalized);
+            
+            if (existingRoom != null)
+            {
+                return BadRequest(new { code = 400, message = "Room name already exists" });
+            }
+
+            // Validate status
+            var validStatuses = new[] { "Active", "Inactive", "Maintenance" };
+            var status = string.IsNullOrWhiteSpace(request.Status) 
+                ? "Active" 
+                : (validStatuses.Contains(request.Status) ? request.Status : "Active");
+
+            var room = new Room
+            {
+                RoomName = roomNameNormalized,
+                Status = status
+            };
+
+            await _db.Rooms.AddAsync(room);
+            await _db.SaveChangesAsync();
+
+            var responseData = new
+            {
+                roomId = room.RoomId,
+                roomName = room.RoomName,
+                status = room.Status
+            };
+            
+            return CreatedAtAction(nameof(GetRoomById), new { id = room.RoomId }, new { code = 201, data = responseData });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating room: {ex.Message}");
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "An error occurred while creating the room", 
+                error = ex.Message
+            });
+        }
+    }
+
+    // ===================== Room (update) =====================
+    [HttpPut("rooms/{id:int}")]
+    public async Task<IActionResult> UpdateRoom(int id, [FromBody] UpdateRoomRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { code = 400, message = "Validation failed" });
+            }
+
+            var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == id);
+            if (room == null)
+            {
+                return NotFound(new { code = 404, message = "Room not found" });
+            }
+
+            // Validate room name is not empty
+            if (string.IsNullOrWhiteSpace(request.RoomName))
+            {
+                return BadRequest(new { code = 400, message = "Room name is required" });
+            }
+
+            // Check if room name already exists (excluding current room)
+            var roomNameNormalized = request.RoomName.Trim();
+            var existingRoom = await _db.Rooms
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RoomId != id && r.RoomName.Trim() == roomNameNormalized);
+            
+            if (existingRoom != null)
+            {
+                return BadRequest(new { code = 400, message = "Room name already exists" });
+            }
+
+            // Update room
+            room.RoomName = roomNameNormalized;
+            if (!string.IsNullOrWhiteSpace(request.Status))
+            {
+                var validStatuses = new[] { "Active", "Inactive", "Maintenance" };
+                if (validStatuses.Contains(request.Status))
+                {
+                    room.Status = request.Status;
+                }
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                code = 200,
+                data = new
+                {
+                    roomId = room.RoomId,
+                    roomName = room.RoomName,
+                    status = room.Status
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating room: {ex.Message}");
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "An error occurred while updating the room", 
+                error = ex.Message
+            });
+        }
+    }
+
+    // ===================== Room (update status) =====================
+    [HttpPatch("rooms/{id:int}/status")]
+    public async Task<IActionResult> UpdateRoomStatus(int id, [FromBody] UpdateRoomStatusRequest request)
+    {
+        try
+        {
+            var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == id);
+            if (room == null)
+            {
+                return NotFound(new { code = 404, message = "Room not found" });
+            }
+
+            var validStatuses = new[] { "Active", "Inactive", "Maintenance" };
+            if (string.IsNullOrWhiteSpace(request.Status) || !validStatuses.Contains(request.Status))
+            {
+                return BadRequest(new { code = 400, message = "Invalid status. Valid values: Active, Inactive, Maintenance" });
+            }
+
+            room.Status = request.Status;
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                code = 200,
+                data = new
+                {
+                    roomId = room.RoomId,
+                    roomName = room.RoomName,
+                    status = room.Status
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating room status: {ex.Message}");
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "An error occurred while updating the room status", 
+                error = ex.Message
+            });
+        }
+    }
+
+    // ===================== Room (delete) =====================
+    [HttpDelete("rooms/{id:int}")]
+    public async Task<IActionResult> DeleteRoom(int id)
+    {
+        try
+        {
+            var room = await _db.Rooms
+                .Include(r => r.Lessons)
+                .FirstOrDefaultAsync(r => r.RoomId == id);
+            
+            if (room == null)
+            {
+                return NotFound(new { code = 404, message = "Room not found" });
+            }
+
+            // Check if room has associated lessons
+            if (room.Lessons != null && room.Lessons.Any())
+            {
+                return BadRequest(new { code = 400, message = "Cannot delete room that has associated lessons" });
+            }
+
+            _db.Rooms.Remove(room);
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting room: {ex.Message}");
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "An error occurred while deleting the room", 
+                error = ex.Message
+            });
+        }
+    }
 }
