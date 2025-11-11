@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Button, Input, Select, Space, Table, Tooltip, message, Switch, Card, Modal } from "antd";
 import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
-import AdminApi from "../../vn.fpt.edu.api/Admin";
+import AdminApi from "../../../vn.fpt.edu.api/Admin";
 import UserProfileModal from "./UserProfileModal"; // đúng tên component
 
 const ROLE_MAP = { 1: "Admin", 2: "Manager", 3: "Lecturer", 4: "Student" };

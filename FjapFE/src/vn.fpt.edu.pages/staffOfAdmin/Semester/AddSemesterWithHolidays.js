@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row, Col, Steps, Select, Checkbox, List, Tag, Modal } from "antd";
 import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
-import SemesterApi from "../../vn.fpt.edu.api/Semester";
-import HolidayApi from "../../vn.fpt.edu.api/Holiday";
+import SemesterApi from "../../../vn.fpt.edu.api/Semester";
+import HolidayApi from "../../../vn.fpt.edu.api/Holiday";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;

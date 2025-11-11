@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, Form, Input, Button, message, Space, Typography, Row, Col, Select } from "antd";
 import { SaveOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
-import RoomApi from "../../vn.fpt.edu.api/Room";
+import RoomApi from "../../../vn.fpt.edu.api/Room";
 
 const { Title } = Typography;
 

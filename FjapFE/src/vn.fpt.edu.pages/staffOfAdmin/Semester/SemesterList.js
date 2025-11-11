@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Button, Input, Space, Table, Tooltip, message, Card, Modal } from "antd";
 import { SearchOutlined, FileExcelOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import SemesterApi from "../../vn.fpt.edu.api/Semester";
+import SemesterApi from "../../../vn.fpt.edu.api/Semester";
 
 const normalize = (items = []) =>
   items.map((s) => ({
