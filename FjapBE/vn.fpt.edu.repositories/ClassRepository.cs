@@ -401,9 +401,9 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             return new List<ClassScheduleDto>();
         }
 
-        // Tính tuần đầu tiên: từ StartDate đến StartDate + 6 ngày
-        var firstWeekStart = semester.StartDate;
-        var firstWeekEnd = firstWeekStart.AddDays(6);
+        // Lấy tất cả lessons trong toàn bộ semester
+        var semesterStart = semester.StartDate;
+        var semesterEnd = semester.EndDate;
 
         // Kiểm tra class có thuộc semester này không
         var classExists = await _context.Classes
@@ -415,7 +415,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             return new List<ClassScheduleDto>();
         }
 
-        // Query lessons trong tuần đầu tiên và map sang DTO
+        // Query tất cả lessons trong semester và map sang DTO
         var lessons = await _context.Lessons
             .AsNoTracking()
             .Include(l => l.Class)
@@ -423,8 +423,8 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             .Include(l => l.Room)
             .Include(l => l.Time)
             .Where(l => l.ClassId == classId 
-                && l.Date >= firstWeekStart 
-                && l.Date <= firstWeekEnd)
+                && l.Date >= semesterStart 
+                && l.Date <= semesterEnd)
             .OrderBy(l => l.Date)
             .ThenBy(l => l.Time.StartTime)
             .Select(l => new ClassScheduleDto

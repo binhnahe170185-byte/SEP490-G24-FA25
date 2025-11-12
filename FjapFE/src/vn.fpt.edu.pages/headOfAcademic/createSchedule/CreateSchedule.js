@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './CreateSchedule.css';
-import SemestersTable from './components/SemestersTable';
-import RoomsTable from './components/RoomsTable';
 import CalendarTable from './components/CalendarTable';
 import PickSemesterAndClass from './components/PickSemesterAndClass';
 import LecturerSelector from './components/LecturerSelector';
@@ -12,9 +10,11 @@ import RoomApi from '../../../vn.fpt.edu.api/Room';
 import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
 import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
 import ClassList from '../../../vn.fpt.edu.api/ClassList';
-import { message } from 'antd';
+import { notification } from 'antd';
 
 const CreateSchedule = () => {
+  const [api, contextHolder] = notification.useNotification();
+  
   const [semesterId, setSemesterId] = useState('');
   const [classId, setClassId] = useState('');
   const [subjectCode, setSubjectCode] = useState('');
@@ -25,15 +25,14 @@ const CreateSchedule = () => {
   const [roomId, setRoomId] = useState('');
 
   const [patterns, setPatterns] = useState([]);
-  const [lessons, setLessons] = useState([]);
+  const [loadedLessons, setLoadedLessons] = useState([]); // Lessons từ API (tất cả lịch học của class)
+  const [previewLessons, setPreviewLessons] = useState([]); // Lessons từ patterns (preview)
   const [currentWeekStart, setCurrentWeekStart] = useState(null);
-  const [previewWeekStart, setPreviewWeekStart] = useState(null);
 
   const [semester, setSemester] = useState({ id: null, start: null, end: null });
 
   // State for API data
   const [semesterData, setSemesterData] = useState([]);
-  const [roomData, setRoomData] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [timeslots, setTimeslots] = useState([]);
   const [holidays, setHolidays] = useState([]);
@@ -135,13 +134,6 @@ const CreateSchedule = () => {
         console.log('Formatted rooms:', formattedRooms);
         setRooms(formattedRooms);
 
-        // Format room data for table
-        const formattedRoomData = roomsList.map(room => ({
-          room: room.roomName,
-          type: room.status || '-'
-        }));
-        setRoomData(formattedRoomData);
-
         // Fetch timeslots
         const timeslotsList = await TimeslotApi.getTimeslots();
         setTimeslots(timeslotsList);
@@ -155,7 +147,6 @@ const CreateSchedule = () => {
         });
         // Set empty arrays on error to prevent crashes
         setRooms([]);
-        setRoomData([]);
         setTimeslots([]);
         setSemesterData([]);
       } finally {
@@ -219,16 +210,17 @@ const CreateSchedule = () => {
     const today = new Date();
     const initWeek = mondayOf(today);
     setCurrentWeekStart(initWeek);
-    setPreviewWeekStart(new Date(initWeek));
   }, []);
 
-  // Regenerate lessons when lecturer, patterns, semester, holidays, or rooms change
+  // Regenerate preview lessons when lecturer, patterns, semester, holidays, or rooms change
   useEffect(() => {
-    if (patterns.length > 0 && semester.start && semester.end && classId && rooms.length > 0) {
-      const newLessons = generateLessonsFromPatterns(patterns, semester.start, semester.end, lecturerId);
-      setLessons(newLessons);
+    if (patterns.length > 0 && semester.start && semester.end && rooms.length > 0) {
+      const newPreviewLessons = generateLessonsFromPatterns(patterns, semester.start, semester.end, lecturerId);
+      setPreviewLessons(newPreviewLessons);
+    } else {
+      setPreviewLessons([]);
     }
-  }, [lecturerId, patterns, semester.start, semester.end, classId, rooms, holidays]);
+  }, [lecturerId, patterns, semester.start, semester.end, rooms, holidays]);
 
   // Generate lessons from patterns for entire semester
   const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer) => {
@@ -253,8 +245,10 @@ const CreateSchedule = () => {
         if (holidaysDates.includes(dateStr)) continue;
 
         // Check if this weekday matches any pattern
-        const weekdayNum = lessonDate.getDay() || 7; // 1=Sun, 2=Mon, etc. Convert to 2=Mon, 7=Sun
-        const normalizedWeekday = weekdayNum === 0 ? 7 : weekdayNum; // Mon=2, Tue=3, etc.
+        // JavaScript Date.getDay(): 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+        // We need: 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri (Sunday = 7)
+        const weekdayNum = lessonDate.getDay();
+        const normalizedWeekday = weekdayNum === 0 ? 7 : weekdayNum + 1; // Convert: 1→2 (Mon), 2→3 (Tue), etc.
 
         patterns.forEach(pattern => {
           if (pattern.weekday === normalizedWeekday) {
@@ -269,6 +263,7 @@ const CreateSchedule = () => {
               room: roomName,
               roomId: pattern.room,
               lecturer: lecturer || '',
+              isPreview: true // Đánh dấu đây là lesson preview từ patterns
             });
           }
         });
@@ -309,37 +304,95 @@ const CreateSchedule = () => {
         end: semEnd,
       });
 
-      // Set week start to Monday of first lesson
-      const firstLessonDate = schedule.length > 0 ? fromYMD(schedule[0].date) : semStart;
+      // Set week start to Monday of first lesson or semester start
+      let firstLessonDate = semStart;
+      if (schedule.length > 0) {
+        try {
+          // Parse first lesson date
+          const firstDate = schedule[0].date;
+          if (typeof firstDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(firstDate)) {
+            firstLessonDate = fromYMD(firstDate);
+          } else {
+            const parsedDate = new Date(firstDate);
+            if (!isNaN(parsedDate.getTime())) {
+              firstLessonDate = parsedDate;
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing first lesson date:', e);
+        }
+      }
       const weekStartMonday = mondayOf(firstLessonDate);
       setCurrentWeekStart(weekStartMonday);
-      setPreviewWeekStart(new Date(weekStartMonday));
 
       // Convert schedule data từ API sang format cho calendar
       const convertedLessons = schedule.map(lesson => {
-        const lessonDate = fromYMD(lesson.date);
+        // Ensure date is in YYYY-MM-DD format
+        let dateStr = lesson.date;
+        try {
+          if (typeof lesson.date === 'string') {
+            // If it's already in YYYY-MM-DD format, use it directly
+            if (/^\d{4}-\d{2}-\d{2}$/.test(lesson.date)) {
+              dateStr = lesson.date;
+            } else {
+              // Parse other date string formats
+              const parsedDate = new Date(lesson.date);
+              dateStr = toYMD(parsedDate);
+            }
+          } else if (lesson.date instanceof Date) {
+            // If it's a Date object, convert to YYYY-MM-DD
+            dateStr = toYMD(lesson.date);
+          } else {
+            // Try to parse as date
+            const parsedDate = new Date(lesson.date);
+            if (!isNaN(parsedDate.getTime())) {
+              dateStr = toYMD(parsedDate);
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing date:', lesson.date, e);
+          // Fallback: try to extract YYYY-MM-DD from string if possible
+          if (typeof lesson.date === 'string') {
+            const match = lesson.date.match(/(\d{4}-\d{2}-\d{2})/);
+            if (match) {
+              dateStr = match[1];
+            } else {
+              dateStr = lesson.date;
+            }
+          }
+        }
+        
+        const lessonDate = fromYMD(dateStr);
         const dayOfWeek = lessonDate.getDay(); // 0=Sun, 1=Mon, 2=Tue, etc.
         // Convert to weekday format: Mon=2, Tue=3, Wed=4, Thu=5, Fri=6
         const weekday = dayOfWeek === 0 ? 7 : dayOfWeek + 1; // Mon should be 2, Tue=3, etc.
 
         // Use timeId as slot (assuming timeId maps to slot 1-8)
         const slot = lesson.timeId || 1;
+        
+        // Find roomId from rooms array based on roomName
+        const roomName = lesson.roomName || '';
+        const room = rooms.find(r => r.label === roomName);
+        const roomId = room ? room.value : null;
 
         return {
-          date: lesson.date,
+          date: dateStr, // Ensure YYYY-MM-DD format
           weekday: weekday,
           slot: slot,
-          room: lesson.roomName || '',
+          room: roomName,
+          roomId: roomId, // Add roomId for conflict checking
           lecturer: '', // API không trả về lecturer
           subjectCode: lesson.subjectCode || '',
+          subjectName: lesson.subjectName || '',
           startTime: lesson.startTime || '',
           endTime: lesson.endTime || '',
-          timeId: lesson.timeId
+          timeId: lesson.timeId,
+          isLoaded: true // Đánh dấu đây là lesson đã load từ API
         };
       });
 
-      console.log('Converted lessons:', convertedLessons);
-      setLessons(convertedLessons);
+      console.log('Converted loaded lessons:', convertedLessons);
+      setLoadedLessons(convertedLessons);
       
       // Set subject code and name from schedule
       const firstSubjectCode = schedule[0]?.subjectCode || '';
@@ -363,13 +416,23 @@ const CreateSchedule = () => {
 
   const handleAddPattern = () => {
     if (!weekday || !slotId || !roomId) {
-      alert('Select weekday, slot, room');
+      api.error({
+        message: 'Error',
+        description: 'Please select weekday, slot, and room',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       return;
     }
 
     const exists = patterns.some(p => p.weekday === parseInt(weekday) && p.slot === parseInt(slotId));
     if (exists) {
-      alert('Duplicate weekday+slot');
+      api.error({
+        message: 'Error',
+        description: 'Duplicate pattern: This weekday and slot combination already exists',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       return;
     }
 
@@ -381,12 +444,6 @@ const CreateSchedule = () => {
 
     setPatterns(newPatterns);
 
-    // Regenerate lessons if class is loaded
-    if (semester.start && semester.end && classId) {
-      const newLessons = generateLessonsFromPatterns(newPatterns, semester.start, semester.end, lecturerId);
-      setLessons(newLessons);
-    }
-
     setWeekday('');
     setSlotId('');
     setRoomId('');
@@ -395,12 +452,6 @@ const CreateSchedule = () => {
   const handleRemovePattern = (index) => {
     const newPatterns = patterns.filter((_, i) => i !== index);
     setPatterns(newPatterns);
-
-    // Regenerate lessons if class is loaded
-    if (semester.start && semester.end && classId) {
-      const newLessons = generateLessonsFromPatterns(newPatterns, semester.start, semester.end, lecturerId);
-      setLessons(newLessons);
-    }
   };
 
   const handlePrevWeek = () => {
@@ -413,18 +464,6 @@ const CreateSchedule = () => {
     if (!currentWeekStart) return;
     const newWeek = clampWeekStartWithinSemester(addDays(currentWeekStart, 7));
     setCurrentWeekStart(newWeek);
-  };
-
-  const handlePrevWeekPreview = () => {
-    if (!previewWeekStart) return;
-    const newWeek = clampWeekStartWithinSemester(addDays(previewWeekStart, -7));
-    setPreviewWeekStart(newWeek);
-  };
-
-  const handleNextWeekPreview = () => {
-    if (!previewWeekStart) return;
-    const newWeek = clampWeekStartWithinSemester(addDays(previewWeekStart, 7));
-    setPreviewWeekStart(newWeek);
   };
 
   const handleSave = async () => {
@@ -445,17 +484,32 @@ const CreateSchedule = () => {
         classId: classId,
         semester: semester
       });
-      message.error('Vui lòng chọn semester và class');
+      api.error({
+        message: 'Error',
+        description: 'Please select semester and class',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       return;
     }
     if (patterns.length === 0) {
       console.warn('Validation failed: No patterns');
-      message.error('Vui lòng thêm ít nhất 1 pattern');
+      api.error({
+        message: 'Error',
+        description: 'Please select pattern',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       return;
     }
     if (!lecturerId) {
       console.warn('Validation failed: Missing lecturer');
-      message.error('Vui lòng chọn lecturer');
+      api.error({
+        message: 'Error',
+        description: 'Please select lecturer',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       return;
     }
 
@@ -504,10 +558,13 @@ const CreateSchedule = () => {
       console.log('Lessons created:', lessonsCreated);
 
       if (lessonsCreated > 0) {
-        message.success(`Đã lưu schedule thành công! Đã tạo ${lessonsCreated} lessons.`);
-      } else {
-        message.success('Đã lưu schedule thành công!');
-      }
+        api.success({
+          message: 'Save successfully',
+          description: `Timetable saved successfully!`,
+          placement: 'bottomRight',
+          duration: 5,
+        });
+      } 
       
       // Optionally reload the schedule to show the saved data
       // You can trigger a reload here if needed
@@ -521,90 +578,150 @@ const CreateSchedule = () => {
       console.error('Error stack:', error?.stack);
       
       let errorMessage = 'Không thể lưu schedule. Vui lòng thử lại.';
+      let errorDescription = 'Đã xảy ra lỗi khi lưu timetable.';
       
       if (error?.response?.data) {
         if (error.response.data.message) {
           errorMessage = error.response.data.message;
+          errorDescription = errorMessage;
         } else if (typeof error.response.data === 'string') {
           errorMessage = error.response.data;
+          errorDescription = errorMessage;
         } else if (error.response.data.error) {
           errorMessage = error.response.data.error;
+          errorDescription = errorMessage;
         }
       } else if (error?.message) {
         errorMessage = error.message;
+        errorDescription = errorMessage;
       }
       
       console.error('Displaying error message:', errorMessage);
-      message.error(errorMessage);
+      api.error({
+        message: 'Lưu thất bại',
+        description: errorDescription,
+        placement: 'bottomRight',
+        duration: 5,
+      });
     } finally {
       setSaving(false);
       console.log('Save process completed');
     }
   };
 
-  const renderCalendar = (weekStart, isPreview = false) => {
+  // Helper function to check if two lessons conflict (same date, timeId, and room)
+  // Conflict only occurs when preview lesson overlaps with loaded lesson at the exact same date, time, and room
+  const isLessonConflict = (previewLesson, loadedLesson) => {
+    if (!previewLesson || !loadedLesson) return false;
+    
+    // Must be on the same date
+    if (previewLesson.date !== loadedLesson.date) return false;
+    
+    // Must be at the same time slot
+    const timeId1 = previewLesson.timeId || previewLesson.slot;
+    const timeId2 = loadedLesson.timeId || loadedLesson.slot;
+    if (parseInt(timeId1) !== parseInt(timeId2)) return false;
+    
+    // Must be in the same room (compare by roomId if available, otherwise by room name)
+    const previewRoomId = previewLesson.roomId;
+    const loadedRoomId = loadedLesson.roomId;
+    
+    // If both have roomId, compare by roomId
+    if (previewRoomId && loadedRoomId) {
+      return String(previewRoomId) === String(loadedRoomId);
+    }
+    
+    // Otherwise, compare by room name
+    const previewRoom = previewLesson.room || '';
+    const loadedRoom = loadedLesson.room || '';
+    return previewRoom === loadedRoom && previewRoom !== '';
+  };
+
+  const renderCalendar = (weekStart) => {
+    if (!weekStart) return null;
+
     // Use timeslots if available, otherwise use default 8 slots
     const slotsToRender = timeslots.length > 0
       ? timeslots.map(ts => ({ timeId: ts.timeId, label: `Slot ${ts.timeId}` }))
       : Array.from({ length: 8 }, (_, i) => ({ timeId: i + 1, label: `Slot ${i + 1}` }));
+
+    const weekEnd = addDays(weekStart, 4); // Friday of the week
 
     const calendarData = slotsToRender.map((slotInfo) => {
       const slot = slotInfo.timeId;
       const dayCells = Array(5).fill(null).map((_, dayIdx) => {
         const weekdayNum = dayIdx + 2; // Mon=2, Tue=3, etc.
 
-        if (isPreview) {
-          const patternMatch = patterns.find(p => p.weekday === weekdayNum && parseInt(p.slot) === slot);
-          if (patternMatch) {
-            // Find room name from roomId
-            const room = rooms.find(r => r.value === patternMatch.room);
-            const roomName = room ? room.label : patternMatch.room;
-            return (
-              <td key={dayIdx}>
-                <div>{roomName}{lecturerId ? ` | ${lecturerId}` : ''}</div>
-              </td>
-            );
+        // Calculate the date for this day in the week
+        const dayDate = addDays(weekStart, dayIdx);
+        const dateStr = toYMD(dayDate);
+
+        // Find loaded lesson for this date and slot
+        const loadedLesson = loadedLessons.find(l => {
+          if (!l.date) return false;
+          const lessonTimeId = l.timeId || l.slot;
+          return l.date === dateStr && parseInt(lessonTimeId) === slot;
+        });
+
+        // Find preview lesson for this date and slot
+        const previewLesson = previewLessons.find(l => {
+          if (!l.date) return false;
+          const lessonTimeId = l.timeId || l.slot;
+          return l.date === dateStr && parseInt(lessonTimeId) === slot;
+        });
+
+        // Determine what to display
+        let cellContent = null;
+        let cellStyle = {};
+        let cellClassName = '';
+
+        if (previewLesson) {
+          // Check if preview lesson conflicts with loaded lesson
+          const hasConflict = loadedLesson && isLessonConflict(previewLesson, loadedLesson);
+          
+          // Preview lesson exists
+          const roomName = previewLesson.room || '';
+          const lecturerText = previewLesson.lecturer ? ` | ${previewLesson.lecturer}` : '';
+          
+          if (hasConflict) {
+            // Conflict: red background - show preview with conflict indicator
+            const loadedRoom = loadedLesson.room || loadedLesson.subjectCode || '';
+            cellContent = `${roomName}${lecturerText} ⚠️ (Conflict: ${loadedRoom})`;
+            cellStyle = { 
+              backgroundColor: '#ffebee', 
+              color: '#c62828',
+              fontWeight: 'bold',
+              border: '2px solid #c62828'
+            };
+            cellClassName = 'lesson-conflict';
+          } else {
+            // No conflict: green background
+            cellContent = `${roomName}${lecturerText}`;
+            cellStyle = { 
+              backgroundColor: '#e8f5e9', 
+              color: '#2e7d32',
+              fontWeight: 'bold',
+              border: '2px solid #2e7d32'
+            };
+            cellClassName = 'lesson-preview';
           }
-          return <td key={dayIdx}></td>;
-        } else {
-          if (!weekStart) return <td key={dayIdx}></td>;
-
-          const lessonMatch = lessons.find(l => {
-            try {
-              if (!l.date) return false;
-
-              const lessonDate = fromYMD(l.date);
-              // Calculate which day of week the lesson is on (0=Sun, 1=Mon, etc.)
-              const lessonDayOfWeek = lessonDate.getDay();
-              // Convert to our format: Mon=2, Tue=3, Wed=4, Thu=5, Fri=6
-              const lessonWeekday = lessonDayOfWeek === 0 ? 7 : lessonDayOfWeek + 1;
-
-              // Check if lesson is in current week (Mon-Fri)
-              const weekEnd = addDays(weekStart, 4); // Friday of the week
-              const isInWeek = lessonDate >= weekStart && lessonDate <= weekEnd;
-
-              // Match both weekday and slot (using timeId)
-              const matchesWeekday = lessonWeekday === weekdayNum;
-              const lessonTimeId = l.timeId || l.slot;
-              const matchesSlot = parseInt(lessonTimeId) === slot;
-
-              return isInWeek && matchesWeekday && matchesSlot;
-            } catch (error) {
-              console.error('Error matching lesson:', error, l);
-              return false;
-            }
-          });
-
-          if (lessonMatch) {
-            const displayText = lessonMatch.room || lessonMatch.subjectCode || '';
-            return (
-              <td key={dayIdx}>
-                <div>{displayText}{lessonMatch.startTime ? ` (${lessonMatch.startTime}-${lessonMatch.endTime})` : ''}</div>
-              </td>
-            );
-          }
-          return <td key={dayIdx}></td>;
+        } else if (loadedLesson) {
+          // Only loaded lesson exists (no preview)
+          const displayText = loadedLesson.room || loadedLesson.subjectCode || '';
+          const timeText = loadedLesson.startTime ? ` (${loadedLesson.startTime}-${loadedLesson.endTime})` : '';
+          cellContent = `${displayText}${timeText}`;
+          cellStyle = {
+            backgroundColor: '#f5f5f5',
+            color: '#333'
+          }; // Default style for loaded lessons
+          cellClassName = 'lesson-loaded';
         }
+
+        return (
+          <td key={dayIdx} style={cellStyle} className={cellClassName}>
+            {cellContent ? <div>{cellContent}</div> : ''}
+          </td>
+        );
       });
 
       return (
@@ -632,6 +749,7 @@ const CreateSchedule = () => {
 
   return (
     <div className="create-schedule-app">
+      {contextHolder}
       <main className="create-schedule-main">
         {/* FILTERS / PICKERS */}
         <div className="create-schedule-grid create-schedule-cols-2">
@@ -654,12 +772,6 @@ const CreateSchedule = () => {
           />
         </div>
 
-        {/* CATALOG SNAPSHOTS */}
-        <div className="create-schedule-grid create-schedule-cols-2" style={{ marginTop: '16px' }}>
-          <SemestersTable data={semesterData} />
-          <RoomsTable data={roomData} />
-        </div>
-
         {/* STEP 2: Patterns */}
         <div className="create-schedule-grid create-schedule-cols-1" style={{ marginTop: '16px' }}>
           <WeeklyPatterns
@@ -679,23 +791,15 @@ const CreateSchedule = () => {
           />
         </div>
 
-        {/* CALENDAR VIEW */}
-        <div className="create-schedule-grid create-schedule-cols-2" style={{ marginTop: '16px' }}>
+        {/* CALENDAR VIEW - Combined */}
+        <div className="create-schedule-grid create-schedule-cols-1" style={{ marginTop: '16px' }}>
           <CalendarTable
-            title="Class Timetable (loaded)"
+            title="Class Timetable"
             weekStart={currentWeekStart}
             weekRange={currentWeekStart ? getWeekRange(currentWeekStart) : 'Week'}
             onPrevWeek={handlePrevWeek}
             onNextWeek={handleNextWeek}
-            renderCalendar={() => renderCalendar(currentWeekStart, false)}
-          />
-          <CalendarTable
-            title="Preview (patterns × semester)"
-            weekStart={previewWeekStart}
-            weekRange={previewWeekStart ? getWeekRange(previewWeekStart) : 'Week'}
-            onPrevWeek={handlePrevWeekPreview}
-            onNextWeek={handleNextWeekPreview}
-            renderCalendar={() => renderCalendar(previewWeekStart, true)}
+            renderCalendar={() => renderCalendar(currentWeekStart)}
           />
         </div>
 

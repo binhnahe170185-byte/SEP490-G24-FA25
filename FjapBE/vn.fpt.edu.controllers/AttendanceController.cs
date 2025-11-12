@@ -357,6 +357,98 @@ public class AttendanceController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy attendance report cho một class (số buổi present/absent của mỗi student)
+    /// GET: api/attendance/classes/{classId}/report
+    /// </summary>
+    [HttpGet("classes/{classId}/report")]
+    public async Task<IActionResult> GetAttendanceReport(int classId)
+    {
+        try
+        {
+            var lecturerId = await GetCurrentLecturerIdAsync();
+
+            // Verify that the lecturer teaches this class
+            var classExists = await _db.Lessons
+                .AsNoTracking()
+                .AnyAsync(l => l.ClassId == classId && l.LectureId == lecturerId);
+
+            if (!classExists)
+            {
+                return NotFound(new { code = 404, message = "Class not found or not taught by lecturer" });
+            }
+
+            // Get all students in the class
+            var students = await _db.Classes
+                .Where(c => c.ClassId == classId)
+                .SelectMany(c => c.Students)
+                .Select(s => new
+                {
+                    s.StudentId,
+                    s.StudentCode,
+                    FirstName = s.User.FirstName,
+                    LastName = s.User.LastName
+                })
+                .OrderBy(s => s.StudentCode)
+                .ToListAsync();
+
+            // Get all lesson IDs for this class taught by this lecturer
+            var lessonIds = await _db.Lessons
+                .AsNoTracking()
+                .Where(l => l.ClassId == classId && l.LectureId == lecturerId)
+                .Select(l => l.LessonId)
+                .ToListAsync();
+
+            // Get all attendance records for these lessons
+            var attendances = await _db.Attendances
+                .AsNoTracking()
+                .Where(a => lessonIds.Contains(a.LessonId))
+                .ToListAsync();
+
+            // Group attendances by student and count present/absent
+            var reportData = students.Select(student =>
+            {
+                var studentAttendances = attendances
+                    .Where(a => a.StudentId == student.StudentId)
+                    .ToList();
+
+                var presentCount = studentAttendances.Count(a => a.Status == "Present");
+                var absentCount = studentAttendances.Count(a => a.Status == "Absent" || a.Status == null);
+
+                return new
+                {
+                    student = new
+                    {
+                        studentId = student.StudentId,
+                        studentCode = student.StudentCode,
+                        user = new
+                        {
+                            firstName = student.FirstName,
+                            lastName = student.LastName
+                        }
+                    },
+                    presentCount = presentCount,
+                    absentCount = absentCount
+                };
+            }).ToList();
+
+            return Ok(new
+            {
+                code = 200,
+                data = reportData
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(403, new { code = 403, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load attendance report for class {ClassId}", classId);
+            return StatusCode(500, new { code = 500, message = "Failed to load attendance report" });
+        }
+    }
+
+    /// <summary>
     /// Cập nhật nhiều attendance cùng lúc
     /// POST: api/attendance/bulk
     /// </summary>
