@@ -6,27 +6,61 @@ class ManagerGrades {
   // ==========================================
 
   /**
+   * Lấy danh sách học kỳ
+   * @returns {Promise<Array>}
+   */
+  static async getSemesters() {
+    try {
+      const response = await api.get("/api/Semester/options");
+      const semesters = response.data?.data || [];
+      
+      // Map to format expected by SemesterTabs component
+      return semesters.map(sem => ({
+        semesterId: sem.semesterId || sem.id,
+        name: sem.name || sem.semester_name
+      }));
+    } catch (error) {
+      console.error("Error fetching semesters:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Lấy danh sách lớp kèm thông tin điểm
    * @param {string} managerId - ID của manager (not used by backend)
    * @param {Object} filters - Filter options
+   * @param {number|null} userId - UserId của lecturer (optional, for filtering classes taught by lecturer)
+   * @param {boolean} isLecturer - Whether the current user is a lecturer
    * @returns {Promise<Array>}
    */
-  static async getCourses(managerId, filters = {}) {
+  static async getCourses(managerId, filters = {}, userId = null, isLecturer = false) {
     try {
       const params = {};
       
       // Map frontend filters to backend ClassGradeFilterRequest
-      if (filters.semesterId && filters.semesterId > 0) {
+      // Only send SemesterId if it's a valid number (not null, not undefined, > 0)
+      if (filters.semesterId != null && filters.semesterId !== undefined && filters.semesterId > 0) {
         params.SemesterId = filters.semesterId;
       }
       
-      if (filters.levelId && filters.levelId > 0) {
+      // Only send LevelId if it's a valid number (not null, not undefined, > 0)
+      if (filters.levelId != null && filters.levelId !== undefined && filters.levelId > 0) {
         params.LevelId = filters.levelId;
       }
       
-      if (filters.status && filters.status !== "All Status") {
-        // Backend CompletionStatus field expects: "100% Complete", "In Progress", "Not Started"
-        params.CompletionStatus = filters.status;
+      // For lecturers: filter by UserId and only show Active classes
+      if (isLecturer && userId) {
+        params.UserId = userId; // Backend will find LectureId from UserId
+        params.Status = "Active"; // Only show Active classes for lecturers
+      } else {
+        // For managers: always show Active classes by default
+        params.Status = "Active";
+        
+        // Also apply CompletionStatus filter if provided
+        if (filters.status && filters.status !== "All Status") {
+          // Backend CompletionStatus field expects: "100% Complete", "In Progress", "Not Started"
+          params.CompletionStatus = filters.status;
+        }
       }
       
       if (filters.search) {

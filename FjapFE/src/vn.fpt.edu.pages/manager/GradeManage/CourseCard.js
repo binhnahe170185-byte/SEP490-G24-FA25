@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Progress, Tag, Button, Space, Statistic, Row, Col } from "antd";
+import { Card, Progress, Tag, Button, Row, Col } from "antd";
 import { 
   EyeOutlined, 
   EditOutlined, 
@@ -32,67 +32,141 @@ export default function CourseCard({ course, userId, onRefresh }) {
       style={{ 
         height: "100%",
         border: "1px solid #e8e8e8",
-        borderRadius: 8,
+        borderRadius: 12,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+        transition: "all 0.3s ease",
       }}
-      bodyStyle={{ padding: 20 }}
+      bodyStyle={{ padding: 24 }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.12)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
     >
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 8 }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#1890ff" }}>
-              {course.courseCode}
-            </h3>
-            <p style={{ margin: "4px 0 0 0", fontSize: 14, color: "#262626" }}>
+            <div style={{ 
+              display: "inline-block", 
+              padding: "4px 12px", 
+              backgroundColor: "#e6f7ff", 
+              borderRadius: 4,
+              marginBottom: 8
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#1890ff" }}>
+                {course.courseCode}
+              </span>
+            </div>
+            <h3 style={{ 
+              margin: "0 0 4px 0", 
+              fontSize: 18, 
+              fontWeight: 600, 
+              color: "#262626",
+              lineHeight: 1.4
+            }}>
               {course.courseName}
+            </h3>
+            <p style={{ 
+              margin: 0, 
+              fontSize: 13, 
+              color: "#8c8c8c" 
+            }}>
+              {course.className}
             </p>
           </div>
-          <Tag color={getStatusColor()} icon={getStatusIcon()}>
+          <Tag 
+            color={getStatusColor()} 
+            icon={getStatusIcon()}
+            style={{ 
+              fontSize: 12,
+              padding: "4px 12px",
+              borderRadius: 6,
+              marginLeft: 8
+            }}
+          >
             {course.status}
           </Tag>
         </div>
         
-        <Space size={16} style={{ fontSize: 13, color: "#595959" }}>
-          <span>📚 {course.className}</span>
-          <span>📅 {course.semester}</span>
-        </Space>
+        <div style={{ 
+          display: "flex", 
+          gap: 16, 
+          fontSize: 13, 
+          color: "#595959",
+          padding: "8px 0",
+          borderTop: "1px solid #f0f0f0",
+          borderBottom: "1px solid #f0f0f0"
+        }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span>📅</span>
+            <span>{course.semester}</span>
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span>📊</span>
+            <span>{course.level}</span>
+          </span>
+        </div>
       </div>
 
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={8}>
-          <Statistic
-            title="Students"
-            value={course.students}
-            prefix={<UserOutlined />}
-            valueStyle={{ fontSize: 18 }}
-          />
+          <div style={{
+            padding: "12px",
+            backgroundColor: "#f0f9ff",
+            borderRadius: 8,
+            textAlign: "center"
+          }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: "#1890ff", marginBottom: 4 }}>
+              {course.students}
+            </div>
+            <div style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <UserOutlined /> Students
+            </div>
+          </div>
         </Col>
         <Col span={8}>
-          <Statistic
-            title="Average"
-            value={course.average}
-            precision={1}
-            prefix={<TrophyOutlined />}
-            valueStyle={{ fontSize: 18, color: '#1890ff' }}
-          />
+          <div style={{
+            padding: "12px",
+            backgroundColor: "#fff7e6",
+            borderRadius: 8,
+            textAlign: "center"
+          }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: "#fa8c16", marginBottom: 4 }}>
+              {course.average > 0 ? course.average.toFixed(1) : "-"}
+            </div>
+            <div style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <TrophyOutlined /> Average
+            </div>
+          </div>
         </Col>
         <Col span={8}>
-          <Statistic
-            title="Passed"
-            value={course.passed}
-            suffix={`/${course.students}`}
-            valueStyle={{ fontSize: 18, color: '#52c41a' }}
-          />
+          <div style={{
+            padding: "12px",
+            backgroundColor: "#f6ffed",
+            borderRadius: 8,
+            textAlign: "center"
+          }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: "#52c41a", marginBottom: 4 }}>
+              {course.passed}
+            </div>
+            <div style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <CheckCircleOutlined /> Passed
+            </div>
+          </div>
         </Col>
       </Row>
 
       {/* Progress */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 500 }}>Grading Progress</span>
-          <span style={{ fontSize: 13, color: "#595959" }}>
-            {course.gradingProgress}/{course.gradingTotal}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#262626" }}>Grading Progress</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#1890ff" }}>
+            {course.gradingProgress}/{course.gradingTotal} ({course.gradingPercent}%)
           </span>
         </div>
         <Progress 
@@ -102,47 +176,90 @@ export default function CourseCard({ course, userId, onRefresh }) {
             '0%': '#108ee9',
             '100%': '#87d068',
           }}
+          style={{ marginBottom: 4 }}
         />
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between", 
+          fontSize: 12, 
+          color: "#8c8c8c",
+          marginTop: 4
+        }}>
+          <span>{course.completionStatus}</span>
+        </div>
       </div>
 
       {/* Results Summary */}
       <div style={{ 
-        backgroundColor: "#f5f5f5", 
-        padding: 12, 
-        borderRadius: 6,
-        marginBottom: 16 
+        backgroundColor: "#fafafa", 
+        padding: 16, 
+        borderRadius: 8,
+        marginBottom: 20,
+        border: "1px solid #f0f0f0"
       }}>
-        <Space size={24} style={{ width: "100%", justifyContent: "space-around" }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#52c41a" }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-around",
+          alignItems: "center"
+        }}>
+          <div style={{ textAlign: "center", flex: 1 }}>
+            <div style={{ 
+              fontSize: 28, 
+              fontWeight: 700, 
+              color: "#52c41a",
+              lineHeight: 1.2,
+              marginBottom: 4
+            }}>
               {course.passed}
             </div>
-            <div style={{ fontSize: 12, color: "#595959" }}>Passed</div>
+            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Passed</div>
           </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#ff4d4f" }}>
+          <div style={{ 
+            width: 1, 
+            height: 40, 
+            backgroundColor: "#e8e8e8" 
+          }} />
+          <div style={{ textAlign: "center", flex: 1 }}>
+            <div style={{ 
+              fontSize: 28, 
+              fontWeight: 700, 
+              color: "#ff4d4f",
+              lineHeight: 1.2,
+              marginBottom: 4
+            }}>
               {course.failed}
             </div>
-            <div style={{ fontSize: 12, color: "#595959" }}>Failed</div>
+            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Failed</div>
           </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#faad14" }}>
+          <div style={{ 
+            width: 1, 
+            height: 40, 
+            backgroundColor: "#e8e8e8" 
+          }} />
+          <div style={{ textAlign: "center", flex: 1 }}>
+            <div style={{ 
+              fontSize: 28, 
+              fontWeight: 700, 
+              color: "#faad14",
+              lineHeight: 1.2,
+              marginBottom: 4
+            }}>
               {course.incomplete}
             </div>
-            <div style={{ fontSize: 12, color: "#595959" }}>Incomplete</div>
+            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Incomplete</div>
           </div>
-        </Space>
+        </div>
       </div>
 
       {/* Actions */}
-      <Space style={{ width: "100%" }}>
+      <div style={{ display: "flex", gap: 12 }}>
         <Button 
           type="primary"
           icon={<EyeOutlined />}
           onClick={() => navigate(`${base}/grades/${course.courseId}`, {
             state: { course }
           })}
-          style={{ flex: 1 }}
+          style={{ flex: 1, height: 40, fontSize: 14, fontWeight: 500 }}
         >
           View Details
         </Button>
@@ -151,10 +268,11 @@ export default function CourseCard({ course, userId, onRefresh }) {
           onClick={() => navigate(`${base}/grades/enter/${course.courseId}`, {
             state: { course }
           })}
+          style={{ height: 40, fontSize: 14, fontWeight: 500 }}
         >
           Enter Grades
         </Button>
-      </Space>
+      </div>
     </Card>
   );
 }
