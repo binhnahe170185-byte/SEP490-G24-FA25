@@ -1,7 +1,7 @@
 // src/vn.fpt.edu.pages/admin/UserProfileModal.js
 import React, { useEffect, useState } from "react";
 import {
-  Modal, Descriptions, Spin, Form, Input, Select, DatePicker, Button, Space, Row, Col, message,
+  Modal, Descriptions, Spin, Form, Input, Select, DatePicker, Button, Space, Row, Col, message, Avatar,
 } from "antd";
 import dayjs from "dayjs";
 import AdminApi from "../../../vn.fpt.edu.api/Admin";
@@ -56,11 +56,15 @@ export default function UserProfileModal({
         const merged = {
           ...initialUser,
           ...u,
+          avatar: u?.avatar ?? initialUser?.avatar ?? null, // Ensure avatar is merged
           levelName: u?.levelName ?? initialUser?.levelName ?? null,
           semesterId: u?.semesterId ?? initialUser?.semesterId ?? null,
           semesterName: u?.semesterName ?? initialUser?.semesterName ?? null,
           enrollmentDate: u?.enrollmentDate ?? initialUser?.enrollmentDate ?? null,
         };
+        console.log("User data from API:", u);
+        console.log("Merged user data:", merged);
+        console.log("Avatar value:", merged.avatar);
         setUser(merged);
 
         // nếu là student thì lấy semesters
@@ -198,7 +202,22 @@ export default function UserProfileModal({
             <Descriptions.Item label="Enrollment Semester">{user?.semesterName || "-"}</Descriptions.Item>
             <Descriptions.Item label="Enrollment Date">{user?.enrollmentDate || "-"}</Descriptions.Item>
             <Descriptions.Item label="Address" span={2}>{user?.address || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Avatar" span={2}>{user?.avatar || "-"}</Descriptions.Item>
+            <Descriptions.Item label="Avatar" span={2}>
+              {user?.avatar && user.avatar.trim() !== "" ? (
+                <Avatar
+                  src={user.avatar}
+                  size={100}
+                  style={{ display: "block" }}
+                  onError={() => {
+                    console.error("Failed to load avatar image");
+                  }}
+                />
+              ) : (
+                <Avatar size={100} style={{ display: "block" }}>
+                  {user?.firstName?.[0]?.toUpperCase() || "U"}
+                </Avatar>
+              )}
+            </Descriptions.Item>
           </Descriptions>
         ) : (
           <Form form={form} layout="vertical">

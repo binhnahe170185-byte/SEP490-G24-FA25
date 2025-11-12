@@ -840,7 +840,7 @@ public partial class FjapDbContext : DbContext
                 .HasMaxLength(255)
                 .HasColumnName("address");
             entity.Property(e => e.Avatar)
-                .HasMaxLength(255)
+                .HasColumnType("TEXT")
                 .HasColumnName("avatar");
             entity.Property(e => e.DepartmentId).HasColumnName("department_id");
             entity.Property(e => e.Dob).HasColumnName("dob");
