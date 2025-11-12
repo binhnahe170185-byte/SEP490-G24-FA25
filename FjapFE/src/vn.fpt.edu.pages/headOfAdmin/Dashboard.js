@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, message, Table, Tag, Button } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, message, Table, Tag, Button, Tooltip } from 'antd';
 import {
   FileTextOutlined,
   CalendarOutlined,
@@ -79,9 +79,14 @@ const Dashboard = () => {
       title: 'Author',
       dataIndex: 'author',
       key: 'author',
+      ellipsis: { showTitle: false },
       render: (_, record) => {
         const author = record.author || record.CreatorEmail || record.authorEmail || 'N/A';
-        return <span>{author}</span>;
+        return (
+          <Tooltip placement="topLeft" title={author}>
+            {author}
+          </Tooltip>
+        );
       },
     },
     {

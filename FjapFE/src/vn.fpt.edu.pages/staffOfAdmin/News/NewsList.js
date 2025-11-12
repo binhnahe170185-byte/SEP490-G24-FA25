@@ -1,18 +1,19 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { 
   Button, Input, Space, Table, Tooltip, message, Card, Modal, 
-  Select, Tag, Popconfirm, notification, Typography, Divider, Collapse, Row, Col
+  Select, Tag, notification, Typography, Divider, Collapse, Row, Col
 } from "antd";
 import { 
   SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined, 
   PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, 
-  SendOutlined, InfoCircleOutlined
+  SendOutlined, InfoCircleOutlined, ExclamationCircleOutlined
 } from "@ant-design/icons";
 import NewsApi from "../../../vn.fpt.edu.api/News";
 import UserApi from "../../../vn.fpt.edu.api/Admin";
 import AddNewsModal from "./AddNewsModal";
 import ViewNewsModal from "./ViewNewsModal";
 import EditNewsModal from "./EditNewsModal";
+import ConfirmModal from "./ConfirmModal";
 import { formatDateTimeWithTimezone, formatApprovedAt } from "./dateUtils";
 import "../staffOfAdmin.css";
 
@@ -197,6 +198,12 @@ export default function NewsList({ title = "News Management" }) {
   const [viewReasonModalVisible, setViewReasonModalVisible] = useState(false);
   const [loadingReviewComment, setLoadingReviewComment] = useState(false);
   const [approvedByInfoMap, setApprovedByInfoMap] = useState({});
+  
+  // Confirmation modals
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [submitConfirmVisible, setSubmitConfirmVisible] = useState(false);
+  const [approveConfirmVisible, setApproveConfirmVisible] = useState(false);
+  const [confirmingRecord, setConfirmingRecord] = useState(null);
 
   useEffect(() => {
     const roleId = getCurrentRoleId();
@@ -402,15 +409,23 @@ export default function NewsList({ title = "News Management" }) {
     setEditModalVisible(true);
   };
 
-  const handleDelete = async (record) => {
+  const openDeleteConfirm = (record) => {
+    setConfirmingRecord(record);
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmingRecord) return;
     try {
-      await NewsApi.deleteNews(record.id);
+      await NewsApi.deleteNews(confirmingRecord.id);
       api.success({
         message: "Success",
         description: "News deleted successfully",
         placement: "topRight",
         duration: 3,
       });
+      setDeleteConfirmVisible(false);
+      setConfirmingRecord(null);
       fetchNews();
     } catch (e) {
       console.error("Error deleting news:", e);
@@ -423,15 +438,23 @@ export default function NewsList({ title = "News Management" }) {
     }
   };
 
-  const handleSubmitForReview = async (record) => {
+  const openSubmitConfirm = (record) => {
+    setConfirmingRecord(record);
+    setSubmitConfirmVisible(true);
+  };
+
+  const handleSubmitForReview = async () => {
+    if (!confirmingRecord) return;
     try {
-      await NewsApi.submitForReview(record.id);
+      await NewsApi.submitForReview(confirmingRecord.id);
       api.success({
         message: "Success",
         description: "News submitted for review successfully",
         placement: "topRight",
         duration: 3,
       });
+      setSubmitConfirmVisible(false);
+      setConfirmingRecord(null);
       fetchNews();
     } catch (e) {
       console.error("Error submitting news:", e);
@@ -444,10 +467,18 @@ export default function NewsList({ title = "News Management" }) {
     }
   };
 
-  const handleApprove = async (record) => {
+  const openApproveConfirm = (record) => {
+    setConfirmingRecord(record);
+    setApproveConfirmVisible(true);
+  };
+
+  const handleApprove = async () => {
+    if (!confirmingRecord) return;
     try {
-      await NewsApi.approveNews(record.id);
+      await NewsApi.approveNews(confirmingRecord.id);
       message.success("News approved and published successfully");
+      setApproveConfirmVisible(false);
+      setConfirmingRecord(null);
       fetchNews();
     } catch (e) {
       console.error("Error approving news:", e);
@@ -595,8 +626,16 @@ export default function NewsList({ title = "News Management" }) {
         title: "AUTHOR",
         dataIndex: "author",
         key: "author",
-        width: 200,
-        render: (email, record) => email || record.authorEmail || record.authorName || "N/A",
+        width: 250,
+        ellipsis: { showTitle: false },
+        render: (email, record) => {
+          const authorText = email || record.authorEmail || record.authorName || "N/A";
+          return (
+            <Tooltip placement="topLeft" title={authorText}>
+              {authorText}
+            </Tooltip>
+          );
+        },
       },
       {
         title: "CREATED DATE",
@@ -718,73 +757,49 @@ export default function NewsList({ title = "News Management" }) {
               {/* Delete Button - Chỉ hiện khi có thể delete */}
               {showDelete && (
                 <Tooltip title="Delete News">
-                  <Popconfirm
-                    title="Delete this news?"
-                    description="This action cannot be undone."
-                    onConfirm={() => handleDelete(record)}
-                    okText="Delete"
-                    cancelText="Cancel"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <Button 
-                      size="small" 
-                      icon={<DeleteOutlined />} 
-                      danger
-                      style={{ minWidth: 32 }}
-                    />
-                  </Popconfirm>
+                  <Button 
+                    size="small" 
+                    icon={<DeleteOutlined />} 
+                    danger
+                    onClick={() => openDeleteConfirm(record)}
+                    style={{ minWidth: 32 }}
+                  />
                 </Tooltip>
               )}
               
               {/* Submit Button - Chỉ hiện khi có thể submit */}
               {canSubmit && (
                 <Tooltip title="Submit for Review">
-                  <Popconfirm
-                    title="Submit for review?"
-                    description="This news will be sent to Head for approval."
-                    onConfirm={() => handleSubmitForReview(record)}
-                    okText="Yes"
-                    cancelText="No"
-                    okButtonProps={{ type: "primary" }}
-                  >
-                    <Button 
-                      size="small" 
-                      icon={<SendOutlined />} 
-                      type="primary"
-                      className="submit-news-button"
-                      style={{ 
-                        minWidth: 36,
-                        height: 28,
-                        background: "#722ed1",
-                        borderColor: "#722ed1",
-                        fontWeight: 600,
-                        boxShadow: "0 2px 6px rgba(114, 46, 209, 0.35)",
-                        transition: "all 0.3s ease"
-                      }}
-                    />
-                  </Popconfirm>
+                  <Button 
+                    size="small" 
+                    icon={<SendOutlined />} 
+                    type="primary"
+                    onClick={() => openSubmitConfirm(record)}
+                    className="submit-news-button"
+                    style={{ 
+                      minWidth: 36,
+                      height: 28,
+                      background: "#722ed1",
+                      borderColor: "#722ed1",
+                      fontWeight: 600,
+                      boxShadow: "0 2px 6px rgba(114, 46, 209, 0.35)",
+                      transition: "all 0.3s ease"
+                    }}
+                  />
                 </Tooltip>
               )}
               
               {/* Head Buttons - Approve và Reject (giữ nguyên logic ẩn/hiện) */}
               {canApprove && (
-                <Popconfirm
-                  title="Approve this news?"
-                  description="This news will be published immediately."
-                  onConfirm={() => handleApprove(record)}
-                  okText="Approve"
-                  cancelText="Cancel"
-                  okButtonProps={{ type: "primary" }}
-                >
-                  <Tooltip title="Approve">
-                    <Button 
-                      size="small" 
-                      icon={<CheckCircleOutlined />} 
-                      type="primary"
-                      style={{ minWidth: 32 }}
-                    />
-                  </Tooltip>
-                </Popconfirm>
+                <Tooltip title="Approve">
+                  <Button 
+                    size="small" 
+                    icon={<CheckCircleOutlined />} 
+                    type="primary"
+                    onClick={() => openApproveConfirm(record)}
+                    style={{ minWidth: 32 }}
+                  />
+                </Tooltip>
               )}
               
               {canReject && (
@@ -1296,6 +1311,54 @@ export default function NewsList({ title = "News Management" }) {
           </div>
         )}
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title="Delete this news?"
+        description="This action cannot be undone."
+        icon={<ExclamationCircleOutlined style={{ color: "#ff4d4f", fontSize: 48 }} />}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          setDeleteConfirmVisible(false);
+          setConfirmingRecord(null);
+        }}
+        okText="Delete"
+        cancelText="Cancel"
+        okButtonProps={{ danger: true }}
+      />
+
+      {/* Submit Confirmation Modal */}
+      <ConfirmModal
+        visible={submitConfirmVisible}
+        title="Submit for review?"
+        description="This news will be sent to Head for approval."
+        icon={<SendOutlined style={{ color: "#722ed1", fontSize: 48 }} />}
+        onConfirm={handleSubmitForReview}
+        onCancel={() => {
+          setSubmitConfirmVisible(false);
+          setConfirmingRecord(null);
+        }}
+        okText="Yes"
+        cancelText="No"
+        okButtonProps={{ type: "primary" }}
+      />
+
+      {/* Approve Confirmation Modal */}
+      <ConfirmModal
+        visible={approveConfirmVisible}
+        title="Approve this news?"
+        description="This news will be published immediately."
+        icon={<CheckCircleOutlined style={{ color: "#52c41a", fontSize: 48 }} />}
+        onConfirm={handleApprove}
+        onCancel={() => {
+          setApproveConfirmVisible(false);
+          setConfirmingRecord(null);
+        }}
+        okText="Approve"
+        cancelText="Cancel"
+        okButtonProps={{ type: "primary" }}
+      />
     </>
   );
 }
