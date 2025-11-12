@@ -206,7 +206,6 @@ export default function ClassDetail() {
       title: "Students",
       dataIndex: "total_students",
       key: "total_students",
-      align: "right",
     },
     {
       title: "Actions",
