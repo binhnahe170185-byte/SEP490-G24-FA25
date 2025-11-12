@@ -19,25 +19,137 @@ const normalizeLevels = (levels = []) =>
         : item?.name ?? item?.levelName ?? item?.label ?? `Level ${index + 1}`,
   }));
 
+const toDateInstance = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "object") {
+    if (typeof value.toDate === "function") {
+      const derived = value.toDate();
+      if (derived instanceof Date && !Number.isNaN(derived.getTime())) {
+        return derived;
+      }
+    }
+
+    if (
+      typeof value.year === "number" &&
+      typeof value.month === "number" &&
+      typeof value.day === "number"
+    ) {
+      const derived = new Date(value.year, value.month - 1, value.day);
+      return Number.isNaN(derived.getTime()) ? null : derived;
+    }
+
+    if ("seconds" in value || "nanoseconds" in value) {
+      const seconds = typeof value.seconds === "number" ? value.seconds : 0;
+      const nanos = typeof value.nanoseconds === "number" ? value.nanoseconds : 0;
+      const derived = new Date(seconds * 1000 + nanos / 1e6);
+      return Number.isNaN(derived.getTime()) ? null : derived;
+    }
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const derived = new Date(value);
+    return Number.isNaN(derived.getTime()) ? null : derived;
+  }
+
+  return null;
+};
+
 const normalizeSemesters = (semesters = []) =>
-  semesters.map((item, index) => ({
-    id:
-      typeof item === "string" || typeof item === "number"
-        ? item
-        : item?.id ??
-          item?.semesterId ??
-          item?.semester_id ??
-          item?.value ??
-          `semester-${index}`,
-    name:
-      typeof item === "string" || typeof item === "number"
-        ? item.toString()
-        : item?.name ??
-          item?.semesterName ??
-          item?.semester_name ??
-          item?.label ??
-          `Semester ${index + 1}`,
-  }));
+  semesters.map((item, index) => {
+    const startSource =
+      item?.startDate ??
+      item?.start_date ??
+      item?.semesterStart ??
+      item?.semester_start ??
+      item?.semesterStartDate ??
+      item?.semester_start_date ??
+      null;
+    const endSource =
+      item?.endDate ??
+      item?.end_date ??
+      item?.semesterEnd ??
+      item?.semester_end ??
+      item?.semesterEndDate ??
+      item?.semester_end_date ??
+      null;
+
+    return {
+      id:
+        typeof item === "string" || typeof item === "number"
+          ? item
+          : item?.id ??
+            item?.semesterId ??
+            item?.semester_id ??
+            item?.value ??
+            `semester-${index}`,
+      name:
+        typeof item === "string" || typeof item === "number"
+          ? item.toString()
+          : item?.name ??
+            item?.semesterName ??
+            item?.semester_name ??
+            item?.label ??
+            `Semester ${index + 1}`,
+      startDate: toDateInstance(startSource),
+      endDate: toDateInstance(endSource),
+    };
+  });
+
+const isSemesterCurrentOrUpcoming = (semester, referenceDate = new Date()) => {
+  const { startDate, endDate } = semester;
+  if (endDate instanceof Date && !Number.isNaN(endDate.getTime())) {
+    return endDate.getTime() >= referenceDate.getTime();
+  }
+  if (startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
+    return startDate.getTime() >= referenceDate.getTime();
+  }
+  return true;
+};
+
+const filterUpcomingSemesters = (semesters = [], referenceDate = new Date()) =>
+  semesters.filter((semester) =>
+    isSemesterCurrentOrUpcoming(semester, referenceDate)
+  );
+
+const ensureSemesterOptionVisible = (
+  semesters = [],
+  currentSemesterId,
+  currentSemesterName
+) => {
+  if (
+    currentSemesterId === null ||
+    currentSemesterId === undefined ||
+    currentSemesterId === ""
+  ) {
+    return semesters;
+  }
+
+  const normalizedId = currentSemesterId.toString();
+  const alreadyExists = semesters.some(
+    (semester) => semester?.id?.toString() === normalizedId
+  );
+
+  if (alreadyExists) {
+    return semesters;
+  }
+
+  return [
+    ...semesters,
+    {
+      id: currentSemesterId,
+      name: currentSemesterName ?? `Semester ${normalizedId}`,
+      startDate: null,
+      endDate: null,
+    },
+  ];
+};
 
 const normalizeSubjects = (subjects = []) =>
   subjects.map((item, index) => {
@@ -158,6 +270,43 @@ const deriveInitialFormValues = (initialValues = {}) => {
     [];
   const subjectId = extractSubjectId(subjectSource);
 
+  const readSemesterName = () => {
+    const explicitName =
+      initialValues.semesterName ??
+      initialValues.semester_name ??
+      initialValues.semesterLabel ??
+      initialValues.semester_label ??
+      undefined;
+    if (explicitName) {
+      return explicitName;
+    }
+
+    const readFrom = (source) => {
+      if (!source) {
+        return undefined;
+      }
+      if (typeof source === "string") {
+        return source;
+      }
+      if (typeof source === "object") {
+        return (
+          source.name ??
+          source.semesterName ??
+          source.semester_name ??
+          source.label ??
+          undefined
+        );
+      }
+      return undefined;
+    };
+
+    return (
+      readFrom(initialValues.semester) ??
+      readFrom(initialValues.semesterDetail ?? initialValues.semester_detail) ??
+      undefined
+    );
+  };
+
   return {
     name:
       initialValues.name ??
@@ -172,6 +321,7 @@ const deriveInitialFormValues = (initialValues = {}) => {
       initialValues.semester ??
       initialValues.semesterName ??
       undefined,
+    semesterName: readSemesterName(),
     levelId:
       initialValues.levelId ??
       initialValues.level_id ??
@@ -206,6 +356,10 @@ export default function ClassFormModal({
   const [loadingRecord, setLoadingRecord] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(undefined);
+  const derivedInitialValues = useMemo(
+    () => deriveInitialFormValues(initialValues),
+    [initialValues]
+  );
 
   const isEditMode = mode === "edit";
 
@@ -223,6 +377,11 @@ export default function ClassFormModal({
         const normalizedSemesters = normalizeSemesters(
           data?.semesters ?? data?.semesterOptions ?? []
         );
+        const filteredSemesters = ensureSemesterOptionVisible(
+          filterUpcomingSemesters(normalizedSemesters),
+          derivedInitialValues.semesterId,
+          derivedInitialValues.semesterName
+        );
         const normalizedSubjects = normalizeSubjects(
           data?.subjects ?? data?.subjectOptions ?? []
         );
@@ -233,9 +392,13 @@ export default function ClassFormModal({
               ? normalizedLevels
               : normalizeLevels(fallbackLevels),
           semesters:
-            normalizedSemesters.length > 0
-              ? normalizedSemesters
-              : normalizeSemesters(fallbackSemesters),
+            filteredSemesters.length > 0
+              ? filteredSemesters
+              : ensureSemesterOptionVisible(
+                  filterUpcomingSemesters(normalizeSemesters(fallbackSemesters)),
+                  derivedInitialValues.semesterId,
+                  derivedInitialValues.semesterName
+                ),
           subjects: normalizedSubjects,
         });
       })
@@ -243,7 +406,11 @@ export default function ClassFormModal({
         console.error("Failed to load class form options:", error);
         setOptions({
           levels: normalizeLevels(fallbackLevels),
-          semesters: normalizeSemesters(fallbackSemesters),
+          semesters: ensureSemesterOptionVisible(
+            filterUpcomingSemesters(normalizeSemesters(fallbackSemesters)),
+            derivedInitialValues.semesterId,
+            derivedInitialValues.semesterName
+          ),
           subjects: [],
         });
         notifyError(
@@ -253,17 +420,23 @@ export default function ClassFormModal({
         );
       })
       .finally(() => setLoadingOptions(false));
-  }, [open, fallbackLevels, fallbackSemesters, notifyError]);
+  }, [
+    open,
+    fallbackLevels,
+    fallbackSemesters,
+    notifyError,
+    derivedInitialValues.semesterId,
+    derivedInitialValues.semesterName,
+  ]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    const derived = deriveInitialFormValues(initialValues);
-    form.setFieldsValue(derived);
-    setCurrentLevel(derived.levelId);
-  }, [open, initialValues, form]);
+    form.setFieldsValue(derivedInitialValues);
+    setCurrentLevel(derivedInitialValues.levelId);
+  }, [open, derivedInitialValues, form]);
 
   useEffect(() => {
     if (!open || !isEditMode || !classId) {
@@ -451,7 +624,7 @@ export default function ClassFormModal({
           initialValues={deriveInitialFormValues(initialValues)}
         >
           <Form.Item
-            label="Tên lớp"
+            label="Class Name"
             name="name"
             rules={[
               { required: true, message: "Vui lòng nhập tên lớp" },

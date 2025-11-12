@@ -91,6 +91,17 @@ export default function SlotsList({ course, lecturerId }) {
 
   const columns = [
     {
+      title: "Lesson",
+      key: "lessonNumber",
+      width: 80,
+      align: "center",
+      render: (_, __, index) => (
+        <Tag color="geekblue" style={{ fontSize: 13, padding: "2px 10px" }}>
+          {index + 1}
+        </Tag>
+      ),
+    },
+    {
       title: "Slot",
       dataIndex: "slotId",
       key: "slotId",

@@ -204,25 +204,23 @@ const normalizeClasses = (list = []) =>
     };
   });
 
+const compareClassesByIdDesc = (a, b) => {
+  const idA = Number.parseInt(a.classId ?? a.class_id ?? "", 10);
+  const idB = Number.parseInt(b.classId ?? b.class_id ?? "", 10);
+
+  if (!Number.isNaN(idA) && !Number.isNaN(idB) && idA !== idB) {
+    return idB - idA;
+  }
+
+  const fallbackA = (a.class_id ?? a.classId ?? "").toString();
+  const fallbackB = (b.class_id ?? b.classId ?? "").toString();
+
+  return fallbackB.localeCompare(fallbackA);
+};
+
 const buildClassRows = (data = []) => {
   const normalized = normalizeClasses(data ?? []);
-  normalized.sort((a, b) => {
-    const dateA = new Date(a.updated_at ?? 0).getTime();
-    const dateB = new Date(b.updated_at ?? 0).getTime();
-    if (Number.isNaN(dateA) && Number.isNaN(dateB)) {
-      return 0;
-    }
-    if (Number.isNaN(dateA)) {
-      return 1;
-    }
-    if (Number.isNaN(dateB)) {
-      return -1;
-    }
-    if (dateA === dateB) {
-      return (b.class_id ?? "").localeCompare(a.class_id ?? "");
-    }
-    return dateB - dateA;
-  });
+  normalized.sort(compareClassesByIdDesc);
   return normalized;
 };
 
@@ -325,7 +323,6 @@ export default function ClassList() {
           formatDate(item.start_date),
           formatDate(item.end_date),
           item.statusLabel,
-          formatDateTime(item.updated_at),
         ];
 
         matchesSearch = candidates
@@ -494,23 +491,7 @@ export default function ClassList() {
             updated_at: fallbackUpdatedAt,
           };
           })
-          .sort((a, b) => {
-            const dateA = new Date(a.updated_at ?? 0).getTime();
-            const dateB = new Date(b.updated_at ?? 0).getTime();
-            if (Number.isNaN(dateA) && Number.isNaN(dateB)) {
-              return 0;
-            }
-            if (Number.isNaN(dateA)) {
-              return 1;
-            }
-            if (Number.isNaN(dateB)) {
-              return -1;
-            }
-            if (dateA === dateB) {
-              return (b.class_id ?? "").localeCompare(a.class_id ?? "");
-            }
-            return dateB - dateA;
-          })
+          .sort(compareClassesByIdDesc)
       );
 
       const successName =
