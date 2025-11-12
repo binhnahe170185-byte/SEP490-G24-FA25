@@ -96,8 +96,13 @@ const LecturerNewsDetail = () => {
   const title = news.Title || news.title || '';
   const content = news.Content || news.content || '';
   const createdAt = news.CreatedAt || news.createdAt || '';
-  const creatorName = news.CreatorName || news.creatorName || null;
-  const creatorEmail = news.CreatorEmail || news.creatorEmail || null;
+  
+  // Extract từ CreatedByNavigation object (NewsDto trả về object, không phải string)
+  const createdByNav = news.CreatedByNavigation || news.createdByNavigation || null;
+  const creatorName = createdByNav 
+    ? `${createdByNav.FirstName || createdByNav.firstName || ''} ${createdByNav.LastName || createdByNav.lastName || ''}`.trim()
+    : (news.CreatorName || news.creatorName || null);
+  const creatorEmail = createdByNav?.Email || createdByNav?.email || news.CreatorEmail || news.creatorEmail || null;
   const author = creatorName || creatorEmail || 'N/A';
   const rawImageUrl = news.NewsImage || news.newsImage || null;
   const newsImage = processImageUrl(rawImageUrl);
