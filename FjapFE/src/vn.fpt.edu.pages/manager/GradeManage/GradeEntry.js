@@ -14,7 +14,8 @@ import {
 import { 
   ArrowLeftOutlined,
   SaveOutlined,
-  EyeOutlined
+  EyeOutlined,
+  EditOutlined
 } from "@ant-design/icons";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../login/AuthContext";
@@ -32,11 +33,21 @@ export default function GradeEntry() {
   const [gradeComponentWeights, setGradeComponentWeights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
   const [editingKey, setEditingKey] = useState('');
+  const [batchEditMode, setBatchEditMode] = useState(false);
+  const [editedDataAll, setEditedDataAll] = useState({}); // Track all changes in batch mode
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [form] = Form.useForm();
 
   const userId = user?.id;
   const courseFromState = location.state?.course;
+
+  // Helper function to map grade type names to data indices
+  const getDataIndexForComponent = (gradeTypeName, subjectGradeTypeId) => {
+    // Create a unique dataIndex based on SubjectGradeTypeId to avoid conflicts
+    return `gradeComponent_${subjectGradeTypeId}`;
+  };
 
   // Load course details
   const loadData = useCallback(async () => {
@@ -84,6 +95,78 @@ export default function GradeEntry() {
   };
 
   const isEditing = (record) => record.key === editingKey;
+  const isBatchEditing = () => batchEditMode;
+
+  // Handle grade change in batch mode
+  const handleBatchGradeChange = (studentId, dataIndex, value) => {
+    if (!studentId || !dataIndex) {
+      return;
+    }
+    
+    if (!batchEditMode) {
+      return;
+    }
+    
+    setEditedDataAll(prev => {
+      const newData = { ...prev };
+      if (!newData[studentId]) {
+        newData[studentId] = {};
+      }
+      
+      // Store the edited value - convert to number or null
+      let numValue = null;
+      if (value !== null && value !== undefined && value !== '') {
+        const parsed = parseFloat(value);
+        if (!isNaN(parsed)) {
+          numValue = parsed;
+        }
+      }
+      newData[studentId][dataIndex] = numValue;
+      
+      // Find the original student record to get original values for unchanged fields
+      const student = students.find(s => {
+        const sId = String(s.studentId || '');
+        const targetId = String(studentId || '');
+        return sId === targetId;
+      });
+      
+      // Calculate average for this student - combine edited and original values
+      let weightedSum = 0;
+      
+      if (gradeComponentWeights && Array.isArray(gradeComponentWeights)) {
+        gradeComponentWeights.forEach(weight => {
+          if (weight && weight.subjectGradeTypeId) {
+            const idx = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+            if (!idx) return;
+            
+            // Get score: edited value first, then original value
+            let score = null;
+            if (newData[studentId].hasOwnProperty(idx)) {
+              // Field was edited
+              score = newData[studentId][idx];
+            } else if (student && student.hasOwnProperty(idx) && student[idx] !== null && student[idx] !== undefined) {
+              // Field not edited, use original
+              score = student[idx];
+            }
+            
+            // Only add to average if we have a valid number
+            if (score !== null && score !== undefined && !isNaN(score) && typeof score === 'number') {
+              const weightValue = parseFloat(weight.weight) || 0;
+              // Weight is already in percentage, so divide by 100
+              weightedSum += score * (weightValue / 100);
+            }
+          }
+        });
+      }
+      
+      // Calculate final average - weightedSum already contains the weighted average
+      const average = weightedSum;
+      newData[studentId].average = parseFloat(average.toFixed(2));
+      newData[studentId].status = average >= 5.0 ? "Passed" : "Failed";
+      
+      return newData;
+    });
+  };
 
   const edit = (record) => {
     const formValues = {};
@@ -100,6 +183,40 @@ export default function GradeEntry() {
 
   const cancel = () => {
     setEditingKey('');
+  };
+
+  const toggleBatchEditMode = () => {
+    if (batchEditMode) {
+      // Exiting batch mode - clear changes if user confirms
+      const hasChanges = Object.keys(editedDataAll).length > 0;
+      if (hasChanges) {
+        Modal.confirm({
+          title: 'Exit batch edit mode?',
+          content: 'You have unsaved changes. Are you sure you want to exit?',
+          okText: 'Yes, Exit',
+          cancelText: 'Cancel',
+          onOk: () => {
+            setBatchEditMode(false);
+            setEditedDataAll({});
+            setEditingKey('');
+          },
+          onCancel: () => {
+            // Do nothing, stay in batch mode
+          },
+        });
+      } else {
+        // No changes, exit immediately
+        setBatchEditMode(false);
+        setEditedDataAll({});
+        setEditingKey('');
+      }
+    } else {
+      // Entering batch mode - cancel any individual edit
+      if (editingKey !== '') {
+        setEditingKey('');
+      }
+      setBatchEditMode(true);
+    }
   };
 
   const save = async (key) => {
@@ -169,7 +286,6 @@ export default function GradeEntry() {
         await loadData();
       }
     } catch (errInfo) {
-      console.log('Validate Failed:', errInfo);
       message.error("Failed to update grade");
     } finally {
       setSaving(false);
@@ -186,36 +302,82 @@ export default function GradeEntry() {
     children,
     ...restProps
   }) => {
+    // Safety checks
+    if (!record || !dataIndex) {
+      return <td {...restProps}>{children}</td>;
+    }
+
+    const isBatchMode = isBatchEditing();
+    const isCellEditable = editing || (isBatchMode && dataIndex && typeof dataIndex === 'string' && dataIndex.startsWith('gradeComponent_'));
+    
+    // Create unique field name for each cell (combine studentId and dataIndex)
+    const uniqueFieldName = isBatchMode && record.studentId 
+      ? `${record.studentId}_${dataIndex}` 
+      : dataIndex;
+    
+    // Get value for batch mode - with safe access
+    let batchValue = undefined;
+    if (isBatchMode && record && record.studentId && editedDataAll && editedDataAll[record.studentId]) {
+      batchValue = editedDataAll[record.studentId][dataIndex];
+    }
+    
+    // Get display value safely - use batch value if edited, otherwise use original record value
+    const recordValue = record && dataIndex ? (record[dataIndex] ?? null) : null;
+    const displayValue = isBatchMode && batchValue !== undefined ? batchValue : recordValue;
+
     return (
       <td {...restProps}>
-        {editing ? (
-          <Form.Item
-            name={dataIndex}
-            style={{ margin: 0 }}
-            rules={[
-              {
-                validator: (_, value) => {
-                  if (value === null || value === undefined || value === '') {
-                    return Promise.resolve();
-                  }
-                  if (value < 0 || value > 10) {
-                    return Promise.reject(new Error('Grade must be between 0 and 10'));
-                  }
-                  return Promise.resolve();
-                },
-              },
-            ]}
-          >
+        {isCellEditable ? (
+          isBatchMode ? (
+            // In batch mode, use controlled InputNumber without Form.Item to avoid field sharing
             <InputNumber
               min={0}
               max={10}
               step={0.1}
               precision={1}
               style={{ width: '100%' }}
+              value={displayValue !== null && displayValue !== undefined ? displayValue : undefined}
+              onChange={(value) => {
+                if (record && record.studentId && dataIndex) {
+                  handleBatchGradeChange(record.studentId, dataIndex, value);
+                }
+              }}
             />
-          </Form.Item>
+          ) : (
+            // In individual edit mode, use Form.Item
+            <Form.Item
+              name={dataIndex}
+              style={{ margin: 0 }}
+              initialValue={displayValue}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (value === null || value === undefined || value === '') {
+                      return Promise.resolve();
+                    }
+                    if (value < 0 || value > 10) {
+                      return Promise.reject(new Error('Grade must be between 0 and 10'));
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
+            >
+              <InputNumber
+                min={0}
+                max={10}
+                step={0.1}
+                precision={1}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+          )
         ) : (
-          children
+          <span>
+            {displayValue != null && typeof displayValue === 'number' && !isNaN(displayValue) 
+              ? displayValue.toFixed(1) 
+              : "-"}
+          </span>
         )}
       </td>
     );
@@ -254,7 +416,7 @@ export default function GradeEntry() {
         width: 150,
         align: "center",
         editable: true,
-        render: (value) => value != null ? value.toFixed(1) : "-",
+        render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : "-",
       };
     });
 
@@ -265,11 +427,20 @@ export default function GradeEntry() {
         key: "average",
         width: 100,
         align: "center",
-        render: (value) => (
-          <span style={{ fontWeight: 600, fontSize: 15 }}>
-            {value != null ? value.toFixed(1) : "-"}
-          </span>
-        ),
+        render: (value, record) => {
+          if (!record) {
+            return <span style={{ fontWeight: 600, fontSize: 15 }}>-</span>;
+          }
+          // Use batch mode average if available
+          const displayValue = batchEditMode && record.studentId && editedDataAll[record.studentId]?.average !== undefined
+            ? editedDataAll[record.studentId].average
+            : value;
+          return (
+            <span style={{ fontWeight: 600, fontSize: 15 }}>
+              {displayValue != null && typeof displayValue === 'number' ? displayValue.toFixed(1) : "-"}
+            </span>
+          );
+        },
       },
       {
         title: "Action",
@@ -277,6 +448,9 @@ export default function GradeEntry() {
         width: 150,
         align: "center",
         render: (_, record) => {
+          if (batchEditMode) {
+            return <span style={{ color: '#8c8c8c' }}>Batch Edit Mode</span>;
+          }
           const editable = isEditing(record);
           return editable ? (
             <Space>
@@ -307,12 +481,6 @@ export default function GradeEntry() {
     return [...baseColumns, ...gradeColumns, ...endColumns];
   };
 
-  // Helper function to map grade type names to data indices
-  const getDataIndexForComponent = (gradeTypeName, subjectGradeTypeId) => {
-    // Create a unique dataIndex based on SubjectGradeTypeId to avoid conflicts
-    return `gradeComponent_${subjectGradeTypeId}`;
-  };
-
   const columns = generateColumns();
 
   const mergedColumns = columns.map((col) => {
@@ -321,33 +489,148 @@ export default function GradeEntry() {
     }
     return {
       ...col,
-      onCell: (record) => ({
-        record,
-        inputType: 'number',
-        dataIndex: col.dataIndex,
-        title: col.title,
-        editing: isEditing(record),
-      }),
+      onCell: (record) => {
+        if (!record || !col.dataIndex) {
+          return {
+            record: record || {},
+            inputType: 'number',
+            dataIndex: col.dataIndex || '',
+            title: col.title || '',
+            editing: false,
+          };
+        }
+        return {
+          record,
+          inputType: 'number',
+          dataIndex: col.dataIndex,
+          title: col.title || '',
+          editing: isEditing(record) || isBatchEditing(),
+        };
+      },
     };
   });
 
-  const handleSaveAll = () => {
-    Modal.confirm({
-      title: 'Save all changes?',
-      content: 'Are you sure you want to save all grade changes?',
-      okText: 'Yes',
-      cancelText: 'No',
-      onOk: async () => {
+  const handleSaveAll = async () => {
+    try {
+      const changesCount = Object.keys(editedDataAll).length;
+      
+      if (!batchEditMode) {
+        message.warning("Please enter batch edit mode first");
+        return;
+      }
+      
+      if (changesCount === 0) {
+        message.warning("No changes to save. Please enter some grades first.");
+        return;
+      }
+
+      setShowSaveModal(true);
+    } catch (error) {
+      console.error("Error in handleSaveAll:", error);
+      message.error(`Error: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const executeSaveAll = async () => {
+    try {
+      setSavingAll(true);
+      setShowSaveModal(false);
+    
+      // Get all student IDs that have changes
+      const studentIdsWithChanges = Object.keys(editedDataAll);
+      let successCount = 0;
+      let failCount = 0;
+      const errors = [];
+
+      // Save each student's grades
+      for (const studentId of studentIdsWithChanges) {
         try {
-          message.success("All grades saved successfully");
-          navigate(`${base}/grades/${courseId}`, {
-            state: { course: courseFromState }
-          });
+          // Find the student record
+          const student = students.find(s => s.studentId === studentId || String(s.studentId) === String(studentId));
+          
+              if (!student) {
+                failCount++;
+                continue;
+              }
+
+              if (!student.gradeId) {
+                failCount++;
+                continue;
+              }
+
+          const studentChanges = editedDataAll[studentId];
+          if (!studentChanges) {
+            continue;
+          }
+
+          const gradeComponents = [];
+          
+          // Include all grade components that were edited
+          if (gradeComponentWeights && Array.isArray(gradeComponentWeights)) {
+            gradeComponentWeights.forEach(weight => {
+              if (weight && weight.subjectGradeTypeId) {
+                const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+                
+                // Only save if this field was explicitly edited (exists in studentChanges)
+                if (studentChanges.hasOwnProperty(dataIndex)) {
+                  const editedScore = studentChanges[dataIndex];
+                  
+                  // Include if score is a valid number (including 0)
+                  if (editedScore !== null && editedScore !== undefined && editedScore !== '') {
+                    const numScore = parseFloat(editedScore);
+                    if (!isNaN(numScore) && numScore >= 0 && numScore <= 10) {
+                      gradeComponents.push({
+                        subjectGradeTypeId: weight.subjectGradeTypeId,
+                        score: numScore,
+                        comment: null
+                      });
+                    }
+                  }
+                  // If editedScore is null, it means user cleared the field - we skip it (don't update)
+                }
+                // If field wasn't edited, we don't include it in the save (keep existing value)
+              }
+            });
+          }
+          
+          if (gradeComponents.length > 0) {
+            await ManagerGrades.updateStudentGradeComponents(
+              userId,
+              courseId,
+              student.studentId,
+              student.gradeId,
+              gradeComponents
+            );
+            successCount++;
+          }
         } catch (error) {
-          message.error("Failed to save grades");
+          console.error(`Failed to save grade for student ${studentId}:`, error);
+          errors.push(`Student ${studentId}: ${error.message || 'Unknown error'}`);
+          failCount++;
         }
-      },
-    });
+      }
+
+      if (failCount === 0 && successCount > 0) {
+        message.success(`Successfully saved grades for ${successCount} student(s)`);
+        setEditedDataAll({});
+        setBatchEditMode(false);
+        // Reload data to get updated values from server
+        await loadData();
+      } else if (successCount > 0) {
+        message.warning(`Saved ${successCount} student(s), failed ${failCount} student(s). Check console for details.`);
+        console.error('Save errors:', errors);
+        // Still reload to get what was saved
+        await loadData();
+      } else {
+        message.error(`Failed to save grades. Check console for details.`);
+        console.error('All saves failed. Errors:', errors);
+      }
+    } catch (error) {
+      console.error("Error saving all grades:", error);
+      message.error(`Failed to save all grades: ${error.message || 'Unknown error'}`);
+    } finally {
+      setSavingAll(false);
+    }
   };
 
   if (loading) {
@@ -387,12 +670,24 @@ export default function GradeEntry() {
             View Details
           </Button>
           <Button 
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={handleSaveAll}
+            type={batchEditMode ? "default" : "primary"}
+            icon={<EditOutlined />}
+            onClick={toggleBatchEditMode}
+            danger={batchEditMode}
           >
-            Save All Changes
+            {batchEditMode ? "Exit Batch Edit" : "Enter Batch Edit Mode"}
           </Button>
+          {batchEditMode && (
+            <Button 
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={handleSaveAll}
+              loading={savingAll}
+              disabled={Object.keys(editedDataAll).length === 0}
+            >
+              Save All Changes ({Object.keys(editedDataAll).length})
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -412,7 +707,9 @@ export default function GradeEntry() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 16, fontWeight: 600 }}>Enter Student Grades</span>
             <span style={{ fontSize: 13, color: '#8c8c8c', fontWeight: 400 }}>
-              Click "Edit" to modify grades. Grades are from 0-10.
+              {batchEditMode 
+                ? "Batch Edit Mode: All students are editable. Enter grades and click 'Save All Changes' to save."
+                : "Click 'Enter Batch Edit Mode' to edit all students at once, or click 'Edit' for individual students. Grades are from 0-10."}
             </span>
           </div>
         }
@@ -435,6 +732,22 @@ export default function GradeEntry() {
           />
         </Form>
       </Card>
+
+      <Modal
+        title="Save All Changes"
+        open={showSaveModal}
+        onOk={executeSaveAll}
+        onCancel={() => {
+          setShowSaveModal(false);
+        }}
+        okText="Yes, Save All"
+        cancelText="Cancel"
+        confirmLoading={savingAll}
+        okButtonProps={{ type: 'primary' }}
+      >
+        <p>Are you sure you want to save grades for <strong>{Object.keys(editedDataAll).length}</strong> student(s)?</p>
+        <p style={{ color: '#8c8c8c', fontSize: '12px' }}>This action will save all grade changes you have made.</p>
+      </Modal>
     </div>
   );
 }
