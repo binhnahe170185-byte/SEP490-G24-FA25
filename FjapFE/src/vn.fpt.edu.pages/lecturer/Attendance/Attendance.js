@@ -12,11 +12,13 @@ import {
   Empty,
   Row,
   Col,
+  notification,
 } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   SaveOutlined,
+  ArrowLeftOutlined,
 } from "@ant-design/icons";
 import AttendanceApi from "../../../vn.fpt.edu.api/Attendance";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -31,6 +33,8 @@ const STATUS_OPTIONS = [
 ];
 
 export default function Attendance() {
+  const [api, contextHolder] = notification.useNotification();
+  
   const [classes, setClasses] = useState([]);
   const [lessons, setLessons] = useState([]);
   const [students, setStudents] = useState([]);
@@ -149,42 +153,64 @@ export default function Attendance() {
     }));
   };
 
-  const handleSave = async () => {
-    if (!selectedLessonId) {
-      message.warning("Please select a lesson first");
-      return;
-    }
+ const handleSave = async () => {
 
-    const hasChanges = students.some((student) => {
-      const originalStatus = student.status || "Absent";
-      const currentStatus = attendanceMap[student.studentId] || "Absent";
-      return originalStatus !== currentStatus;
+  const hasChanges = students.some((student) => {
+    const originalStatus = student.status || "Absent";
+    const currentStatus = attendanceMap[student.studentId] || "Absent";
+    return originalStatus !== currentStatus;
+  });
+
+  try {
+    setSaving(true);
+
+    const attendances = students.map((student) => ({
+      studentId: student.studentId,
+      status: attendanceMap[student.studentId] || "Absent",
+    }));
+
+    const response = await AttendanceApi.updateBulkAttendance(selectedLessonId, attendances);
+    api.success({
+      message: 'Save Successful',
+      description: 'Attendance has been saved successfully!',
+      placement: 'bottomRight',
+      duration: 5,
     });
 
-    if (!hasChanges) {
-      message.info("No changes to save");
-      return;
+    // Reload students to get updated data
+    await loadStudents(selectedLessonId);
+  } catch (error) {
+
+    let errorMessage = 'Unable to save attendance. Please try again.';
+    let errorDescription = 'An error occurred while saving attendance.';
+
+    if (error?.response?.data) {
+      if (error.response.data.message) {
+        errorMessage = error.response.data.message;
+        errorDescription = errorMessage;
+      } else if (typeof error.response.data === 'string') {
+        errorMessage = error.response.data;
+        errorDescription = errorMessage;
+      } else if (error.response.data.error) {
+        errorMessage = error.response.data.error;
+        errorDescription = errorMessage;
+      }
+    } else if (error?.message) {
+      errorMessage = error.message;
+      errorDescription = errorMessage;
     }
 
-    try {
-      setSaving(true);
-      const attendances = students.map((student) => ({
-        studentId: student.studentId,
-        status: attendanceMap[student.studentId] || "Absent",
-      }));
+    api.error({
+      message: 'Save Failed',
+      description: errorDescription,
+      placement: 'bottomRight',
+      duration: 5,
+    });
+  } finally {
+    setSaving(false);
+  }
+};
 
-      await AttendanceApi.updateBulkAttendance(selectedLessonId, attendances);
-      message.success("Attendance saved successfully");
-
-      // Reload students to get updated data
-      await loadStudents(selectedLessonId);
-    } catch (error) {
-      console.error("Failed to save attendance:", error);
-      message.error("Failed to save attendance");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   useEffect(() => {
     if (!prefillClassApplied && prefillClassId && classes.length > 0) {
@@ -286,12 +312,26 @@ export default function Attendance() {
 
   ];
 
+  const handleBackToSchedule = () => {
+    navigate('/lecturer/schedule');
+  };
+
   return (
     <div className="attendance-container">
+      {contextHolder}
       <Card>
-        <Title level={2} style={{ marginBottom: 24 }}>
-          Take Attendance
-        </Title>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={handleBackToSchedule}
+            style={{ marginRight: 16 }}
+          >
+            Back
+          </Button>
+          <Title level={2} style={{ margin: 0 }}>
+            Take Attendance
+          </Title>
+        </div>
 
 
 
@@ -347,19 +387,7 @@ export default function Attendance() {
 
         {students.length > 0 && (
           <>
-            <Card
-              style={{ marginTop: 24 }}
-              title="Status Legend"
-              bodyStyle={{ padding: "12px 24px" }}
-            >
-              <Space wrap>
-                {STATUS_OPTIONS.map((opt) => (
-                  <Tag key={opt.value} color={opt.color} icon={opt.icon}>
-                    {opt.label}
-                  </Tag>
-                ))}
-              </Space>
-            </Card>
+           
 
             <div style={{ marginTop: 24, textAlign: "right" }}>
               <Button

@@ -40,6 +40,7 @@ import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import HomeworkDetail from "../vn.fpt.edu.pages/lecturer/HomeworkManage/HomeworkDetail";
 import Schedule from "../vn.fpt.edu.pages/lecturer/schedule/Schedule";
 import Attendance from "../vn.fpt.edu.pages/lecturer/Attendance/Attendance";
+import AttendanceReport from "../vn.fpt.edu.pages/lecturer/AttendanceReport/AttendanceReport";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/staffOfAdmin/StaffOfAdminPage";
 import CreateSchedule from "../vn.fpt.edu.pages/headOfAcademic/createSchedule/CreateSchedule";
 import CurriculumSubjects from "../vn.fpt.edu.pages/student/CurriculumSubjects";
@@ -280,6 +281,7 @@ export default function App() {
                   <Route path="homepage" element={<LecturerHomepage />} />
                   <Route path="schedule" element={<Schedule />} />
                   <Route path="attendance" element={<Attendance />} />
+                  <Route path="attendanceReport/:classId" element={<AttendanceReport />} />
                   <Route
                     path="classes"
                     element={<div style={{ padding: 16 }}><h3>Lecturer Classes (coming soon)</h3></div>}

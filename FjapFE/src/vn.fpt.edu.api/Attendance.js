@@ -44,6 +44,18 @@ const AttendanceApi = {
     });
     return response.data?.data || [];
   },
+
+  // Lấy attendance report cho một class (số buổi present/absent của mỗi student)
+  getAttendanceReport: async (classId) => {
+    try {
+      const response = await api.get(`/api/attendance/classes/${classId}/report`);
+      return response.data?.data || [];
+    } catch (error) {
+      console.error("API Error:", error);
+      console.error("Error Response:", error.response?.data);
+      throw error;
+    }
+  },
 };
 
 export default AttendanceApi;

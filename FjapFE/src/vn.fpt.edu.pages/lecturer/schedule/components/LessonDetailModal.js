@@ -52,6 +52,13 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
         }
     };
 
+    const handleViewAttendanceReport = () => {
+        if (classId) {
+            navigate(`/lecturer/attendanceReport/${classId}`);
+            onClose();
+        }
+    };
+
     const handleTakeAttendance = () => {
         if (!canTakeAttendance) {
             message.warning("Attendance information for this lesson is missing.");
@@ -185,6 +192,29 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
 
                                         </div>
 
+                                        {/* Attendance Report */}
+                                        <div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                                <TeamOutlined style={{ fontSize: 16 }} />
+                                                <Text strong>Attendance report</Text>
+                                            </div>
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 8,
+                                                    marginLeft: 24,
+                                                    cursor: classId ? "pointer" : "default"
+                                                }}
+                                                onClick={handleViewAttendanceReport}
+                                            >
+                                                <Text style={{ color: classId ? "#1890ff" : "inherit" }}>
+                                                    View Attendance Report
+                                                </Text>
+                                                <LinkOutlined style={{ fontSize: 12, color: classId ? "#1890ff" : "#666" }} />
+                                            </div>
+                                        </div>
+
                                         {/* List student in class */}
                                         <div>
                                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -201,7 +231,6 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                                 }}
                                                 onClick={handleViewStudents}
                                             >
-
                                                 <Text style={{ color: classId ? "#1890ff" : "inherit" }}>
                                                     {studentGroupCode}
                                                 </Text>
@@ -259,12 +288,19 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                     hoverable
                                 >
                                     <TeamOutlined style={{ fontSize: 32, color: "#722ed1", marginBottom: 12 }} />
-                                    <Title level={5} style={{ marginBottom: 8 }}>Student Group</Title>
+                                    <Title level={5} style={{ marginBottom: 8 }}>
+                                        Class Name: {studentGroupCode}
+                                    </Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
-                                        View student group details
+                                        View student class details
                                     </Text>
-                                    <Button type="primary" ghost>
-                                        View Group <LinkOutlined />
+                                    <Button 
+                                        type="primary" 
+                                        ghost
+                                        onClick={handleViewStudents}
+                                        disabled={!classId}
+                                    >
+                                        View <LinkOutlined />
                                     </Button>
                                 </Card>
 

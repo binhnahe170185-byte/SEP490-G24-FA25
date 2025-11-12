@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../CreateSchedule.css';
 import { api } from '../../../../vn.fpt.edu.api/http';
 import SubjectList from '../../../../vn.fpt.edu.api/SubjectList';
+import { notification } from 'antd';
 
 const PickSemesterAndClass = ({
   semesterId,
@@ -15,6 +16,8 @@ const PickSemesterAndClass = ({
   onSubjectChange,
   onLoadClass
 }) => {
+  const [notificationApi, contextHolder] = notification.useNotification();
+  
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
@@ -117,8 +120,13 @@ const PickSemesterAndClass = ({
           status: error.response?.status
         });
         setSubjectOptions([]);
-        // Show alert to user
-        alert('Failed to load subjects. Please refresh the page or contact support.');
+        // Show error notification to user
+        notificationApi.error({
+          message: 'Error',
+          description: 'Failed to load subjects. Please refresh the page or contact support.',
+          placement: 'bottomRight',
+          duration: 5,
+        });
       } finally {
         setLoadingSubjects(false);
       }
@@ -134,11 +142,21 @@ const PickSemesterAndClass = ({
 
   const handleLoadClass = async () => {
     if (!semesterId) {
-      alert('Please select a semester');
+      notificationApi.error({
+        message: 'Error',
+        description: 'Please select a semester',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       return;
     }
     if (!classId) {
-      alert('Please select a class');
+      notificationApi.error({
+        message: 'Error',
+        description: 'Please select a class',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       return;
     }
 
@@ -165,7 +183,12 @@ const PickSemesterAndClass = ({
       }
     } catch (error) {
       console.error('Failed to load schedule:', error);
-      alert('Failed to load class schedule. Please try again.');
+      notificationApi.error({
+        message: 'Error',
+        description: 'Failed to load class schedule. Please try again.',
+        placement: 'bottomRight',
+        duration: 5,
+      });
     } finally {
       setLoadingSchedule(false);
     }
@@ -175,6 +198,7 @@ const PickSemesterAndClass = ({
   const displaySemesters = semesterOptions.length > 0 ? semesterOptions : semesters;
   return (
     <div className="create-schedule-card">
+      {contextHolder}
       <h3>Pick Semester & Class</h3>
       <div className="create-schedule-row">
         <div>
