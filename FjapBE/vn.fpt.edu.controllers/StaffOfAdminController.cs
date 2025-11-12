@@ -3,6 +3,10 @@ using FJAP.vn.fpt.edu.models;
 using FJAP.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace FJAP.Controllers;
 
@@ -17,6 +21,75 @@ public class StaffOfAdminController : ControllerBase
     {
         _adminService = adminService;
         _db = dbContext;
+    }
+
+    // Helper method để resize ảnh và convert sang base64
+    private async Task<string?> ProcessAvatarToBase64Async(IFormFile? avatarFile)
+    {
+        if (avatarFile == null || avatarFile.Length == 0)
+            return null;
+
+        // Validate file type
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        var extension = Path.GetExtension(avatarFile.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+        {
+            throw new ArgumentException($"File type không được hỗ trợ. Chỉ chấp nhận: {string.Join(", ", allowedExtensions)}");
+        }
+
+        // Validate file size (max 5MB)
+        const long maxFileSize = 5 * 1024 * 1024; // 5MB
+        if (avatarFile.Length > maxFileSize)
+        {
+            throw new ArgumentException("File size không được vượt quá 5MB");
+        }
+
+        try
+        {
+            // Đọc ảnh từ stream
+            using var imageStream = new MemoryStream();
+            await avatarFile.CopyToAsync(imageStream);
+            imageStream.Position = 0;
+
+            // Load và resize ảnh
+            using var image = await Image.LoadAsync(imageStream);
+            
+            // Resize về 200x200 (giữ tỷ lệ, crop nếu cần)
+            const int maxSize = 200;
+            var resizeOptions = new ResizeOptions
+            {
+                Size = new Size(maxSize, maxSize),
+                Mode = ResizeMode.Crop, // Crop để đảm bảo hình vuông
+                Sampler = KnownResamplers.Lanczos3
+            };
+            
+            image.Mutate(x => x.Resize(resizeOptions));
+
+            // Convert sang base64
+            using var outputStream = new MemoryStream();
+            
+            // Xác định format và encoder
+            if (extension == ".png")
+            {
+                await image.SaveAsync(outputStream, new PngEncoder { CompressionLevel = PngCompressionLevel.BestCompression });
+            }
+            else
+            {
+                // JPEG cho các format khác (jpg, jpeg, gif, webp)
+                await image.SaveAsync(outputStream, new JpegEncoder { Quality = 85 });
+            }
+
+            var imageBytes = outputStream.ToArray();
+            var base64String = Convert.ToBase64String(imageBytes);
+            
+            // Trả về data URL format: data:image/jpeg;base64,{base64}
+            var mimeType = extension == ".png" ? "image/png" : "image/jpeg";
+            return $"data:{mimeType};base64,{base64String}";
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Lỗi khi xử lý ảnh: {ex.Message}");
+        }
     }
 
     // ===================== Users (list) =====================
@@ -148,11 +221,91 @@ public class StaffOfAdminController : ControllerBase
         return Ok(new { code = 200, data = item });
     }
 
-    [HttpPost("users")]
-    public async Task<IActionResult> Create([FromBody] CreateStaffRequest request)
+    // ===================== Upload Avatar =====================
+    [HttpPost("users/avatar")]
+    public async Task<IActionResult> UploadAvatar(IFormFile avatar)
     {
         try
         {
+            if (avatar == null || avatar.Length == 0)
+            {
+                return BadRequest(new { code = 400, message = "Không có file được upload" });
+            }
+
+            var avatarBase64 = await ProcessAvatarToBase64Async(avatar);
+            
+            return Ok(new { 
+                code = 200, 
+                message = "Upload avatar thành công",
+                data = new { avatarUrl = avatarBase64 }
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error uploading avatar: {ex.Message}");
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "Lỗi khi upload avatar", 
+                error = ex.Message 
+            });
+        }
+    }
+
+    // ===================== Create User =====================
+    [HttpPost("users")]
+    public async Task<IActionResult> Create([FromBody] CreateStaffRequest? request)
+    {
+        try
+        {
+            // Debug logging
+            Console.WriteLine($"=== Create User Request ===");
+            Console.WriteLine($"Content-Type: {Request.ContentType}");
+            Console.WriteLine($"HasFormContentType: {Request.HasFormContentType}");
+            Console.WriteLine($"Request is null: {request == null}");
+            
+            if (request == null)
+            {
+                // Try to read raw body for debugging
+                Request.EnableBuffering();
+                using var reader = new StreamReader(Request.Body, leaveOpen: true);
+                var body = await reader.ReadToEndAsync();
+                Request.Body.Position = 0;
+                Console.WriteLine($"Raw request body length: {body.Length}");
+                Console.WriteLine($"Raw request body preview (first 500 chars): {body.Substring(0, Math.Min(500, body.Length))}");
+                
+                // Try to parse manually
+                try
+                {
+                    var jsonOptions = new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                    };
+                    jsonOptions.Converters.Add(new FJAP.Infrastructure.JsonConverters.DateOnlyJsonConverter());
+                    request = System.Text.Json.JsonSerializer.Deserialize<CreateStaffRequest>(body, jsonOptions);
+                    Console.WriteLine($"Manual parse successful: {request != null}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Manual parse failed: {ex.Message}");
+                }
+                
+                if (request == null)
+                {
+                    return BadRequest(new { code = 400, message = "Request body không hợp lệ hoặc không đúng format" });
+                }
+            }
+            
+            Console.WriteLine($"Request data - FirstName: {request.FirstName}, Email: {request.Email}, RoleId: {request.RoleId}, Dob: {request.Dob}");
+
+            // Avatar đã được frontend convert sang base64 và gửi trong request.Avatar
+            // Không cần xử lý file upload ở đây, chỉ lưu base64 string vào DB
+            string? avatarBase64 = string.IsNullOrWhiteSpace(request.Avatar) ? null : request.Avatar;
+
             // Model validation
             if (!ModelState.IsValid)
             {
@@ -235,7 +388,7 @@ public class StaffOfAdminController : ControllerBase
                 Gender = request.Gender,
                 Dob = request.Dob,
                 Address = string.IsNullOrWhiteSpace(request.Address) ? "" : request.Address.Trim(),
-                Avatar = request.Avatar,
+                Avatar = avatarBase64,
                 RoleId = request.RoleId,
                 DepartmentId = request.DepartmentId,
                 Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status

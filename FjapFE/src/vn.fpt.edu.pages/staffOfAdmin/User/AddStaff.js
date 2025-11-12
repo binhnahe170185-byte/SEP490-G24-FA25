@@ -1,11 +1,11 @@
 // src/vn.fpt.edu.pages/admin/AddStaff.js
 import React, { useState, useEffect } from "react";
 import {
-  Card, Form, Input, Select, DatePicker, Button, Row, Col, message, Space, Typography, Divider, Alert, Modal
+  Card, Form, Input, Select, DatePicker, Button, Row, Col, message, Space, Typography, Divider, Alert, Modal, Upload
 } from "antd";
 import {
   UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined,
-  IdcardOutlined, CalendarOutlined, SaveOutlined, ReloadOutlined, CheckCircleTwoTone, CloseCircleTwoTone
+  IdcardOutlined, CalendarOutlined, SaveOutlined, ReloadOutlined, CheckCircleTwoTone, CloseCircleTwoTone, UploadOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -38,6 +38,8 @@ export default function AddStaff() {
   const [successInfo, setSuccessInfo] = useState({ userId: null, roleLabel: "", departmentName: "" });
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
 
   // Load departments
   useEffect(() => {
@@ -175,7 +177,7 @@ export default function AddStaff() {
         gender: values.gender || "Other",
         dob: dob,
         address: values.address?.trim() || "", // Empty string instead of null (backend requires non-null)
-        avatar: null, // Avatar is nullable in backend
+        avatar: null, // Will be set to base64 if avatarFile exists
         roleId: roleId,
         departmentId: values.departmentId ? Number(values.departmentId) : null,
         status: "Active",
@@ -203,7 +205,62 @@ export default function AddStaff() {
         userData.phoneNumber = userData.phoneNumber.replace(/[\s-]/g, "");
       }
 
-      // Call API - same pattern as AddSemester
+      // Convert avatar file to base64 if exists (resize to 200x200 first)
+      if (avatarFile) {
+        try {
+          // Resize and convert to base64
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new Image();
+              img.onload = () => {
+                // Create canvas to resize image
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxSize = 200;
+                
+                // Calculate dimensions (crop to square)
+                let width = img.width;
+                let height = img.height;
+                let x = 0;
+                let y = 0;
+                
+                if (width > height) {
+                  x = (width - height) / 2;
+                  width = height;
+                } else {
+                  y = (height - width) / 2;
+                  height = width;
+                }
+                
+                canvas.width = maxSize;
+                canvas.height = maxSize;
+                
+                // Draw resized image
+                ctx.drawImage(img, x, y, width, height, 0, 0, maxSize, maxSize);
+                
+                // Convert to base64 (use JPEG for smaller size, quality 0.75 to reduce size)
+                const base64String = canvas.toDataURL('image/jpeg', 0.75);
+                console.log(`Avatar base64 length: ${base64String.length} characters`);
+                resolve(base64String);
+              };
+              img.onerror = reject;
+              img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(avatarFile);
+          });
+          
+          userData.avatar = base64;
+        } catch (error) {
+          console.error("Error converting avatar to base64:", error);
+          message.error("Lỗi khi xử lý ảnh avatar");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Call API with JSON (avatar is now base64 string in userData.avatar)
       const response = await AdminApi.createUser(userData);
       
       // If we reach here, API call succeeded (no exception thrown)
@@ -221,6 +278,8 @@ export default function AddStaff() {
       setTimeout(() => {
         form.resetFields();
         setStaffType(null);
+        setAvatarFile(null);
+        setAvatarPreview(null);
       }, 500);
     } catch (error) {
       console.error("Error creating user:", error);
@@ -255,6 +314,42 @@ export default function AddStaff() {
   const handleReset = () => {
     form.resetFields();
     setStaffType(null);
+    setAvatarFile(null);
+    setAvatarPreview(null);
+  };
+
+  // Handle avatar upload
+  const handleAvatarChange = (info) => {
+    const file = info.file;
+    
+    // Validate file type
+    const isImage = file.type?.startsWith('image/');
+    if (!isImage) {
+      message.error('Chỉ chấp nhận file ảnh!');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('File size không được vượt quá 5MB!');
+      return;
+    }
+
+    // Set file and preview
+    setAvatarFile(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAvatarPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAvatarRemove = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
   };
 
   return (
@@ -505,6 +600,57 @@ export default function AddStaff() {
               placeholder="Enter address (optional)"
               rows={2}
             />
+          </Form.Item>
+
+          {/* Avatar Upload */}
+          <Form.Item
+            label={<strong>Avatar</strong>}
+            style={{ marginBottom: 16 }}
+          >
+            <Upload
+              name="avatar"
+              listType="picture-card"
+              showUploadList={false}
+              beforeUpload={() => false} // Prevent auto upload
+              onChange={handleAvatarChange}
+              accept="image/*"
+              maxCount={1}
+            >
+              {avatarPreview ? (
+                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                  <img
+                    src={avatarPreview}
+                    alt="avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }}
+                  />
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAvatarRemove();
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      background: 'rgba(255, 255, 255, 0.8)',
+                    }}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <UploadOutlined />
+                  <div style={{ marginTop: 8 }}>Upload Avatar</div>
+                </div>
+              )}
+            </Upload>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#8c8c8c' }}>
+              Chỉ chấp nhận file ảnh (JPG, PNG, GIF, WEBP), tối đa 5MB. Ảnh sẽ được resize về 200x200px.
+            </div>
           </Form.Item>
 
           {/* Info Alert */}

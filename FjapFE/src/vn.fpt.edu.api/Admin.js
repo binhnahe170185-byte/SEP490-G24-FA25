@@ -157,7 +157,11 @@ const AdminApi = {
   // DETAIL / CRUD
   getUserById: (id) => api.get(`/api/StaffOfAdmin/users/${id}`).then(unwrap),
   createUser: (payload) => {
-    return api.post("/api/StaffOfAdmin/users", payload)
+    return api.post("/api/StaffOfAdmin/users", payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
       .then((res) => {
         // For POST requests, preserve the full response structure
         // Backend returns: { code: 201, data: {...} }
