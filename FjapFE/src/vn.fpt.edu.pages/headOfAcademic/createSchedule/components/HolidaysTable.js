@@ -11,7 +11,7 @@ const HolidaysTable = ({ data = [], semesterName = '' }) => {
             <th>Date</th>
             <th>Reason</th>
           </tr>
-        </thead>
+        </thead>   
         <tbody>
           {data.map((h, idx) => (
             <tr key={idx}>
