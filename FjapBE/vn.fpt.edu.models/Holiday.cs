@@ -1,31 +1,19 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System;
+using System.Collections.Generic;
 
-namespace FJAP.vn.fpt.edu.models
+namespace FJAP.vn.fpt.edu.models;
+
+public partial class Holiday
 {
-    [Table("holiday")]
-    public partial class Holiday
-    {
-        [Key]
-        [Column("holidayId")]
-        public int HolidayId { get; set; }
+    public int HolidayId { get; set; }
 
-        [Column("semesterId")]
-        public int SemesterId { get; set; }
+    public int SemesterId { get; set; }
 
-        [Required]
-        [StringLength(200)]
-        [Column("holidayName")]
-        public string Name { get; set; } = null!;
+    public string HolidayName { get; set; } = null!;
 
-        [Column("holidayDate", TypeName = "date")]
-        public DateOnly Date { get; set; }
+    public DateOnly HolidayDate { get; set; }
 
-        [Column("description", TypeName = "TEXT")]
-        public string? Description { get; set; }
+    public string? Description { get; set; }
 
-        // Navigation properties
-        [ForeignKey("SemesterId")]
-        public virtual Semester? Semester { get; set; }
-    }
+    public virtual Semester Semester { get; set; } = null!;
 }

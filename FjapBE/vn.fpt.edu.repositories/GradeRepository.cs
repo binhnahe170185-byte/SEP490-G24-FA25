@@ -28,10 +28,10 @@ namespace FJAP.Repositories
                 query = query.Where(g => g.SubjectId == filter.SubjectId.Value);
 
             if (filter.LevelId.HasValue)
-                query = query.Where(g => g.Student.LevelId == filter.LevelId.Value);
+                query = query.Where(g => g.Student != null && g.Student.LevelId == filter.LevelId.Value);
 
             if (filter.SemesterId.HasValue)
-                query = query.Where(g => g.Student.SemesterId == filter.SemesterId.Value);
+                query = query.Where(g => g.Student != null && g.Student.SemesterId == filter.SemesterId.Value);
 
             if (!string.IsNullOrWhiteSpace(filter.Status))
                 query = query.Where(g => g.Status == filter.Status);
@@ -40,9 +40,15 @@ namespace FJAP.Repositories
             if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
             {
                 var searchTerm = filter.SearchTerm.Trim().ToLower();
-                query = query.Where(g => 
-                    g.Student.StudentCode.ToLower().Contains(searchTerm) ||
-                    (g.Student.User.FirstName + " " + g.Student.User.LastName).ToLower().Contains(searchTerm)
+                query = query.Where(g =>
+                    (g.Student != null &&
+                     g.Student.StudentCode != null &&
+                     g.Student.StudentCode.ToLower().Contains(searchTerm)) ||
+                    (g.Student != null &&
+                     g.Student.User != null &&
+                     ((g.Student.User.FirstName ?? string.Empty) + " " + (g.Student.User.LastName ?? string.Empty))
+                        .ToLower()
+                        .Contains(searchTerm))
                 );
             }
 
@@ -58,16 +64,18 @@ namespace FJAP.Repositories
                 {
                     GradeId = g.GradeId,
                     StudentId = g.StudentId,
-                    StudentCode = g.Student.StudentCode ?? "",
-                    StudentName = g.Student.User.FirstName + " " + g.Student.User.LastName,
+                    StudentCode = g.Student.StudentCode ?? string.Empty,
+                    StudentName = g.Student != null && g.Student.User != null
+                        ? (g.Student.User.FirstName + " " + g.Student.User.LastName).Trim()
+                        : string.Empty,
                     SubjectId = g.SubjectId,
-                    SubjectCode = g.Subject.SubjectCode,
-                    SubjectName = g.Subject.SubjectName,
+                    SubjectCode = g.Subject != null ? g.Subject.SubjectCode : string.Empty,
+                    SubjectName = g.Subject != null ? g.Subject.SubjectName : string.Empty,
                     FinalScore = g.FinalScore,
                     Status = g.Status ?? "In Progress",
                     UpdatedAt = g.UpdatedAt,
-                    LevelName = g.Student.Level.LevelName,
-                    SemesterName = g.Student.Semester != null ? g.Student.Semester.Name : null
+                    LevelName = g.Student != null && g.Student.Level != null ? g.Student.Level.LevelName : null,
+                    SemesterName = g.Student != null && g.Student.Semester != null ? g.Student.Semester.Name : null
                 })
                 .ToListAsync();
 
@@ -92,12 +100,16 @@ namespace FJAP.Repositories
                     GradeId = g.GradeId,
                     StudentId = g.StudentId,
                     StudentCode = g.Student.StudentCode ?? "",
-                    StudentName = g.Student.User.FirstName + " " + g.Student.User.LastName,
-                    StudentEmail = g.Student.User.Email,
+                    StudentName = g.Student != null && g.Student.User != null
+                        ? (g.Student.User.FirstName + " " + g.Student.User.LastName).Trim()
+                        : string.Empty,
+                    StudentEmail = g.Student != null && g.Student.User != null
+                        ? g.Student.User.Email
+                        : string.Empty,
                     SubjectId = g.SubjectId,
-                    SubjectCode = g.Subject.SubjectCode,
-                    SubjectName = g.Subject.SubjectName,
-                    PassMark = g.Subject.PassMark,
+                    SubjectCode = g.Subject != null ? g.Subject.SubjectCode : string.Empty,
+                    SubjectName = g.Subject != null ? g.Subject.SubjectName : string.Empty,
+                    PassMark = g.Subject != null ? (decimal?)g.Subject.PassMark : null,
                     FinalScore = g.FinalScore,
                     Status = g.Status ?? "In Progress",
                     CreatedAt = g.CreatedAt,
@@ -106,9 +118,9 @@ namespace FJAP.Repositories
                     {
                         GradeTypeId = gt.GradeTypeId,
                         SubjectGradeTypeId = gt.SubjectGradeTypeId,
-                        GradeTypeName = gt.SubjectGradeType.GradeTypeName,
-                        Weight = gt.SubjectGradeType.Weight,
-                        MaxScore = gt.SubjectGradeType.MaxScore,
+                        GradeTypeName = gt.SubjectGradeType != null ? gt.SubjectGradeType.GradeTypeName : string.Empty,
+                        Weight = gt.SubjectGradeType != null ? gt.SubjectGradeType.Weight : 0,
+                        MaxScore = gt.SubjectGradeType != null ? gt.SubjectGradeType.MaxScore : 0,
                         Score = gt.Score,
                         Comment = gt.Comment,
                         Status = gt.Status ?? "Pending",
@@ -186,10 +198,10 @@ namespace FJAP.Repositories
                     query = query.Where(g => g.SubjectId == filter.SubjectId.Value);
 
                 if (filter.LevelId.HasValue)
-                    query = query.Where(g => g.Student.LevelId == filter.LevelId.Value);
+                    query = query.Where(g => g.Student != null && g.Student.LevelId == filter.LevelId.Value);
 
                 if (filter.SemesterId.HasValue)
-                    query = query.Where(g => g.Student.SemesterId == filter.SemesterId.Value);
+                    query = query.Where(g => g.Student != null && g.Student.SemesterId == filter.SemesterId.Value);
             }
 
             var stats = await query

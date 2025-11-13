@@ -23,7 +23,5 @@ public partial class Homework
 
     public virtual ICollection<HomeworkSubmission> HomeworkSubmissions { get; set; } = new List<HomeworkSubmission>();
 
-    public virtual ICollection<HomeworkType> HomeworkTypes { get; set; } = new List<HomeworkType>();
-
     public virtual Lesson Lesson { get; set; } = null!;
 }

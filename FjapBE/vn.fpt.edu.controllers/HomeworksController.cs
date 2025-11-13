@@ -180,7 +180,6 @@ public class HomeworksController : ControllerBase
                 submittedAt = s.CreatedAt,
                 status = s.Status,
                 comment = s.Comment,
-                feedback = s.Feedback,
                 filePath = s.FilePath
             })
             .ToListAsync();
@@ -195,7 +194,6 @@ public class HomeworksController : ControllerBase
             sub.submittedAt,
             sub.status,
             sub.comment,
-            sub.feedback,
             filePath = BuildFileUrl(sub.filePath)
         });
 
@@ -237,11 +235,6 @@ public class HomeworksController : ControllerBase
             submission.Comment = request.Comment.Trim();
         }
 
-        if (request.Feedback != null)
-        {
-            submission.Feedback = request.Feedback.Trim();
-        }
-
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -260,7 +253,6 @@ public class HomeworksController : ControllerBase
                 submittedAt = submission.CreatedAt,
                 status = submission.Status,
                 comment = submission.Comment,
-                feedback = submission.Feedback,
                 filePath = BuildFileUrl(submission.FilePath)
             }
         });

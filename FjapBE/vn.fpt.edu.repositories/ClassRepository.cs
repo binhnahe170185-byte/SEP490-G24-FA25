@@ -564,7 +564,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         // Get holidays for this semester
         var holidays = await _context.Holidays
             .Where(h => h.SemesterId == request.SemesterId)
-            .Select(h => h.Date)
+            .Select(h => h.HolidayDate)
             .ToListAsync();
 
         Console.WriteLine($"Holidays count: {holidays.Count}");

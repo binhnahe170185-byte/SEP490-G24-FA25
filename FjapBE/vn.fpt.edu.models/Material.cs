@@ -9,21 +9,21 @@ public partial class Material
 
     public string Title { get; set; } = null!;
 
+    public string? FileUrl { get; set; }
+
     public string? Description { get; set; }
 
-    public string FileUrl { get; set; } = null!;
+    public DateTime? CreatedAt { get; set; }
 
-    public string Status { get; set; } = null!;
+    public DateTime? UpdatedAt { get; set; }
 
-    public int SubjectId { get; set; }
+    public string? Status { get; set; }
 
     public int? CreatedBy { get; set; }
 
     public int? UpdatedBy { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
+    public int SubjectId { get; set; }
 
     public virtual User? CreatedByNavigation { get; set; }
 
