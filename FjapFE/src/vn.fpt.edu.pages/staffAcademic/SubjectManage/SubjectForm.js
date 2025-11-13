@@ -46,6 +46,7 @@ export default function SubjectForm({ mode = "create" }) {
         description: data.description,
         passMark: data.passMark,
         levelId: data.levelId,
+        totalLesson: data.totalLesson || 0,
         gradeTypes: gradeTypes,
       });
     } catch (error) {
@@ -389,6 +390,7 @@ export default function SubjectForm({ mode = "create" }) {
         autoComplete="off"
         initialValues={{
           passMark: 5.0,
+          totalLesson: 0,
         }}
       >
         <div style={{ marginBottom: 24 }}>
@@ -425,7 +427,7 @@ export default function SubjectForm({ mode = "create" }) {
             />
           </Form.Item>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
             <Form.Item
               label="Pass Mark"
               name="passMark"
@@ -455,6 +457,22 @@ export default function SubjectForm({ mode = "create" }) {
                   label: item.name,
                 }))}
                 allowClear
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Total Lesson"
+              name="totalLesson"
+              rules={[
+                { required: true, message: "Please enter the total lesson" },
+                { type: "number", min: 1, message: "Total lesson must be at least 1" },
+              ]}
+            >
+              <InputNumber
+                style={{ width: "100%" }}
+                placeholder="e.g., 30"
+                min={1}
+                precision={0}
               />
             </Form.Item>
           </div>

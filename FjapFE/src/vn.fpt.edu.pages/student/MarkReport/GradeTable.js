@@ -28,23 +28,23 @@ export default function GradeTable({ course, studentId }) {
 
   const columns = [
     {
-      title: "Grade category",
+      title: "",
       dataIndex: "category",
       key: "category",
-      width: 200,
+      width: 100,
     },
     {
       title: "Grade item",
       dataIndex: "item",
       key: "item",
-      width: 200,
+      width: 150,
     },
     {
       title: "Weight",
       dataIndex: "weight",
       key: "weight",
       align: "center",
-      width: 120,
+      width: 100,
       render: (value) => (value ? `${value} %` : ""),
     },
     {
@@ -98,7 +98,7 @@ export default function GradeTable({ course, studentId }) {
       category: "",
       item: "Status",
       weight: "",
-      value: gradeDetails.status,
+      value: gradeDetails.status === "Completed" ? "Passed" : gradeDetails.status,
       comment: "",
     });
 
@@ -137,13 +137,13 @@ export default function GradeTable({ course, studentId }) {
           </div>
           <Tag 
             color={
-              gradeDetails.status === "Completed" ? "green" : 
+              gradeDetails.status === "Completed" || gradeDetails.status === "Passed" ? "green" : 
               gradeDetails.status === "Failed" ? "red" : 
               "default"
             } 
             style={{ fontSize: 14, padding: "4px 12px" }}
           >
-            {gradeDetails.status}
+            {gradeDetails.status === "Completed" ? "Passed" : gradeDetails.status}
           </Tag>
         </div>
       }

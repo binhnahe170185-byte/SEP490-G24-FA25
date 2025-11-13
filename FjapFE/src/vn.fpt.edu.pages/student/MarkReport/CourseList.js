@@ -44,21 +44,21 @@ export default function CourseList({ courses, selectedCourse, onSelectCourse, se
                 <Tag color="blue" style={{ margin: 0 }}>
                   {course.subjectCode}
                 </Tag>
-                {course.status === "Showing" && (
-                  <Tag color="green" style={{ margin: 0 }}>
-                    <CheckCircleOutlined /> {course.status}
-                  </Tag>
-                )}
                 <Tag 
                   color={
-                    course.gradeStatus === "Completed" ? "success" : 
+                    course.gradeStatus === "Completed" || course.gradeStatus === "Passed" ? "success" : 
                     course.gradeStatus === "Failed" ? "error" : 
                     "default"
                   } 
                   style={{ margin: 0 }}
                 >
-                  {course.gradeStatus}
+                  {course.gradeStatus === "Completed" ? "Passed" : course.gradeStatus}
                 </Tag>
+                {selectedCourse?.courseId === course.courseId && course.status === "Showing" && (
+                  <Tag color="green" style={{ margin: 0 }}>
+                    <CheckCircleOutlined /> {course.status}
+                  </Tag>
+                )}
               </div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>
                 {course.subjectName}

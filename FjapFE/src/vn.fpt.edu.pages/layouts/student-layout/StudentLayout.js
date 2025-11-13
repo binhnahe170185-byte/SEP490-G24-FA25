@@ -58,7 +58,7 @@ const StudentLayout = ({ children }) => {
     },
     {
       key: '/student/grades',
-      label: 'Grades',
+      label: 'Mark Report',
       icon: <BookOutlined />,
       path: '/student/grades'
     },
