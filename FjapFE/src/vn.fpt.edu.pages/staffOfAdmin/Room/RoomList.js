@@ -48,12 +48,7 @@ export default function RoomList({ title = "Room Management" }) {
   });
   
   const openEdit = (record) => {
-    navigate("/staffOfAdmin", { 
-      state: { 
-        activeTab: "rooms:edit",
-        roomId: record.id 
-      } 
-    });
+    navigate(`/staffOfAdmin/rooms/edit/${record.id}`);
   };
 
   const closeModal = () => {

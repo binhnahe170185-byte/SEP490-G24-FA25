@@ -42,6 +42,11 @@ public class ImportStudentRow
     
     public string? PhoneNumber { get; set; }
     
+    /// <summary>
+    /// Avatar URL from Google Form response (will be downloaded and processed to base64)
+    /// </summary>
+    public string? AvatarUrl { get; set; }
+    
     // Auto-generated fields (will be set by backend)
     public string? StudentCode { get; set; }
     
@@ -72,6 +77,11 @@ public class ImportStudentPreviewRow
     public DateOnly Dob { get; set; }
     public string? Address { get; set; }
     public string? PhoneNumber { get; set; }
+    
+    /// <summary>
+    /// Avatar URL from Google Form response
+    /// </summary>
+    public string? AvatarUrl { get; set; }
     
     // Auto-generated
     public string? StudentCode { get; set; }

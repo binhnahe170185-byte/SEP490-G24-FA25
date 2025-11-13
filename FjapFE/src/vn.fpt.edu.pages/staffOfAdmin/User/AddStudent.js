@@ -853,7 +853,7 @@ export default function AddStudent() {
         title={<span><CheckCircleTwoTone twoToneColor="#52c41a" /> <span style={{ marginLeft: 8 }}>Student created successfully</span></span>}
         onOk={() => {
           setSuccessModalOpen(false);
-          navigate("/staffOfAdmin", { state: { activeTab: "users:list:student" } });
+          navigate("/staffOfAdmin/users/student");
         }}
         onCancel={() => {
           setSuccessModalOpen(false);
@@ -880,7 +880,7 @@ export default function AddStudent() {
         title={<span><CloseCircleTwoTone twoToneColor="#ff4d4f" /> <span style={{ marginLeft: 8 }}>Failed to create student</span></span>}
         onOk={() => {
           setErrorModalOpen(false);
-          navigate("/staffOfAdmin", { state: { activeTab: "users:list:student" } });
+          navigate("/staffOfAdmin/users/student");
         }}
         onCancel={() => {
           setErrorModalOpen(false);

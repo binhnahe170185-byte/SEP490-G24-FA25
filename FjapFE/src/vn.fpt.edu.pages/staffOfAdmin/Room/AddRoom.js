@@ -113,7 +113,7 @@ export default function AddRoom() {
   };
 
   const handleCancel = () => {
-    navigate("/staffOfAdmin", { state: { activeTab: "rooms:list" } });
+    navigate("/staffOfAdmin/rooms");
   };
 
   return (
@@ -225,7 +225,7 @@ export default function AddRoom() {
         }
         onOk={() => {
           setSuccessModalOpen(false);
-          navigate("/staffOfAdmin", { state: { activeTab: "rooms:list" } });
+          navigate("/staffOfAdmin/rooms");
         }}
         onCancel={() => {
           setSuccessModalOpen(false);
@@ -261,7 +261,7 @@ export default function AddRoom() {
         }
         onOk={() => {
           setErrorModalOpen(false);
-          navigate("/staffOfAdmin", { state: { activeTab: "rooms:list" } });
+          navigate("/staffOfAdmin/rooms");
         }}
         onCancel={() => setErrorModalOpen(false)}
         okText="Back to room list"

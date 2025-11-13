@@ -55,6 +55,12 @@ import SemesterList from "../vn.fpt.edu.pages/staffOfAdmin/Semester/SemesterList
 import AddSemesterWithHolidays from "../vn.fpt.edu.pages/staffOfAdmin/Semester/AddSemesterWithHolidays";
 import EditSemester from "../vn.fpt.edu.pages/staffOfAdmin/Semester/EditSemester";
 import AdministrationStaffList from "../vn.fpt.edu.pages/headOfAdmin/AdministrationStaffList";
+import UsersList from "../vn.fpt.edu.pages/staffOfAdmin/User/UserList";
+import AddStaff from "../vn.fpt.edu.pages/staffOfAdmin/User/AddStaff";
+import AddStudent from "../vn.fpt.edu.pages/staffOfAdmin/User/AddStudent";
+import RoomList from "../vn.fpt.edu.pages/staffOfAdmin/Room/RoomList";
+import AddRoom from "../vn.fpt.edu.pages/staffOfAdmin/Room/AddRoom";
+import EditRoom from "../vn.fpt.edu.pages/staffOfAdmin/Room/EditRoom";
 import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 import { NotificationProvider } from "../vn.fpt.edu.common/notifications";
@@ -213,13 +219,33 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route
-                path="/staffOfAdmin"
+                path="/staffOfAdmin/*"
                 element={
                   <RequireAdministrationStaff>
                     <StaffOfAdminPage />
                   </RequireAdministrationStaff>
                 }
-              />
+              >
+                <Route index element={<Navigate to="users/head" replace />} />
+                {/* User Management Routes */}
+                <Route path="users/admin" element={<UsersList fixedRole={1} title="View List Admin" />} />
+                <Route path="users/head" element={<UsersList fixedRole={[5, 2]} title="View List Head" />} />
+                <Route path="users/staff" element={<UsersList fixedRole={[7, 6]} title="View List Staff" />} />
+                <Route path="users/lecturer" element={<UsersList fixedRole={3} title="View List Lecturer" />} />
+                <Route path="users/student" element={<UsersList fixedRole={4} title="View List Student" />} />
+                <Route path="users/add/staff" element={<AddStaff />} />
+                <Route path="users/add/student" element={<AddStudent />} />
+                {/* Room Management Routes */}
+                <Route path="rooms" element={<RoomList title="Room Management" />} />
+                <Route path="rooms/add" element={<AddRoom />} />
+                <Route path="rooms/edit/:id" element={<EditRoom />} />
+                {/* Semester Management Routes */}
+                <Route path="semesters" element={<SemesterList title="Semester List" />} />
+                <Route path="semesters/add" element={<AddSemesterWithHolidays />} />
+                <Route path="semesters/edit/:id" element={<EditSemester />} />
+                {/* News Management Routes */}
+                <Route path="news" element={<NewsList title="List News - Staff of Administration Department" />} />
+              </Route>
 
               <Route element={<ProtectedLayout />}>
                 <Route

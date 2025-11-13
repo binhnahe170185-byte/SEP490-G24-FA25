@@ -1,24 +1,13 @@
 // src/vn.fpt.edu.pages/admin/AdminPage.js
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Layout, Menu, Button, Space, Typography, Card } from "antd";
+import React, { useState, useMemo } from "react";
+import { useLocation, useNavigate, Outlet } from "react-router-dom";
+import { Layout, Menu, Button, Space, Typography } from "antd";
 import {
-  TeamOutlined, UserAddOutlined, EditOutlined,
-  AppstoreOutlined, SettingOutlined, CalendarOutlined,
+  TeamOutlined, UserAddOutlined,
+  AppstoreOutlined, CalendarOutlined,
   BellOutlined, UserOutlined, LogoutOutlined, FileTextOutlined,
-  IdcardOutlined, BookOutlined, PlusCircleOutlined, HomeOutlined,
+  IdcardOutlined, BookOutlined, PlusCircleOutlined,
 } from "@ant-design/icons";
-import UsersList from "./User/UserList";
-import SemesterList from "./Semester/SemesterList";
-import AddSemester from "./Semester/AddSemester";
-import AddSemesterWithHolidays from "./Semester/AddSemesterWithHolidays";
-import EditSemester from "./Semester/EditSemester";
-import NewsList from "./News/NewsList";
-import AddStaff from "./User/AddStaff";
-import AddStudent from "./User/AddStudent";
-import RoomList from "./Room/RoomList";
-import AddRoom from "./Room/AddRoom";
-import EditRoom from "./Room/EditRoom";
 import { useAuth } from "../login/AuthContext";
 import "./staffOfAdmin.css";
 
@@ -38,18 +27,42 @@ const COLORS = {
   menuText: "#0f2a5a",
 };
 
-const roleIdFromKey = (key) => {
-  if (key.endsWith(":admin")) return 1; // Admin
-  if (key.endsWith(":head")) return [5, 2]; // Head roles: 5 (Academic_Head), 2 (Administration_Head)
-  if (key.endsWith(":staff")) return [7, 6]; // Staff roles: 7 (Academic_Staff), 6 (Administration_Staff)
-  if (key.endsWith(":lecturer")) return 3; // Lecturer role: 3
-  if (key.endsWith(":student")) return 4; // Student role: 4
-  return undefined;
+// Map menu keys to URL paths
+const keyToPath = (key) => {
+  const pathMap = {
+    "users:list:admin": "/staffOfAdmin/users/admin",
+    "users:list:head": "/staffOfAdmin/users/head",
+    "users:list:staff": "/staffOfAdmin/users/staff",
+    "users:list:lecturer": "/staffOfAdmin/users/lecturer",
+    "users:list:student": "/staffOfAdmin/users/student",
+    "users:add:staff": "/staffOfAdmin/users/add/staff",
+    "users:add:student": "/staffOfAdmin/users/add/student",
+    "rooms:list": "/staffOfAdmin/rooms",
+    "rooms:add": "/staffOfAdmin/rooms/add",
+    "sem:list": "/staffOfAdmin/semesters",
+    "sem:add": "/staffOfAdmin/semesters/add",
+    "news:list": "/staffOfAdmin/news",
+  };
+  return pathMap[key] || null;
 };
 
-// Check if key is for adding staff (includes head, staff, lecturer)
-const isAddStaffKey = (key) => {
-  return key === "users:add:staff";
+// Map URL path to menu key
+const pathToKey = (pathname) => {
+  if (pathname.includes("/users/admin")) return "users:list:admin";
+  if (pathname.includes("/users/head")) return "users:list:head";
+  if (pathname.includes("/users/staff") && !pathname.includes("/add")) return "users:list:staff";
+  if (pathname.includes("/users/lecturer")) return "users:list:lecturer";
+  if (pathname.includes("/users/student") && !pathname.includes("/add")) return "users:list:student";
+  if (pathname.includes("/users/add/staff")) return "users:add:staff";
+  if (pathname.includes("/users/add/student")) return "users:add:student";
+  if (pathname.includes("/rooms/edit")) return "rooms:list"; // Edit route should highlight list
+  if (pathname.includes("/rooms/add")) return "rooms:add";
+  if (pathname.includes("/rooms")) return "rooms:list";
+  if (pathname.includes("/semesters/edit")) return "sem:list"; // Edit route should highlight list
+  if (pathname.includes("/semesters/add")) return "sem:add";
+  if (pathname.includes("/semesters")) return "sem:list";
+  if (pathname.includes("/news")) return "news:list";
+  return "users:list:head"; // default
 };
 
 const ADMIN_MENU = [
@@ -96,104 +109,22 @@ export default function StaffOfAdminPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [activeKey, setActiveKey] = useState(() => {
-    // Initialize from location state on mount
-    return location?.state?.activeTab || "users:list:head";
-  });
 
-  // Sync active tab from navigation state when navigating from other pages
-  useEffect(() => {
-    const stateKey = location?.state?.activeTab;
-    if (typeof stateKey === "string") {
-      setActiveKey(stateKey);
-    }
-  }, [location.pathname, location.state]);
+  // Get active key from current URL path
+  const activeKey = useMemo(() => {
+    return pathToKey(location.pathname);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
 
-  const renderContent = () => {
-    if (activeKey.startsWith("users:list")) {
-      const roleId = roleIdFromKey(activeKey);
-      const titleMap = {
-        undefined: "View List User",
-        1: "View List Admin",
-        "5,2": "View List Head",
-        "7,6": "View List Staff", 
-        3: "View List Lecturer",
-        4: "View List Student",
-      };
-      // 👇 gán key để mỗi trang là một instance riêng (state filter tách biệt)
-      const roleKey = Array.isArray(roleId) ? roleId.join(',') : roleId;
-      return (
-        <UsersList
-          key={`users-list-${roleKey ?? "all"}`}
-          fixedRole={roleId}
-          title={titleMap[roleKey] || "View List User"}
-        />
-      );
+  const handleMenuClick = (e) => {
+    const path = keyToPath(e.key);
+    if (path) {
+      navigate(path);
     }
-
-    if (activeKey.startsWith("users:add")) {
-      if (isAddStaffKey(activeKey)) {
-        return <AddStaff />;
-      }
-      if (activeKey === "users:add:student") {
-        return <AddStudent />;
-      }
-      return (
-        <Card style={{ borderRadius: 12 }}>
-          <Title level={4} style={{ margin: 0 }}>Add User</Title>
-          <div style={{ color: "#64748b", marginTop: 8 }}>(Form tạo user — sẽ gắn sau)</div>
-        </Card>
-      );
-    }
-
-    if (activeKey.startsWith("sem:")) {
-      if (activeKey === "sem:list") {
-        return <SemesterList title="Semester List" />;
-      }
-      if (activeKey === "sem:add") {
-        return <AddSemesterWithHolidays />;
-      }
-      if (activeKey === "sem:edit") {
-        return <EditSemester />;
-      }
-    }
-
-    if (activeKey.startsWith("rooms:")) {
-      if (activeKey === "rooms:list") {
-        return <RoomList title="Room Management" />;
-      }
-      if (activeKey === "rooms:add") {
-        return <AddRoom />;
-      }
-      if (activeKey === "rooms:edit") {
-        return <EditRoom />;
-      }
-      if (activeKey === "rooms:status") {
-        // Status editing is handled in RoomList component via inline select
-        return <RoomList title="Room Management" />;
-      }
-    }
-
-    if (activeKey === "news:list") {
-      return (
-        <NewsList
-          key={activeKey}
-          title="List News - Staff of Administration Department"
-        />
-      );
-    }
-
-    return (
-      <Card style={{ borderRadius: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>{activeKey}</Title>
-        <div style={{ color: "#64748b", marginTop: 8 }}>(Placeholder)</div>
-      </Card>
-    );
   };
 
 
@@ -241,7 +172,7 @@ export default function StaffOfAdminPage() {
           mode="inline"
           theme="light"
           selectedKeys={[activeKey]}
-          onClick={(e) => setActiveKey(e.key)}
+          onClick={handleMenuClick}
           items={ADMIN_MENU}
           rootClassName="fjap-sider-menu"
           style={{
@@ -273,7 +204,9 @@ export default function StaffOfAdminPage() {
           </Space>
         </Header>
 
-        <Content style={{ padding: 24 }}>{renderContent()}</Content>
+        <Content style={{ padding: 24 }}>
+          <Outlet />
+        </Content>
       </Layout>
     </Layout>
   );

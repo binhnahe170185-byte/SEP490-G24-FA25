@@ -8,6 +8,11 @@ using Microsoft.EntityFrameworkCore;
 using ClosedXML.Excel;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Net.Http;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace FJAP.Services;
 
@@ -15,11 +20,13 @@ public class StudentService : IStudentService
 {
     private readonly IStudentRepository _studentRepository;
     private readonly FjapDbContext _db;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public StudentService(IStudentRepository studentRepository, FjapDbContext db)
+    public StudentService(IStudentRepository studentRepository, FjapDbContext db, IHttpClientFactory httpClientFactory)
     {
         _studentRepository = studentRepository;
         _db = db;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<IEnumerable<LessonDto>> GetLessonsByStudentIdAsync(int id)
@@ -148,7 +155,7 @@ public class StudentService : IStudentService
                 Errors = new List<string>()
             };
 
-            // Read columns (FirstName, LastName, Email, Gender, Dob, Address, PhoneNumber)
+            // Read columns (FirstName, LastName, Email, Gender, Dob, Address, PhoneNumber, AvatarUrl)
             previewRow.FirstName = row.Cell(1).GetString().Trim();
             previewRow.LastName = row.Cell(2).GetString().Trim();
             previewRow.Email = row.Cell(3).GetString().Trim().ToLower();
@@ -156,6 +163,7 @@ public class StudentService : IStudentService
             var dobStr = row.Cell(5).GetString().Trim();
             previewRow.Address = row.Cell(6).GetString().Trim();
             previewRow.PhoneNumber = row.Cell(7).GetString().Trim();
+            previewRow.AvatarUrl = row.Cell(8).GetString().Trim(); // Avatar URL from Google Form
 
             // Validate and parse
             ValidateStudentRow(previewRow, dobStr, sequenceNumber);
@@ -264,6 +272,21 @@ public class StudentService : IStudentService
                     ? studentRow.Gender 
                     : "Other";
 
+                // Process avatar from URL if provided
+                string? avatarBase64 = null;
+                if (!string.IsNullOrWhiteSpace(studentRow.AvatarUrl))
+                {
+                    try
+                    {
+                        avatarBase64 = await ProcessAvatarFromUrlAsync(studentRow.AvatarUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log error but don't fail the import - avatar is optional
+                        Console.WriteLine($"Warning: Failed to process avatar for {studentRow.Email}: {ex.Message}");
+                    }
+                }
+
                 // Create User
                 var user = new User
                 {
@@ -274,7 +297,7 @@ public class StudentService : IStudentService
                     Gender = gender,
                     Dob = studentRow.Dob,
                     Address = string.IsNullOrWhiteSpace(studentRow.Address) ? "" : studentRow.Address.Trim(),
-                    Avatar = null,
+                    Avatar = avatarBase64,
                     RoleId = 4, // Student
                     DepartmentId = null,
                     Status = "Active"
@@ -422,6 +445,89 @@ public class StudentService : IStudentService
 
         return maxSequence + 1;
     }
+
+    /// <summary>
+    /// Download image from URL (Google Drive or other), resize and convert to base64
+    /// </summary>
+    private async Task<string?> ProcessAvatarFromUrlAsync(string imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+            return null;
+
+        try
+        {
+            // Create HttpClient with timeout
+            var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+            // Download image
+            var response = await httpClient.GetAsync(imageUrl);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"Failed to download image: {response.StatusCode}");
+            }
+
+            // Validate content type
+            var contentType = response.Content.Headers.ContentType?.MediaType;
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+            if (contentType == null || !allowedTypes.Any(t => contentType.Contains(t, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ArgumentException($"Unsupported image type: {contentType}");
+            }
+
+            // Read image bytes
+            var imageBytes = await response.Content.ReadAsByteArrayAsync();
+            
+            // Validate file size (max 5MB)
+            const long maxFileSize = 5 * 1024 * 1024; // 5MB
+            if (imageBytes.Length > maxFileSize)
+            {
+                throw new ArgumentException("Image size exceeds 5MB limit");
+            }
+
+            // Process image: resize and convert to base64
+            using var imageStream = new MemoryStream(imageBytes);
+            using var image = await Image.LoadAsync(imageStream);
+            
+            // Resize to 200x200 (maintain aspect ratio, crop if needed)
+            const int maxSize = 200;
+            var resizeOptions = new ResizeOptions
+            {
+                Size = new Size(maxSize, maxSize),
+                Mode = ResizeMode.Crop, // Crop to ensure square
+                Sampler = KnownResamplers.Lanczos3
+            };
+            
+            image.Mutate(x => x.Resize(resizeOptions));
+
+            // Convert to base64
+            using var outputStream = new MemoryStream();
+            
+            // Determine format and encoder
+            var extension = contentType.Contains("png", StringComparison.OrdinalIgnoreCase) ? ".png" : ".jpg";
+            if (extension == ".png")
+            {
+                await image.SaveAsync(outputStream, new PngEncoder { CompressionLevel = PngCompressionLevel.BestCompression });
+            }
+            else
+            {
+                // JPEG for other formats
+                await image.SaveAsync(outputStream, new JpegEncoder { Quality = 85 });
+            }
+
+            var processedBytes = outputStream.ToArray();
+            var base64String = Convert.ToBase64String(processedBytes);
+            
+            // Return data URL format: data:image/jpeg;base64,{base64}
+            var mimeType = extension == ".png" ? "image/png" : "image/jpeg";
+            return $"data:{mimeType};base64,{base64String}";
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Error processing avatar from URL: {ex.Message}", ex);
+        }
+    }
+
     public async Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize)
         => await _studentRepository.GetCurriculumSubjectsAsync(search, page, pageSize);
 }

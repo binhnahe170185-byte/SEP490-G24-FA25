@@ -498,6 +498,40 @@ public class StaffOfAdminController : ControllerBase
         return Ok(new { code = 200, result });
     }
 
+    // ===================== Upload Avatar for Student =====================
+    [HttpPost("users/student/avatar")]
+    public async Task<IActionResult> UploadStudentAvatar(IFormFile avatar)
+    {
+        try
+        {
+            if (avatar == null || avatar.Length == 0)
+            {
+                return BadRequest(new { code = 400, message = "Không có file được upload" });
+            }
+
+            var avatarBase64 = await ProcessAvatarToBase64Async(avatar);
+            
+            return Ok(new { 
+                code = 200, 
+                message = "Upload avatar thành công",
+                data = new { avatarUrl = avatarBase64 }
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error uploading student avatar: {ex.Message}");
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "Lỗi khi upload avatar", 
+                error = ex.Message 
+            });
+        }
+    }
+
     /// <summary>
     /// Create a student: insert User(role=4) and Student with auto semester (based on current date)
     /// </summary>

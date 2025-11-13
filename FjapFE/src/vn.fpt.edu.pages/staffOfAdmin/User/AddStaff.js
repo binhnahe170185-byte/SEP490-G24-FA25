@@ -707,7 +707,7 @@ export default function AddStaff() {
         title={<span><CheckCircleTwoTone twoToneColor="#52c41a" /> <span style={{ marginLeft: 8 }}>User created successfully</span></span>}
         onOk={() => {
           setSuccessModalOpen(false);
-          navigate("/staffOfAdmin", { state: { activeTab: staffType === "lecturer" ? "users:list:lecturer" : "users:list:staff" } });
+          navigate(staffType === "lecturer" ? "/staffOfAdmin/users/lecturer" : "/staffOfAdmin/users/staff");
         }}
         onCancel={() => {
           setSuccessModalOpen(false);
@@ -729,7 +729,7 @@ export default function AddStaff() {
         title={<span><CloseCircleTwoTone twoToneColor="#ff4d4f" /> <span style={{ marginLeft: 8 }}>Failed to create user</span></span>}
         onOk={() => {
           setErrorModalOpen(false);
-          navigate("/staffOfAdmin", { state: { activeTab: "users:list:staff" } });
+          navigate("/staffOfAdmin/users/staff");
         }}
         onCancel={() => setErrorModalOpen(false)}
         okText="Back to user list"
