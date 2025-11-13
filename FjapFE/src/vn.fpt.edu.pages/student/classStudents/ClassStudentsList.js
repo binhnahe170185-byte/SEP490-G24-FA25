@@ -48,7 +48,7 @@ export default function ClassStudentsList() {
             navigate("/lecturer/schedule");
         } else if (roleId === 4) {
             // Student
-            navigate("/weeklyTimetable");
+            navigate("/student/weeklyTimetable");
         } else {
             // Default fallback
             navigate(-1);

@@ -67,18 +67,18 @@ function RequireAuth({ children }) {
   return children;
 }
 
-function RequireManager({ children }) {
+function RequireAdmin({ children }) {
   const { user } = useAuth();
-  if (!user || Number(user.roleId) !== 2) {
-    return <Navigate to="/" replace />;
+  if (!user || Number(user.roleId) !== 1) {
+    return <Navigate to="/login" replace />;
   }
   return children;
 }
 
 function RequireStaffAcademic({ children }) {
   const { user } = useAuth();
-  if (!user || ![2, 3, 6, 7].includes(Number(user.roleId))) {
-    return <Navigate to="/" replace />;
+  if (!user || Number(user.roleId) !== 7) {
+    return <Navigate to="/login" replace />;
   }
   return children;
 }
@@ -115,27 +115,50 @@ function RequireHeadOfAdministration({ children }) {
   return children;
 }
 
+function RequireAdministrationStaff({ children }) {
+  const { user } = useAuth();
+  if (!user || Number(user.roleId) !== 6) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
 function RoleBasedRedirect() {
   const { user } = useAuth();
   if (!user) {
     return <Navigate to="/login" replace />;
   }
   const roleId = Number(user.roleId);
+
+  /*comment vào vì hiện tại chưa biết màn hình riêng của Admin url là gì 
+  Author: HuyLQ */
+  
+  // if (roleId === 1) {
+  //   return <Navigate to="/" replace />;
+  // }
+  
+  if (roleId === 2) {
+    return <Navigate to="/headOfAdmin/dashboard" replace />;
+  }
+  
   if (roleId === 3) {
     return <Navigate to="/lecturer/homepage" replace />;
   }
+    /*Sáng vào sửa chỗ này nhé 
+    Author: HuyLQ */
   if (roleId === 4) {
     return <Navigate to="/" replace />;
   }
-  if (roleId === 2) {
-    // Head of Administration Department
-    return <Navigate to="/headOfAdmin/dashboard" replace />;
-  }
+  
   if (roleId === 5) {
     return <Navigate to="/createSchedule" replace />;
   }
+  
+  if (roleId === 6) {
+    return <Navigate to="/staffOfAdmin" replace />;
+  }
+  
   if (roleId === 7) {
-    // Academic_Staff (staffAcademic)
     return <Navigate to="/staffAcademic/dashboard" replace />;
   }
 
@@ -189,7 +212,14 @@ export default function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/staffOfAdmin" element={<StaffOfAdminPage />} />
+              <Route
+                path="/staffOfAdmin"
+                element={
+                  <RequireAdministrationStaff>
+                    <StaffOfAdminPage />
+                  </RequireAdministrationStaff>
+                }
+              />
 
               <Route element={<ProtectedLayout />}>
                 <Route
@@ -208,18 +238,10 @@ export default function App() {
                   <Route path="news" element={<StudentNewsList />} />
                   <Route path="news/:id" element={<StudentNewsDetail />} />
                   <Route path="class/:classId/students" element={<ClassStudentsList />} />
+                  <Route path="weeklyTimetable" element={<WeeklyTimetable />} />
                 </Route>
                 <Route path="/" element={<Home />} />
-                <Route
-                  path="/weeklyTimetable"
-                  element={
-                    <RequireStudent>
-                      <StudentLayout />
-                    </RequireStudent>
-                  }
-                >
-                  <Route index element={<WeeklyTimetable />} />
-                </Route>
+                
 
                 {/* Tạm thời headOfacademic sẽ login vào /createSchedule */}
                 <Route
@@ -231,16 +253,7 @@ export default function App() {
                   }
                 />
 
-                <Route
-                  path="/manager/*"
-                  element={
-                    <RequireManager>
-                      <ManagerLayout />
-                    </RequireManager>
-                  }
-                >
-                </Route>
-
+             
                 <Route
                   path="/staffAcademic/*"
                   element={
@@ -300,7 +313,14 @@ export default function App() {
                   <Route path="grades/enter/:courseId" element={<GradeEntry />} />
                   <Route path="news" element={<LecturerNewsList />} />
                   <Route path="news/:id" element={<LecturerNewsDetail />} />
-                  <Route path="class/:classId/students" element={<ClassStudentsList />} />
+                  <Route
+                    path="class/:classId/students"
+                    element={
+                      <RequireLecturer>
+                        <ClassStudentsList />
+                      </RequireLecturer>
+                    }
+                  />
                 </Route>
 
                 <Route

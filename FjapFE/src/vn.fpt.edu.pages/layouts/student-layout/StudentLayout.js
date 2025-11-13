@@ -45,10 +45,10 @@ const StudentLayout = ({ children }) => {
       path: '/'
     },
     {
-      key: '/weeklyTimetable',
+      key: '/student/weeklyTimetable',
       label: 'Schedule',
       icon: <CalendarOutlined />,
-      path: '/weeklyTimetable'
+      path: '/student/weeklyTimetable'
     },
     {
       key: '/student/homework',
