@@ -34,8 +34,6 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<HomeworkSubmission> HomeworkSubmissions { get; set; }
 
-    public virtual DbSet<HomeworkType> HomeworkTypes { get; set; }
-
     public virtual DbSet<Lecture> Lectures { get; set; }
 
     public virtual DbSet<Lesson> Lessons { get; set; }
@@ -202,7 +200,7 @@ public partial class FjapDbContext : DbContext
                 .HasColumnName("final_score");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'In Progress'")
-                .HasColumnType("enum('In Progress','Completed','Failed')")
+                .HasColumnType("enum('In Progress',' Passed','Failed')")
                 .HasColumnName("status");
             entity.Property(e => e.StudentId).HasColumnName("student_id");
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
@@ -267,6 +265,33 @@ public partial class FjapDbContext : DbContext
                 .HasConstraintName("fk_grade_type_sgt");
         });
 
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.HasKey(e => e.HolidayId).HasName("PRIMARY");
+
+            entity.ToTable("holiday");
+
+            entity.HasIndex(e => e.HolidayDate, "idx_holiday_date");
+
+            entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
+
+            entity.HasIndex(e => new { e.SemesterId, e.HolidayDate }, "idx_holiday_semester_date");
+
+            entity.Property(e => e.HolidayId).HasColumnName("holidayId");
+            entity.Property(e => e.Description)
+                .HasColumnType("text")
+                .HasColumnName("description");
+            entity.Property(e => e.HolidayDate).HasColumnName("holidayDate");
+            entity.Property(e => e.HolidayName)
+                .HasMaxLength(200)
+                .HasColumnName("holidayName");
+            entity.Property(e => e.SemesterId).HasColumnName("semesterId");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.Holidays)
+                .HasForeignKey(d => d.SemesterId)
+                .HasConstraintName("holiday_ibfk_1");
+        });
+
         modelBuilder.Entity<Homework>(entity =>
         {
             entity.HasKey(e => e.HomeworkId).HasName("PRIMARY");
@@ -318,9 +343,6 @@ public partial class FjapDbContext : DbContext
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime")
                 .HasColumnName("created_at");
-            entity.Property(e => e.Feedback)
-                .HasColumnType("text")
-                .HasColumnName("feedback");
             entity.Property(e => e.FilePath)
                 .HasMaxLength(255)
                 .HasColumnName("file_path");
@@ -338,25 +360,6 @@ public partial class FjapDbContext : DbContext
             entity.HasOne(d => d.Student).WithMany(p => p.HomeworkSubmissions)
                 .HasForeignKey(d => d.StudentId)
                 .HasConstraintName("fk_hws_student");
-        });
-
-        modelBuilder.Entity<HomeworkType>(entity =>
-        {
-            entity.HasKey(e => e.HomeworkTypeId).HasName("PRIMARY");
-
-            entity.ToTable("homework_type");
-
-            entity.HasIndex(e => e.HomeworkId, "idx_hwtype_homework");
-
-            entity.Property(e => e.HomeworkTypeId).HasColumnName("homework_type_id");
-            entity.Property(e => e.HomeworkId).HasColumnName("homework_id");
-            entity.Property(e => e.TypeName)
-                .HasMaxLength(100)
-                .HasColumnName("type_name");
-
-            entity.HasOne(d => d.Homework).WithMany(p => p.HomeworkTypes)
-                .HasForeignKey(d => d.HomeworkId)
-                .HasConstraintName("fk_hwtype_homework");
         });
 
         modelBuilder.Entity<Lecture>(entity =>
@@ -533,6 +536,8 @@ public partial class FjapDbContext : DbContext
                 .HasMaxLength(255)
                 .HasColumnName("title");
             entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime")
                 .HasColumnName("updated_at");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
@@ -630,31 +635,6 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.StartDate).HasColumnName("start_date");
         });
 
-        modelBuilder.Entity<Holiday>(entity =>
-        {
-            entity.HasKey(e => e.HolidayId).HasName("PRIMARY");
-
-            entity.ToTable("holiday");
-
-            entity.HasIndex(e => e.SemesterId, "idx_holiday_semester");
-
-            // Map to camelCase column names to match database schema
-            entity.Property(e => e.HolidayId).HasColumnName("holidayId");
-            entity.Property(e => e.Name)
-                .HasMaxLength(200)
-                .HasColumnName("holidayName");
-            entity.Property(e => e.Date).HasColumnName("holidayDate");
-            entity.Property(e => e.Description)
-                .HasColumnType("TEXT")
-                .HasColumnName("description");
-            entity.Property(e => e.SemesterId).HasColumnName("semesterId");
-
-            entity.HasOne(d => d.Semester).WithMany(p => p.Holidays)
-                .HasForeignKey(d => d.SemesterId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("fk_holiday_semester");
-        });
-
         modelBuilder.Entity<Student>(entity =>
         {
             entity.HasKey(e => e.StudentId).HasName("PRIMARY");
@@ -723,7 +703,9 @@ public partial class FjapDbContext : DbContext
         {
             entity.HasKey(e => e.SubjectId).HasName("PRIMARY");
 
-            entity.ToTable("subject");
+            entity
+                .ToTable("subject")
+                .UseCollation("utf8mb4_croatian_ci");
 
             entity.HasIndex(e => e.LevelId, "idx_subject_level");
 
@@ -752,6 +734,7 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.SubjectName)
                 .HasMaxLength(100)
                 .HasColumnName("subject_name");
+            entity.Property(e => e.TotalLesson).HasColumnName("total_lesson");
 
             entity.HasOne(d => d.Level).WithMany(p => p.Subjects)
                 .HasForeignKey(d => d.LevelId)
@@ -840,7 +823,7 @@ public partial class FjapDbContext : DbContext
                 .HasMaxLength(255)
                 .HasColumnName("address");
             entity.Property(e => e.Avatar)
-                .HasColumnType("TEXT")
+                .HasColumnType("text")
                 .HasColumnName("avatar");
             entity.Property(e => e.DepartmentId).HasColumnName("department_id");
             entity.Property(e => e.Dob).HasColumnName("dob");

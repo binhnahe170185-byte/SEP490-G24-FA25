@@ -21,6 +21,8 @@ public partial class Subject
 
     public int LevelId { get; set; }
 
+    public int TotalLesson { get; set; }
+
     public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
 
     public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();

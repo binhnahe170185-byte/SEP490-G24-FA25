@@ -19,7 +19,7 @@ public class HolidayService : IHolidayService
 
     public async Task<IEnumerable<Holiday>> GetAllAsync()
         => await _holidayRepository.GetAllAsync(
-            orderBy: q => q.OrderByDescending(h => h.Date).ThenBy(h => h.Name),
+            orderBy: q => q.OrderByDescending(h => h.HolidayDate).ThenBy(h => h.HolidayName),
             includeProperties: "Semester");
 
     public Task<Holiday?> GetByIdAsync(int id)
@@ -36,8 +36,8 @@ public class HolidayService : IHolidayService
 
         var holiday = new Holiday
         {
-            Name = request.Name.Trim(),
-            Date = request.Date,
+            HolidayName = request.Name.Trim(),
+            HolidayDate = request.Date,
             Description = request.Description?.Trim(),
             SemesterId = request.SemesterId.Value
         };
@@ -52,8 +52,8 @@ public class HolidayService : IHolidayService
         var existing = await _holidayRepository.GetByIdAsync(id);
         if (existing == null) return false;
 
-        existing.Name = request.Name.Trim();
-        existing.Date = request.Date;
+        existing.HolidayName = request.Name.Trim();
+        existing.HolidayDate = request.Date;
         existing.Description = request.Description?.Trim();
         
         if (request.SemesterId != null && request.SemesterId != 0)
@@ -80,7 +80,7 @@ public class HolidayService : IHolidayService
     {
         return await _holidayRepository.GetAllAsync(
             predicate: h => h.SemesterId == semesterId,
-            orderBy: q => q.OrderBy(h => h.Date),
+            orderBy: q => q.OrderBy(h => h.HolidayDate),
             includeProperties: "Semester");
     }
 
@@ -100,8 +100,8 @@ public class HolidayService : IHolidayService
 
             return new Holiday
             {
-                Name = request.Name.Trim(),
-                Date = request.Date,
+                HolidayName = request.Name.Trim(),
+                HolidayDate = request.Date,
                 Description = request.Description?.Trim(),
                 SemesterId = request.SemesterId.Value
             };

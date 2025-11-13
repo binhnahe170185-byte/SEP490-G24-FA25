@@ -13,8 +13,6 @@ public partial class HomeworkSubmission
 
     public string? Comment { get; set; }
 
-    public string? Feedback { get; set; }
-
     public string? Status { get; set; }
 
     public string? FilePath { get; set; }

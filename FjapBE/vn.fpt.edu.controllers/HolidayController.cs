@@ -41,7 +41,7 @@ public class HolidayController : ControllerBase
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var term = search.Trim();
-                baseQuery = baseQuery.Where(x => x.Name.Contains(term));
+                baseQuery = baseQuery.Where(x => x.HolidayName.Contains(term));
             }
 
             // Note: Type filter removed as Type column doesn't exist in database
@@ -60,8 +60,8 @@ public class HolidayController : ControllerBase
 
             // Get items with pagination
             var holidays = await baseQuery
-                .OrderByDescending(x => x.Date)
-                .ThenBy(x => x.Name)
+                .OrderByDescending(x => x.HolidayDate)
+                .ThenBy(x => x.HolidayName)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -70,8 +70,8 @@ public class HolidayController : ControllerBase
             var items = holidays.Select(x => new
             {
                 holidayId = x.HolidayId,
-                name = x.Name,
-                date = x.Date.ToString("yyyy-MM-dd"),
+                name = x.HolidayName,
+                date = x.HolidayDate.ToString("yyyy-MM-dd"),
                 description = x.Description,
                 semesterId = x.SemesterId,
             }).ToList();
@@ -163,12 +163,12 @@ public class HolidayController : ControllerBase
             var holidays = await _db.Holidays
                 .AsNoTracking()
                 .Where(h => h.SemesterId == semesterId)
-                .OrderBy(h => h.Date)
+                .OrderBy(h => h.HolidayDate)
                 .Select(h => new
                 {
                     holidayId = h.HolidayId,
-                    name = h.Name,
-                    date = h.Date.ToString("yyyy-MM-dd"),
+                    name = h.HolidayName,
+                    date = h.HolidayDate.ToString("yyyy-MM-dd"),
                     description = h.Description,
                 })
                 .ToListAsync();
