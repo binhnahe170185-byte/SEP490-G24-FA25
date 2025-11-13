@@ -36,8 +36,6 @@ const DeleteClassFormModal = ({ classId, className, onDeleted }) => {
       onDeleted?.();
     } catch (error) {
       const errorMessage =
-        error?.response?.data?.message ??
-        error?.message ??
         "Failed to delete class";
       notifyError(
         key,

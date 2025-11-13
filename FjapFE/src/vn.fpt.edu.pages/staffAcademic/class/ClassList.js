@@ -162,6 +162,49 @@ const normalizeClasses = (list = []) =>
       item.isActive ??
       item.IsActive ??
       null;
+    const subjectSource =
+      item.subject_detail ??
+      item.subjectDetail ??
+      item.subject ??
+      item.Subject ??
+      null;
+    const subjectDetails =
+      subjectSource &&
+      typeof subjectSource === "object" &&
+      !Array.isArray(subjectSource)
+        ? subjectSource
+        : null;
+    const subjectName =
+      (subjectDetails &&
+        (subjectDetails.subject_name ??
+          subjectDetails.subjectName ??
+          subjectDetails.SubjectName ??
+          subjectDetails.name ??
+          subjectDetails.Name)) ??
+      (typeof subjectSource === "string" ? subjectSource : null) ??
+      item.subject_name ??
+      item.subjectName ??
+      "-";
+    const subjectCode =
+      (subjectDetails &&
+        (subjectDetails.subject_code ??
+          subjectDetails.subjectCode ??
+          subjectDetails.SubjectCode ??
+          subjectDetails.code ??
+          subjectDetails.Code)) ??
+      item.subject_code ??
+      item.subjectCode ??
+      null;
+    const subjectId =
+      (subjectDetails &&
+        (subjectDetails.subject_id ??
+          subjectDetails.subjectId ??
+          subjectDetails.SubjectId ??
+          subjectDetails.id ??
+          subjectDetails.Id)) ??
+      item.subject_id ??
+      item.subjectId ??
+      null;
     const updatedAt =
       item.updated_at ??
       item.updatedAt ??
@@ -192,6 +235,9 @@ const normalizeClasses = (list = []) =>
       class_id: classIdString,
       classId: classIdValue,
       class_name: className,
+      subject_name: subjectName,
+      subject_code: subjectCode,
+      subject_id: subjectId,
       semester,
       semester_id: semesterId,
       start_date: startDateSource,
@@ -559,6 +605,15 @@ export default function ClassList() {
       dataIndex: "class_name",
       key: "class_name",
       render: (value) => <strong>{value}</strong>,
+    },
+    {
+      title: "Subject",
+      key: "subject",
+      render: (_, record) => (
+        <div>
+          <strong>{record.subject_name || "-"}</strong>
+        </div>
+      ),
     },
     { title: "Semester", dataIndex: "semester", key: "semester" },
     {
