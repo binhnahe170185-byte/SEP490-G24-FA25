@@ -206,9 +206,27 @@ const HomeworkDetail = () => {
     {
       title: "Actions",
       key: "actions",
-      width: 150,
+      width: 120,
+      align: "center",
       render: (_, record) => (
         <Space>
+          <Button
+            type="text"
+            icon={<FileTextOutlined />}
+            size="small"
+            onClick={() =>
+              navigate(
+                `/lecturer/homework/${classId}/${lessonId}/submissions/${record.homeworkId}`,
+                {
+                  state: {
+                    slot,
+                    course: location.state?.course,
+                    homework: record,
+                  },
+                }
+              )
+            }
+          />
           <Button
             type="text"
             icon={<EditOutlined />}

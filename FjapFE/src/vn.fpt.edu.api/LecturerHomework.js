@@ -202,6 +202,41 @@ class LecturerHomework {
     }
   }
 
+  static async getHomeworkSubmissions(homeworkId) {
+    try {
+      const response = await api.get(`/api/Homeworks/${homeworkId}/submissions`);
+      const submissions = response.data?.data || response.data || [];
+      return submissions.map((item) => ({
+        submissionId: item.submissionId || item.homeworkSubmissionId,
+        homeworkId: item.homeworkId,
+        studentId: item.studentId,
+        studentCode: item.studentCode,
+        studentName: item.studentName,
+        submittedAt: item.submittedAt,
+        status: item.status,
+        comment: item.comment,
+        feedback: item.feedback,
+        filePath: item.filePath,
+      }));
+    } catch (error) {
+      console.error("Failed to load homework submissions:", error);
+      throw error;
+    }
+  }
+
+  static async updateHomeworkSubmission(homeworkId, submissionId, payload) {
+    try {
+      const response = await api.put(
+        `/api/Homeworks/${homeworkId}/submissions/${submissionId}`,
+        payload
+      );
+      return response.data?.data || response.data;
+    } catch (error) {
+      console.error("Failed to update homework submission:", error);
+      throw error;
+    }
+  }
+
   // Tạo bài tập mới
   static buildMultipartConfig(payload) {
     if (typeof FormData !== "undefined" && payload instanceof FormData) {

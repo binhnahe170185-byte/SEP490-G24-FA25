@@ -149,6 +149,123 @@ public class HomeworksController : ControllerBase
         return Ok(new { code = 200, message = "Homework deleted" });
     }
 
+    /// <summary>
+    /// Get all submissions for a homework
+    /// GET: api/Homeworks/{homeworkId}/submissions
+    /// </summary>
+    [HttpGet("{homeworkId:int}/submissions")]
+    public async Task<IActionResult> GetSubmissions(int homeworkId)
+    {
+        var homeworkExists = await _db.Homeworks.AnyAsync(h => h.HomeworkId == homeworkId);
+        if (!homeworkExists)
+        {
+            return NotFound(new { code = 404, message = "Homework not found" });
+        }
+
+        var submissions = await _db.HomeworkSubmissions
+            .AsNoTracking()
+            .Include(s => s.Student)
+                .ThenInclude(st => st.User)
+            .Where(s => s.HomeworkId == homeworkId)
+            .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+            .Select(s => new
+            {
+                submissionId = s.HomeworkSubmissionId,
+                homeworkId = s.HomeworkId,
+                studentId = s.StudentId,
+                studentCode = s.Student.StudentCode,
+                studentName = s.Student.User != null
+                    ? $"{s.Student.User.FirstName} {s.Student.User.LastName}".Trim()
+                    : null,
+                submittedAt = s.CreatedAt,
+                status = s.Status,
+                comment = s.Comment,
+                feedback = s.Feedback,
+                filePath = s.FilePath
+            })
+            .ToListAsync();
+
+        var result = submissions.Select(sub => new
+        {
+            sub.submissionId,
+            sub.homeworkId,
+            sub.studentId,
+            sub.studentCode,
+            sub.studentName,
+            sub.submittedAt,
+            sub.status,
+            sub.comment,
+            sub.feedback,
+            filePath = BuildFileUrl(sub.filePath)
+        });
+
+        return Ok(new { code = 200, data = result });
+    }
+
+    /// <summary>
+    /// Update comment/feedback/status for a submission
+    /// PUT: api/Homeworks/{homeworkId}/submissions/{submissionId}
+    /// </summary>
+    [HttpPut("{homeworkId:int}/submissions/{submissionId:int}")]
+    public async Task<IActionResult> UpdateSubmission(
+        int homeworkId,
+        int submissionId,
+        [FromBody] UpdateSubmissionRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { code = 400, message = "Invalid payload", errors = ModelState });
+        }
+
+        var submission = await _db.HomeworkSubmissions
+            .Include(s => s.Student)
+                .ThenInclude(st => st.User)
+            .FirstOrDefaultAsync(s => s.HomeworkSubmissionId == submissionId && s.HomeworkId == homeworkId);
+
+        if (submission == null)
+        {
+            return NotFound(new { code = 404, message = "Submission not found" });
+        }
+
+        if (request.Status != null)
+        {
+            submission.Status = request.Status.Trim();
+        }
+
+        if (request.Comment != null)
+        {
+            submission.Comment = request.Comment.Trim();
+        }
+
+        if (request.Feedback != null)
+        {
+            submission.Feedback = request.Feedback.Trim();
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            code = 200,
+            message = "Submission updated",
+            data = new
+            {
+                submissionId = submission.HomeworkSubmissionId,
+                homeworkId = submission.HomeworkId,
+                studentId = submission.StudentId,
+                studentCode = submission.Student?.StudentCode,
+                studentName = submission.Student?.User != null
+                    ? $"{submission.Student.User.FirstName} {submission.Student.User.LastName}".Trim()
+                    : null,
+                submittedAt = submission.CreatedAt,
+                status = submission.Status,
+                comment = submission.Comment,
+                feedback = submission.Feedback,
+                filePath = BuildFileUrl(submission.FilePath)
+            }
+        });
+    }
+
     private IQueryable<Homework> BuildHomeworkQuery()
     {
         return _db.Homeworks
@@ -372,4 +489,14 @@ public class HomeworkUpdateRequest
     public IFormFile? File { get; set; }
 
     public bool RemoveFile { get; set; }
+}
+
+public class UpdateSubmissionRequest
+{
+    [StringLength(50)]
+    public string? Status { get; set; }
+
+    public string? Comment { get; set; }
+
+    public string? Feedback { get; set; }
 }
