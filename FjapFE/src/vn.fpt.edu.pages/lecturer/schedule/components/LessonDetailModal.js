@@ -215,28 +215,6 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                             </div>
                                         </div>
 
-                                        {/* List student in class */}
-                                        <div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                                <TeamOutlined style={{ fontSize: 16 }} />
-                                                <Text strong>Class Name</Text>
-                                            </div>
-                                            <div
-                                                style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: 8,
-                                                    marginLeft: 24,
-                                                    cursor: classId ? "pointer" : "default"
-                                                }}
-                                                onClick={handleViewStudents}
-                                            >
-                                                <Text style={{ color: classId ? "#1890ff" : "inherit" }}>
-                                                    {studentGroupCode}
-                                                </Text>
-                                                <LinkOutlined style={{ fontSize: 12, color: classId ? "#1890ff" : "#666" }} />
-                                            </div>
-                                        </div>
                                     </Space>
                                 </Card>
                             </div>

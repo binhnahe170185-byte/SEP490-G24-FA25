@@ -42,10 +42,9 @@ export default function AttendanceReport() {
 
                 const subject = classData.subject ?? classData.Subject ?? {};
                 setClassInfo({
-                    classId: classData.classId ?? classData.ClassId ?? classId,
+                   
                     className: classData.className ?? classData.class_name ?? classData.ClassName ?? "-",
-                    subjectName: subject.subjectName ?? subject.SubjectName ?? "-",
-                    subjectCode: subject.subjectCode ?? subject.SubjectCode ?? classData.subjectCode ?? "-",
+                    subjectCode: subject.subjectCode ?? subject.SubjectCode ?? classData.subjectCode ?? "-"
                 });
 
                 // Fetch attendance report
@@ -140,7 +139,7 @@ export default function AttendanceReport() {
                 <Card>
                     <Space direction="vertical" style={{ width: "100%" }}>
                         <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
-                            Back to Schedule
+                            Back
                         </Button>
                         <Text type="danger">{error}</Text>
                     </Space>
