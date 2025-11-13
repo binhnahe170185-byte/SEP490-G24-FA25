@@ -183,6 +183,7 @@ export default function ImportStudent() {
         dob: s.dob,
         address: s.address || "",
         phoneNumber: s.phoneNumber || "",
+        avatarUrl: s.avatarUrl || "", // Avatar URL from Google Drive
         studentCode: s.studentCode, // Already generated in preview
       }));
 
@@ -264,6 +265,26 @@ export default function ImportStudent() {
       dataIndex: "phoneNumber",
       key: "phoneNumber",
       width: 120,
+    },
+    {
+      title: "Avatar",
+      dataIndex: "avatarUrl",
+      key: "avatarUrl",
+      width: 200,
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (url) => url ? (
+        <Tooltip title={url}>
+          <Tag color="green" style={{ margin: 0, cursor: "pointer" }}>
+            <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+              View Link
+            </a>
+          </Tag>
+        </Tooltip>
+      ) : (
+        <Tag color="default" style={{ margin: 0 }}>No Avatar</Tag>
+      ),
     },
     {
       title: "Student Code",
@@ -435,7 +456,7 @@ export default function ImportStudent() {
             {/* Quick Guide - Compact */}
             <Alert
               message="Quick Guide"
-              description="Required: FirstName, LastName, Email, Gender, Dob. Optional: Address, PhoneNumber."
+              description="Required: FirstName, LastName, Email, Gender, Dob. Optional: Address, PhoneNumber, Avatar (Google Drive link)."
               type="info"
               showIcon
               style={{ marginBottom: 12, padding: "8px 12px", fontSize: 12 }}
