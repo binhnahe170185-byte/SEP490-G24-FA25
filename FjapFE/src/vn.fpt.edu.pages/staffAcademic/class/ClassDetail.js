@@ -239,7 +239,7 @@ export default function ClassDetail() {
             Back
           </Button>
           <Typography.Title level={3} style={{ margin: 0 }}>
-            Class Students
+            Class Detail
           </Typography.Title>
         </Space>
       <header>
@@ -278,12 +278,6 @@ export default function ClassDetail() {
           }}
         />
       </article>
-
-      <div>
-        <Link to="/staffAcademic/classes" style={{ color: "#2563eb" }}>
-          ← Back to class list
-        </Link>
-      </div>
     </section>
   );
 }
