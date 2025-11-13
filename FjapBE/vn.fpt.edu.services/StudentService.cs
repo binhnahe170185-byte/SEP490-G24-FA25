@@ -7,6 +7,7 @@ using FJAP.DTOs;
 using Microsoft.EntityFrameworkCore;
 using ClosedXML.Excel;
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Net.Http;
 using SixLabors.ImageSharp;
@@ -155,7 +156,8 @@ public class StudentService : IStudentService
                 Errors = new List<string>()
             };
 
-            // Read columns (FirstName, LastName, Email, Gender, Dob, Address, PhoneNumber, AvatarUrl)
+            // Read columns (FirstName, LastName, Email, Gender, Dob, Address, PhoneNumber, Avatar)
+            // Column order: 1=FirstName, 2=LastName, 3=Email, 4=Gender, 5=Dob, 6=Address, 7=PhoneNumber, 8=Avatar
             previewRow.FirstName = row.Cell(1).GetString().Trim();
             previewRow.LastName = row.Cell(2).GetString().Trim();
             previewRow.Email = row.Cell(3).GetString().Trim().ToLower();
@@ -163,7 +165,7 @@ public class StudentService : IStudentService
             var dobStr = row.Cell(5).GetString().Trim();
             previewRow.Address = row.Cell(6).GetString().Trim();
             previewRow.PhoneNumber = row.Cell(7).GetString().Trim();
-            previewRow.AvatarUrl = row.Cell(8).GetString().Trim(); // Avatar URL from Google Form
+            previewRow.AvatarUrl = row.Cell(8).GetString().Trim(); // Avatar column - Google Drive link
 
             // Validate and parse
             ValidateStudentRow(previewRow, dobStr, sequenceNumber);
@@ -460,8 +462,52 @@ public class StudentService : IStudentService
             var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-            // Download image
-            var response = await httpClient.GetAsync(imageUrl);
+            // Convert Google Drive sharing link to direct download link
+            string downloadUrl = ConvertGoogleDriveLinkToDirectDownload(imageUrl);
+
+            // Download image (follow redirects for Google Drive)
+            var response = await httpClient.GetAsync(downloadUrl);
+            
+            // Handle Google Drive virus scan warning page (file > 100MB or suspicious)
+            // Google Drive returns HTML page instead of file, need to extract actual download link
+            if (response.Content.Headers.ContentType?.MediaType?.Contains("text/html") == true)
+            {
+                // Try to get the actual download link from the warning page
+                var htmlContent = await response.Content.ReadAsStringAsync();
+                
+                // Extract file ID first
+                var fileIdMatch = Regex.Match(downloadUrl, @"[?&]id=([a-zA-Z0-9_-]+)");
+                string? fileId = null;
+                if (fileIdMatch.Success)
+                {
+                    fileId = fileIdMatch.Groups[1].Value;
+                }
+                
+                // Try multiple methods to get the actual download link
+                var actualDownloadLink = ExtractGoogleDriveDownloadLink(htmlContent, downloadUrl);
+                if (!string.IsNullOrEmpty(actualDownloadLink))
+                {
+                    response = await httpClient.GetAsync(actualDownloadLink);
+                }
+                else
+                {
+                    // Method 1: Try uc?export=view&id=FILE_ID (for viewing images)
+                    if (!string.IsNullOrEmpty(fileId))
+                    {
+                        var viewUrl = $"https://drive.google.com/uc?export=view&id={fileId}";
+                        response = await httpClient.GetAsync(viewUrl);
+                        
+                        // If still HTML, try Method 2
+                        if (response.Content.Headers.ContentType?.MediaType?.Contains("text/html") == true)
+                        {
+                            // Method 2: Try thumbnail URL (smaller size but should work)
+                            var thumbnailUrl = $"https://drive.google.com/thumbnail?id={fileId}&sz=w2000";
+                            response = await httpClient.GetAsync(thumbnailUrl);
+                        }
+                    }
+                }
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 throw new HttpRequestException($"Failed to download image: {response.StatusCode}");
@@ -470,13 +516,59 @@ public class StudentService : IStudentService
             // Validate content type
             var contentType = response.Content.Headers.ContentType?.MediaType;
             var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
-            if (contentType == null || !allowedTypes.Any(t => contentType.Contains(t, StringComparison.OrdinalIgnoreCase)))
-            {
-                throw new ArgumentException($"Unsupported image type: {contentType}");
-            }
-
-            // Read image bytes
+            bool isValidContentType = contentType != null && allowedTypes.Any(t => contentType.Contains(t, StringComparison.OrdinalIgnoreCase));
+            
+            // Read content first to check if it's HTML
             var imageBytes = await response.Content.ReadAsByteArrayAsync();
+            
+            // Check if response is HTML (Google Drive warning page)
+            if (contentType?.Contains("text/html") == true || 
+                (imageBytes.Length > 1000 && Encoding.UTF8.GetString(imageBytes, 0, Math.Min(100, imageBytes.Length)).TrimStart().StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase)))
+            {
+                // Try thumbnail URL as last resort
+                var fileIdMatch = Regex.Match(downloadUrl, @"[?&]id=([a-zA-Z0-9_-]+)");
+                if (!fileIdMatch.Success)
+                {
+                    fileIdMatch = Regex.Match(imageUrl, @"[?&]id=([a-zA-Z0-9_-]+)");
+                }
+                
+                if (fileIdMatch.Success)
+                {
+                    var fileId = fileIdMatch.Groups[1].Value;
+                    var thumbnailUrl = $"https://drive.google.com/thumbnail?id={fileId}&sz=w2000";
+                    try
+                    {
+                        response = await httpClient.GetAsync(thumbnailUrl);
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var thumbnailContentType = response.Content.Headers.ContentType?.MediaType;
+                            if (thumbnailContentType != null && allowedTypes.Any(t => thumbnailContentType.Contains(t, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                imageBytes = await response.Content.ReadAsByteArrayAsync();
+                                contentType = thumbnailContentType;
+                                isValidContentType = true;
+                            }
+                            else
+                            {
+                                throw new HttpRequestException($"Thumbnail URL also returned invalid content type: {thumbnailContentType}");
+                            }
+                        }
+                        else
+                        {
+                            throw new HttpRequestException($"Thumbnail URL failed with status: {response.StatusCode}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new HttpRequestException($"Failed to download image from Google Drive. Please ensure the file is shared with 'Anyone with the link can view' permission. Error: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    throw new HttpRequestException("Failed to download image from Google Drive. Could not extract file ID from URL.");
+                }
+            }
             
             // Validate file size (max 5MB)
             const long maxFileSize = 5 * 1024 * 1024; // 5MB
@@ -487,7 +579,15 @@ public class StudentService : IStudentService
 
             // Process image: resize and convert to base64
             using var imageStream = new MemoryStream(imageBytes);
-            using var image = await Image.LoadAsync(imageStream);
+            Image image;
+            try
+            {
+                image = await Image.LoadAsync(imageStream);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Failed to load image. The file may not be a valid image file. Error: {ex.Message}");
+            }
             
             // Resize to 200x200 (maintain aspect ratio, crop if needed)
             const int maxSize = 200;
@@ -503,29 +603,159 @@ public class StudentService : IStudentService
             // Convert to base64
             using var outputStream = new MemoryStream();
             
-            // Determine format and encoder
-            var extension = contentType.Contains("png", StringComparison.OrdinalIgnoreCase) ? ".png" : ".jpg";
-            if (extension == ".png")
+            // Determine format and encoder - try to detect from image metadata first
+            string extension = ".jpg";
+            if (image.Metadata.DecodedImageFormat?.Name?.Contains("png", StringComparison.OrdinalIgnoreCase) == true)
             {
-                await image.SaveAsync(outputStream, new PngEncoder { CompressionLevel = PngCompressionLevel.BestCompression });
+                extension = ".png";
             }
-            else
+            else if (contentType != null && contentType.Contains("png", StringComparison.OrdinalIgnoreCase))
             {
-                // JPEG for other formats
-                await image.SaveAsync(outputStream, new JpegEncoder { Quality = 85 });
+                extension = ".png";
             }
+            try
+            {
+                if (extension == ".png")
+                {
+                    await image.SaveAsync(outputStream, new PngEncoder { CompressionLevel = PngCompressionLevel.BestCompression });
+                }
+                else
+                {
+                    // JPEG for other formats
+                    await image.SaveAsync(outputStream, new JpegEncoder { Quality = 85 });
+                }
 
-            var processedBytes = outputStream.ToArray();
-            var base64String = Convert.ToBase64String(processedBytes);
-            
-            // Return data URL format: data:image/jpeg;base64,{base64}
-            var mimeType = extension == ".png" ? "image/png" : "image/jpeg";
-            return $"data:{mimeType};base64,{base64String}";
+                var processedBytes = outputStream.ToArray();
+                var base64String = Convert.ToBase64String(processedBytes);
+                
+                // Return data URL format: data:image/jpeg;base64,{base64}
+                var mimeType = extension == ".png" ? "image/png" : "image/jpeg";
+                return $"data:{mimeType};base64,{base64String}";
+            }
+            finally
+            {
+                image?.Dispose();
+            }
         }
         catch (Exception ex)
         {
             throw new ArgumentException($"Error processing avatar from URL: {ex.Message}", ex);
         }
+    }
+
+    /// <summary>
+    /// Convert Google Drive sharing link to direct view/download link
+    /// For images, use export=view which works better than export=download
+    /// Supports formats:
+    /// - https://drive.google.com/file/d/{FILE_ID}/view?usp=sharing
+    /// - https://drive.google.com/open?id={FILE_ID}
+    /// - https://drive.google.com/uc?export=download&id={FILE_ID} (already direct)
+    /// </summary>
+    private string ConvertGoogleDriveLinkToDirectDownload(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return url;
+
+        // Check if it's a Google Drive link
+        if (!url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase))
+            return url; // Not a Google Drive link, return as-is
+
+        string? fileId = null;
+
+        // Pattern 1: /file/d/{FILE_ID}
+        var fileIdMatch = Regex.Match(url, @"/file/d/([a-zA-Z0-9_-]+)");
+        if (fileIdMatch.Success)
+        {
+            fileId = fileIdMatch.Groups[1].Value;
+        }
+        else
+        {
+            // Pattern 2: ?id={FILE_ID} or &id={FILE_ID}
+            var idMatch = Regex.Match(url, @"[?&]id=([a-zA-Z0-9_-]+)");
+            if (idMatch.Success)
+            {
+                fileId = idMatch.Groups[1].Value;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(fileId))
+        {
+            // For images, use export=view which is more reliable than export=download
+            // It doesn't require confirm token and works better for public files
+            return $"https://drive.google.com/uc?export=view&id={fileId}";
+        }
+
+        // If already a direct link or unrecognized format, return as-is
+        return url;
+    }
+
+    /// <summary>
+    /// Extract actual download link from Google Drive warning page HTML
+    /// Google Drive shows warning page for large files or suspicious files
+    /// </summary>
+    private string? ExtractGoogleDriveDownloadLink(string htmlContent, string originalUrl)
+    {
+        if (string.IsNullOrWhiteSpace(htmlContent))
+            return null;
+
+        // Extract file ID from original URL first
+        var fileIdMatch = Regex.Match(originalUrl, @"[?&]id=([a-zA-Z0-9_-]+)");
+        if (!fileIdMatch.Success)
+        {
+            fileIdMatch = Regex.Match(originalUrl, @"/file/d/([a-zA-Z0-9_-]+)");
+        }
+
+        if (!fileIdMatch.Success)
+            return null;
+
+        var fileId = fileIdMatch.Groups[1].Value;
+
+        // Method 1: Try to find confirm token in HTML (for large files)
+        // Look for patterns like: confirm=TOKEN or 'confirm','TOKEN' or "confirm":"TOKEN"
+        var confirmPatterns = new[]
+        {
+            @"confirm=([a-zA-Z0-9_-]+)",
+            @"['""]confirm['""]\s*:\s*['""]([a-zA-Z0-9_-]+)['""]",
+            @"['""]confirm['""]\s*,\s*['""]([a-zA-Z0-9_-]+)['""]",
+            @"confirm\s*=\s*['""]([a-zA-Z0-9_-]+)['""]"
+        };
+
+        foreach (var pattern in confirmPatterns)
+        {
+            var confirmMatch = Regex.Match(htmlContent, pattern, RegexOptions.IgnoreCase);
+            if (confirmMatch.Success && confirmMatch.Groups.Count > 1)
+            {
+                var confirmToken = confirmMatch.Groups[1].Value;
+                return $"https://drive.google.com/uc?export=download&id={fileId}&confirm={confirmToken}";
+            }
+        }
+
+        // Method 2: Try to find download URL in HTML
+        var downloadUrlMatch = Regex.Match(htmlContent, @"(https?://[^""'\s]+uc\?[^""'\s]*export=download[^""'\s]*)", RegexOptions.IgnoreCase);
+        if (downloadUrlMatch.Success)
+        {
+            var foundUrl = downloadUrlMatch.Groups[1].Value;
+            return foundUrl;
+        }
+
+        // Method 3: Try to find action URL in form
+        var formActionMatch = Regex.Match(htmlContent, @"<form[^>]*action=['""]([^""']+)['""]", RegexOptions.IgnoreCase);
+        if (formActionMatch.Success)
+        {
+            var formAction = formActionMatch.Groups[1].Value;
+            if (formAction.Contains("uc?") && formAction.Contains("export=download"))
+            {
+                // Make absolute URL if relative
+                if (formAction.StartsWith("/"))
+                {
+                    formAction = "https://drive.google.com" + formAction;
+                }
+                return formAction;
+            }
+        }
+
+        // Fallback: try direct download with confirm=t (for smaller files)
+        return $"https://drive.google.com/uc?export=download&id={fileId}&confirm=t";
     }
 
     public async Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize)
