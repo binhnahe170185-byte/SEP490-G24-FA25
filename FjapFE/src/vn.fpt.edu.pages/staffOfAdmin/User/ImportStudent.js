@@ -327,6 +327,12 @@ export default function ImportStudent() {
               Import Students from Excel
             </Title>
           </Space>
+        </div>
+
+        <Divider style={{ margin: "16px 0" }} />
+
+        {/* Description */}
+        <div style={{ padding: "0 8px", marginBottom: 16 }}>
           <Text type="secondary" style={{ fontSize: 13 }}>
             Import multiple students at once by uploading an Excel file. Select enrollment semester and level, then preview and confirm.
           </Text>

@@ -370,12 +370,16 @@ export default function AddStaff() {
               Add Staff
             </Title>
           </Space>
+        </div>
+
+        <Divider style={{ margin: "16px 0" }} />
+
+        {/* Description */}
+        <div style={{ padding: "0 8px", marginBottom: 16 }}>
           <Text type="secondary" style={{ fontSize: 13 }}>
             Select staff type: Staff (requires department, role auto-set) or Lecturer (no department required). Department heads are assigned separately by admin.
           </Text>
         </div>
-
-        <Divider style={{ margin: "16px 0" }} />
 
         {/* Form */}
         <div style={{ padding: "0 8px" }}>
