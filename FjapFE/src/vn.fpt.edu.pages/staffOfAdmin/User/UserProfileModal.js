@@ -1,10 +1,13 @@
 // src/vn.fpt.edu.pages/admin/UserProfileModal.js
 import React, { useEffect, useState } from "react";
 import {
-  Modal, Descriptions, Spin, Form, Input, Select, DatePicker, Button, Space, Row, Col, message, Avatar,
+  Modal, Spin, Form, Input, Select, DatePicker, Button, Space, Row, Col, message, Avatar, Divider, Typography, Tag,
 } from "antd";
+import { UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined, CalendarOutlined, IdcardOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import AdminApi from "../../../vn.fpt.edu.api/Admin";
+
+const { Text } = Typography;
 
 const ROLE_OPTIONS = [
   { value: 1, label: "Admin" },
@@ -168,7 +171,7 @@ export default function UserProfileModal({
       onCancel={onClose}
       title={title}
       centered
-      width={880}
+      width={900}
       destroyOnClose
       maskClosable
       footer={
@@ -182,43 +185,184 @@ export default function UserProfileModal({
         ) : null
       }
       styles={{
-        body: { paddingTop: 12, paddingBottom: 12, maxHeight: 600, overflow: "auto" },
+        body: { paddingTop: 20, paddingBottom: 20, maxHeight: 700, overflow: "auto" },
       }}
     >
       <Spin spinning={loading}>
         {mode === "view" ? (
-          <Descriptions bordered column={2} size="middle">
-            <Descriptions.Item label="First Name">{user?.firstName || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Last Name">{user?.lastName || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Email">{user?.email || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Phone">{user?.phoneNumber || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Gender">{user?.gender || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Role">
-              {ROLE_OPTIONS.find((r) => r.value === (user?.roleId ?? 0))?.label || user?.role || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Status">{user?.status || "Active"}</Descriptions.Item>
-            <Descriptions.Item label="DOB">{user?.dob || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Level">{user?.levelName || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Enrollment Semester">{user?.semesterName || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Enrollment Date">{user?.enrollmentDate || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Address" span={2}>{user?.address || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Avatar" span={2}>
+          <div>
+            {/* Avatar Section - Top Center */}
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
               {user?.avatar && user.avatar.trim() !== "" ? (
                 <Avatar
                   src={user.avatar}
-                  size={100}
-                  style={{ display: "block" }}
+                  size={120}
+                  style={{ 
+                    display: "block",
+                    margin: "0 auto 12px",
+                    border: "4px solid #f0f0f0",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                  }}
                   onError={() => {
                     console.error("Failed to load avatar image");
                   }}
                 />
               ) : (
-                <Avatar size={100} style={{ display: "block" }}>
-                  {user?.firstName?.[0]?.toUpperCase() || "U"}
+                <Avatar 
+                  size={120} 
+                  style={{ 
+                    display: "block",
+                    margin: "0 auto 12px",
+                    border: "4px solid #f0f0f0",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    fontSize: 48
+                  }}
+                  icon={<UserOutlined />}
+                >
+                  {user?.firstName?.[0]?.toUpperCase() || user?.lastName?.[0]?.toUpperCase() || "U"}
                 </Avatar>
               )}
-            </Descriptions.Item>
-          </Descriptions>
+              <div style={{ marginTop: 8 }}>
+                <Typography.Title level={4} style={{ margin: 0 }}>
+                  {user?.firstName} {user?.lastName}
+                </Typography.Title>
+                <div style={{ marginTop: 8 }}>
+                  <Tag color={user?.status === "Active" ? "success" : "default"} style={{ fontSize: 13, padding: "4px 12px" }}>
+                    {user?.status || "Active"}
+                  </Tag>
+                  <Tag color="blue" style={{ fontSize: 13, padding: "4px 12px", marginLeft: 8 }}>
+                    {ROLE_OPTIONS.find((r) => r.value === (user?.roleId ?? 0))?.label || user?.role || "-"}
+                  </Tag>
+                </div>
+              </div>
+            </div>
+
+            <Divider style={{ margin: "16px 0" }} />
+
+            {/* Personal Information Section */}
+            <Typography.Title level={5} style={{ marginBottom: 12, color: "#1890ff" }}>
+              Personal Information
+            </Typography.Title>
+            <Row gutter={[16, 8]}>
+              <Col span={12}>
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <IdcardOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>First Name</Text>
+                    <Text strong style={{ fontSize: 14, display: "block" }}>{user?.firstName || "-"}</Text>
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <IdcardOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Last Name</Text>
+                    <Text strong style={{ fontSize: 14, display: "block" }}>{user?.lastName || "-"}</Text>
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <CalendarOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Date of Birth</Text>
+                    <Text strong style={{ fontSize: 14, display: "block" }}>{user?.dob || "-"}</Text>
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <UserOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Gender</Text>
+                    <Text strong style={{ fontSize: 14, display: "block" }}>{user?.gender || "-"}</Text>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+
+            <Divider style={{ margin: "16px 0" }} />
+
+            {/* Contact Information Section */}
+            <Typography.Title level={5} style={{ marginBottom: 12, color: "#1890ff" }}>
+              Contact Information
+            </Typography.Title>
+            <Row gutter={[16, 8]}>
+              <Col span={12}>
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <MailOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Email</Text>
+                    <Text strong style={{ fontSize: 14, display: "block", wordBreak: "break-word" }}>{user?.email || "-"}</Text>
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <PhoneOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Phone</Text>
+                    <Text strong style={{ fontSize: 14, display: "block" }}>{user?.phoneNumber || "-"}</Text>
+                  </div>
+                </div>
+              </Col>
+              <Col span={24}>
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <HomeOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Address</Text>
+                    <Text strong style={{ fontSize: 14, display: "block" }}>{user?.address || "-"}</Text>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+
+            {/* Student Information Section (if applicable) - Only show if has data */}
+            {(user?.roleId === 4 && (user?.levelName || user?.semesterName || user?.enrollmentDate)) && (
+              <>
+                <Divider style={{ margin: "16px 0" }} />
+                <Typography.Title level={5} style={{ marginBottom: 12, color: "#1890ff" }}>
+                  Student Information
+                </Typography.Title>
+                <Row gutter={[16, 8]}>
+                  {user?.levelName && (
+                    <Col span={8}>
+                      <div style={{ display: "flex", alignItems: "flex-start" }}>
+                        <IdcardOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                        <div style={{ flex: 1 }}>
+                          <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Level</Text>
+                          <Text strong style={{ fontSize: 14, display: "block" }}>{user.levelName}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                  )}
+                  {user?.semesterName && (
+                    <Col span={8}>
+                      <div style={{ display: "flex", alignItems: "flex-start" }}>
+                        <CalendarOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                        <div style={{ flex: 1 }}>
+                          <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Enrollment Semester</Text>
+                          <Text strong style={{ fontSize: 14, display: "block" }}>{user.semesterName}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                  )}
+                  {user?.enrollmentDate && (
+                    <Col span={8}>
+                      <div style={{ display: "flex", alignItems: "flex-start" }}>
+                        <CalendarOutlined style={{ fontSize: 16, color: "#8c8c8c", marginRight: 8, marginTop: 4 }} />
+                        <div style={{ flex: 1 }}>
+                          <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Enrollment Date</Text>
+                          <Text strong style={{ fontSize: 14, display: "block" }}>{user.enrollmentDate}</Text>
+                        </div>
+                      </div>
+                    </Col>
+                  )}
+                </Row>
+              </>
+            )}
+          </div>
         ) : (
           <Form form={form} layout="vertical">
             <Row gutter={12}>

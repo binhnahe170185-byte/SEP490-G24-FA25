@@ -528,12 +528,16 @@ export default function AddStudent() {
               Add Student
             </Title>
           </Space>
-          <Text type="secondary">
-            Add students manually or import from Excel. Level and enrollment semester are required.
-          </Text>
         </div>
 
         <Divider style={{ margin: "16px 0" }} />
+
+        {/* Description */}
+        <div style={{ padding: "0 8px", marginBottom: 16 }}>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Add students manually or import from Excel. Level and enrollment semester are required.
+          </Text>
+        </div>
 
         {/* Tabs for Manual and Import */}
         <div style={{ padding: "0 8px" }}>
