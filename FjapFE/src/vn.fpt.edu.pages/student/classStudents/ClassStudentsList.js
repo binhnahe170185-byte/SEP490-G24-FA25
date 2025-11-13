@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Table, Typography, Spin, Alert } from "antd";
-import { UserOutlined } from "@ant-design/icons";
+import { Card, Table, Typography, Spin, Alert, Button } from "antd";
+import { UserOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
+import { useAuth } from "../../login/AuthContext";
 import "./ClassStudentsList.css";
 
 const { Title, Text } = Typography;
@@ -33,10 +34,26 @@ const splitName = (fullName) => {
 export default function ClassStudentsList() {
     const { classId } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [classInfo, setClassInfo] = useState(null);
     const [students, setStudents] = useState([]);
     const [error, setError] = useState(null);
+
+    // Determine back navigation based on user role
+    const handleBack = () => {
+        const roleId = user ? Number(user.roleId) : null;
+        if (roleId === 3) {
+            // Lecturer
+            navigate("/lecturer/schedule");
+        } else if (roleId === 4) {
+            // Student
+            navigate("/weeklyTimetable");
+        } else {
+            // Default fallback
+            navigate(-1);
+        }
+    };
 
     useEffect(() => {
         if (!classId) {
@@ -198,6 +215,15 @@ export default function ClassStudentsList() {
 
     return (
         <div className="class-students-container">
+            {/* Back Button */}
+            <div style={{ marginBottom: 16 }}>
+                <Button
+                    icon={<ArrowLeftOutlined />}
+                    onClick={handleBack}
+                >
+                    Back
+                </Button>
+            </div>
             {/* Header Section */}
             <div className="class-students-header">
                 <div className="header-left">
@@ -205,11 +231,7 @@ export default function ClassStudentsList() {
                         <span style={{ fontSize: 24 }}>🎓</span>
                     </div>
                     <div className="header-info">
-                        <Title level={3} style={{ margin: 0, fontWeight: 600 }}>
-                            {classInfo?.subjectName
-                                ? `${classInfo.subjectName} (${classInfo.subjectCode})`
-                                : "Unknown Course"}
-                        </Title>
+                       
                         <Text className="group-name">
                             Class {classInfo?.className || "N/A"}
                         </Text>
