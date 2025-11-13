@@ -9,6 +9,7 @@ export default function SlotsList({ course, lecturerId }) {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [homeworksMap, setHomeworksMap] = useState({}); // Map lessonId -> homeworks[]
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const navigate = useNavigate();
 
   const loadSlots = useCallback(async () => {
@@ -18,6 +19,7 @@ export default function SlotsList({ course, lecturerId }) {
       setLoading(true);
       const data = await LecturerHomework.getSlots(course.classId);
       setSlots(data);
+      setPagination((prev) => ({ ...prev, current: 1 }));
       
       // Load homeworks for each slot
       if (data.length > 0) {
@@ -49,6 +51,14 @@ export default function SlotsList({ course, lecturerId }) {
       loadSlots();
     }
   }, [course, loadSlots]);
+
+  const handleTableChange = (newPagination) => {
+    setPagination((prev) => ({
+      ...prev,
+      current: newPagination.current,
+      pageSize: newPagination.pageSize,
+    }));
+  };
 
   const getPrimaryHomework = useCallback(
     (lessonId) => {
@@ -93,11 +103,11 @@ export default function SlotsList({ course, lecturerId }) {
     {
       title: "Lesson",
       key: "lessonNumber",
-      width: 80,
+      width: 100,
       align: "center",
       render: (_, __, index) => (
-        <Tag color="geekblue" style={{ fontSize: 13, padding: "2px 10px" }}>
-          {index + 1}
+        <Tag color="geekblue" style={{ fontSize: 13, padding: "2px 12px" }}>
+          Lesson {(pagination.current - 1) * pagination.pageSize + index + 1}
         </Tag>
       ),
     },
@@ -268,12 +278,13 @@ export default function SlotsList({ course, lecturerId }) {
         dataSource={slots}
         rowKey="lessonId"
         pagination={{
-          pageSize: 10,
+          ...pagination,
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total, range) =>
             `${range[0]}-${range[1]} of ${total} ${total === 1 ? "slot" : "slots"}`,
         }}
+        onChange={handleTableChange}
         bordered
         size="middle"
       />
