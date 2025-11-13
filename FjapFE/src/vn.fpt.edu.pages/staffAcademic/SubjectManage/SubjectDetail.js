@@ -86,6 +86,9 @@ export default function SubjectDetail() {
         <Descriptions.Item label="Pass Mark" span={1}>
           <Tag color="green">{subject.passMark} / 10</Tag>
         </Descriptions.Item>
+        <Descriptions.Item label="Total Lesson" span={1}>
+          <Tag color="blue">{subject.totalLesson || 0} lessons</Tag>
+        </Descriptions.Item>
         <Descriptions.Item label="Status" span={1}>
           <Tag color={subject.status === 'Active' ? 'green' : 'red'}>
             {subject.status}

@@ -59,6 +59,7 @@ namespace FJAP.Services
                         Description = request.Description,
                         PassMark = request.PassMark ?? 5.0m,
                         LevelId = request.LevelId,
+                        TotalLesson = request.TotalLesson,
                         Status = "Active",
                         CreatedAt = DateTime.UtcNow
                     };
@@ -130,6 +131,7 @@ namespace FJAP.Services
                     existingSubject.Description = request.Description;
                     existingSubject.PassMark = request.PassMark ?? 5.0m;
                     existingSubject.LevelId = request.LevelId;
+                    existingSubject.TotalLesson = request.TotalLesson;
 
                     // 7. Handle Grade Type updates (Delete, Update, Add)
                     var gradeTypesFromRequest = request.GradeTypes ?? new List<GradeTypeDto>();

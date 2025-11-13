@@ -188,7 +188,7 @@ export default function GradeDetails() {
         render: (_, record) => {
           const avg = parseFloat(record.average);
           if (!avg || avg === 0) {
-            return <Tag color="default" icon={<ClockCircleOutlined />}>Incomplete</Tag>;
+            return <Tag color="default" icon={<ClockCircleOutlined />}>Inprogress</Tag>;
           }
           const isPassed = avg >= 5.0;
           return (
@@ -302,7 +302,7 @@ export default function GradeDetails() {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Incomplete"
+              title="Inprogress"
               value={stats.incompleteStudents}
               suffix={`/ ${stats.totalStudents}`}
               valueStyle={{ color: '#faad14' }}

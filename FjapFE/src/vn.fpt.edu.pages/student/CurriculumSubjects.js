@@ -178,6 +178,7 @@ export default function CurriculumSubjects() {
       case "inactive":
         return "default";
       case "completed":
+      case "passed":
         return "green";
       case "in progress":
         return "blue";
