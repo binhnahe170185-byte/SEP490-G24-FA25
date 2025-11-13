@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, Form, DatePicker, Input, Button, message, Space, Typography, Row, Col } from "antd";
 import { SaveOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import SemesterApi from "../../../vn.fpt.edu.api/Semester";
 import dayjs from "dayjs";
 
@@ -12,18 +12,17 @@ export default function EditSemester() {
   const [loading, setLoading] = useState(false);
   const [semester, setSemester] = useState(null);
   const navigate = useNavigate();
-  const location = useLocation();
+  const { id } = useParams();
 
   useEffect(() => {
-    // Get semester ID from location state
-    const semesterId = location?.state?.semesterId;
-    if (semesterId) {
-      fetchSemester(semesterId);
+    // Get semester ID from URL params
+    if (id) {
+      fetchSemester(id);
     } else {
       message.error("Semester ID not provided");
-      navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
+      navigate("/staffOfAdmin/semesters");
     }
-  }, [location]);
+  }, [id]);
 
   const fetchSemester = async (semesterId) => {
     try {
@@ -40,7 +39,7 @@ export default function EditSemester() {
     } catch (error) {
       console.error("Error fetching semester:", error);
       message.error("Failed to load semester data");
-      navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
+      navigate("/staffOfAdmin/semesters");
     } finally {
       setLoading(false);
     }
@@ -61,7 +60,7 @@ export default function EditSemester() {
       message.success("Semester updated successfully");
       
       // Navigate back to semester list
-      navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
+      navigate("/staffOfAdmin/semesters");
     } catch (error) {
       console.error("Error updating semester:", error);
       message.error("Failed to update semester");

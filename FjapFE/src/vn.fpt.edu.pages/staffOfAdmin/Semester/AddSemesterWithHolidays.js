@@ -558,7 +558,7 @@ export default function AddSemesterWithHolidays() {
 
   const handleCancel = () => {
     sessionStorage.removeItem(SESSION_KEY);
-    navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
+    navigate("/staffOfAdmin/semesters");
   };
 
   const renderStepContent = () => {
@@ -1103,7 +1103,7 @@ export default function AddSemesterWithHolidays() {
         onCancel={() => {
           setSuccessModalVisible(false);
           setTimeout(() => {
-            navigate("/staffOfAdmin", { state: { activeTab: "sem:list" }, replace: true });
+            navigate("/staffOfAdmin/semesters", { replace: true });
           }, 100);
         }}
         footer={[
@@ -1111,7 +1111,7 @@ export default function AddSemesterWithHolidays() {
             setSuccessModalVisible(false);
             // Add a small delay to ensure modal closes before navigation
             setTimeout(() => {
-              navigate("/staffOfAdmin", { state: { activeTab: "sem:list" }, replace: true });
+              navigate("/staffOfAdmin/semesters", { replace: true });
             }, 100);
           }}>
             Back to List

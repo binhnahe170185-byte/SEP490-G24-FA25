@@ -45,12 +45,7 @@ export default function SemesterList({ title = "Semester Management" }) {
   
   const openEdit = (record) => {
     // Navigate to Edit Semester page
-    navigate("/staffOfAdmin", { 
-      state: { 
-        activeTab: "sem:edit",
-        semesterId: record.id 
-      } 
-    });
+    navigate(`/staffOfAdmin/semesters/edit/${record.id}`);
   };
 
 

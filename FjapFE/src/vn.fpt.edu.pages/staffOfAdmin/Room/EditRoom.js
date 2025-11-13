@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, Form, Input, Button, message, Space, Typography, Row, Col, Select } from "antd";
 import { SaveOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import RoomApi from "../../../vn.fpt.edu.api/Room";
 
 const { Title } = Typography;
@@ -16,18 +16,17 @@ export default function EditRoom() {
   const [loading, setLoading] = useState(false);
   const [room, setRoom] = useState(null);
   const navigate = useNavigate();
-  const location = useLocation();
+  const { id } = useParams();
 
   useEffect(() => {
-    // Get room ID from location state
-    const roomId = location?.state?.roomId;
-    if (roomId) {
-      fetchRoom(roomId);
+    // Get room ID from URL params
+    if (id) {
+      fetchRoom(id);
     } else {
       message.error("Room ID not provided");
-      navigate("/staffOfAdmin", { state: { activeTab: "rooms:list" } });
+      navigate("/staffOfAdmin/rooms");
     }
-  }, [location]);
+  }, [id]);
 
   const fetchRoom = async (roomId) => {
     try {
@@ -44,7 +43,7 @@ export default function EditRoom() {
     } catch (error) {
       console.error("Error fetching room:", error);
       message.error("Failed to load room data");
-      navigate("/staffOfAdmin", { state: { activeTab: "rooms:list" } });
+      navigate("/staffOfAdmin/rooms");
     } finally {
       setLoading(false);
     }
@@ -65,7 +64,7 @@ export default function EditRoom() {
       message.success("Room updated successfully");
       
       // Navigate back to room list
-      navigate("/staffOfAdmin", { state: { activeTab: "rooms:list" } });
+      navigate("/staffOfAdmin/rooms");
     } catch (error) {
       console.error("Error updating room:", error);
       const errorMessage = error?.response?.data?.message || "Failed to update room";

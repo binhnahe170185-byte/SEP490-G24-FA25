@@ -27,7 +27,7 @@ export default function AddSemester() {
       message.success("Semester created successfully");
       
       // Navigate back to semester list
-      navigate("/staffOfAdmin", { state: { activeTab: "sem:list" } });
+      navigate("/staffOfAdmin/semesters");
     } catch (error) {
       console.error("Error creating semester:", error);
       message.error("Failed to create semester");
