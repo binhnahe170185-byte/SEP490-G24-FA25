@@ -1,12 +1,13 @@
-﻿using FJAP.Services.Interfaces;
+﻿using FJAP.DTOs;
+using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
-using FJAP.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+using System.Text.RegularExpressions;
 
 namespace FJAP.Controllers;
 
@@ -16,6 +17,9 @@ public class StaffOfAdminController : ControllerBase
 {
     private readonly IStaffOfAdminService _adminService;
     private readonly FjapDbContext _db;
+    private static readonly Regex NameRegex = new(@"^[\p{L}\p{M}][\p{L}\p{M}\s\.'-]*$", RegexOptions.Compiled);
+    private static readonly Regex PhoneRegex = new(@"^(?:\+?84|0)(?:\d){8,9}$", RegexOptions.Compiled);
+    private static readonly string[] AllowedStatuses = new[] { "Active", "Inactive" };
 
     public StaffOfAdminController(IStaffOfAdminService adminService, FjapDbContext dbContext)
     {
@@ -324,6 +328,119 @@ public class StaffOfAdminController : ControllerBase
                 });
             }
 
+            var customErrors = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            void AddError(string field, string message)
+            {
+                if (!customErrors.TryGetValue(field, out var fieldErrors))
+                {
+                    fieldErrors = new List<string>();
+                    customErrors[field] = fieldErrors;
+                }
+                fieldErrors.Add(message);
+            }
+
+            var firstName = request.FirstName?.Trim();
+            if (string.IsNullOrWhiteSpace(firstName))
+            {
+                AddError("firstName", "First name is required");
+            }
+            else
+            {
+                if (firstName.Length < 2 || firstName.Length > 50)
+                    AddError("firstName", "First name must be between 2 and 50 characters");
+                if (!NameRegex.IsMatch(firstName))
+                    AddError("firstName", "First name contains invalid characters");
+            }
+
+            var lastName = request.LastName?.Trim();
+            if (string.IsNullOrWhiteSpace(lastName))
+            {
+                AddError("lastName", "Last name is required");
+            }
+            else
+            {
+                if (lastName.Length < 2 || lastName.Length > 50)
+                    AddError("lastName", "Last name must be between 2 and 50 characters");
+                if (!NameRegex.IsMatch(lastName))
+                    AddError("lastName", "Last name contains invalid characters");
+            }
+
+            var emailTrimmed = request.Email?.Trim();
+            if (string.IsNullOrWhiteSpace(emailTrimmed))
+            {
+                AddError("email", "Email is required");
+            }
+            else if (emailTrimmed.Length > 150)
+            {
+                AddError("email", "Email must not exceed 150 characters");
+            }
+
+            string? normalizedPhone = null;
+            if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+            {
+                AddError("phoneNumber", "Phone number is required");
+            }
+            else
+            {
+                var phoneCandidate = Regex.Replace(request.PhoneNumber, @"[\s\-]", "");
+                if (!PhoneRegex.IsMatch(phoneCandidate))
+                {
+                    AddError("phoneNumber", "Phone number must start with 0 or +84 and contain 10-11 digits");
+                }
+                else
+                {
+                    normalizedPhone = phoneCandidate;
+                }
+            }
+
+            var normalizedAddress = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+            if (normalizedAddress != null && normalizedAddress.Length > 200)
+            {
+                AddError("address", "Address must not exceed 200 characters");
+            }
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+            if (request.Dob > today)
+            {
+                AddError("dob", "Date of birth cannot be in the future");
+            }
+            else
+            {
+                var age = today.Year - request.Dob.Year;
+                if (request.Dob > today.AddYears(-age)) age--;
+                if (age < 18 || age > 65)
+                {
+                    AddError("dob", "Staff age must be between 18 and 65");
+                }
+            }
+
+            var statusCandidate = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim();
+            var matchedStatus = AllowedStatuses.FirstOrDefault(s => s.Equals(statusCandidate, StringComparison.OrdinalIgnoreCase));
+            if (matchedStatus == null)
+            {
+                AddError("status", "Status must be Active or Inactive");
+            }
+            else
+            {
+                statusCandidate = matchedStatus;
+            }
+
+            if (customErrors.Count > 0)
+            {
+                return BadRequest(new
+                {
+                    code = 400,
+                    message = "Validation failed",
+                    errors = customErrors
+                });
+            }
+
+            var normalizedFirstName = firstName!;
+            var normalizedLastName = lastName!;
+            var normalizedEmail = emailTrimmed!.ToLower();
+            var normalizedStatus = statusCandidate;
+
             // Validate role ID - only allow Staff (6, 7) and Lecturer (3)
             var validRoleIds = new[] { 3, 6, 7 };
             if (!validRoleIds.Contains(request.RoleId))
@@ -338,7 +455,7 @@ public class StaffOfAdminController : ControllerBase
             }
 
             // Check email uniqueness - trim and lowercase for comparison
-            var emailNormalized = request.Email.Trim().ToLower();
+            var emailNormalized = normalizedEmail;
             var existingEmail = await _db.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Email.ToLower().Trim() == emailNormalized);
@@ -349,12 +466,11 @@ public class StaffOfAdminController : ControllerBase
             }
 
             // Check phone uniqueness (if provided and not empty)
-            if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+            if (!string.IsNullOrWhiteSpace(normalizedPhone))
             {
-                var phoneNormalized = request.PhoneNumber.Trim();
                 var existingPhone = await _db.Users
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.PhoneNumber != null && u.PhoneNumber.Trim() == phoneNormalized);
+                    .FirstOrDefaultAsync(u => u.PhoneNumber != null && u.PhoneNumber.Trim() == normalizedPhone);
                 
                 if (existingPhone != null)
                 {
@@ -375,23 +491,24 @@ public class StaffOfAdminController : ControllerBase
 
             // Validate gender
             var validGenders = new[] { "Male", "Female", "Other" };
+            request.Gender = string.IsNullOrWhiteSpace(request.Gender) ? "Other" : request.Gender.Trim();
             if (!validGenders.Contains(request.Gender))
                 request.Gender = "Other";
 
             // Map DTO to User entity
             var user = new User
             {
-                FirstName = request.FirstName.Trim(),
-                LastName = request.LastName.Trim(),
-                Email = request.Email.Trim().ToLower(),
-                PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? "" : request.PhoneNumber.Trim(),
+                FirstName = normalizedFirstName,
+                LastName = normalizedLastName,
+                Email = normalizedEmail,
+                PhoneNumber = normalizedPhone ?? "",
                 Gender = request.Gender,
                 Dob = request.Dob,
-                Address = string.IsNullOrWhiteSpace(request.Address) ? "" : request.Address.Trim(),
+                Address = normalizedAddress ?? "",
                 Avatar = avatarBase64,
                 RoleId = request.RoleId,
                 DepartmentId = request.DepartmentId,
-                Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status
+                Status = normalizedStatus
             };
 
             var created = await _adminService.CreateAsync(user);
