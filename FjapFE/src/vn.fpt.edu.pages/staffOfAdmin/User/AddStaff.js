@@ -1,19 +1,25 @@
 // src/vn.fpt.edu.pages/admin/AddStaff.js
 import React, { useState, useEffect } from "react";
+import { Card, Form, Button, Row, Col, message, Space, Typography, Alert, Modal } from "antd";
 import {
-  Card, Form, Input, Select, DatePicker, Button, Row, Col, message, Space, Typography, Divider, Alert, Modal, Upload
-} from "antd";
-import {
-  UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined,
-  IdcardOutlined, CalendarOutlined, SaveOutlined, ReloadOutlined, CheckCircleTwoTone, CloseCircleTwoTone, UploadOutlined
+  IdcardOutlined,
+  SaveOutlined,
+  ReloadOutlined,
+  CheckCircleTwoTone,
+  CloseCircleTwoTone,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import AdminApi from "../../../vn.fpt.edu.api/Admin";
+import PersonalInfoCard from "./components/PersonalInfoCard";
+import AddressCard from "./components/AddressCard";
+import AvatarCard from "./components/AvatarCard";
+import NotesCard from "./components/NotesCard";
 
 const { Title, Text } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
+
+const NAME_REGEX = /^[A-Za-zÀ-ỿà-ỹ\s.'-]+$/u;
+const PHONE_REGEX = /^(?:\+?84|0)(?:\d){8,9}$/;
 
 // Staff type options - Department selection determines role
 const STAFF_TYPE_OPTIONS = [
@@ -40,6 +46,22 @@ export default function AddStaff() {
   const [errorText, setErrorText] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
+
+  const phoneRule = {
+    validator: (_, value) => {
+      const normalized = value ? value.replace(/[\s-]/g, "") : "";
+      if (!normalized) {
+        return Promise.reject(new Error("Enter phone"));
+      }
+      if (!PHONE_REGEX.test(normalized)) {
+        return Promise.reject(new Error("Phone must start with 0 or +84"));
+      }
+      return Promise.resolve();
+    },
+  };
+
+  const disabledDob = (current) =>
+    current && (current > dayjs().endOf("day") || current < dayjs().subtract(100, "years"));
 
   // Load departments
   useEffect(() => {
@@ -193,17 +215,14 @@ export default function AddStaff() {
         return;
       }
 
-      // Validate phone number format (if provided)
-      if (userData.phoneNumber) {
-        const phoneRegex = /^[0-9]{10,11}$/;
-        if (!phoneRegex.test(userData.phoneNumber.replace(/[\s-]/g, ""))) {
-          message.error("Phone number must have 10-11 digits");
-          setLoading(false);
-          return;
-        }
-        // Remove spaces and dashes
-        userData.phoneNumber = userData.phoneNumber.replace(/[\s-]/g, "");
+      // Validate phone number format (required)
+      const normalizedPhone = userData.phoneNumber.replace(/[\s-]/g, "");
+      if (!PHONE_REGEX.test(normalizedPhone)) {
+        message.error("Phone number must start with 0 or +84 and have 10-11 digits");
+        setLoading(false);
+        return;
       }
+      userData.phoneNumber = normalizedPhone;
 
       // Convert avatar file to base64 if exists (resize to 200x200 first)
       if (avatarFile) {
@@ -353,353 +372,76 @@ export default function AddStaff() {
   };
 
   return (
-    <div style={{ width: "100%", margin: "0", padding: "0" }}>
+    <div style={{ width: "100%", margin: 0, padding: 0 }}>
       <Card
         style={{
           borderRadius: 12,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
           width: "100%",
         }}
-        bodyStyle={{ padding: "20px 0" }}
+        bodyStyle={{ padding: 24 }}
       >
-        {/* Header */}
-        <div style={{ marginBottom: 24, padding: "0 8px" }}>
-          <Space align="center" style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 16 }}>
+          <Space align="center">
             <IdcardOutlined style={{ fontSize: 24, color: "#0071c5" }} />
             <Title level={3} style={{ margin: 0 }}>
               Add Staff
             </Title>
           </Space>
-        </div>
-
-        <Divider style={{ margin: "16px 0" }} />
-
-        {/* Description */}
-        <div style={{ padding: "0 8px", marginBottom: 16 }}>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Select staff type: Staff (requires department, role auto-set) or Lecturer (no department required). Department heads are assigned separately by admin.
+          <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+            Staff roles are determined by department. Lecturer does not require department selection.
           </Text>
         </div>
 
-        {/* Form */}
-        <div style={{ padding: "0 8px" }}>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            autoComplete="off"
-            size="middle"
-          >
-          {/* Staff Type Selection */}
-          <Form.Item
-            label={<strong>Staff Type</strong>}
-            name="staffType"
-            rules={[
-              { required: true, message: "Please select staff type" }
-            ]}
-            style={{ marginBottom: 16 }}
-          >
-            <Select
-              placeholder="Select staff type"
-              onChange={handleStaffTypeChange}
-              style={{ width: "100%" }}
-            >
-              {STAFF_TYPE_OPTIONS.map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          {/* Department - Required for Staff, Not shown for Lecturer */}
-          {staffType === "staff" && (
-            <Form.Item
-              label={<strong>Department</strong>}
-              name="departmentId"
-              rules={[
-                { 
-                  required: true, 
-                  message: "Please select a department"
-                },
-                {
-                  validator: (_, value) => {
-                    if (!value && value !== 0) {
-                      return Promise.reject(new Error("Please select a department"));
-                    }
-                    // Convert to number if it's a string
-                    const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
-                    if (isNaN(numValue)) {
-                      return Promise.reject(new Error("Invalid department selected"));
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-              style={{ marginBottom: 16 }}
-            >
-              <Select
-                placeholder="Select department"
-                loading={loadingDepartments}
-                onChange={(value) => {
-                  console.log("Department selected:", value, typeof value);
-                  handleDepartmentChange(value);
-                }}
-                style={{ width: "100%" }}
-                allowClear={false}
-                notFoundContent={loadingDepartments ? "Loading..." : "No data"}
-                showSearch
-                optionFilterProp="children"
-                filterOption={(input, option) =>
-                  (option?.children ?? "").toLowerCase().includes(input.toLowerCase())
-                }
-              >
-                {departments.map(dept => {
-                  const deptId = dept.departmentId || dept.id;
-                  const deptName = dept.name || dept.departmentName || "";
-                  return (
-                    <Option key={String(deptId)} value={Number(deptId)}>
-                      {deptName}
-                    </Option>
-                  );
-                })}
-              </Select>
-              <div style={{ marginTop: 4, fontSize: 12, color: "#8c8c8c" }}>
-                Role will be automatically set based on department (Academic Staff for Academic Department, Administration Staff for Administration Department)
-              </div>
-            </Form.Item>
-          )}
-
-          {/* Hidden roleId field - auto-set based on department */}
-          <Form.Item name="roleId" hidden>
-            <Input />
-          </Form.Item>
-
-          <Divider style={{ margin: "20px 0" }}>Personal Information</Divider>
-
-          {/* Name Row */}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          autoComplete="off"
+          size="large"
+        >
           <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<strong>Last Name</strong>}
-                name="lastName"
-                rules={[
-                  { required: true, message: "Please enter last name" },
-                  { min: 2, message: "Last name must be at least 2 characters" }
-                ]}
-                style={{ marginBottom: 16 }}
-              >
-                <Input
-                  prefix={<UserOutlined />}
-                  placeholder="Enter last name"
-                />
-              </Form.Item>
+            <Col xs={24} lg={16}>
+              <PersonalInfoCard
+                staffTypeOptions={STAFF_TYPE_OPTIONS}
+                genderOptions={GENDER_OPTIONS}
+                departments={departments}
+                loadingDepartments={loadingDepartments}
+                staffType={staffType}
+                onStaffTypeChange={handleStaffTypeChange}
+                onDepartmentChange={handleDepartmentChange}
+                nameRegex={NAME_REGEX}
+                phoneRule={phoneRule}
+                disabledDob={disabledDob}
+              />
+              <AddressCard />
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<strong>First Name</strong>}
-                name="firstName"
-                rules={[
-                  { required: true, message: "Please enter first name" },
-                  { min: 2, message: "First name must be at least 2 characters" }
-                ]}
-                style={{ marginBottom: 16 }}
-              >
-                <Input
-                  prefix={<UserOutlined />}
-                  placeholder="Enter first name"
-                />
-              </Form.Item>
+            <Col xs={24} lg={8}>
+              <AvatarCard
+                avatarPreview={avatarPreview}
+                onAvatarChange={handleAvatarChange}
+                onAvatarRemove={handleAvatarRemove}
+              />
+              <NotesCard />
             </Col>
           </Row>
-
-          {/* Contact Info Row */}
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<strong>Email</strong>}
-                name="email"
-                rules={[
-                  { required: true, message: "Please enter email" },
-                  { type: "email", message: "Invalid email format" }
-                ]}
-                style={{ marginBottom: 16 }}
-              >
-                <Input
-                  prefix={<MailOutlined />}
-                  placeholder="example@fpt.edu.vn"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<strong>Phone Number</strong>}
-                name="phoneNumber"
-                rules={[
-                  {
-                    pattern: /^[0-9\s-]{10,11}$/,
-                    message: "Phone number must have 10-11 digits"
-                  }
-                ]}
-                style={{ marginBottom: 16 }}
-              >
-                <Input
-                  prefix={<PhoneOutlined />}
-                  placeholder="0123456789"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          {/* Gender and DOB Row */}
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<strong>Gender</strong>}
-                name="gender"
-                rules={[
-                  { required: true, message: "Please select gender" }
-                ]}
-                style={{ marginBottom: 16 }}
-              >
-                <Select placeholder="Select gender" style={{ width: "100%" }}>
-                  {GENDER_OPTIONS.map(gender => (
-                    <Option key={gender.value} value={gender.value}>
-                      {gender.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label={<strong>Date of Birth</strong>}
-                name="dob"
-                rules={[
-                  { required: true, message: "Please select date of birth" }
-                ]}
-                style={{ marginBottom: 16 }}
-              >
-                <DatePicker
-                  style={{ width: "100%" }}
-                  placeholder="Select date of birth"
-                  format="DD/MM/YYYY"
-                  disabledDate={(current) => {
-                    // Cannot select future dates or dates more than 100 years ago
-                    return current && (current > dayjs().endOf("day") || current < dayjs().subtract(100, "years"));
-                  }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          {/* Address */}
-          <Form.Item
-            label={<strong>Address</strong>}
-            name="address"
-            style={{ marginBottom: 16 }}
-          >
-            <TextArea
-              prefix={<HomeOutlined />}
-              placeholder="Enter address (optional)"
-              rows={2}
-            />
-          </Form.Item>
-
-          {/* Avatar Upload */}
-          <Form.Item
-            label={<strong>Avatar</strong>}
-            style={{ marginBottom: 16 }}
-          >
-            <Upload
-              name="avatar"
-              listType="picture-card"
-              showUploadList={false}
-              beforeUpload={() => false} // Prevent auto upload
-              onChange={handleAvatarChange}
-              accept="image/*"
-              maxCount={1}
-            >
-              {avatarPreview ? (
-                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                  <img
-                    src={avatarPreview}
-                    alt="avatar"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }}
-                  />
-                  <Button
-                    type="text"
-                    danger
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAvatarRemove();
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      background: 'rgba(255, 255, 255, 0.8)',
-                    }}
-                  >
-                    ×
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  <UploadOutlined />
-                  <div style={{ marginTop: 8 }}>Upload Avatar</div>
-                </div>
-              )}
-            </Upload>
-            <div style={{ marginTop: 8, fontSize: 12, color: '#8c8c8c' }}>
-              Chỉ chấp nhận file ảnh (JPG, PNG, GIF, WEBP), tối đa 5MB. Ảnh sẽ được resize về 200x200px.
-            </div>
-          </Form.Item>
-
-          {/* Info Alert */}
-          <Alert
-            message="Note"
-            description={
-              <ul style={{ marginBottom: 0, paddingLeft: 20, fontSize: 13 }}>
-                <li>Select "Staff" and choose a department - role will be automatically set (Academic Staff for Academic Department, Administration Staff for Administration Department)</li>
-                <li>Select "Lecturer" - no department required, role will be set to Lecturer</li>
-                <li>Email and phone number must be unique in the system</li>
-                <li>After creation, users can login with email through Google OAuth</li>
-                <li>Default status will be "Active"</li>
-                <li>Department heads are assigned separately by admin, not through this form</li>
-              </ul>
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: 24, fontSize: 13 }}
-          />
-
-          {/* Submit Buttons */}
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space size="middle">
+          <Form.Item style={{ marginTop: 16, marginBottom: 0 }}>
+            <Space size="middle" wrap>
               <Button
                 type="primary"
                 htmlType="submit"
                 icon={<SaveOutlined />}
                 loading={loading}
-                size="middle"
-                style={{ minWidth: 120 }}
+                style={{ minWidth: 140 }}
               >
                 Create Staff
               </Button>
-              <Button
-                htmlType="button"
-                onClick={handleReset}
-                icon={<ReloadOutlined />}
-                size="middle"
-              >
+              <Button htmlType="button" onClick={handleReset} icon={<ReloadOutlined />}>
                 Reset
               </Button>
             </Space>
           </Form.Item>
         </Form>
-        </div>
       </Card>
       <Modal
         open={successModalOpen}
