@@ -1,38 +1,67 @@
 import React from 'react';
+import {
+  Card,
+  Space,
+  Button,
+  Tag,
+  Tooltip,
+  Typography,
+  Table,
+  Empty,
+} from 'antd';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
 
-const CalendarTable = ({ 
-  title, 
-  weekStart, 
-  weekRange, 
-  onPrevWeek, 
-  onNextWeek, 
-  renderCalendar 
+const CalendarTable = ({
+  title,
+  weekStart,
+  weekRange,
+  onPrevWeek,
+  onNextWeek,
+  renderCalendar
 }) => {
+  const isNavigationDisabled = !weekStart;
+  const { columns = [], dataSource = [] } = (renderCalendar && renderCalendar()) || {};
+
   return (
-    <div className="create-schedule-card">
-      <h3>{title}</h3>
-      <div className="create-schedule-calendar-head">
-        <button className="create-schedule-btn" onClick={onPrevWeek}>◀ Prev</button>
-        <b>{weekRange || 'Week'}</b>
-        <button className="create-schedule-btn" onClick={onNextWeek}>Next ▶</button>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Slot / Day</th>
-            <th>Mon</th>
-            <th>Tue</th>
-            <th>Wed</th>
-            <th>Thu</th>
-            <th>Fri</th>
-          </tr>
-        </thead>
-        <tbody>
-          {renderCalendar()}
-        </tbody>
-      </table>
-    </div>
+    <Card
+      className="create-schedule-card"
+      title={
+        <Space size="small">
+          <Typography.Text strong>{title}</Typography.Text>
+          <Tag color="geekblue">{weekRange || 'Week'}</Tag>
+        </Space>
+      }
+      extra={
+        <Space>
+          <Tooltip title="Previous week">
+            <Button
+              icon={<LeftOutlined />}
+              onClick={onPrevWeek}
+              disabled={isNavigationDisabled}
+            />
+          </Tooltip>
+          <Tooltip title="Next week">
+            <Button
+              icon={<RightOutlined />}
+              onClick={onNextWeek}
+              disabled={isNavigationDisabled}
+            />
+          </Tooltip>
+        </Space>
+      }
+    >
+      <Table
+        className="create-schedule-table"
+        columns={columns}
+        dataSource={dataSource}
+        pagination={false}
+        bordered
+        size="middle"
+        scroll={{ x: 'max-content' }}
+        locale={{ emptyText: <Empty description="No timetable data" /> }}
+      />
+    </Card>
   );
 };
 

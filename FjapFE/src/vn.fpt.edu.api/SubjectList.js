@@ -48,49 +48,49 @@ class SubjectList {
     return response.data?.data || response.data;
   }
 
-  // Lấy danh sách subjects cho dropdown (từ manager endpoint)
-  static async getDropdownOptions() {
+  // Lấy danh sách tất cả subjects (từ manager endpoint)
+  static async getAllSubjectOptions() {
     const response = await api.get("/api/manager/subjects/dropdown");
     return response.data?.data || response.data;
   }
 
-  // Lấy danh sách subjects cho dropdown (từ staffAcademic endpoint)
-  static async getDropdownOptionsForStaffAcademic() {
+  // Lấy danh sách subjects cho staffAcademic (getAllSubject endpoint)
+  static async getAllSubjectForStaffAcademic() {
     try {
-      console.log('SubjectList.getDropdownOptionsForStaffAcademic - Calling API...');
-      const response = await api.get("/api/staffAcademic/classes/subjects/dropdown");
-      console.log('SubjectList.getDropdownOptionsForStaffAcademic - Raw response:', response);
-      console.log('SubjectList.getDropdownOptionsForStaffAcademic - Response data:', response.data);
-      
+      console.log('SubjectList.getAllSubjectForStaffAcademic - Calling API...');
+      const response = await api.get("/api/staffAcademic/classes/subjects/getAllSubject");
+      console.log('SubjectList.getAllSubjectForStaffAcademic - Raw response:', response);
+      console.log('SubjectList.getAllSubjectForStaffAcademic - Response data:', response.data);
+
       // Handle response format: { code: 200, data: [...] }
       if (response.data?.data && Array.isArray(response.data.data)) {
-        console.log('SubjectList.getDropdownOptionsForStaffAcademic - Returning data array:', response.data.data.length, 'items');
+        console.log('SubjectList.getAllSubjectForStaffAcademic - Returning data array:', response.data.data.length, 'items');
         return response.data.data;
       }
       // Fallback: try direct data
       if (Array.isArray(response.data)) {
-        console.log('SubjectList.getDropdownOptionsForStaffAcademic - Returning direct array:', response.data.length, 'items');
+        console.log('SubjectList.getAllSubjectForStaffAcademic - Returning direct array:', response.data.length, 'items');
         return response.data;
       }
       // If response format is unexpected, try to extract from nested structure
-      console.warn('SubjectList.getDropdownOptionsForStaffAcademic - Unexpected response format:', response.data);
+      console.warn('SubjectList.getAllSubjectForStaffAcademic - Unexpected response format:', response.data);
       return [];
     } catch (error) {
-      console.error('SubjectList.getDropdownOptionsForStaffAcademic - Error:', error);
-      console.error('SubjectList.getDropdownOptionsForStaffAcademic - Error response:', error.response);
+      console.error('SubjectList.getAllSubjectForStaffAcademic - Error:', error);
+      console.error('SubjectList.getAllSubjectForStaffAcademic - Error response:', error.response);
       // Fallback to manager endpoint if staffAcademic fails
-      console.log('SubjectList.getDropdownOptionsForStaffAcademic - Falling back to manager endpoint...');
+      console.log('SubjectList.getAllSubjectForStaffAcademic - Falling back to manager endpoint...');
       try {
         const fallbackResponse = await api.get("/api/manager/subjects/dropdown");
         if (fallbackResponse.data?.data && Array.isArray(fallbackResponse.data.data)) {
-          console.log('SubjectList.getDropdownOptionsForStaffAcademic - Fallback successful:', fallbackResponse.data.data.length, 'items');
+          console.log('SubjectList.getAllSubjectForStaffAcademic - Fallback successful:', fallbackResponse.data.data.length, 'items');
           return fallbackResponse.data.data;
         }
         if (Array.isArray(fallbackResponse.data)) {
           return fallbackResponse.data;
         }
       } catch (fallbackError) {
-        console.error('SubjectList.getDropdownOptionsForStaffAcademic - Fallback also failed:', fallbackError);
+        console.error('SubjectList.getAllSubjectForStaffAcademic - Fallback also failed:', fallbackError);
       }
       throw error;
     }

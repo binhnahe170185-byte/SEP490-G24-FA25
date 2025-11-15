@@ -600,8 +600,8 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         // Generate lessons for each week in semester
         while (currentDate <= endDate)
         {
-            // For each weekday (Mon-Fri, which are days 1-5 in C# DayOfWeek)
-            for (int dayOffset = 0; dayOffset < 5; dayOffset++)
+            // For each weekday (Mon-Sun, which are days 0-6 in C# DayOfWeek)
+            for (int dayOffset = 0; dayOffset < 7; dayOffset++)
             {
                 var lessonDate = currentDate.AddDays(dayOffset);
 
@@ -614,10 +614,10 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 // Skip if holiday
                 if (holidays.Contains(lessonDate)) continue;
 
-                // Get day of week (1=Mon, 2=Tue, ..., 7=Sun)
-                // Convert to our format: Mon=2, Tue=3, Wed=4, Thu=5, Fri=6
+                // Get day of week (0=Sun, 1=Mon, ..., 6=Sat)
+                // Convert to our format: Mon=2 ... Sat=7, Sun=8
                 var dayOfWeek = (int)lessonDate.DayOfWeek;
-                var normalizedWeekday = dayOfWeek == 0 ? 7 : dayOfWeek + 1; // Sunday = 0 -> 7, Monday = 1 -> 2
+                var normalizedWeekday = dayOfWeek == 0 ? 8 : dayOfWeek + 1; // Sunday = 0 -> 8, Monday = 1 -> 2
 
                 // Check if this weekday matches any pattern
                 foreach (var pattern in request.Patterns)

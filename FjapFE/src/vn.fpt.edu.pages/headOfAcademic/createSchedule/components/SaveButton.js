@@ -1,9 +1,10 @@
 import React from 'react';
+import { Card, Button, Space, Typography } from 'antd';
+import { SaveOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
 
-const SaveButton = ({ onSave, saving = false }) => {
+const SaveButton = ({ onSave, saving = false, disabled = false, disabledReason = '' }) => {
   const handleClick = (e) => {
-    console.log('SaveButton clicked!', { saving, onSave: typeof onSave });
     if (onSave && typeof onSave === 'function') {
       onSave(e);
     } else {
@@ -12,21 +13,26 @@ const SaveButton = ({ onSave, saving = false }) => {
   };
 
   return (
-    <div className="create-schedule-card" style={{ marginTop: '16px' }}>
-      <div className="create-schedule-toolbar">
-        <button 
-          className="create-schedule-btn create-schedule-primary" 
+    <Card className="create-schedule-card">
+      <Space direction="vertical" style={{ width: '100%' }} align="center">
+        <Typography.Text type="secondary">
+          Review conflicts before saving the timetable.
+        </Typography.Text>
+        {disabled && disabledReason && (
+          <Typography.Text type="danger">{disabledReason}</Typography.Text>
+        )}
+        <Button
+          type="primary"
+          size="large"
+          icon={<SaveOutlined />}
           onClick={handleClick}
-          disabled={saving}
-          type="button"
+          loading={saving}
+          disabled={disabled || saving}
         >
           {saving ? 'Đang lưu...' : 'Save timetable'}
-        </button>
-        <span className="create-schedule-muted">
-          Backend expands by semester (Mon–Fri), applies lecturer to all lessons.
-        </span>
-      </div>
-    </div>
+        </Button>
+      </Space>
+    </Card>
   );
 };
 
