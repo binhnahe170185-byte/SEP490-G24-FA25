@@ -36,7 +36,7 @@ const DeleteClassFormModal = ({ classId, className, onDeleted }) => {
       onDeleted?.();
     } catch (error) {
       const errorMessage =
-        "Failed to delete class";
+        "Class inprogressing cannot be deleted.";
       notifyError(
         key,
         "Delete failed",
