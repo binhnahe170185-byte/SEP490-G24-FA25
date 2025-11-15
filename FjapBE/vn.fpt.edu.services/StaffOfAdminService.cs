@@ -4,6 +4,7 @@ using FJAP.Services.Interfaces;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using System.Linq;
 
 namespace FJAP.Services;
 
@@ -11,6 +12,8 @@ public class StaffOfAdminService : IStaffOfAdminService
 {
     private readonly IStaffOfAdminRepository _adminRepository;
     private readonly FjapDbContext _db; // cần để validate role/enum khi import
+    private bool _lecturerCodeInitialized;
+    private int _lecturerCodeCounter;
 
     public StaffOfAdminService(IStaffOfAdminRepository adminRepository, FjapDbContext db)
     {
@@ -27,6 +30,19 @@ public class StaffOfAdminService : IStaffOfAdminService
     public async Task<User> CreateAsync(User user)
     {
         await _adminRepository.AddAsync(user);
+
+        if (user.RoleId == 3)
+        {
+            var lecturer = new Lecture
+            {
+                LecturerCode = await GenerateNextLecturerCodeAsync(),
+                User = user
+            };
+
+            await _db.Lectures.AddAsync(lecturer);
+            user.Lectures.Add(lecturer);
+        }
+
         await _adminRepository.SaveChangesAsync();
         return user;
     }
@@ -166,6 +182,19 @@ public class StaffOfAdminService : IStaffOfAdminService
             try
             {
                 await _adminRepository.AddAsync(user);
+
+                if (roleId == 3)
+                {
+                    var lecturer = new Lecture
+                    {
+                        LecturerCode = await GenerateNextLecturerCodeAsync(),
+                        User = user
+                    };
+
+                    await _db.Lectures.AddAsync(lecturer);
+                    user.Lectures.Add(lecturer);
+                }
+
                 inserted++;
             }
             catch (Exception ex)
@@ -177,5 +206,40 @@ public class StaffOfAdminService : IStaffOfAdminService
 
         await _adminRepository.SaveChangesAsync();
         return (inserted, skipped, errors);
+    }
+
+    private async Task<string> GenerateNextLecturerCodeAsync()
+    {
+        if (!_lecturerCodeInitialized)
+        {
+            var existingCodes = await _db.Lectures
+                .AsNoTracking()
+                .Select(l => l.LecturerCode)
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .ToListAsync();
+
+            _lecturerCodeCounter = existingCodes
+                .Select(ExtractLecturerNumber)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            _lecturerCodeInitialized = true;
+        }
+
+        _lecturerCodeCounter++;
+        return $"lec{_lecturerCodeCounter.ToString().PadLeft(2, '0')}";
+    }
+
+    private static int ExtractLecturerNumber(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return 0;
+        var normalized = code.Trim();
+        if (!normalized.StartsWith("lec", StringComparison.OrdinalIgnoreCase) || normalized.Length <= 3)
+        {
+            return 0;
+        }
+
+        var numericPart = normalized[3..];
+        return int.TryParse(numericPart, out var number) ? number : 0;
     }
 }
