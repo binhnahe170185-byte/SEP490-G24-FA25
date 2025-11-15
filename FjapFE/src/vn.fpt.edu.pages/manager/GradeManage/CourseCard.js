@@ -246,7 +246,7 @@ export default function CourseCard({ course, userId, onRefresh }) {
             }}>
               {course.incomplete}
             </div>
-            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Incomplete</div>
+            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Inprogress</div>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -151,10 +151,9 @@ function RoleBasedRedirect() {
   if (roleId === 3) {
     return <Navigate to="/lecturer/homepage" replace />;
   }
-    /*Sáng vào sửa chỗ này nhé 
-    Author: HuyLQ */
+  
   if (roleId === 4) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/student/homepage" replace />;
   }
   
   if (roleId === 5) {
@@ -198,13 +197,7 @@ function Home() {
   const { user } = useAuth();
   const roleId = user ? Number(user.roleId) : null;
   if (roleId === 4) {
-    return (
-      <RequireStudent>
-        <StudentLayout>
-          <StudentHomepage />
-        </StudentLayout>
-      </RequireStudent>
-    );
+    return <Navigate to="/student/homepage" replace />;
   }
   return <RoleBasedRedirect />;
 }
@@ -257,6 +250,7 @@ export default function App() {
                     </RequireStudent>
                   }
                 >
+                  <Route path="homepage" element={<StudentHomepage />} />
                   <Route path="grades" element={<StudentGradeReport />} />
                   <Route path="academic-transcript" element={<AcademicTranscript />} />
                   <Route path="attendance" element={<AttendanceReportPage />} />
