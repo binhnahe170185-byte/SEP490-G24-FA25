@@ -7,6 +7,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -114,6 +115,23 @@ public class StaffOfAdminController : ControllerBase
         if (page <= 0) page = 1;
         if (pageSize <= 0 || pageSize > 100) pageSize = 20;
 
+        var includeLecturers = false;
+        if (!string.IsNullOrWhiteSpace(roles))
+        {
+            includeLecturers = roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(r => int.TryParse(r, out var parsed) ? parsed : (int?)null)
+                .Any(id => id == 3);
+        }
+        else if (role.HasValue)
+        {
+            includeLecturers = role.Value == 3;
+        }
+
+        if (includeLecturers)
+        {
+            await _adminService.EnsureLecturerEntriesAsync();
+        }
+
         // LEFT JOIN student/level/semester/department theo schema mới
         var baseQuery =
             from u in _db.Users.AsNoTracking()
@@ -126,6 +144,8 @@ public class StaffOfAdminController : ControllerBase
             from l in lgrp.DefaultIfEmpty()
             join sem in _db.Semesters.AsNoTracking() on s.SemesterId equals sem.SemesterId into semgrp
             from sem in semgrp.DefaultIfEmpty()
+            join lec in _db.Lectures.AsNoTracking() on u.UserId equals lec.UserId into lecgrp
+            from lec in lecgrp.DefaultIfEmpty()
             select new
             {
                 u.UserId,
@@ -151,7 +171,9 @@ public class StaffOfAdminController : ControllerBase
                 LevelName = l != null ? l.LevelName : null,
                 SemesterId = (int?)s.SemesterId,
                 SemesterName = sem != null ? sem.Name : null,
-                EnrollmentDate = s != null ? (DateOnly?)s.EnrollmentDate : null
+                EnrollmentDate = s != null ? (DateOnly?)s.EnrollmentDate : null,
+                LecturerId = lec != null ? (int?)lec.LectureId : null,
+                LecturerCode = lec != null ? lec.LecturerCode : null
             };
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -183,8 +205,38 @@ public class StaffOfAdminController : ControllerBase
             .OrderByDescending(x => x.UserId)
             .ToListAsync();
 
-        var shaped = items.Select(x => new
+        Dictionary<int, Lecture>? lecturerLookup = null;
+        var lecturerUserIds = items
+            .Where(x => x.RoleId == 3)
+            .Select(x => x.UserId)
+            .Distinct()
+            .ToList();
+
+        if (lecturerUserIds.Count > 0)
         {
+            var lookupLecturers = await _db.Lectures
+                .AsNoTracking()
+                .Where(l => lecturerUserIds.Contains(l.UserId))
+                .ToDictionaryAsync(l => l.UserId, l => l);
+
+            lecturerLookup = lookupLecturers;
+        }
+
+        var shaped = items.Select(x =>
+        {
+            Lecture? fallbackLecturer = null;
+            if (lecturerLookup != null)
+            {
+                lecturerLookup.TryGetValue(x.UserId, out fallbackLecturer);
+            }
+
+            var rawLecturerCode = fallbackLecturer?.LecturerCode ?? x.LecturerCode;
+            var normalizedLecturerCode = string.IsNullOrWhiteSpace(rawLecturerCode)
+                ? null
+                : rawLecturerCode.Trim().ToUpperInvariant();
+
+            return new
+            {
             userId = x.UserId,
             firstName = x.FirstName,
             lastName = x.LastName,
@@ -207,7 +259,10 @@ public class StaffOfAdminController : ControllerBase
             levelName = x.LevelName,
             semesterId = x.SemesterId,
             semesterName = x.SemesterName,
-            enrollmentDate = x.EnrollmentDate?.ToString("yyyy-MM-dd")
+            enrollmentDate = x.EnrollmentDate?.ToString("yyyy-MM-dd"),
+                lecturerId = fallbackLecturer?.LectureId ?? x.LecturerId,
+                lecturerCode = normalizedLecturerCode
+            };
         });
 
         return Ok(new

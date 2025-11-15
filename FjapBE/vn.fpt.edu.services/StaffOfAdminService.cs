@@ -5,6 +5,7 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 
 namespace FJAP.Services;
 
@@ -12,8 +13,9 @@ public class StaffOfAdminService : IStaffOfAdminService
 {
     private readonly IStaffOfAdminRepository _adminRepository;
     private readonly FjapDbContext _db; // cần để validate role/enum khi import
-    private bool _lecturerCodeInitialized;
-    private int _lecturerCodeCounter;
+    private static readonly SemaphoreSlim LecturerCodeLock = new(1, 1);
+    private static bool _lecturerCodeInitialized;
+    private static int _lecturerCodeCounter;
 
     public StaffOfAdminService(IStaffOfAdminRepository adminRepository, FjapDbContext db)
     {
@@ -208,26 +210,94 @@ public class StaffOfAdminService : IStaffOfAdminService
         return (inserted, skipped, errors);
     }
 
-    private async Task<string> GenerateNextLecturerCodeAsync()
+    public async Task EnsureLecturerEntriesAsync()
     {
-        if (!_lecturerCodeInitialized)
+        await LecturerCodeLock.WaitAsync();
+        try
         {
-            var existingCodes = await _db.Lectures
+            var lecturerUserIds = await _db.Users
                 .AsNoTracking()
-                .Select(l => l.LecturerCode)
-                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Where(u => u.RoleId == 3)
+                .Select(u => u.UserId)
                 .ToListAsync();
 
-            _lecturerCodeCounter = existingCodes
-                .Select(ExtractLecturerNumber)
-                .DefaultIfEmpty(0)
-                .Max();
+            var existingLectureUserIds = await _db.Lectures
+                .AsNoTracking()
+                .Select(l => l.UserId)
+                .ToListAsync();
 
-            _lecturerCodeInitialized = true;
+            var missingLecturerUserIds = lecturerUserIds
+                .Except(existingLectureUserIds)
+                .ToList();
+
+            if (missingLecturerUserIds.Count == 0)
+            {
+                return;
+            }
+
+            if (!_lecturerCodeInitialized)
+            {
+                var existingCodes = await _db.Lectures
+                    .AsNoTracking()
+                    .Select(l => l.LecturerCode)
+                    .Where(code => !string.IsNullOrWhiteSpace(code))
+                    .ToListAsync();
+
+                _lecturerCodeCounter = existingCodes
+                    .Select(ExtractLecturerNumber)
+                    .DefaultIfEmpty(0)
+                    .Max();
+
+                _lecturerCodeInitialized = true;
+            }
+
+            foreach (var userId in missingLecturerUserIds)
+            {
+                _lecturerCodeCounter++;
+                var lecturer = new Lecture
+                {
+                    UserId = userId,
+                    LecturerCode = $"LEC{_lecturerCodeCounter.ToString().PadLeft(2, '0')}"
+                };
+                await _db.Lectures.AddAsync(lecturer);
+            }
+
+            await _db.SaveChangesAsync();
         }
+        finally
+        {
+            LecturerCodeLock.Release();
+        }
+    }
 
-        _lecturerCodeCounter++;
-        return $"lec{_lecturerCodeCounter.ToString().PadLeft(2, '0')}";
+    private async Task<string> GenerateNextLecturerCodeAsync()
+    {
+        await LecturerCodeLock.WaitAsync();
+        try
+        {
+            if (!_lecturerCodeInitialized)
+            {
+                var existingCodes = await _db.Lectures
+                    .AsNoTracking()
+                    .Select(l => l.LecturerCode)
+                    .Where(code => !string.IsNullOrWhiteSpace(code))
+                    .ToListAsync();
+
+                _lecturerCodeCounter = existingCodes
+                    .Select(ExtractLecturerNumber)
+                    .DefaultIfEmpty(0)
+                    .Max();
+
+                _lecturerCodeInitialized = true;
+            }
+
+            _lecturerCodeCounter++;
+            return $"LEC{_lecturerCodeCounter.ToString().PadLeft(2, '0')}";
+        }
+        finally
+        {
+            LecturerCodeLock.Release();
+        }
     }
 
     private static int ExtractLecturerNumber(string? code)
