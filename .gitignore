@@ -80,3 +80,9 @@ out/
 # Testing
 coverage/
 .vites
+FjapBE.Tests/FJAP.Tests.csproj
+FjapBE.Tests/UnitTest1.cs
+FjapBE/FAJP.sln
+FjapBE/FAJP.sln
+FjapBE/FJAP.sln
+.gitignore

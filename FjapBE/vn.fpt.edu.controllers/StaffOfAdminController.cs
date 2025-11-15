@@ -7,6 +7,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace FJAP.Controllers;
@@ -512,6 +513,14 @@ public class StaffOfAdminController : ControllerBase
             };
 
             var created = await _adminService.CreateAsync(user);
+
+            object? lecturerData = created.Lectures
+                .Select(l => new
+                {
+                    lecturerId = l.LectureId,
+                    lecturerCode = l.LecturerCode
+                })
+                .FirstOrDefault();
             
             // Return response without navigation properties
             var responseData = new
@@ -527,7 +536,8 @@ public class StaffOfAdminController : ControllerBase
                 avatar = created.Avatar,
                 roleId = created.RoleId,
                 departmentId = created.DepartmentId,
-                status = created.Status
+                status = created.Status,
+                lecturer = lecturerData
             };
             
             return CreatedAtAction(nameof(GetById), new { id = created.UserId }, new { code = 201, data = responseData });
@@ -1113,4 +1123,5 @@ public class StaffOfAdminController : ControllerBase
             });
         }
     }
+
 }
