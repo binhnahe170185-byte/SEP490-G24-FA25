@@ -15,7 +15,8 @@ import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyT
 import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
 import StudentHomepage from "../vn.fpt.edu.pages/student/StudentHomepage";
 import AttendanceReportPage from "../vn.fpt.edu.pages/student/AttendanceReportPage";
-import HomeworkPage from "../vn.fpt.edu.pages/student/HomeworkPage";
+import HomeworkPage from "../vn.fpt.edu.pages/student/homework/HomeworkPage";
+import LessonHomeworkDetail from "../vn.fpt.edu.pages/student/homework/LessonHomeworkDetail";
 import ClassStudentsList from "../vn.fpt.edu.pages/student/classStudents/ClassStudentsList";
 import AcademicTranscript from "../vn.fpt.edu.pages/student/AcademicTranscript";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
@@ -255,6 +256,7 @@ export default function App() {
                   <Route path="academic-transcript" element={<AcademicTranscript />} />
                   <Route path="attendance" element={<AttendanceReportPage />} />
                   <Route path="homework" element={<HomeworkPage />} />
+                  <Route path="homework/:classId/:lessonId" element={<LessonHomeworkDetail />} />
                   <Route path="curriculum-subjects" element={<CurriculumSubjects />} />
                   <Route path="news" element={<StudentNewsList />} />
                   <Route path="news/:id" element={<StudentNewsDetail />} />
