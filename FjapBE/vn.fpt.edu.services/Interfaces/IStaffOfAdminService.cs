@@ -12,4 +12,6 @@ public interface IStaffOfAdminService
 
     // Import từ Excel (.xlsx/.xls)
     Task<(int inserted, int skipped, List<string> errors)> ImportExcelAsync(Stream stream);
+
+    Task EnsureLecturerEntriesAsync();
 }

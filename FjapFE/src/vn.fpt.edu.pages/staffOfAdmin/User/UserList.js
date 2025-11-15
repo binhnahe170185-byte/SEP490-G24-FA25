@@ -27,6 +27,8 @@ const normalize = (items = []) =>
     enrollmentDate: u.enrollmentDate ?? null,
     address: u.address ?? "",
     avatar: u.avatar ?? null,
+    lecturerId: u.lecturerId ?? u.lecturer_id ?? u.lecturer?.lecturerId ?? null,
+    lecturerCode: u.lecturerCode ?? u.lecturer_code ?? u.lecturer?.lecturerCode ?? null,
 
   }));
 
@@ -361,12 +363,23 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
       base.push({ title: "Student Code", dataIndex: "studentCode" });
     }
 
+    if (fixedRole === 3) {
+      base.push({
+        title: "Lecture Code",
+        dataIndex: "lecturerCode",
+        render: (value) => value || "-"
+      });
+    }
+
     base.push({ title: "First Name", dataIndex: "firstName" });
     base.push({ title: "Last Name", dataIndex: "lastName" });
     base.push({ title: "Email", dataIndex: "email" });
     base.push({ title: "Phone", dataIndex: "phone" });
     base.push({ title: "Gender", dataIndex: "gender" });
-    base.push({ title: "Role", dataIndex: "role" });
+    
+    if (fixedRole !== 3) {
+      base.push({ title: "Role", dataIndex: "role" });
+    }
 
     if (fixedRole === 4) {
       base.push({ title: "Level", dataIndex: "levelName" });
@@ -394,10 +407,6 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
       ),
     });
 
-    if (fixedRole !== 4) {
-      base.push({ title: "DOB", dataIndex: "dob" });
-    }
-
     base.push({
       title: "Actions",
       key: "actions",
@@ -416,8 +425,23 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
   }, [fixedRole, toggle]);
 
   const exportCsv = () => {
-    const header = ["First Name", "Last Name", "Email", "Phone", "Gender", "Role", "Status", "DOB"];
-    const rows = users.map((u) => [u.firstName, u.lastName, u.email, u.phone, u.gender, u.role, u.status ? "Active" : "Inactive", u.dob]);
+    const header = ["First Name", "Last Name", "Email", "Phone", "Gender"];
+    if (fixedRole === 3) {
+      header.push("Lecturer Code");
+    } else {
+      header.push("Role");
+    }
+    header.push("Status");
+    const rows = users.map((u) => {
+      const row = [u.firstName, u.lastName, u.email, u.phone, u.gender];
+      if (fixedRole === 3) {
+        row.push(u.lecturerCode ?? "");
+      } else {
+        row.push(u.role);
+      }
+      row.push(u.status ? "Active" : "Inactive");
+      return row;
+    });
     const csv = "\uFEFF" + [header, ...rows].map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const a = document.createElement("a"); a.href = url; a.download = `users_${new Date().toISOString().slice(0, 10)}.csv`;
