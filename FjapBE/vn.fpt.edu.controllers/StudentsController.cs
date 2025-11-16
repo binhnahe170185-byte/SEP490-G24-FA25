@@ -135,6 +135,30 @@ public class StudentsController : ControllerBase
         return Ok(new { code = 200, data = student });
     }
 
+    /// <summary>
+    /// List subjects the student took in a semester (for attendance view)
+    /// GET: api/Students/{id}/semesters/{semesterId}/attendance/subjects
+    /// </summary>
+    [HttpGet("{id:int}/semesters/{semesterId:int}/attendance/subjects")]
+    [ProducesResponseType(typeof(IEnumerable<StudentAttendanceSubjectDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudentAttendanceSubjects(int id, int semesterId)
+    {
+        var subjects = await _studentService.GetStudentAttendanceSubjectsAsync(id, semesterId);
+        return Ok(new { code = 200, data = subjects });
+    }
+
+    /// <summary>
+    /// List lessons and statuses for a subject in a semester for the student
+    /// GET: api/Students/{id}/semesters/{semesterId}/attendance/subjects/{subjectId}
+    /// </summary>
+    [HttpGet("{id:int}/semesters/{semesterId:int}/attendance/subjects/{subjectId:int}")]
+    [ProducesResponseType(typeof(IEnumerable<StudentAttendanceLessonDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudentAttendanceLessons(int id, int semesterId, int subjectId)
+    {
+        var lessons = await _studentService.GetStudentAttendanceLessonsAsync(id, semesterId, subjectId);
+        return Ok(new { code = 200, data = lessons });
+    }
+
     [HttpGet("{id:int}/classes")]
     [ProducesResponseType(typeof(Student), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

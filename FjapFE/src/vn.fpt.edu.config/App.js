@@ -278,7 +278,7 @@ export default function App() {
                   <Route path="homepage" element={<StudentHomepage />} />
                   <Route path="grades" element={<StudentGradeReport />} />
                   <Route path="academic-transcript" element={<AcademicTranscript />} />
-                  <Route path="attendance" element={<AttendanceReportPage />} />
+                  <Route path="attendance" element={React.createElement(require("../vn.fpt.edu.pages/student/attendance/AttendancePage").default)} />
                   <Route path="homework" element={<HomeworkPage />} />
                   <Route path="homework/:classId/:lessonId" element={<LessonHomeworkDetail />} />
                   <Route path="curriculum-subjects" element={<CurriculumSubjects />} />

@@ -760,4 +760,11 @@ public class StudentService : IStudentService
 
     public async Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize)
         => await _studentRepository.GetCurriculumSubjectsAsync(search, page, pageSize);
+
+    // Attendance (student) - split APIs
+    public Task<IEnumerable<StudentAttendanceSubjectDto>> GetStudentAttendanceSubjectsAsync(int studentId, int semesterId)
+        => _studentRepository.GetStudentAttendanceSubjectsAsync(studentId, semesterId);
+
+    public Task<IEnumerable<StudentAttendanceLessonDto>> GetStudentAttendanceLessonsAsync(int studentId, int semesterId, int subjectId)
+        => _studentRepository.GetStudentAttendanceLessonsAsync(studentId, semesterId, subjectId);
 }

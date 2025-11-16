@@ -1,4 +1,5 @@
 using FJAP.vn.fpt.edu.models;
+using FJAP.DTOs;
 
 namespace FJAP.Repositories.Interfaces;
 
@@ -15,4 +16,8 @@ public interface IStudentRepository : IGenericRepository<Student>
     Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId);
     Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize);
     Task<AcademicTranscriptDto> GetAcademicTranscriptAsync(int studentId);
+
+    // Attendance (student)
+    Task<IEnumerable<StudentAttendanceSubjectDto>> GetStudentAttendanceSubjectsAsync(int studentId, int semesterId);
+    Task<IEnumerable<StudentAttendanceLessonDto>> GetStudentAttendanceLessonsAsync(int studentId, int semesterId, int subjectId);
 }

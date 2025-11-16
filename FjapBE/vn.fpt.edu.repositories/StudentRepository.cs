@@ -1,5 +1,6 @@
 using System.Linq;
 using FJAP.vn.fpt.edu.models;
+using FJAP.DTOs;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -366,5 +367,70 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             InProgressCourses = inProgressCourses,
             Courses = coursesList
         };
+    }
+
+    // Attendance (student) - split APIs
+    public async Task<IEnumerable<StudentAttendanceSubjectDto>> GetStudentAttendanceSubjectsAsync(int studentId, int semesterId)
+    {
+        var subjects = await _context.Classes
+            .AsNoTracking()
+            .Include(c => c.Subject)
+            .Where(c => c.SemesterId == semesterId && c.Students.Any(s => s.StudentId == studentId))
+            .OrderBy(c => c.Subject.SubjectCode)
+            .Select(c => new StudentAttendanceSubjectDto
+            {
+                SubjectId = c.SubjectId,
+                SubjectCode = c.Subject.SubjectCode,
+                SubjectName = c.Subject.SubjectName,
+                ClassName = c.ClassName,
+                ClassId = c.ClassId
+            })
+            .ToListAsync();
+
+        return subjects;
+    }
+
+    public async Task<IEnumerable<StudentAttendanceLessonDto>> GetStudentAttendanceLessonsAsync(int studentId, int semesterId, int subjectId)
+    {
+        // Find all classes in semester for this subject and student
+        var classIds = await _context.Classes
+            .AsNoTracking()
+            .Where(c => c.SemesterId == semesterId && c.SubjectId == subjectId && c.Students.Any(s => s.StudentId == studentId))
+            .Select(c => c.ClassId)
+            .ToListAsync();
+
+        if (classIds.Count == 0) return new List<StudentAttendanceLessonDto>();
+
+        var lessons = await _context.Lessons
+            .AsNoTracking()
+            .Include(l => l.Room)
+            .Include(l => l.Time)
+            .Where(l => classIds.Contains(l.ClassId))
+            .OrderBy(l => l.Date)
+            .ThenBy(l => l.Time.StartTime)
+            .Select(l => new
+            {
+                l.LessonId,
+                l.Date,
+                l.TimeId,
+                RoomName = l.Room.RoomName
+            })
+            .ToListAsync();
+
+        var lessonIds = lessons.Select(l => l.LessonId).ToList();
+        var attendance = await _context.Attendances
+            .AsNoTracking()
+            .Where(a => a.StudentId == studentId && lessonIds.Contains(a.LessonId))
+            .ToDictionaryAsync(a => a.LessonId, a => a.Status ?? "Absent");
+
+        return lessons.Select(l => new StudentAttendanceLessonDto
+        {
+            LessonId = l.LessonId,
+            Date = l.Date.ToString("yyyy-MM-dd"),
+            TimeId = l.TimeId,
+            RoomName = l.RoomName,
+            Status = attendance.TryGetValue(l.LessonId, out var st) ? st : "Absent"
+        })
+        .ToList();
     }
 }
