@@ -162,7 +162,11 @@ export default function GradeEntry() {
       // Calculate final average - weightedSum already contains the weighted average
       const average = weightedSum;
       newData[studentId].average = parseFloat(average.toFixed(2));
-      newData[studentId].status = average >= 5.0 ? "Passed" : "Failed";
+      const passMark = courseDetails?.passMark ?? 5.0;
+      // Enforce attendance >= 80% if available
+      const attendanceRate = (students.find(s => (s.studentId || '').toString() === (studentId || '').toString())?.attendanceRate);
+      const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
+      newData[studentId].status = average >= passMark && meetsAttendance ? "Passed" : "Failed";
       
       return newData;
     });
@@ -236,7 +240,11 @@ export default function GradeEntry() {
           average += score * (weight.weight / 100);
         });
 
-        const status = average >= 5.0 ? "Passed" : "Failed";
+        const passMark = courseDetails?.passMark ?? 5.0;
+        // Enforce attendance >= 80% if available
+        const attendanceRate = item?.attendanceRate;
+        const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
+        const status = average >= passMark && meetsAttendance ? "Passed" : "Failed";
 
         const updatedItem = {
           ...item,
