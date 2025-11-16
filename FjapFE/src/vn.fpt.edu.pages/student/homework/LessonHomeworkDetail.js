@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../login/AuthContext";
 import {
   Breadcrumb,
   Card,
@@ -28,12 +29,18 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
+import StudentHomework from "../../../vn.fpt.edu.api/StudentHomework";
 
 const { Title, Text } = Typography;
 
 const formatDate = (date) => {
   if (!date) return "--";
   return dayjs(date).format("DD/MM/YYYY");
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "--";
+  return dayjs(value).format("DD/MM/YYYY HH:mm");
 };
 
 const formatTimeRange = (start, end) => {
@@ -67,6 +74,8 @@ const LessonHomeworkDetail = () => {
   const { classId, lessonId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const studentId = user?.studentId || user?.id;
   const preloadedHomeworks = location.state?.homeworks;
   const hasPrefetchedHomeworks = Array.isArray(preloadedHomeworks);
 
@@ -83,6 +92,7 @@ const LessonHomeworkDetail = () => {
   const [commentInputs, setCommentInputs] = useState({});
   const [submissionMethod, setSubmissionMethod] = useState("local");
   const [docLink, setDocLink] = useState("");
+  const [studentSubmissions, setStudentSubmissions] = useState({});
 
   const normalizeUploadValue = (event) => {
     if (Array.isArray(event)) {
@@ -99,13 +109,50 @@ const LessonHomeworkDetail = () => {
 
   const buildPreviewUrl = (url) => {
     if (!url) return null;
-    const fileExtension = url.split("?")[0].split(".").pop()?.toLowerCase();
-    const previewableImages = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
-    if (previewableImages.includes(fileExtension)) {
+    try {
+      const parsed = new URL(url, window.location.href);
+      const lowerHost = parsed.hostname.toLowerCase();
+      const isDrive = lowerHost.includes("drive.google.com");
+      const isLocalhost =
+        lowerHost.includes("localhost") || lowerHost.includes("127.0.0.1");
+      const filePath = parsed.pathname || "";
+      const ext = filePath.split(".").pop()?.toLowerCase();
+      const directTypes = ["png", "jpg", "jpeg", "gif", "webp", "svg", "pdf"];
+      const officeTypes = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+
+      if (isLocalhost) {
+        return parsed.toString();
+      }
+
+      if (isDrive) {
+        if (parsed.pathname.includes("/preview")) {
+          return parsed.toString();
+        }
+        const shareIdMatch = parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/);
+        if (shareIdMatch) {
+          return `https://drive.google.com/file/d/${shareIdMatch[1]}/preview`;
+        }
+        return `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(
+          url
+        )}`;
+      }
+
+      if (ext && directTypes.includes(ext)) {
+        return parsed.toString();
+      }
+
+      if (ext && officeTypes.includes(ext)) {
+        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+          parsed.toString()
+        )}`;
+      }
+
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(
+        url
+      )}&embedded=true`;
+    } catch (error) {
       return url;
     }
-    const encoded = encodeURIComponent(url);
-    return `https://docs.google.com/viewer?url=${encoded}&embedded=true`;
   };
 
   const handleOpenPreview = (url) => {
@@ -119,6 +166,41 @@ const LessonHomeworkDetail = () => {
   };
 
   const courseInfo = location.state?.course || null;
+
+  const loadStudentSubmissions = useCallback(
+    async (homeworkList) => {
+      if (!studentId || !Array.isArray(homeworkList) || homeworkList.length === 0) {
+        return;
+      }
+      try {
+        const entries = await Promise.all(
+          homeworkList.map(async (hw) => {
+            const hwId = hw.homeworkId || hw.id;
+            if (!hwId) return null;
+            try {
+              const submission = await StudentHomework.getSubmission(hwId, studentId);
+              return { hwId, submission };
+            } catch (error) {
+              console.error("Failed to load submission for homework", hwId, error);
+              return { hwId, submission: null };
+            }
+          })
+        );
+        setStudentSubmissions((prev) => {
+          const next = { ...prev };
+          entries.forEach((entry) => {
+            if (entry) {
+              next[entry.hwId] = entry.submission;
+            }
+          });
+          return next;
+        });
+      } catch (error) {
+        console.error("Failed to load student submissions:", error);
+      }
+    },
+    [studentId]
+  );
 
   useEffect(() => {
     if (hasPrefetchedHomeworks || !classId || !lessonId) {
@@ -192,7 +274,8 @@ const LessonHomeworkDetail = () => {
       });
       return next;
     });
-  }, [homeworks]);
+    loadStudentSubmissions(homeworks);
+  }, [homeworks, loadStudentSubmissions]);
 
   useEffect(() => {
     if (lessonInfo || !classId || !lessonId) {
@@ -219,6 +302,12 @@ const LessonHomeworkDetail = () => {
       ignore = true;
     };
   }, [classId, lessonId, lessonInfo]);
+
+  useEffect(() => {
+    if (!studentId) {
+      setStudentSubmissions({});
+    }
+  }, [studentId]);
 
   const subjectName =
     courseInfo?.subjectName ||
@@ -258,35 +347,44 @@ const LessonHomeworkDetail = () => {
   const handleSubmitHomework = async () => {
     try {
       const values = await form.validateFields();
-      if (submissionMethod === "local") {
-        if (!values.files || values.files.length === 0) {
-          message.warning("Please attach files from your device.");
-          return;
-        }
+      if (!studentId) {
+        message.error("User information is missing. Please login again.");
+        return;
       }
-      if (submissionMethod === "drive") {
-        if (!values.driveLink) {
-          message.warning("Please provide a Google Drive link.");
-          return;
-        }
+
+      if (submissionMethod === "local" && (!values.files || values.files.length === 0)) {
+        message.warning("Please attach files from your device.");
+        return;
       }
-      if (submissionMethod === "doc") {
-        if (!docLink) {
-          message.warning("Please create the Google Doc before submitting.");
-          return;
-        }
+      if (submissionMethod === "drive" && !values.driveLink) {
+        message.warning("Please provide a Google Drive link.");
+        return;
       }
+      if (submissionMethod === "doc" && !docLink) {
+        message.warning("Please create the Google Doc before submitting.");
+        return;
+      }
+
       setSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      message.success("Homework submitted successfully");
-      handleCloseSubmitModal();
-      console.log("Homework submission payload", {
-        homeworkId: selectedHomework?.homeworkId,
-        ...values,
-        submissionMethod,
+      const homeworkKey = selectedHomework?.homeworkId || selectedHomework?.id;
+      const savedSubmission = await StudentHomework.submitHomework({
+        homeworkId: homeworkKey,
+        studentId,
+        method: submissionMethod,
+        comment: values.comment,
+        files: values.files || [],
         driveLink: values.driveLink,
         docLink,
       });
+
+      message.success("Homework submitted successfully");
+      if (homeworkKey && savedSubmission) {
+        setStudentSubmissions((prev) => ({
+          ...prev,
+          [homeworkKey]: savedSubmission,
+        }));
+      }
+      handleCloseSubmitModal();
     } catch (error) {
       if (error?.errorFields) return;
       message.error("Failed to submit homework");
@@ -325,6 +423,7 @@ const LessonHomeworkDetail = () => {
     const submissionClosed = isSubmissionClosed(homework.deadline);
     const homeworkId = homework.homeworkId || homework.id;
     const comments = homeworkComments[homeworkId] || [];
+    const submission = studentSubmissions[homeworkId];
     return (
       <Card key={homework.homeworkId || homework.id} type="inner" style={{ marginBottom: 16 }}>
         <div
@@ -416,6 +515,59 @@ const LessonHomeworkDetail = () => {
             Submit homework
           </Button>
         </div>
+
+        {submission && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 16,
+              backgroundColor: "#f0f5ff",
+              borderRadius: 8,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <Text strong>Your submission</Text>
+                <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+                  {submission.status || "Submitted"} · {formatDateTime(submission.submittedAt)}
+                </div>
+              </div>
+              {submission.filePath && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button
+                    icon={<EyeOutlined />}
+                    onClick={() => handleOpenPreview(submission.filePath)}
+                  >
+                    Preview
+                  </Button>
+                  <Button
+                    type="link"
+                    icon={<PaperClipOutlined />}
+                    href={submission.filePath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ paddingLeft: 0 }}
+                  >
+                    Open file
+                  </Button>
+                </div>
+              )}
+            </div>
+            {submission.comment && (
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary">Note:</Text> {submission.comment}
+              </div>
+            )}
+          </div>
+        )}
 
         <Divider style={{ margin: "16px 0" }} />
         <div>
@@ -533,7 +685,8 @@ const LessonHomeworkDetail = () => {
           <iframe
             src={previewUrl}
             title="Attachment preview"
-            style={{ width: "100%", height: 500, border: "none" }}
+            style={{ width: "100%", height: 520, border: "none" }}
+            sandbox="allow-scripts allow-same-origin allow-popups"
           />
         ) : (
           <Empty description="No preview available" />

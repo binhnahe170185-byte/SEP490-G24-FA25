@@ -41,39 +41,30 @@ const LessonHomeworkTable = ({ course }) => {
     );
   }, [homeworksMap]);
 
+  const buildHomeworkMap = (homeworks) => {
+    const map = {};
+    homeworks.forEach((hw) => {
+      const lessonKey = hw.lessonId || hw.slotId || hw.lesson_id;
+      if (!lessonKey) return;
+      if (!map[lessonKey]) {
+        map[lessonKey] = [];
+      }
+      map[lessonKey].push(hw);
+    });
+    return map;
+  };
+
   const loadLessonData = useCallback(async () => {
     if (!classId) return;
     setLoading(true);
     try {
-      const slots = await LecturerHomework.getSlots(classId);
+      const [slots, courseHomeworks] = await Promise.all([
+        LecturerHomework.getSlots(classId),
+        LecturerHomework.getHomeworksByCourse(classId),
+      ]);
+
       setLessons(slots);
-
-      if (!slots.length) {
-        setHomeworksMap({});
-        return;
-      }
-
-      const homeworkEntries = await Promise.all(
-        slots.map(async (slot) => {
-          try {
-            const data = await LecturerHomework.getHomeworksBySlot(
-              slot.lessonId,
-              classId
-            );
-            return [slot.lessonId, data];
-          } catch (error) {
-            console.error("Failed to load homeworks for slot:", slot, error);
-            return [slot.lessonId, []];
-          }
-        })
-      );
-
-      const map = homeworkEntries.reduce((acc, [lessonId, data]) => {
-        acc[lessonId] = data;
-        return acc;
-      }, {});
-
-      setHomeworksMap(map);
+      setHomeworksMap(buildHomeworkMap(courseHomeworks || []));
     } catch (error) {
       console.error("Failed to load lessons:", error);
       message.error("Unable to load lessons and homework");

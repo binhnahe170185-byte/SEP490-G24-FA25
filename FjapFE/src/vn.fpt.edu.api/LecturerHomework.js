@@ -215,7 +215,6 @@ class LecturerHomework {
         submittedAt: item.submittedAt,
         status: item.status,
         comment: item.comment,
-        feedback: item.feedback,
         filePath: item.filePath,
       }));
     } catch (error) {

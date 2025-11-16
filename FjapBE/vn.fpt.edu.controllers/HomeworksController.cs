@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
@@ -154,7 +155,7 @@ public class HomeworksController : ControllerBase
     /// GET: api/Homeworks/{homeworkId}/submissions
     /// </summary>
     [HttpGet("{homeworkId:int}/submissions")]
-    public async Task<IActionResult> GetSubmissions(int homeworkId)
+    public async Task<IActionResult> GetSubmissions(int homeworkId, [FromQuery] int? studentId = null)
     {
         var homeworkExists = await _db.Homeworks.AnyAsync(h => h.HomeworkId == homeworkId);
         if (!homeworkExists)
@@ -162,11 +163,18 @@ public class HomeworksController : ControllerBase
             return NotFound(new { code = 404, message = "Homework not found" });
         }
 
-        var submissions = await _db.HomeworkSubmissions
+        var submissionsQuery = _db.HomeworkSubmissions
             .AsNoTracking()
             .Include(s => s.Student)
                 .ThenInclude(st => st.User)
-            .Where(s => s.HomeworkId == homeworkId)
+            .Where(s => s.HomeworkId == homeworkId);
+
+        if (studentId.HasValue)
+        {
+            submissionsQuery = submissionsQuery.Where(s => s.StudentId == studentId.Value);
+        }
+
+        var submissions = await submissionsQuery
             .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
             .Select(s => new
             {
@@ -198,6 +206,144 @@ public class HomeworksController : ControllerBase
         });
 
         return Ok(new { code = 200, data = result });
+    }
+
+    /// <summary>
+    /// Create or update a homework submission for the current student
+    /// POST: api/Homeworks/{homeworkId}/submissions
+    /// </summary>
+    [HttpPost("{homeworkId:int}/submissions")]
+    public async Task<IActionResult> SubmitHomework(int homeworkId, [FromForm] SubmissionCreateRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { code = 400, message = "Invalid payload", errors = ModelState });
+        }
+
+        var homework = await _db.Homeworks
+            .Include(h => h.Lesson)
+                .ThenInclude(l => l.Class)
+            .FirstOrDefaultAsync(h => h.HomeworkId == homeworkId);
+
+        if (homework == null)
+        {
+            return NotFound(new { code = 404, message = "Homework not found" });
+        }
+
+        var student = await _db.Students
+            .Include(s => s.User)
+            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
+
+        if (student == null)
+        {
+            return NotFound(new { code = 404, message = "Student not found" });
+        }
+
+        var method = request.Method?.Trim().ToLowerInvariant() ?? "local";
+        string? storedPath = null;
+
+        var uploadFiles = new List<IFormFile>();
+        if (request.File != null)
+        {
+            uploadFiles.Add(request.File);
+        }
+        if (request.Files?.Count > 0)
+        {
+            uploadFiles.AddRange(request.Files.Where(f => f != null));
+        }
+
+        if (uploadFiles.Count > 0)
+        {
+            storedPath = await SaveAttachmentAsync(uploadFiles.First());
+        }
+        else if (!string.IsNullOrWhiteSpace(request.FilePath))
+        {
+            storedPath = request.FilePath.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(request.DriveLink))
+        {
+            storedPath = request.DriveLink.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(request.DocLink))
+        {
+            storedPath = request.DocLink.Trim();
+        }
+
+        if (storedPath == null && string.IsNullOrWhiteSpace(request.Comment))
+        {
+            return BadRequest(new { code = 400, message = "Please attach a file, link, or comment" });
+        }
+
+        var now = DateTime.UtcNow;
+        var submission = await _db.HomeworkSubmissions
+            .Include(s => s.Student)
+                .ThenInclude(st => st.User)
+            .FirstOrDefaultAsync(s =>
+                s.HomeworkId == homeworkId && s.StudentId == request.StudentId);
+
+        if (submission == null)
+        {
+            submission = new HomeworkSubmission
+            {
+                HomeworkId = homeworkId,
+                StudentId = request.StudentId,
+                CreatedAt = now,
+                Comment = request.Comment?.Trim(),
+                Status = "Submitted",
+                FilePath = storedPath,
+            };
+            _db.HomeworkSubmissions.Add(submission);
+        }
+        else
+        {
+            submission.Comment = request.Comment?.Trim();
+            if (storedPath != null)
+            {
+                submission.FilePath = storedPath;
+            }
+            submission.Status = "Submitted";
+            submission.CreatedAt = now;
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            code = 200,
+            message = "Submission saved",
+            data = new
+            {
+                submissionId = submission.HomeworkSubmissionId,
+                homeworkId = submission.HomeworkId,
+                studentId = submission.StudentId,
+                studentCode = submission.Student?.StudentCode,
+                studentName = submission.Student?.User != null
+                    ? $"{submission.Student.User.FirstName} {submission.Student.User.LastName}".Trim()
+                    : null,
+                submittedAt = submission.CreatedAt,
+                status = submission.Status,
+                comment = submission.Comment,
+                filePath = BuildFileUrl(submission.FilePath)
+            }
+        });
+    }
+
+    /// <summary>
+    /// Get all homeworks of a class
+    /// GET: api/Classes/{classId}/homeworks
+    /// </summary>
+    [HttpGet("~/api/Classes/{classId:int}/homeworks")]
+    public async Task<IActionResult> GetHomeworksByClass(int classId)
+    {
+        var classExists = await _db.Classes.AnyAsync(c => c.ClassId == classId);
+        if (!classExists)
+        {
+            return NotFound(new { code = 404, message = "Class not found" });
+        }
+
+        var query = BuildHomeworkQuery().Where(h => h.Lesson.ClassId == classId);
+        var data = await ProjectHomeworkList(query);
+        return Ok(new { code = 200, data });
     }
 
     /// <summary>
@@ -481,6 +627,27 @@ public class HomeworkUpdateRequest
     public IFormFile? File { get; set; }
 
     public bool RemoveFile { get; set; }
+}
+
+public class SubmissionCreateRequest
+{
+    [Required]
+    public int StudentId { get; set; }
+
+    [StringLength(50)]
+    public string? Method { get; set; }
+
+    public string? Comment { get; set; }
+
+    public string? FilePath { get; set; }
+
+    public string? DriveLink { get; set; }
+
+    public string? DocLink { get; set; }
+
+    public IFormFile? File { get; set; }
+
+    public List<IFormFile> Files { get; set; } = new();
 }
 
 public class UpdateSubmissionRequest
