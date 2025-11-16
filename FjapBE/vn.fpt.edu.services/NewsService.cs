@@ -22,7 +22,7 @@ public class NewsService : INewsService
         var news = new News
         {
             Title = request.Title.Trim(),
-            Content = request.Content?.Trim(),
+            Content = request.Content.Trim(),
             NewsImage = request.NewsImage?.Trim(),
             Status = "draft",
             CreatedBy = userId,

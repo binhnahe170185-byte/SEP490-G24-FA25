@@ -8,7 +8,9 @@ public class CreateNewsRequest
     [StringLength(255, ErrorMessage = "Title must not exceed 255 characters")]
     public string Title { get; set; } = null!;
 
-    public string? Content { get; set; }
+    [Required(ErrorMessage = "Content is required")]
+    [StringLength(5000, ErrorMessage = "Content must not exceed 5000 characters")]
+    public string Content { get; set; } = null!;
 
     [StringLength(512, ErrorMessage = "News image URL must not exceed 512 characters")]
     public string? NewsImage { get; set; }
