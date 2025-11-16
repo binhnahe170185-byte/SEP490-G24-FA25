@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@ant-design/charts": "^2.6.6",
     "@microsoft/signalr": "^8.0.17",
     "@react-oauth/google": "^0.12.2",
     "@testing-library/dom": "^10.4.1",
@@ -13,13 +14,13 @@
     "axios": "^1.12.2",
     "dayjs": "^1.11.18",
     "jwt-decode": "^4.0.0",
-    "xlsx": "^0.18.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.9.3",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",

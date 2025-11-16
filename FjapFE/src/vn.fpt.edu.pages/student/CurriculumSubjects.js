@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Table, Card, Typography, Spin, message, Tag, Descriptions, Button, Modal, Input, Space, Empty, Select } from "antd";
 import { EyeOutlined, FileTextOutlined, SearchOutlined, LinkOutlined, FilterOutlined } from "@ant-design/icons";
 import StudentGrades from "../../vn.fpt.edu.api/StudentGrades";
-import { getMaterials } from "../../vn.fpt.edu.api/Material";
+import { getMaterials, getMaterialsCounts } from "../../vn.fpt.edu.api/Material";
 import { api } from "../../vn.fpt.edu.api/http";
 import dayjs from "dayjs";
 
@@ -35,7 +35,7 @@ export default function CurriculumSubjects() {
   const [selectedMaterials, setSelectedMaterials] = useState([]);
   const [selectedSubjectForMaterials, setSelectedSubjectForMaterials] = useState(null);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
-  const [materialsCountMap, setMaterialsCountMap] = useState({}); // Map subjectCode -> count
+  const [materialsCountMap, setMaterialsCountMap] = useState({}); // Cache materials count để disable button nếu không có materials
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState(null);
   const [pagination, setPagination] = useState({
@@ -90,9 +90,18 @@ export default function CurriculumSubjects() {
         total: response.total || 0,
       });
       
-      // Fetch materials count cho tất cả subjects
+      // Load materials counts cho tất cả subjects trong 1 API call
       if (filteredSubjects.length > 0) {
-        await loadMaterialsCounts(filteredSubjects);
+        try {
+          const subjectCodes = filteredSubjects.map(s => s.subjectCode).filter(Boolean);
+          if (subjectCodes.length > 0) {
+            const counts = await getMaterialsCounts(subjectCodes, "active");
+            setMaterialsCountMap(counts);
+          }
+        } catch (error) {
+          console.error("Failed to load materials counts:", error);
+          // Không hiển thị error message vì đây không phải lỗi nghiêm trọng
+        }
       }
     } catch (error) {
       console.error("Failed to load curriculum subjects:", error);
@@ -101,50 +110,6 @@ export default function CurriculumSubjects() {
       setLoading(false);
     }
   }, [levelFilter]);
-
-  const loadMaterialsCounts = async (subjectsList) => {
-    try {
-      // Fetch materials count cho tất cả subjects song song
-      // Sử dụng page=1, pageSize=1 để lấy total từ backend
-      const countPromises = subjectsList.map(async (subject) => {
-        try {
-          // Gọi API với pagination để lấy total từ backend
-          const res = await api.get("/api/materials", {
-            params: {
-              subject: subject.subjectCode,
-              status: "active",
-              page: 1,
-              pageSize: 1
-            }
-          });
-          
-          // Lấy total từ response
-          const raw = res?.data?.data || res?.data || {};
-          const total = raw.total || (Array.isArray(raw.items) ? raw.items.length : (Array.isArray(raw) ? raw.length : 0));
-          
-          return {
-            subjectCode: subject.subjectCode,
-            count: total || 0
-          };
-        } catch (error) {
-          console.error(`Failed to load materials count for ${subject.subjectCode}:`, error);
-          return {
-            subjectCode: subject.subjectCode,
-            count: 0
-          };
-        }
-      });
-      
-      const counts = await Promise.all(countPromises);
-      const countMap = {};
-      counts.forEach(({ subjectCode, count }) => {
-        countMap[subjectCode] = count;
-      });
-      setMaterialsCountMap(countMap);
-    } catch (error) {
-      console.error("Failed to load materials counts:", error);
-    }
-  };
 
   useEffect(() => {
     loadCurriculumSubjects(search, pagination.current, pagination.pageSize);
@@ -222,6 +187,12 @@ export default function CurriculumSubjects() {
   };
 
   const handleViewMaterials = async (record) => {
+    // Nếu đã check và không có materials, không làm gì
+    const materialsCount = materialsCountMap[record.subjectCode];
+    if (materialsCount !== undefined && materialsCount === 0) {
+      return;
+    }
+    
     setSelectedSubjectForMaterials({
       subjectCode: record.subjectCode,
       subjectName: record.subjectName,
@@ -246,11 +217,23 @@ export default function CurriculumSubjects() {
         return timeB - timeA; // DESC - mới nhất trước
       });
       
+      // Cache materials count
+      const count = sortedMaterials.length;
+      setMaterialsCountMap(prev => ({
+        ...prev,
+        [record.subjectCode]: count
+      }));
+      
       setSelectedMaterials(sortedMaterials);
     } catch (error) {
       console.error("Failed to load materials:", error);
       message.error("Failed to load materials");
       setSelectedMaterials([]);
+      // Cache count = 0 nếu có lỗi
+      setMaterialsCountMap(prev => ({
+        ...prev,
+        [record.subjectCode]: 0
+      }));
     } finally {
       setLoadingMaterials(false);
     }
@@ -328,14 +311,15 @@ export default function CurriculumSubjects() {
       width: 180,
       align: "center",
       render: (_, record) => {
-        const materialsCount = materialsCountMap[record.subjectCode] ?? 0;
-        const hasMaterials = materialsCount > 0;
+        const materialsCount = materialsCountMap[record.subjectCode];
+        const hasMaterials = materialsCount === undefined || materialsCount > 0;
         
         return (
           <Button
             type={hasMaterials ? "primary" : "default"}
             icon={<FileTextOutlined />}
             onClick={() => handleViewMaterials(record)}
+            disabled={!hasMaterials}
             style={{
               minWidth: 140,
               height: 32,
@@ -350,7 +334,8 @@ export default function CurriculumSubjects() {
                 : {
                     background: "#f5f5f5",
                     borderColor: "#d9d9d9",
-                    color: "#8c8c8c"
+                    color: "#8c8c8c",
+                    cursor: "not-allowed"
                   }
               )
             }}

@@ -50,7 +50,7 @@ class SubjectList {
 
   // Lấy danh sách tất cả subjects (từ manager endpoint)
   static async getAllSubjectOptions() {
-    const response = await api.get("/api/manager/subjects/dropdown");
+    const response = await api.get("/api/manager/subjects/subjectsActive");
     return response.data?.data || response.data;
   }
 
@@ -81,7 +81,7 @@ class SubjectList {
       // Fallback to manager endpoint if staffAcademic fails
       console.log('SubjectList.getAllSubjectForStaffAcademic - Falling back to manager endpoint...');
       try {
-        const fallbackResponse = await api.get("/api/manager/subjects/dropdown");
+        const fallbackResponse = await api.get("/api/manager/subjects/subjectsActive");
         if (fallbackResponse.data?.data && Array.isArray(fallbackResponse.data.data)) {
           console.log('SubjectList.getAllSubjectForStaffAcademic - Fallback successful:', fallbackResponse.data.data.length, 'items');
           return fallbackResponse.data.data;

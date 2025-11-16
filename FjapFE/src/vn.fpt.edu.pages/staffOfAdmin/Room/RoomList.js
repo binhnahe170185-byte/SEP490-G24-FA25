@@ -18,7 +18,7 @@ const STATUS_OPTIONS = [
   { label: "Inactive", value: "Inactive" },
 ];
 
-export default function RoomList({ title = "Room Management" }) {
+export default function RoomList({ title = "Room Management", hideActions = false }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [rooms, setRooms] = useState([]);
@@ -40,16 +40,18 @@ export default function RoomList({ title = "Room Management" }) {
     initialRoom: null 
   });
 
-  const openView = (record) => setModal({ 
-    open: true, 
-    mode: "view", 
-    roomId: record.id, 
-    initialRoom: record 
-  });
+  const openView = useCallback((record) => {
+    setModal({ 
+      open: true, 
+      mode: "view", 
+      roomId: record.id, 
+      initialRoom: record 
+    });
+  }, []);
   
-  const openEdit = (record) => {
+  const openEdit = useCallback((record) => {
     navigate(`/staffOfAdmin/rooms/edit/${record.id}`);
-  };
+  }, [navigate]);
 
   const closeModal = () => {
     setModal((d) => ({ ...d, open: false }));
@@ -124,14 +126,14 @@ export default function RoomList({ title = "Room Management" }) {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleDelete = (record) => {
+  const handleDelete = useCallback((record) => {
     const roomName = record.roomName;
     setConfirmModal({
       open: true,
       record: record,
       roomName: roomName
     });
-  };
+  }, []);
 
   const handleConfirmDelete = async () => {
     const { record } = confirmModal;
@@ -203,50 +205,71 @@ export default function RoomList({ title = "Room Management" }) {
   };
 
   const columns = useMemo(
-    () => [
-      { title: "No.", render: (_, _r, i) => i + 1, width: 72, align: "center" },
-      { title: "Room Name", dataIndex: "roomName", key: "roomName" },
-      { 
-        title: "Status", 
-        dataIndex: "status", 
-        key: "status",
-        render: (_, r) => (
-          <Switch
-            checkedChildren="Active"
-            unCheckedChildren="Inactive"
-            checked={r.status}
-            onChange={(c) => {
-              console.log('Switch clicked:', { roomId: r.id, checked: c, currentStatus: r.status });
-              toggle(r, c);
-            }}
-          />
-        )
-      },
-      {
-        title: "Actions",
-        key: "actions",
-        align: "right",
-        render: (_, r) => (
-          <Space>
-            <Tooltip title="View Details">
-              <Button size="small" icon={<EyeOutlined />} onClick={() => openView(r)} />
-            </Tooltip>
-            <Tooltip title="Edit">
-              <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-            </Tooltip>
-            <Tooltip title="Delete">
-              <Button 
-                size="small" 
-                icon={<DeleteOutlined />} 
-                danger
-                onClick={() => handleDelete(r)} 
-              />
-            </Tooltip>
-          </Space>
-        ),
-      },
-    ],
-    [toggle]
+    () => {
+      const baseColumns = [
+        { title: "No.", render: (_, _r, i) => i + 1, width: 72, align: "center" },
+        { title: "Room Name", dataIndex: "roomName", key: "roomName" },
+      ];
+
+      if (!hideActions) {
+        baseColumns.push({
+          title: "Status", 
+          dataIndex: "status", 
+          key: "status",
+          render: (_, r) => (
+            <Switch
+              checkedChildren="Active"
+              unCheckedChildren="Inactive"
+              checked={r.status}
+              onChange={(c) => {
+                console.log('Switch clicked:', { roomId: r.id, checked: c, currentStatus: r.status });
+                toggle(r, c);
+              }}
+            />
+          )
+        });
+      } else {
+        baseColumns.push({
+          title: "Status", 
+          dataIndex: "status", 
+          key: "status",
+          render: (_, r) => (
+            <span style={{ color: r.status ? "#52c41a" : "#ff4d4f" }}>
+              {r.status ? "Active" : "Inactive"}
+            </span>
+          )
+        });
+      }
+
+      if (!hideActions) {
+        baseColumns.push({
+          title: "Actions",
+          key: "actions",
+          align: "right",
+          render: (_, r) => (
+            <Space>
+              <Tooltip title="View Details">
+                <Button size="small" icon={<EyeOutlined />} onClick={() => openView(r)} />
+              </Tooltip>
+              <Tooltip title="Edit">
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+              </Tooltip>
+              <Tooltip title="Delete">
+                <Button 
+                  size="small" 
+                  icon={<DeleteOutlined />} 
+                  danger
+                  onClick={() => handleDelete(r)} 
+                />
+              </Tooltip>
+            </Space>
+          ),
+        });
+      }
+
+      return baseColumns;
+    },
+    [toggle, hideActions, openView, openEdit, handleDelete]
   );
 
   const exportCsv = () => {
@@ -309,27 +332,30 @@ export default function RoomList({ title = "Room Management" }) {
       />
 
       {/* Modal form - only for view mode */}
-      <Modal
-        title="Room Details"
-        open={modal.open && modal.mode === "view"}
-        onOk={closeModal}
-        onCancel={closeModal}
-        okText="Close"
-        cancelText="Cancel"
-        width={600}
-      >
-        {modal.initialRoom && (
-          <div>
-            <p><strong>Room Name:</strong> {modal.initialRoom.roomName}</p>
-            <p><strong>Status:</strong> <span style={{ color: modal.initialRoom.status ? "#52c41a" : "#ff4d4f" }}>
-              {modal.initialRoom.statusStr || (modal.initialRoom.status ? "Active" : "Inactive")}
-            </span></p>
-          </div>
-        )}
-      </Modal>
+      {!hideActions && (
+        <Modal
+          title="Room Details"
+          open={modal.open && modal.mode === "view"}
+          onOk={closeModal}
+          onCancel={closeModal}
+          okText="Close"
+          cancelText="Cancel"
+          width={600}
+        >
+          {modal.initialRoom && (
+            <div>
+              <p><strong>Room Name:</strong> {modal.initialRoom.roomName}</p>
+              <p><strong>Status:</strong> <span style={{ color: modal.initialRoom.status ? "#52c41a" : "#ff4d4f" }}>
+                {modal.initialRoom.statusStr || (modal.initialRoom.status ? "Active" : "Inactive")}
+              </span></p>
+            </div>
+          )}
+        </Modal>
+      )}
 
       {/* Modal confirm delete */}
-      <Modal
+      {!hideActions && (
+        <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: '18px' }} />
@@ -365,9 +391,11 @@ export default function RoomList({ title = "Room Management" }) {
           </div>
         </div>
       </Modal>
+      )}
 
       {/* Modal confirm status change */}
-      <Modal
+      {!hideActions && (
+        <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ExclamationCircleOutlined style={{ color: '#faad14', fontSize: '18px' }} />
@@ -415,6 +443,7 @@ export default function RoomList({ title = "Room Management" }) {
           </div>
         </div>
       </Modal>
+      )}
     </Card>
   );
 }
