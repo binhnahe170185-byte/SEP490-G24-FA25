@@ -87,6 +87,28 @@ const extractPaged = (body) => {
 };
 
 const AdminApi = {
+  // -------- Admin (Highest privilege) --------
+  getDashboard: () =>
+    api.get("/api/Admin/dashboard").then((res) => res?.data ?? res),
+  assignHeadAdmin: (userId) =>
+    api.post("/api/Admin/assign/head-admin", { userId }).then((res) => res?.data ?? res).catch((e) => {
+      const msg = e?.response?.data?.message || e?.message || "Failed";
+      return Promise.reject(new Error(msg));
+    }),
+  assignHeadAcademic: (userId) =>
+    api.post("/api/Admin/assign/head-academic", { userId }).then((res) => res?.data ?? res).catch((e) => {
+      const msg = e?.response?.data?.message || e?.message || "Failed";
+      return Promise.reject(new Error(msg));
+    }),
+  getRoles: () =>
+    api.get("/api/Admin/roles").then((res) => res?.data ?? res),
+  createRole: (roleName) =>
+    api.post("/api/Admin/roles", { RoleName: roleName }).then((res) => res?.data ?? res),
+  updateRole: (id, roleName) =>
+    api.put(`/api/Admin/roles/${id}`, { RoleName: roleName }).then((res) => res?.data ?? res),
+  deleteRole: (id) =>
+    api.delete(`/api/Admin/roles/${id}`).then((res) => res?.data ?? res),
+
   // GET /api/StaffOfAdmin/users
   getUsers: (params = {}) => {
     console.log("AdminApi.getUsers - Starting request with params:", params);
