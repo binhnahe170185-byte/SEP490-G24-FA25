@@ -244,7 +244,7 @@ namespace FJAP.Services
         public Task<SubjectFormOptions> GetFormOptionsAsync()
             => _subjectRepository.GetFormOptionsAsync();
 
-        public async Task<IEnumerable<SubjectDropdownDto>> GetDropdownOptionsAsync()
+        public async Task<IEnumerable<SubjectDropdownDto>> GetDropdownSubjectsActiveAsync()
         {
             return await _context.Subjects
                 .Where(s => s.Status == "Active") // Chỉ lấy subjects active

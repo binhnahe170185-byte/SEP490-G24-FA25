@@ -392,9 +392,9 @@ export default function App() {
                 >
                   <Route path="dashboard" element={<HeadOfAdminDashboard />} />
                   <Route path="news" element={<NewsList title="News Management" />} />
-                  <Route path="semesters" element={<SemesterList title="Semester Management" />} />
-                  <Route path="semesters/add" element={<AddSemesterWithHolidays />} />
+                  <Route path="semesters" element={<SemesterList title="Semester Management" hideActions={true} />} />
                   <Route path="semesters/edit/:id" element={<EditSemester />} />
+                  <Route path="rooms" element={<RoomList title="Room Management" hideActions={true} />} />
                   <Route path="staff" element={<AdministrationStaffList />} />
                 </Route>
               </Route>

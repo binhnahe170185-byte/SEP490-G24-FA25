@@ -91,10 +91,10 @@ namespace FJAP.Controllers.Manager
             return Ok(new { code = 200, data = options });
         }
 
-        [HttpGet("dropdown")]
+        [HttpGet("dropdownSubjectsActive")]
         public async Task<IActionResult> GetDropdownOptions()
         {
-            var subjects = await _subjectService.GetDropdownOptionsAsync();
+            var subjects = await _subjectService.GetDropdownSubjectsActiveAsync();
             return Ok(new { code = 200, data = subjects });
         }
         
@@ -102,8 +102,7 @@ namespace FJAP.Controllers.Manager
         [HttpGet("subjectsActive")]
         public async Task<IActionResult> GetActiveSubjects()
         {
-            // Tận dụng sẵn phương thức dropdown chỉ trả về các subject Active
-            var subjects = await _subjectService.GetDropdownOptionsAsync();
+            var subjects = await _subjectService.GetDropdownSubjectsActiveAsync();
             return Ok(new { code = 200, data = subjects });
         }
     }

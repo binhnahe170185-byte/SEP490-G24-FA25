@@ -5,10 +5,11 @@ import {
   HomeOutlined, 
   FileTextOutlined, 
   CalendarOutlined, 
-  TeamOutlined 
+  TeamOutlined,
+  AppstoreOutlined
 } from '@ant-design/icons';
 
-const { Item, SubMenu } = Menu;
+const { Item } = Menu;
 
 const COLORS = {
   sider: "#e9f2ff",
@@ -18,12 +19,7 @@ const COLORS = {
 
 const HeadOfAdminSidebar = () => {
   const location = useLocation();
-  const segments = location.pathname.split('/');
-  const activeGroup = segments[2] || '';
-
   const selectedKey = location.pathname;
-  const defaultOpenKeys = [];
-  if (activeGroup === 'semesters') defaultOpenKeys.push('semesters');
 
   return (
     <div style={{ 
@@ -59,7 +55,6 @@ const HeadOfAdminSidebar = () => {
         mode="inline"
         theme="light"
         selectedKeys={[selectedKey]}
-        defaultOpenKeys={defaultOpenKeys}
         rootClassName="fjap-sider-menu"
         style={{
           borderRight: 0,
@@ -78,17 +73,16 @@ const HeadOfAdminSidebar = () => {
           <Link to="/headOfAdmin/news">News Management</Link>
         </Item>
 
-        <SubMenu key="semesters" icon={<CalendarOutlined />} title="Semester Management">
-          <Item key="/headOfAdmin/semesters">
-            <Link to="/headOfAdmin/semesters">List Semesters</Link>
-          </Item>
-          <Item key="/headOfAdmin/semesters/add">
-            <Link to="/headOfAdmin/semesters/add">Add Semester</Link>
-          </Item>
-        </SubMenu>
+        <Item key="/headOfAdmin/semesters" icon={<CalendarOutlined />}>
+          <Link to="/headOfAdmin/semesters">Semester Management</Link>
+        </Item>
+
+        <Item key="/headOfAdmin/rooms" icon={<AppstoreOutlined />}>
+          <Link to="/headOfAdmin/rooms">Room Management</Link>
+        </Item>
 
         <Item key="/headOfAdmin/staff" icon={<TeamOutlined />}>
-          <Link to="/headOfAdmin/staff">Administration Staff</Link>
+          <Link to="/headOfAdmin/staff">Staff Management</Link>
         </Item>
       </Menu>
     </div>

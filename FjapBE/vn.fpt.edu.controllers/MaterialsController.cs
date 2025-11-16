@@ -195,6 +195,43 @@ public class MaterialsController : ControllerBase
         }
     }
 
+    // GET: api/materials/counts
+    [AllowAnonymous]
+    [HttpGet("counts")]
+    public async Task<IActionResult> GetMaterialsCounts([FromQuery] string? subjectCodes = null, [FromQuery] string? status = "active")
+    {
+        try
+        {
+            var counts = new Dictionary<string, int>();
+            
+            if (!string.IsNullOrWhiteSpace(subjectCodes))
+            {
+                var codes = subjectCodes.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(c => c.Trim())
+                    .ToList();
+                
+                foreach (var code in codes)
+                {
+                    var count = await _db.Materials
+                        .AsNoTracking()
+                        .Include(m => m.Subject)
+                        .CountAsync(m => 
+                            (string.IsNullOrWhiteSpace(status) || m.Status == status) && 
+                            m.Subject != null && 
+                            (m.Subject.SubjectCode == code || m.Subject.SubjectName == code));
+                    
+                    counts[code] = count;
+                }
+            }
+            
+            return Ok(new { code = 200, data = counts });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+    }
+
     // GET: api/materials/{id}
     [AllowAnonymous]
     [HttpGet("{id:int}")]

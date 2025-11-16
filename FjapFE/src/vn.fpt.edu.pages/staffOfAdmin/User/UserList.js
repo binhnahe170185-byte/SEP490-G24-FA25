@@ -29,6 +29,8 @@ const normalize = (items = []) =>
     avatar: u.avatar ?? null,
     lecturerId: u.lecturerId ?? u.lecturer_id ?? u.lecturer?.lecturerId ?? null,
     lecturerCode: u.lecturerCode ?? u.lecturer_code ?? u.lecturer?.lecturerCode ?? null,
+    departmentId: u.departmentId ?? null,
+    departmentName: u.departmentName ?? "-",
 
   }));
 
@@ -159,13 +161,12 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     }
   }, [fixedRole]);
 
-  const buildParams = () => {
+  const buildParams = useCallback(() => {
     const params = {
       search: filters.search || undefined,
       status: filters.status || undefined,
-      // Request a large page size as a fallback if backend still paginates
-      page: 1,
-      pageSize: 100,
+      page: page,
+      pageSize: pageSize,
     };
 
     // Handle role filtering
@@ -195,7 +196,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     }
 
     return params;
-  };
+  }, [filters.search, filters.status, filters.semesterId, filters.levelId, filters.departmentId, filters.role, fixedRole, page, pageSize]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -254,7 +255,7 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.status, filters.semesterId, filters.levelId, filters.departmentId, fixedRole]);
+  }, [buildParams]);
 
   // Auto-fetch for non-student roles
   useEffect(() => { 
@@ -377,7 +378,15 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
     base.push({ title: "Phone", dataIndex: "phone" });
     base.push({ title: "Gender", dataIndex: "gender" });
     
-    if (fixedRole !== 3) {
+    // Show Department instead of Role for Staff (roles 6, 7)
+    const isStaffArray = Array.isArray(fixedRole) && (fixedRole.includes(6) || fixedRole.includes(7));
+    if (isStaffArray) {
+      base.push({ 
+        title: "Department", 
+        dataIndex: "departmentName",
+        render: (name) => name || "-"
+      });
+    } else if (fixedRole !== 3) {
       base.push({ title: "Role", dataIndex: "role" });
     }
 
@@ -426,8 +435,11 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
 
   const exportCsv = () => {
     const header = ["First Name", "Last Name", "Email", "Phone", "Gender"];
+    const isStaffArray = Array.isArray(fixedRole) && (fixedRole.includes(6) || fixedRole.includes(7));
     if (fixedRole === 3) {
       header.push("Lecturer Code");
+    } else if (isStaffArray) {
+      header.push("Department");
     } else {
       header.push("Role");
     }
@@ -436,6 +448,8 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
       const row = [u.firstName, u.lastName, u.email, u.phone, u.gender];
       if (fixedRole === 3) {
         row.push(u.lecturerCode ?? "");
+      } else if (isStaffArray) {
+        row.push(u.departmentName ?? "-");
       } else {
         row.push(u.role);
       }
@@ -570,7 +584,22 @@ export default function UsersList({ fixedRole, title = "View List User" }) {
           dataSource={users}
           loading={loading}
           rowKey="id"
-          pagination={false}
+          pagination={{
+            current: page,
+            pageSize: pageSize,
+            total: total,
+            showSizeChanger: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            onChange: (newPage, newPageSize) => {
+              setPage(newPage);
+              setPageSize(newPageSize);
+            },
+            onShowSizeChange: (current, newPageSize) => {
+              setPage(1);
+              setPageSize(newPageSize);
+            },
+          }}
         />
       )}
 

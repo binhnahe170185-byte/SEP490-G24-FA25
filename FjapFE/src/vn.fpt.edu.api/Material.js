@@ -119,19 +119,43 @@ export async function deleteMaterial(id) {
   }
 }
 
+// GET MATERIALS COUNTS BY SUBJECT CODES
+// Lấy số lượng materials cho nhiều subjects cùng lúc
+export async function getMaterialsCounts(subjectCodes = [], status = "active") {
+  try {
+    if (!subjectCodes || subjectCodes.length === 0) {
+      return {};
+    }
+    
+    const subjectCodesStr = subjectCodes.join(',');
+    const res = await api.get("/api/materials/counts", {
+      params: {
+        subjectCodes: subjectCodesStr,
+        status: status
+      }
+    });
+    
+    const raw = res?.data?.data || res?.data || {};
+    return raw || {};
+  } catch (err) {
+    console.error('getMaterialsCounts error', err?.response || err);
+    return {};
+  }
+}
+
 // ===================== SUBJECTS =====================
 
 
 export async function getSubjects() {
   try {
-    // Sử dụng endpoint dropdown mới để lấy tất cả subjects active
-    const res = await api.get("/api/manager/subjects/dropdown");
+    // Sử dụng endpoint subjectsActive để lấy tất cả subjects active
+    const res = await api.get("/api/manager/subjects/subjectsActive");
     const list = unwrap(res) || [];
-    console.log('Subjects dropdown API response:', list);
+    console.log('Subjects active API response:', list);
     // đảm bảo luôn trả mảng [{subjectId, subjectCode, subjectName}]
     return Array.isArray(list) ? list : [];
   } catch (error) {
-    console.error('Failed to get subjects from dropdown endpoint:', error);
+    console.error('Failed to get subjects from subjectsActive endpoint:', error);
     // Fallback về endpoint chính
     try {
       const res = await api.get("/api/manager/subjects");

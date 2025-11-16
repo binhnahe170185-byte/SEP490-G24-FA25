@@ -21,7 +21,7 @@ export default function AddNewsModal({ visible, onCancel, onSuccess }) {
       
       const payload = {
         title: values.title.trim(),
-        content: values.content?.trim() || null,
+        content: values.content.trim(),
         newsImage: values.newsImage?.trim() || null,
       };
 
@@ -82,7 +82,14 @@ export default function AddNewsModal({ visible, onCancel, onSuccess }) {
           <Input placeholder="Enter news title" size="large" />
         </Form.Item>
 
-        <Form.Item label="Content" name="content">
+        <Form.Item 
+          label="Content" 
+          name="content"
+          rules={[
+            { required: true, message: "Please enter news content" },
+            { max: 5000, message: "Content must not exceed 5000 characters" }
+          ]}
+        >
           <Input.TextArea
             rows={10}
             placeholder="Write the announcement... supports up to 5000 characters"
