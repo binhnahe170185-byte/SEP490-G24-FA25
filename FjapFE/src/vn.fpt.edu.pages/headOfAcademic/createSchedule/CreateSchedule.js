@@ -772,7 +772,7 @@ const CreateSchedule = () => {
             if (loadedSubjectName) loadedParts.push(loadedSubjectName);
             if (loadedRoomName) loadedParts.push(loadedRoomName);
             const conflictText = loadedParts.length > 0 ? loadedParts.join(' | ') : 'Conflict';
-            cellContent = `${displayText} ⚠️ (Conflict: ${conflictText})`;
+            cellContents.push(`${displayText} ⚠️ (Conflict: ${conflictText})`);
             cellStyle = { 
               backgroundColor: '#ffebee', 
               color: '#c62828',
@@ -782,7 +782,7 @@ const CreateSchedule = () => {
             classNames.push('lesson-conflict');
           } else {
             // No conflict: green background
-            cellContent = displayText;
+            cellContents.push(displayText);
             cellStyle = { 
               backgroundColor: '#e8f5e9', 
               color: '#2e7d32',
@@ -802,7 +802,7 @@ const CreateSchedule = () => {
           if (loadedSubjectName) parts.push(loadedSubjectName);
           if (loadedRoomName) parts.push(loadedRoomName);
           
-          cellContent = parts.length > 0 ? parts.join(' | ') : '';
+          cellContents.push(parts.length > 0 ? parts.join(' | ') : '');
           cellStyle = {
             backgroundColor: '#f5f5f5',
             color: '#333'
