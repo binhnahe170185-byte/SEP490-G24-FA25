@@ -286,7 +286,7 @@ public class StaffOfAdminService : IStaffOfAdminService
                 _lecturerCodeCounter = existingCodes
                     .Select(ExtractLecturerNumber)
                     .DefaultIfEmpty(0)
-                    .Max();
+                    .Max(); _lecturerCodeInitialized = true;
 
                 _lecturerCodeInitialized = true;
             }
