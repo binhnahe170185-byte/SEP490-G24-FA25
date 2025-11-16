@@ -97,6 +97,15 @@ namespace FJAP.Controllers.Manager
             var subjects = await _subjectService.GetDropdownOptionsAsync();
             return Ok(new { code = 200, data = subjects });
         }
+        
+        // GET: /api/manager/subjectsActive
+        [HttpGet("subjectsActive")]
+        public async Task<IActionResult> GetActiveSubjects()
+        {
+            // Tận dụng sẵn phương thức dropdown chỉ trả về các subject Active
+            var subjects = await _subjectService.GetDropdownOptionsAsync();
+            return Ok(new { code = 200, data = subjects });
+        }
     }
 
     public class UpdateStatusRequest

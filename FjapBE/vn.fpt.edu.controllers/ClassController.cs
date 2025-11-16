@@ -730,6 +730,42 @@ public class ClassController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy danh sách class (classId, className) có status = \"Active\" theo semesterId
+    /// GET: api/staffAcademic/classes/active-by-semester?semesterId={semesterId}
+    /// </summary>
+    [HttpGet("semesterId")]
+    public async Task<IActionResult> GetActiveClassesBySemester([FromQuery] int semesterId)
+    {
+        if (semesterId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "semesterId must be greater than 0" });
+        }
+
+        try
+        {
+            var classes = await _db.Classes
+                .AsNoTracking()
+                .Where(c =>
+                    c.SemesterId == semesterId &&
+                    c.Status != null &&
+                    c.Status.ToLower() == "active")
+                .OrderBy(c => c.ClassName)
+                .Select(c => new
+                {
+                    classId = c.ClassId,
+                    className = c.ClassName
+                })
+                .ToListAsync();
+
+            return Ok(new { code = 200, data = classes });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { code = 500, message = $"Error retrieving classes: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
     /// Lấy tất cả semesters và classes được nhóm theo semester để dùng cho schedule picker
     /// GET: api/staffAcademic/classes/schedule-options
     /// </summary>

@@ -45,6 +45,7 @@ import Attendance from "../vn.fpt.edu.pages/lecturer/Attendance/Attendance";
 import AttendanceReport from "../vn.fpt.edu.pages/lecturer/AttendanceReport/AttendanceReport";
 import StaffOfAdminPage from "../vn.fpt.edu.pages/staffOfAdmin/StaffOfAdminPage";
 import CreateSchedule from "../vn.fpt.edu.pages/headOfAcademic/createSchedule/CreateSchedule";
+import ImportSchedule from "../vn.fpt.edu.pages/headOfAcademic/importSchedule/ImportSchedule";
 import CurriculumSubjects from "../vn.fpt.edu.pages/student/CurriculumSubjects";
 import StudentNewsList from "../vn.fpt.edu.pages/student/StudentNewsList";
 import StudentNewsDetail from "../vn.fpt.edu.pages/student/StudentNewsDetail";
@@ -295,6 +296,14 @@ export default function App() {
                   element={
                     <RequireHeadOfAcademic>
                       <CreateSchedule />
+                    </RequireHeadOfAcademic>
+                  }
+                />
+                <Route
+                  path="/importSchedule"
+                  element={
+                    <RequireHeadOfAcademic>
+                      <ImportSchedule />
                     </RequireHeadOfAcademic>
                   }
                 />

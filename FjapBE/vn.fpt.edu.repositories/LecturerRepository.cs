@@ -47,6 +47,8 @@ public class LecturerRepository : GenericRepository<Lecture>, ILecturerRepositor
     {
         var lecturers = await _context.Lectures
             .AsNoTracking()
+            .Include(l => l.User)
+            .Where(l => l.User != null && l.User.Status != null && l.User.Status.ToLower() == "active")
             .Select(l => new LecturerDto
             {
                 LecturerId = l.LectureId,
