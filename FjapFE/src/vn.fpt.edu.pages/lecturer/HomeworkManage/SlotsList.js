@@ -12,35 +12,35 @@ export default function SlotsList({ course, lecturerId }) {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const navigate = useNavigate();
 
+  const buildHomeworkMap = (homeworks) => {
+    const map = {};
+    homeworks.forEach((hw) => {
+      const lessonKey = hw.lessonId || hw.slotId || hw.lesson_id;
+      if (!lessonKey) return;
+      if (!map[lessonKey]) {
+        map[lessonKey] = [];
+      }
+      map[lessonKey].push(hw);
+    });
+    return map;
+  };
+
   const loadSlots = useCallback(async () => {
     if (!course || !course.classId) return;
-    
+
     try {
       setLoading(true);
-      const data = await LecturerHomework.getSlots(course.classId);
+      const [data, courseHomeworks] = await Promise.all([
+        LecturerHomework.getSlots(course.classId),
+        LecturerHomework.getHomeworksByCourse(course.classId),
+      ]);
       setSlots(data);
       setPagination((prev) => ({ ...prev, current: 1 }));
-      
-      // Load homeworks for each slot
-      if (data.length > 0) {
-        const homeworksPromises = data.map(slot => 
-          LecturerHomework.getHomeworksBySlot(slot.lessonId, slot.classId)
-            .then(homeworks => ({ lessonId: slot.lessonId, homeworks }))
-            .catch(() => ({ lessonId: slot.lessonId, homeworks: [] }))
-        );
-        
-        const homeworksResults = await Promise.all(homeworksPromises);
-        const map = {};
-        homeworksResults.forEach(({ lessonId, homeworks }) => {
-          map[lessonId] = homeworks;
-        });
-        setHomeworksMap(map);
-      } else {
-        setHomeworksMap({});
-      }
+      setHomeworksMap(buildHomeworkMap(courseHomeworks || []));
     } catch (error) {
       console.error("Failed to load slots:", error);
       message.error("Unable to load slots");
+      setHomeworksMap({});
     } finally {
       setLoading(false);
     }
