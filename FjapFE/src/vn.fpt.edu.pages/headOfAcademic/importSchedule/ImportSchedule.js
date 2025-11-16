@@ -60,6 +60,7 @@ export default function ImportSchedule() {
 	const [classesBySemester, setClassesBySemester] = useState({});
 	const [rooms, setRooms] = useState([]); // {value,label}
 	const [timeslots, setTimeslots] = useState([]); // {timeId,startTime,endTime,slotNumber?}
+	const [lecturers, setLecturers] = useState([]); // [{ lecturerId, lecturerCode }]
 
 	const selectedSemesterId = Form.useWatch('semesterId', form);
 
@@ -90,6 +91,23 @@ export default function ImportSchedule() {
 			// Timeslots
 			const ts = await TimeslotApi.getTimeslots();
 			setTimeslots(ts || []);
+
+			// Lecturers
+			try {
+				const lecRes = await api.get('/api/lecturers');
+				const lecData = lecRes?.data?.data || lecRes?.data || [];
+				setLecturers(
+					Array.isArray(lecData)
+						? lecData.map((l) => ({
+								lecturerId: Number(l.lectureId || l.lecturerId || l.id),
+								lecturerCode: normalizeString(l.lecturerCode || l.code),
+						  }))
+						: []
+				);
+			} catch (e) {
+				console.warn('Load lecturers failed (optional):', e);
+				setLecturers([]);
+			}
 		} catch (e) {
 			console.error('Lookup load failed:', e);
 			msg.error('Failed to load options');
@@ -127,6 +145,16 @@ export default function ImportSchedule() {
 		});
 		return map;
 	}, [timeslots]);
+
+	const lecturerCodeToId = useMemo(() => {
+		const map = {};
+		lecturers.forEach((l) => {
+			if (l.lecturerCode) {
+				map[normalizeString(l.lecturerCode)] = l.lecturerId;
+			}
+		});
+		return map;
+	}, [lecturers]);
 
 	// Excel parsing
 	const handleUpload = async (file) => {
@@ -183,6 +211,7 @@ export default function ImportSchedule() {
 				const classId = classNameToId[normalizeString(r.className)];
 				const roomId = roomNameToId[normalizeString(r.roomName)];
 				const timeId = slotNumberToTimeId[r.slot];
+				const lecturerId = lecturerCodeToId[normalizeString(r.lecturer)];
 				const duplicateInFile =
 					keyCount[
 						[
@@ -198,8 +227,13 @@ export default function ImportSchedule() {
 					classId,
 					roomId,
 					timeId,
+					lecturerId,
 					validMapping:
-						Boolean(classId) && Boolean(roomId) && Boolean(timeId) && Boolean(r.dayOfWeek),
+						Boolean(classId) &&
+						Boolean(roomId) &&
+						Boolean(timeId) &&
+						Boolean(r.dayOfWeek) &&
+						Boolean(lecturerId),
 					duplicateInFile,
 				};
 			});
@@ -288,31 +322,36 @@ export default function ImportSchedule() {
 	};
 
 	const buildPayloadsByClass = () => {
-		// Group by classId + lecturer (text) because backend requires lecturerId; we only pass patterns now.
-		const byClass = {};
+		// Group by classId + lecturerId because backend requires lecturerId
+		const byGroup = {};
 		previewRows
 			.filter((r) => r.validMapping)
 			.forEach((r) => {
 				const cid = r.classId;
-				if (!byClass[cid]) byClass[cid] = [];
-				byClass[cid].push(r);
+				const lid = r.lecturerId;
+				const key = `${cid}|${lid}`;
+				if (!byGroup[key]) byGroup[key] = [];
+				byGroup[key].push(r);
 			});
 		const semesterIdNum = Number(selectedSemesterId);
 
 		// Collapse rows into patterns per class
-		const payloads = Object.entries(byClass).map(([classIdStr, rows]) => {
+		const payloads = Object.entries(byGroup).map(([groupKey, rows]) => {
+			const [classIdStr, lecturerIdStr] = groupKey.split('|');
 			const patterns = rows.map((r) => ({
 				weekday: r.dayOfWeek, // 2..7
-				slotId: r.timeId,
+				timeId: r.timeId,
 				roomId: r.roomId,
 			}));
-			// We do not have lecturerId from Excel mapping reliably; set 0 to let backend validate
 			return {
 				classId: Number(classIdStr),
 				semesterId: semesterIdNum,
-				lecturerId: 0,
+				lecturerId: Number(lecturerIdStr),
 				patterns,
-				_meta: { className: rows[0]?.className || `Class ${classIdStr}` },
+				_meta: {
+					className: rows[0]?.className || `Class ${classIdStr}`,
+					lecturerCode: rows[0]?.lecturer || '',
+				},
 			};
 		});
 		return payloads;
@@ -349,7 +388,7 @@ export default function ImportSchedule() {
 					LecturerId: p.lecturerId,
 					Patterns: p.patterns.map((x) => ({
 						Weekday: x.weekday,
-						SlotId: x.slotId,
+						TimeId: x.timeId,
 						RoomId: x.roomId,
 					})),
 				});
