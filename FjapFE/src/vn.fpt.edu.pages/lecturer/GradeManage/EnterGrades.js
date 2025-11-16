@@ -260,7 +260,8 @@ export default function EnterGrades() {
       fixed: "right",
       render: (_, record) => {
         const avg = parseFloat(calculateAverage(record));
-        const isPassed = avg >= 5.0;
+        const passMark = courseDetails?.passMark ?? 5.0;
+        const isPassed = avg >= passMark;
         return (
           <Tag color={isPassed ? "green" : "red"} icon={isPassed ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
             {isPassed ? "Passed" : "Failed"}

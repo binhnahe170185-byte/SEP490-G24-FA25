@@ -32,9 +32,9 @@ import CreateSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/Creat
 import EditSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/EditSubject";
 import SubjectDetail from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/SubjectDetail";
 import Dashboard from "../vn.fpt.edu.pages/staffAcademic/Dashboard";
-import GradeManage from "../vn.fpt.edu.pages/manager/GradeManage/Index";
-import GradeDetails from "../vn.fpt.edu.pages/manager/GradeManage/GradeDetails";
-import GradeEntry from "../vn.fpt.edu.pages/manager/GradeManage/GradeEntry";
+import GradeManage from "../vn.fpt.edu.pages/lecturer/GradeManage/Index";
+import GradeDetails from "../vn.fpt.edu.pages/lecturer/GradeManage/GradeDetails";
+import GradeEntry from "../vn.fpt.edu.pages/lecturer/GradeManage/GradeEntry";
 import StaffMaterialList from "../vn.fpt.edu.pages/staffAcademic/materials/MaterialList";
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";

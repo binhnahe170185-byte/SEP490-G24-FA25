@@ -85,8 +85,22 @@ export default function GradeDetails() {
   // Calculate statistics
   const getStatistics = () => {
     const totalStudents = students.length;
-    const passedStudents = students.filter(s => parseFloat(s.average) >= 5.0).length;
-    const failedStudents = students.filter(s => parseFloat(s.average) < 5.0).length;
+    const passMark = courseDetails?.passMark ?? 5.0;
+    const passedStudents = students.filter(s => {
+      const avg = parseFloat(s.average);
+      if (isNaN(avg)) return false;
+      const meetsScore = avg >= passMark;
+      // Enforce attendance 80% if available
+      const attendanceRate = s.attendanceRate;
+      const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
+      return meetsScore && meetsAttendance;
+    }).length;
+    const failedStudents = students.filter(s => {
+      const avg = parseFloat(s.average);
+      const attendanceRate = s.attendanceRate;
+      const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
+      return isNaN(avg) || avg < passMark || !meetsAttendance;
+    }).length;
     const incompleteStudents = students.filter(s => !s.average || s.average === 0).length;
     const averageGrade = students.length > 0 
       ? (students.reduce((sum, s) => sum + (parseFloat(s.average) || 0), 0) / totalStudents).toFixed(2)
@@ -190,7 +204,10 @@ export default function GradeDetails() {
           if (!avg || avg === 0) {
             return <Tag color="default" icon={<ClockCircleOutlined />}>Inprogress</Tag>;
           }
-          const isPassed = avg >= 5.0;
+          const passMark = courseDetails?.passMark ?? 5.0;
+          const attendanceRate = record.attendanceRate;
+          const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
+          const isPassed = avg >= passMark && meetsAttendance;
           return (
             <Tag 
               color={isPassed ? "green" : "red"} 
@@ -264,6 +281,7 @@ export default function GradeDetails() {
           <span>📚 Class: {courseFromState?.className || courseDetails?.className}</span>
           <span>📅 Semester: {courseFromState?.semester || courseDetails?.semester}</span>
           <span>👨‍🎓 Total Students: {stats.totalStudents}</span>
+          <span>✅ Pass mark: {courseDetails?.passMark ?? 5.0}</span>
         </Space>
       </Card>
 

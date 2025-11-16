@@ -1,4 +1,6 @@
 import { api } from "../vn.fpt.edu.api/http";
+import SubjectList from "./SubjectList";
+import AttendanceApi from "./Attendance";
 
 class ManagerGrades {
   // ==========================================
@@ -122,11 +124,118 @@ class ManagerGrades {
    */
   static async getCourseDetails(managerId, courseId) {
     try {
+      // Fetch detailed grade data
       const response = await api.get(`/api/staffAcademic/classes/${courseId}/grade-details`);
       const data = response.data?.data;
+
+      // Also fetch class info to ensure we can obtain subject pass mark if grade-details doesn't include it
+      let classInfo = null;
+      try {
+        const classResp = await api.get(`/api/staffAcademic/classes/${courseId}`);
+        classInfo = classResp.data?.data || null;
+      } catch (e) {
+        // Ignore secondary failure; we'll fallback below
+      }
       
       if (!data) {
         throw new Error("No data returned from API");
+      }
+
+      // Try to robustly extract pass mark from various possible fields
+      const extractPassMark = (obj) => {
+        if (!obj || typeof obj !== "object") return null;
+        // Candidate key names that might represent pass mark
+        const candidateKeys = [
+          "passMark", "passmark", "pass_mark",
+          "subjectPassMark", "subject_pass_mark",
+          "passingMark", "passing_mark", "passingScore", "passing_score",
+          "minPassScore", "min_pass_score",
+          "minScore", "min_score",
+          "passScore", "pass_score",
+          "requiredScore", "required_score",
+          "threshold", "passThreshold", "pass_threshold"
+        ];
+        // Direct keys on current object
+        for (const key of Object.keys(obj)) {
+          const lower = key.toLowerCase();
+          if (candidateKeys.some(k => lower === k.toLowerCase())) {
+            const val = obj[key];
+            const num = typeof val === "number" ? val : parseFloat(val);
+            if (!isNaN(num) && num >= 0 && num <= 10) return num;
+          }
+        }
+        // Nested common containers
+        const nestedCandidates = ["subject", "class", "course", "data", "meta"];
+        for (const nk of nestedCandidates) {
+          if (obj[nk]) {
+            const nestedVal = extractPassMark(obj[nk]);
+            if (nestedVal != null) return nestedVal;
+          }
+        }
+        return null;
+      };
+
+      const derivedPassMark =
+        extractPassMark(data) ??
+        extractPassMark(classInfo) ??
+        data.passMark ??
+        data.subjectPassMark ??
+        data.subject?.passMark ??
+        classInfo?.subjectPassMark ??
+        classInfo?.subject?.passMark ??
+        null;
+
+      // If still not found, try fetching subject by ID explicitly
+      let finalPassMark = derivedPassMark;
+      const subjectId =
+        data.subjectId ??
+        classInfo?.subjectId ??
+        classInfo?.subject?.subjectId ??
+        null;
+      if ((finalPassMark == null || isNaN(finalPassMark)) && subjectId) {
+        try {
+          const subject = await SubjectList.getById(subjectId);
+          // Try common fields on subject
+          finalPassMark =
+            subject?.passMark ??
+            subject?.subjectPassMark ??
+            subject?.minPassScore ??
+            subject?.minScore ??
+            subject?.passingScore ??
+            null;
+          if (finalPassMark != null) {
+            const n = typeof finalPassMark === "number" ? finalPassMark : parseFloat(finalPassMark);
+            finalPassMark = !isNaN(n) ? n : null;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      // Try fetching attendance report to enforce attendance-based pass rule
+      let attendanceByStudent = {};
+      try {
+        const attendanceReport = await AttendanceApi.getAttendanceReport(courseId);
+        if (Array.isArray(attendanceReport)) {
+          attendanceReport.forEach(item => {
+            // Robustly extract student identifier
+            const sid = (item.studentCode ?? item.studentId ?? item.code ?? item.id ?? "").toString();
+            if (!sid) return;
+            // Extract present/total lessons with common key names
+            const present = item.presentCount ?? item.present ?? item.attended ?? item.presents ?? 0;
+            const total = item.totalLessons ?? item.total ?? item.lessonCount ?? item.lessons ?? 0;
+            const absent = item.absentCount ?? item.absent ?? item.absents ?? 0;
+            const computedTotal = total || (present + absent);
+            const attendanceRate = computedTotal > 0 ? present / computedTotal : null;
+            attendanceByStudent[sid] = {
+              presentLessons: typeof present === "number" ? present : parseFloat(present) || 0,
+              totalLessons: typeof computedTotal === "number" ? computedTotal : parseFloat(computedTotal) || 0,
+              attendanceRate: attendanceRate
+            };
+          });
+        }
+      } catch (e) {
+        // Ignore attendance fetch errors
       }
 
       // Map backend ClassGradeDetailDto to frontend format
@@ -136,28 +245,38 @@ class ManagerGrades {
         courseName: data.subjectName || data.className,
         className: data.className,
         semester: data.semesterName || "Unknown",
-        students: (data.students || []).map(s => ({
-          studentId: s.studentCode || s.studentId?.toString(),
-          studentName: s.studentName || "Unknown",
-          email: s.email || "N/A",
-          // Grade components - backend returns these fields
-          participation: s.participation,
-          assignment: s.assignment,
-          progressTest1: s.progressTest1,
-          progressTest2: s.progressTest2,
-          finalExam: s.finalExam,
-          average: s.average,
-          status: s.status || "Inprogress",
-          gradeId: s.gradeId,
-          // Grade component scores - new dynamic approach
-          gradeComponentScores: (s.gradeComponentScores || []).map(gcs => ({
-            subjectGradeTypeId: gcs.subjectGradeTypeId,
-            gradeTypeName: gcs.gradeTypeName,
-            score: gcs.score,
-            comment: gcs.comment,
-            status: gcs.status
-          }))
-        })),
+        // Pass mark from backend if available (try multiple sources)
+        passMark: finalPassMark,
+        students: (data.students || []).map(s => {
+          const studentId = s.studentCode || s.studentId?.toString();
+          const attendance = attendanceByStudent[studentId?.toString() || ""] || null;
+          return {
+            studentId: studentId,
+            studentName: s.studentName || "Unknown",
+            email: s.email || "N/A",
+            // Attendance info (optional)
+            attendanceRate: attendance?.attendanceRate ?? null,
+            presentLessons: attendance?.presentLessons ?? null,
+            totalLessons: attendance?.totalLessons ?? null,
+            // Grade components - backend returns these fields
+            participation: s.participation,
+            assignment: s.assignment,
+            progressTest1: s.progressTest1,
+            progressTest2: s.progressTest2,
+            finalExam: s.finalExam,
+            average: s.average,
+            status: s.status || "Inprogress",
+            gradeId: s.gradeId,
+            // Grade component scores - new dynamic approach
+            gradeComponentScores: (s.gradeComponentScores || []).map(gcs => ({
+              subjectGradeTypeId: gcs.subjectGradeTypeId,
+              gradeTypeName: gcs.gradeTypeName,
+              score: gcs.score,
+              comment: gcs.comment,
+              status: gcs.status
+            }))
+          };
+        }),
         // Grade component weights from backend
         gradeComponentWeights: (data.gradeComponentWeights || []).map(w => ({
           subjectGradeTypeId: w.subjectGradeTypeId,
