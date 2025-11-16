@@ -1,4 +1,16 @@
 import React from 'react';
+import {
+  Card,
+  Form,
+  Select,
+  Button,
+  Space,
+  List,
+  Tag,
+  Empty,
+  Tooltip,
+} from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
 
 const WeeklyPatterns = ({
@@ -16,69 +28,98 @@ const WeeklyPatterns = ({
   onAddPattern,
   onRemovePattern
 }) => {
+  const hasValues = weekday && slotId && roomId;
+
+  const getRoomLabel = (roomValue) => {
+    const room = rooms.find(r => String(r.value) === String(roomValue));
+    return room?.label || roomValue;
+  };
+
   return (
-    <div className="create-schedule-card">
-      <h3>Weekly Patterns</h3>
-      <div className="create-schedule-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        <div>
-          <label htmlFor="weekday">Weekday</label>
-          <select
-            id="weekday"
-            value={weekday}
-            onChange={(e) => onWeekdayChange(e.target.value)}
+    <Card
+      title="Weekly Patterns"
+      className="create-schedule-card"
+      extra={
+        <Tooltip title={hasValues ? 'Add pattern' : 'Select weekday, slot & room'}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onAddPattern}
+            disabled={!hasValues}
           >
-            <option value="">--</option>
-            {weekdays.map(w => (
-              <option key={w.value} value={w.value}>{w.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="slot_id">Slot</label>
-          <select
-            id="slot_id"
-            value={slotId}
-            onChange={(e) => onSlotChange(e.target.value)}
-          >
-            <option value="">--</option>
-            {slots.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="room_id">Room</label>
-          <select
-            id="room_id"
-            value={roomId}
-            onChange={(e) => onRoomChange(e.target.value)}
-          >
-            <option value="">--</option>
-            {rooms.map(r => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ alignSelf: 'end' }}>
-          <button className="create-schedule-btn" onClick={onAddPattern}>
             Add pattern
-          </button>
-        </div>
-      </div>
-      <div className="create-schedule-stack" style={{ marginTop: '10px' }}>
-        <div className="create-schedule-sub">Pending patterns</div>
-        <ol id="pattern-list" style={{ margin: '0 0 0 18px' }}>
-          {patterns.map((p, idx) => (
-            <li key={idx}>
-              {weekdayMap[p.weekday]} — Slot {p.slot} — Room {p.room}{' '}
-              <button className="create-schedule-btn" onClick={() => onRemovePattern(idx)}>
+          </Button>
+        </Tooltip>
+      }
+    >
+      <Form layout="vertical">
+        <Space
+          direction="horizontal"
+          size="large"
+          wrap
+          className="create-schedule-space-responsive"
+        >
+          <Form.Item label="Weekday" style={{ minWidth: 200 }}>
+            <Select
+              value={weekday || undefined}
+              onChange={onWeekdayChange}
+              placeholder="Select weekday"
+              options={weekdays}
+              allowClear
+            />
+          </Form.Item>
+
+          <Form.Item label="Slot" style={{ minWidth: 200 }}>
+            <Select
+              value={slotId || undefined}
+              onChange={onSlotChange}
+              placeholder="Select slot"
+              options={slots}
+              allowClear
+            />
+          </Form.Item>
+
+          <Form.Item label="Room" style={{ minWidth: 200 }}>
+            <Select
+              value={roomId || undefined}
+              onChange={onRoomChange}
+              placeholder="Select room"
+              options={rooms}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+        </Space>
+      </Form>
+
+      <List
+        header="Pending patterns"
+        dataSource={patterns}
+        locale={{ emptyText: <Empty description="No patterns yet" /> }}
+        renderItem={(pattern, idx) => (
+          <List.Item
+            actions={[
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => onRemovePattern(idx)}
+              >
                 Remove
-              </button>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </div>
+              </Button>
+            ]}
+          >
+            <Space size="small" wrap>
+              <Tag color="blue">{weekdayMap[pattern.weekday] || pattern.weekday}</Tag>
+              <Tag color="green">Slot {pattern.slot}</Tag>
+              <Tag color="purple">Room {getRoomLabel(pattern.room)}</Tag>
+            </Space>
+          </List.Item>
+        )}
+        style={{ marginTop: 12 }}
+      />
+    </Card>
   );
 };
 

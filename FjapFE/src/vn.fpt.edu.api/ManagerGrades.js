@@ -147,7 +147,7 @@ class ManagerGrades {
           progressTest2: s.progressTest2,
           finalExam: s.finalExam,
           average: s.average,
-          status: s.status || "Incomplete",
+          status: s.status || "Inprogress",
           gradeId: s.gradeId,
           // Grade component scores - new dynamic approach
           gradeComponentScores: (s.gradeComponentScores || []).map(gcs => ({

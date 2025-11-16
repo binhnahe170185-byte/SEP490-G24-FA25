@@ -28,6 +28,7 @@ namespace FJAP.Repositories
                     CreatedAt = s.CreatedAt,
                     LevelId = s.LevelId,
                     LevelName = s.Level.LevelName,
+                    TotalLesson = s.TotalLesson,
                     GradeTypes = s.SubjectGradeTypes.Select(sgt => new GradeTypeDto
                     {
                         SubjectGradeTypeId = sgt.SubjectGradeTypeId,
@@ -53,7 +54,8 @@ namespace FJAP.Repositories
                     Status = s.Status,
                     // Bỏ các trường không cần thiết cho danh sách
                     LevelId = s.LevelId,
-                    LevelName = s.Level.LevelName
+                    LevelName = s.Level.LevelName,
+                    TotalLesson = s.TotalLesson
                 })
                 .ToListAsync();
         }

@@ -14,7 +14,7 @@ public class ClassScheduleDto
 
 public class SchedulePatternDto
 {
-    public int Weekday { get; set; } // 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri
+    public int Weekday { get; set; } // 2=Mon ... 7=Sat, 8=Sun
     public int TimeId { get; set; } // Slot ID
     public int RoomId { get; set; } // Room ID
 }

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -15,7 +15,8 @@ import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyT
 import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
 import StudentHomepage from "../vn.fpt.edu.pages/student/StudentHomepage";
 import AttendanceReportPage from "../vn.fpt.edu.pages/student/AttendanceReportPage";
-import HomeworkPage from "../vn.fpt.edu.pages/student/HomeworkPage";
+import HomeworkPage from "../vn.fpt.edu.pages/student/homework/HomeworkPage";
+import LessonHomeworkDetail from "../vn.fpt.edu.pages/student/homework/LessonHomeworkDetail";
 import ClassStudentsList from "../vn.fpt.edu.pages/student/classStudents/ClassStudentsList";
 import AcademicTranscript from "../vn.fpt.edu.pages/student/AcademicTranscript";
 import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
@@ -151,10 +152,9 @@ function RoleBasedRedirect() {
   if (roleId === 3) {
     return <Navigate to="/lecturer/homepage" replace />;
   }
-    /*Sáng vào sửa chỗ này nhé 
-    Author: HuyLQ */
+  
   if (roleId === 4) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/student/homepage" replace />;
   }
   
   if (roleId === 5) {
@@ -199,13 +199,7 @@ function Home() {
   const { user } = useAuth();
   const roleId = user ? Number(user.roleId) : null;
   if (roleId === 4) {
-    return (
-      <RequireStudent>
-        <StudentLayout>
-          <StudentHomepage />
-        </StudentLayout>
-      </RequireStudent>
-    );
+    return <Navigate to="/student/homepage" replace />;
   }
   return <RoleBasedRedirect />;
 }
@@ -280,10 +274,12 @@ export default function App() {
                     </RequireStudent>
                   }
                 >
+                  <Route path="homepage" element={<StudentHomepage />} />
                   <Route path="grades" element={<StudentGradeReport />} />
                   <Route path="academic-transcript" element={<AcademicTranscript />} />
                   <Route path="attendance" element={<AttendanceReportPage />} />
                   <Route path="homework" element={<HomeworkPage />} />
+                  <Route path="homework/:classId/:lessonId" element={<LessonHomeworkDetail />} />
                   <Route path="curriculum-subjects" element={<CurriculumSubjects />} />
                   <Route path="news" element={<StudentNewsList />} />
                   <Route path="news/:id" element={<StudentNewsDetail />} />

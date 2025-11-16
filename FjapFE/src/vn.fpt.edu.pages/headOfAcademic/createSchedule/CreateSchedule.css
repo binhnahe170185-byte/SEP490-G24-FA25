@@ -54,6 +54,13 @@
     padding: 16px;
 }
 
+.create-schedule-header-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+
 .create-schedule-card h3 {
     margin: 0 0 10px;
     font-size: 15px;
@@ -144,11 +151,68 @@
     font-weight: 600;
 }
 
+.holiday-badge {
+    font-weight: 600;
+    color: #f57f17;
+    margin-bottom: 4px;
+    display: inline-block;
+}
+
+.calendar-cell {
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 8px;
+}
+
+.calendar-cell.lesson-preview {
+    background: #e8f5e9;
+    border: 2px solid #2e7d32;
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.calendar-cell.lesson-conflict {
+    background: #ffebee;
+    border: 2px solid #c62828;
+    color: #c62828;
+    font-weight: bold;
+}
+
+.calendar-cell.lesson-loaded {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.calendar-cell.holiday-cell {
+    background: #fffde7;
+    border: 2px dashed #fbc02d;
+    color: #f57f17;
+}
+
 .create-schedule-calendar-head {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 8px;
+}
+
+.create-schedule-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.create-schedule-space-responsive {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.create-schedule-form-item {
+    margin-bottom: 0;
 }
 
 .create-schedule-stack {

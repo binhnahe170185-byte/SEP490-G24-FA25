@@ -655,12 +655,12 @@ public class ClassController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách subjects để hiển thị trong dropdown
-    /// GET: api/staffAcademic/classes/subjects/dropdown
+    /// Lấy danh sách toàn bộ subjects để hiển thị
+    /// GET: api/staffAcademic/classes/subjects/getAllSubject
     /// </summary>
-    [HttpGet("subjects/dropdown")]
+    [HttpGet("subjects/getAllSubject")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetSubjectsDropdown()
+    public async Task<IActionResult> GetAllSubject()
     {
         try
         {
@@ -684,7 +684,7 @@ public class ClassController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in GetSubjectsDropdown: {ex.Message}");
+            Console.WriteLine($"Error in GetAllSubject: {ex.Message}");
             return StatusCode(500, new
             {
                 code = 500,

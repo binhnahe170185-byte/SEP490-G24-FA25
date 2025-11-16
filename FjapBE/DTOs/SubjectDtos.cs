@@ -24,6 +24,7 @@ namespace FJAP.vn.fpt.edu.models
         public DateTime? CreatedAt { get; set; }
         public int LevelId { get; set; }
         public string? LevelName { get; set; }
+        public int TotalLesson { get; set; }
 
         public List<GradeTypeDto> GradeTypes { get; set; } = new();
     }
@@ -36,6 +37,7 @@ namespace FJAP.vn.fpt.edu.models
         public string? Description { get; set; }
         public decimal? PassMark { get; set; } = 5.0m;
         public int LevelId { get; set; }
+        public int TotalLesson { get; set; }
         public List<GradeTypeDto> GradeTypes { get; set; } = new();
     }
 
@@ -47,6 +49,7 @@ namespace FJAP.vn.fpt.edu.models
         public string? Description { get; set; }
         public decimal? PassMark { get; set; }
         public int LevelId { get; set; }
+        public int TotalLesson { get; set; }
         public List<GradeTypeDto> GradeTypes { get; set; } = new();
     }
 

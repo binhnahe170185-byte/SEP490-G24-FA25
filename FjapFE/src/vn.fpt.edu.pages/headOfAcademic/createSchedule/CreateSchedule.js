@@ -10,16 +10,31 @@ import RoomApi from '../../../vn.fpt.edu.api/Room';
 import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
 import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
 import ClassList from '../../../vn.fpt.edu.api/ClassList';
+import {
+  Layout,
+  Space,
+  Row,
+  Col,
+  Typography,
+  Tag,
+} from 'antd';
+import {
+  CalendarOutlined,
+  BookOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import { notification } from 'antd';
 
 const CreateSchedule = () => {
   const [api, contextHolder] = notification.useNotification();
-  
+
   const [semesterId, setSemesterId] = useState('');
   const [classId, setClassId] = useState('');
   const [subjectCode, setSubjectCode] = useState('');
   const [subjectName, setSubjectName] = useState('');
+  const [className, setClassName] = useState('');
   const [lecturerId, setLecturerId] = useState('');
+  const [lecturerCode, setLecturerCode] = useState('');
   const [weekday, setWeekday] = useState('');
   const [slotId, setSlotId] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -46,6 +61,8 @@ const CreateSchedule = () => {
     { value: '4', label: 'Wed' },
     { value: '5', label: 'Thu' },
     { value: '6', label: 'Fri' },
+    { value: '7', label: 'Sat' },
+    { value: '8', label: 'Sun' },
   ];
 
   // Generate slots from timeslots (will be updated when timeslots are loaded)
@@ -53,7 +70,7 @@ const CreateSchedule = () => {
   const slots = timeslots.length > 0
     ? timeslots.map((ts) => ({
       value: String(ts.timeId),
-      label: `Slot ${ts.timeId} (${ts.startTime}-${ts.endTime})`
+      label: `Slot ${ts.timeId}`
     }))
     : Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Slot ${i + 1}` }));
 
@@ -96,7 +113,23 @@ const CreateSchedule = () => {
   };
 
   const getWeekRange = (weekStart) => {
-    return `Week ${toYMD(weekStart)} → ${toYMD(addDays(weekStart, 4))}`;
+    return `Week ${toYMD(weekStart)} → ${toYMD(addDays(weekStart, 6))}`;
+  };
+
+  const normalizeDateString = (rawDate) => {
+    if (!rawDate) return '';
+    if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+      return rawDate;
+    }
+    try {
+      const parsed = new Date(rawDate);
+      if (!isNaN(parsed.getTime())) {
+        return toYMD(parsed);
+      }
+    } catch (error) {
+      console.warn('Unable to normalize date string:', rawDate, error);
+    }
+    return String(rawDate);
   };
 
   // Fetch data from APIs
@@ -192,8 +225,10 @@ const CreateSchedule = () => {
       try {
         const holidaysList = await HolidayApi.getHolidaysBySemester(semId);
         const formattedHolidays = holidaysList.map(holiday => ({
-          date: holiday.date,
-          reason: holiday.name || holiday.description || ''
+          date: normalizeDateString(holiday.date),
+          name: holiday.name || holiday.holidayName || holiday.reason || holiday.description || 'Holiday',
+          description: holiday.description || '',
+          holidayId: holiday.holidayId
         }));
         setHolidays(formattedHolidays);
       } catch (error) {
@@ -215,17 +250,24 @@ const CreateSchedule = () => {
   // Regenerate preview lessons when lecturer, patterns, semester, holidays, or rooms change
   useEffect(() => {
     if (patterns.length > 0 && semester.start && semester.end && rooms.length > 0) {
-      const newPreviewLessons = generateLessonsFromPatterns(patterns, semester.start, semester.end, lecturerId);
+      const newPreviewLessons = generateLessonsFromPatterns(
+        patterns,
+        semester.start,
+        semester.end,
+        lecturerCode,
+        subjectCode,
+        subjectName
+      );
       setPreviewLessons(newPreviewLessons);
     } else {
       setPreviewLessons([]);
     }
-  }, [lecturerId, patterns, semester.start, semester.end, rooms, holidays]);
+  }, [lecturerCode, subjectCode, subjectName, patterns, semester.start, semester.end, rooms, holidays]);
 
   // Generate lessons from patterns for entire semester
-  const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer) => {
+  const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer, subjectCodeValue, subjectNameValue) => {
     const generatedLessons = [];
-    const holidaysDates = holidays.map(h => toYMD(fromYMD(h.date)));
+    const holidaysDates = holidays.map(h => h.date);
 
     // Start from Monday of semester
     let currentDate = mondayOf(semStart);
@@ -233,8 +275,8 @@ const CreateSchedule = () => {
 
     // Generate lessons for each week in semester
     while (currentDate <= endDate) {
-      // For each weekday (Mon-Fri)
-      for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
+      // For each weekday (Mon-Sun)
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         const lessonDate = addDays(currentDate, dayOffset);
 
         // Skip if beyond semester end
@@ -248,7 +290,7 @@ const CreateSchedule = () => {
         // JavaScript Date.getDay(): 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
         // We need: 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri (Sunday = 7)
         const weekdayNum = lessonDate.getDay();
-        const normalizedWeekday = weekdayNum === 0 ? 7 : weekdayNum + 1; // Convert: 1→2 (Mon), 2→3 (Tue), etc.
+        const normalizedWeekday = weekdayNum === 0 ? 8 : weekdayNum + 1; // Convert: Mon=2 ... Sat=7, Sun=8
 
         patterns.forEach(pattern => {
           if (pattern.weekday === normalizedWeekday) {
@@ -263,6 +305,8 @@ const CreateSchedule = () => {
               room: roomName,
               roomId: pattern.room,
               lecturer: lecturer || '',
+              subjectCode: subjectCodeValue || '',
+              subjectName: subjectNameValue || '',
               isPreview: true // Đánh dấu đây là lesson preview từ patterns
             });
           }
@@ -361,15 +405,15 @@ const CreateSchedule = () => {
             }
           }
         }
-        
+
         const lessonDate = fromYMD(dateStr);
         const dayOfWeek = lessonDate.getDay(); // 0=Sun, 1=Mon, 2=Tue, etc.
-        // Convert to weekday format: Mon=2, Tue=3, Wed=4, Thu=5, Fri=6
-        const weekday = dayOfWeek === 0 ? 7 : dayOfWeek + 1; // Mon should be 2, Tue=3, etc.
+        // Convert to weekday format: Mon=2 ... Sat=7, Sun=8
+        const weekday = dayOfWeek === 0 ? 8 : dayOfWeek + 1; // Mon should be 2, Tue=3, etc.
 
         // Use timeId as slot (assuming timeId maps to slot 1-8)
         const slot = lesson.timeId || 1;
-        
+
         // Find roomId from rooms array based on roomName
         const roomName = lesson.roomName || '';
         const room = rooms.find(r => r.label === roomName);
@@ -384,6 +428,7 @@ const CreateSchedule = () => {
           lecturer: '', // API không trả về lecturer
           subjectCode: lesson.subjectCode || '',
           subjectName: lesson.subjectName || '',
+          className: lesson.className || '',
           startTime: lesson.startTime || '',
           endTime: lesson.endTime || '',
           timeId: lesson.timeId,
@@ -393,14 +438,16 @@ const CreateSchedule = () => {
 
       console.log('Converted loaded lessons:', convertedLessons);
       setLoadedLessons(convertedLessons);
-      
+
       // Set subject code and name from schedule
       const firstSubjectCode = schedule[0]?.subjectCode || '';
-      const firstSubjectName = schedule[0]?.subjectName || schedule[0]?.className || '';
+      const firstSubjectName = schedule[0]?.subjectName || '';
+      const firstClassName = schedule[0]?.className || '';
       if (firstSubjectCode) {
         setSubjectCode(firstSubjectCode);
       }
       setSubjectName(firstSubjectName);
+      setClassName(firstClassName);
 
       // Also update semesterId and classId in parent state
       setSemesterId(semId);
@@ -554,7 +601,7 @@ const CreateSchedule = () => {
       } else if (response?.lessonsCreated !== undefined) {
         lessonsCreated = response.lessonsCreated;
       }
-      
+
       console.log('Lessons created:', lessonsCreated);
 
       if (lessonsCreated > 0) {
@@ -564,8 +611,8 @@ const CreateSchedule = () => {
           placement: 'bottomRight',
           duration: 5,
         });
-      } 
-      
+      }
+
       // Optionally reload the schedule to show the saved data
       // You can trigger a reload here if needed
     } catch (error) {
@@ -576,10 +623,10 @@ const CreateSchedule = () => {
       console.error('Error response data:', error?.response?.data);
       console.error('Error response status:', error?.response?.status);
       console.error('Error stack:', error?.stack);
-      
+
       let errorMessage = 'Không thể lưu schedule. Vui lòng thử lại.';
       let errorDescription = 'Đã xảy ra lỗi khi lưu timetable.';
-      
+
       if (error?.response?.data) {
         if (error.response.data.message) {
           errorMessage = error.response.data.message;
@@ -595,7 +642,7 @@ const CreateSchedule = () => {
         errorMessage = error.message;
         errorDescription = errorMessage;
       }
-      
+
       console.error('Displaying error message:', errorMessage);
       api.error({
         message: 'Lưu thất bại',
@@ -613,24 +660,24 @@ const CreateSchedule = () => {
   // Conflict only occurs when preview lesson overlaps with loaded lesson at the exact same date, time, and room
   const isLessonConflict = (previewLesson, loadedLesson) => {
     if (!previewLesson || !loadedLesson) return false;
-    
+
     // Must be on the same date
     if (previewLesson.date !== loadedLesson.date) return false;
-    
+
     // Must be at the same time slot
     const timeId1 = previewLesson.timeId || previewLesson.slot;
     const timeId2 = loadedLesson.timeId || loadedLesson.slot;
     if (parseInt(timeId1) !== parseInt(timeId2)) return false;
-    
+
     // Must be in the same room (compare by roomId if available, otherwise by room name)
     const previewRoomId = previewLesson.roomId;
     const loadedRoomId = loadedLesson.roomId;
-    
+
     // If both have roomId, compare by roomId
     if (previewRoomId && loadedRoomId) {
       return String(previewRoomId) === String(loadedRoomId);
     }
-    
+
     // Otherwise, compare by room name
     const previewRoom = previewLesson.room || '';
     const loadedRoom = loadedLesson.room || '';
@@ -638,104 +685,166 @@ const CreateSchedule = () => {
   };
 
   const renderCalendar = (weekStart) => {
-    if (!weekStart) return null;
+    if (!weekStart) return { columns: [], dataSource: [] };
 
-    // Use timeslots if available, otherwise use default 8 slots
     const slotsToRender = timeslots.length > 0
       ? timeslots.map(ts => ({ timeId: ts.timeId, label: `Slot ${ts.timeId}` }))
       : Array.from({ length: 8 }, (_, i) => ({ timeId: i + 1, label: `Slot ${i + 1}` }));
 
-    const weekEnd = addDays(weekStart, 4); // Friday of the week
+    const holidayLookup = holidays.reduce((acc, holiday) => {
+      if (holiday.date) {
+        acc[holiday.date] = holiday.name || holiday.description || 'Holiday';
+      }
+      return acc;
+    }, {});
 
-    const calendarData = slotsToRender.map((slotInfo) => {
+    const columns = [
+      {
+        title: 'Slot / Day',
+        dataIndex: 'slotLabel',
+        key: 'slotLabel',
+        fixed: 'left',
+        width: 140,
+      },
+      ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayLabel, idx) => ({
+        title: dayLabel,
+        dataIndex: `day${idx}`,
+        key: `day${idx}`,
+        align: 'left',
+        render: (content) => content || '',
+      })),
+    ];
+
+    const dataSource = slotsToRender.map((slotInfo) => {
       const slot = slotInfo.timeId;
-      const dayCells = Array(5).fill(null).map((_, dayIdx) => {
-        const weekdayNum = dayIdx + 2; // Mon=2, Tue=3, etc.
+      const row = {
+        key: `slot-${slot}`,
+        slotLabel: slotInfo.label,
+      };
 
-        // Calculate the date for this day in the week
+      Array.from({ length: 7 }).forEach((_, dayIdx) => {
         const dayDate = addDays(weekStart, dayIdx);
         const dateStr = toYMD(dayDate);
+        const holidayName = holidayLookup[dateStr];
 
-        // Find loaded lesson for this date and slot
         const loadedLesson = loadedLessons.find(l => {
           if (!l.date) return false;
           const lessonTimeId = l.timeId || l.slot;
           return l.date === dateStr && parseInt(lessonTimeId) === slot;
         });
 
-        // Find preview lesson for this date and slot
         const previewLesson = previewLessons.find(l => {
           if (!l.date) return false;
           const lessonTimeId = l.timeId || l.slot;
           return l.date === dateStr && parseInt(lessonTimeId) === slot;
         });
 
-        // Determine what to display
-        let cellContent = null;
+        const cellContents = [];
         let cellStyle = {};
-        let cellClassName = '';
+        const classNames = [];
+
+        if (holidayName) {
+          classNames.push('holiday-cell');
+        }
 
         if (previewLesson) {
-          // Check if preview lesson conflicts with loaded lesson
           const hasConflict = loadedLesson && isLessonConflict(previewLesson, loadedLesson);
           
-          // Preview lesson exists
-          const roomName = previewLesson.room || '';
-          const lecturerText = previewLesson.lecturer ? ` | ${previewLesson.lecturer}` : '';
+          // Preview lesson exists - display SubjectCode, SubjectName, RoomName
+          const previewSubjectCode = subjectCode || '';
+          const previewSubjectName = subjectName || '';
+          const previewRoomName = previewLesson.room || '';
+          
+          const parts = [];
+          if (previewSubjectCode) parts.push(previewSubjectCode);
+          if (previewSubjectName) parts.push(previewSubjectName);
+          if (previewRoomName) parts.push(previewRoomName);
+          
+          const displayText = parts.join(' | ');
           
           if (hasConflict) {
             // Conflict: red background - show preview with conflict indicator
-            const loadedRoom = loadedLesson.room || loadedLesson.subjectCode || '';
-            cellContent = `${roomName}${lecturerText} ⚠️ (Conflict: ${loadedRoom})`;
+            const loadedSubjectCode = loadedLesson.subjectCode || '';
+            const loadedSubjectName = loadedLesson.subjectName || '';
+            const loadedRoomName = loadedLesson.room || '';
+            const loadedParts = [];
+            if (loadedSubjectCode) loadedParts.push(loadedSubjectCode);
+            if (loadedSubjectName) loadedParts.push(loadedSubjectName);
+            if (loadedRoomName) loadedParts.push(loadedRoomName);
+            const conflictText = loadedParts.length > 0 ? loadedParts.join(' | ') : 'Conflict';
+            cellContents.push(`${displayText} ⚠️ (Conflict: ${conflictText})`);
             cellStyle = { 
               backgroundColor: '#ffebee', 
               color: '#c62828',
               fontWeight: 'bold',
               border: '2px solid #c62828'
             };
-            cellClassName = 'lesson-conflict';
+            classNames.push('lesson-conflict');
           } else {
             // No conflict: green background
-            cellContent = `${roomName}${lecturerText}`;
+            cellContents.push(displayText);
             cellStyle = { 
               backgroundColor: '#e8f5e9', 
               color: '#2e7d32',
               fontWeight: 'bold',
               border: '2px solid #2e7d32'
             };
-            cellClassName = 'lesson-preview';
+            classNames.push('lesson-preview');
           }
         } else if (loadedLesson) {
-          // Only loaded lesson exists (no preview)
-          const displayText = loadedLesson.room || loadedLesson.subjectCode || '';
-          const timeText = loadedLesson.startTime ? ` (${loadedLesson.startTime}-${loadedLesson.endTime})` : '';
-          cellContent = `${displayText}${timeText}`;
+          // Only loaded lesson exists (no preview) - display SubjectCode, SubjectName, RoomName
+          const loadedSubjectCode = loadedLesson.subjectCode || '';
+          const loadedSubjectName = loadedLesson.subjectName || '';
+          const loadedRoomName = loadedLesson.room || '';
+          
+          const parts = [];
+          if (loadedSubjectCode) parts.push(loadedSubjectCode);
+          if (loadedSubjectName) parts.push(loadedSubjectName);
+          if (loadedRoomName) parts.push(loadedRoomName);
+          
+          cellContents.push(parts.length > 0 ? parts.join(' | ') : '');
           cellStyle = {
             backgroundColor: '#f5f5f5',
             color: '#333'
-          }; // Default style for loaded lessons
-          cellClassName = 'lesson-loaded';
+          };
+          classNames.push('lesson-loaded');
         }
 
-        return (
-          <td key={dayIdx} style={cellStyle} className={cellClassName}>
-            {cellContent ? <div>{cellContent}</div> : ''}
-          </td>
+        if (holidayName) {
+          cellContents.unshift(
+            <div key="holiday" className="holiday-badge">
+              {holidayName}
+            </div>
+          );
+          cellStyle = {
+            ...(cellStyle || {}),
+            backgroundColor: cellStyle.backgroundColor || '#fffde7',
+            border: '2px dashed #fbc02d',
+            color: cellStyle.color || '#f57f17'
+          };
+        }
+
+        const cellClassName = classNames.join(' ').trim();
+        row[`day${dayIdx}`] = (
+          <div className={`calendar-cell ${cellClassName}`} style={cellStyle}>
+            {cellContents.length > 0
+              ? cellContents.map((content, idx) =>
+                typeof content === 'string'
+                  ? <div key={idx}>{content}</div>
+                  : React.cloneElement(content, { key: idx })
+              )
+              : ''}
+          </div>
         );
       });
 
-      return (
-        <tr key={slot}>
-          <th>{slotInfo.label}</th>
-          {dayCells}
-        </tr>
-      );
+      return row;
     });
 
-    return calendarData;
+    return { columns, dataSource };
   };
 
-  const weekdayMap = { 2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri' };
+  const weekdayMap = { 2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri', 7: 'Sat', 8: 'Sun' };
 
   if (loading) {
     return (
@@ -748,32 +857,64 @@ const CreateSchedule = () => {
   }
 
   return (
-    <div className="create-schedule-app">
+    <Layout className="create-schedule-app">
       {contextHolder}
-      <main className="create-schedule-main">
-        {/* FILTERS / PICKERS */}
-        <div className="create-schedule-grid create-schedule-cols-2">
-          <PickSemesterAndClass
-            semesterId={semesterId}
-            classId={classId}
-            subjectCode={subjectCode}
-            subjectName={subjectName}
-            onSemesterChange={setSemesterId}
-            onClassChange={setClassId}
-            onSubjectChange={(code, name) => {
-              setSubjectCode(code);
-              setSubjectName(name);
-            }}
-            onLoadClass={handleLoadClass}
-          />
-          <LecturerSelector
-            lecturerId={lecturerId}
-            onLecturerChange={setLecturerId}
-          />
-        </div>
+      <Layout.Content className="create-schedule-main">
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div className="create-schedule-header-panel">
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              Create Class Timetable
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              Pick semester & class, define weekly patterns, then preview conflicts before saving.
+            </Typography.Text>
+            <Space size="small" wrap style={{ marginTop: 8 }}>
+              {subjectCode && subjectName && (
+                <Tag icon={<BookOutlined />} color="processing">
+                  {subjectCode} — {subjectName}
+                </Tag>
+              )}
+              {lecturerCode && (
+                <Tag icon={<UserOutlined />} color="blue">
+                  {lecturerCode}
+                </Tag>
+              )}
+              {holidays.length > 0 && (
+                <Tag icon={<CalendarOutlined />} color="gold">
+                  {holidays.length} holidays loaded
+                </Tag>
+              )}
+            </Space>
+          </div>
 
-        {/* STEP 2: Patterns */}
-        <div className="create-schedule-grid create-schedule-cols-1" style={{ marginTop: '16px' }}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} xl={16}>
+              <PickSemesterAndClass
+                semesterId={semesterId}
+                classId={classId}
+                onSemesterChange={setSemesterId}
+                onClassChange={setClassId}
+                onLoadClass={handleLoadClass}
+              />
+            </Col>
+            <Col xs={24} xl={8}>
+              <LecturerSelector
+                lecturerId={lecturerId}
+                lecturerCode={lecturerCode}
+                onLecturerChange={(id, code) => {
+                  setLecturerId(id);
+                  setLecturerCode(code || '');
+                }}
+                subjectCode={subjectCode}
+                subjectName={subjectName}
+                onSubjectChange={(code, name) => {
+                  setSubjectCode(code);
+                  setSubjectName(name);
+                }}
+              />
+            </Col>
+          </Row>
+
           <WeeklyPatterns
             weekday={weekday}
             slotId={slotId}
@@ -789,10 +930,7 @@ const CreateSchedule = () => {
             onAddPattern={handleAddPattern}
             onRemovePattern={handleRemovePattern}
           />
-        </div>
 
-        {/* CALENDAR VIEW - Combined */}
-        <div className="create-schedule-grid create-schedule-cols-1" style={{ marginTop: '16px' }}>
           <CalendarTable
             title="Class Timetable"
             weekStart={currentWeekStart}
@@ -801,12 +939,11 @@ const CreateSchedule = () => {
             onNextWeek={handleNextWeek}
             renderCalendar={() => renderCalendar(currentWeekStart)}
           />
-        </div>
 
-        {/* SAVE */}
-        <SaveButton onSave={handleSave} saving={saving} />
-      </main>
-    </div>
+          <SaveButton onSave={handleSave} saving={saving} />
+        </Space>
+      </Layout.Content>
+    </Layout>
   );
 };
 
