@@ -32,6 +32,7 @@ const CreateSchedule = () => {
   const [classId, setClassId] = useState('');
   const [subjectCode, setSubjectCode] = useState('');
   const [subjectName, setSubjectName] = useState('');
+  const [className, setClassName] = useState('');
   const [lecturerId, setLecturerId] = useState('');
   const [lecturerCode, setLecturerCode] = useState('');
   const [weekday, setWeekday] = useState('');
@@ -427,6 +428,7 @@ const CreateSchedule = () => {
           lecturer: '', // API không trả về lecturer
           subjectCode: lesson.subjectCode || '',
           subjectName: lesson.subjectName || '',
+          className: lesson.className || '',
           startTime: lesson.startTime || '',
           endTime: lesson.endTime || '',
           timeId: lesson.timeId,
@@ -439,11 +441,13 @@ const CreateSchedule = () => {
 
       // Set subject code and name from schedule
       const firstSubjectCode = schedule[0]?.subjectCode || '';
-      const firstSubjectName = schedule[0]?.subjectName || schedule[0]?.className || '';
+      const firstSubjectName = schedule[0]?.subjectName || '';
+      const firstClassName = schedule[0]?.className || '';
       if (firstSubjectCode) {
         setSubjectCode(firstSubjectCode);
       }
       setSubjectName(firstSubjectName);
+      setClassName(firstClassName);
 
       // Also update semesterId and classId in parent state
       setSemesterId(semId);
@@ -745,26 +749,42 @@ const CreateSchedule = () => {
 
         if (previewLesson) {
           const hasConflict = loadedLesson && isLessonConflict(previewLesson, loadedLesson);
-          const previewParts = [];
-          if (previewLesson.subjectCode) previewParts.push(previewLesson.subjectCode);
-          if (previewLesson.room) previewParts.push(previewLesson.room);
-          const lecturerText = previewLesson.lecturer ? ` | ${previewLesson.lecturer}` : '';
-          const previewBase = previewParts.join(' - ');
-
+          
+          // Preview lesson exists - display SubjectCode, SubjectName, RoomName
+          const previewSubjectCode = subjectCode || '';
+          const previewSubjectName = subjectName || '';
+          const previewRoomName = previewLesson.room || '';
+          
+          const parts = [];
+          if (previewSubjectCode) parts.push(previewSubjectCode);
+          if (previewSubjectName) parts.push(previewSubjectName);
+          if (previewRoomName) parts.push(previewRoomName);
+          
+          const displayText = parts.join(' | ');
+          
           if (hasConflict) {
-            const loadedRoom = loadedLesson.room || loadedLesson.subjectCode || '';
-            cellContents.push(`${previewBase}${lecturerText} ⚠️ (Conflict: ${loadedRoom})`.trim());
-            cellStyle = {
-              backgroundColor: '#ffebee',
+            // Conflict: red background - show preview with conflict indicator
+            const loadedSubjectCode = loadedLesson.subjectCode || '';
+            const loadedSubjectName = loadedLesson.subjectName || '';
+            const loadedRoomName = loadedLesson.room || '';
+            const loadedParts = [];
+            if (loadedSubjectCode) loadedParts.push(loadedSubjectCode);
+            if (loadedSubjectName) loadedParts.push(loadedSubjectName);
+            if (loadedRoomName) loadedParts.push(loadedRoomName);
+            const conflictText = loadedParts.length > 0 ? loadedParts.join(' | ') : 'Conflict';
+            cellContent = `${displayText} ⚠️ (Conflict: ${conflictText})`;
+            cellStyle = { 
+              backgroundColor: '#ffebee', 
               color: '#c62828',
               fontWeight: 'bold',
               border: '2px solid #c62828'
             };
             classNames.push('lesson-conflict');
           } else {
-            cellContents.push(`${previewBase}${lecturerText}`.trim());
-            cellStyle = {
-              backgroundColor: '#e8f5e9',
+            // No conflict: green background
+            cellContent = displayText;
+            cellStyle = { 
+              backgroundColor: '#e8f5e9', 
               color: '#2e7d32',
               fontWeight: 'bold',
               border: '2px solid #2e7d32'
@@ -772,11 +792,17 @@ const CreateSchedule = () => {
             classNames.push('lesson-preview');
           }
         } else if (loadedLesson) {
-          const loadedParts = [];
-          if (loadedLesson.subjectCode) loadedParts.push(loadedLesson.subjectCode);
-          if (loadedLesson.room) loadedParts.push(loadedLesson.room);
-          const displayText = loadedParts.join(' - ') || loadedLesson.room || loadedLesson.subjectCode || '';
-          cellContents.push(displayText);
+          // Only loaded lesson exists (no preview) - display SubjectCode, SubjectName, RoomName
+          const loadedSubjectCode = loadedLesson.subjectCode || '';
+          const loadedSubjectName = loadedLesson.subjectName || '';
+          const loadedRoomName = loadedLesson.room || '';
+          
+          const parts = [];
+          if (loadedSubjectCode) parts.push(loadedSubjectCode);
+          if (loadedSubjectName) parts.push(loadedSubjectName);
+          if (loadedRoomName) parts.push(loadedRoomName);
+          
+          cellContent = parts.length > 0 ? parts.join(' | ') : '';
           cellStyle = {
             backgroundColor: '#f5f5f5',
             color: '#333'

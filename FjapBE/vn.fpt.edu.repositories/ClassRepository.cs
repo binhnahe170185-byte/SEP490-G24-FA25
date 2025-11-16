@@ -569,21 +569,6 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
 
         Console.WriteLine($"Holidays count: {holidays.Count}");
 
-        // Delete existing lessons for this class in this semester (optional - you might want to keep them)
-        // For now, we'll delete existing lessons to avoid duplicates
-        var existingLessons = await _context.Lessons
-            .Where(l => l.ClassId == request.ClassId && 
-                       l.Date >= semester.StartDate && 
-                       l.Date <= semester.EndDate)
-            .ToListAsync();
-        
-        if (existingLessons.Any())
-        {
-            Console.WriteLine($"Deleting {existingLessons.Count} existing lessons");
-            _context.Lessons.RemoveRange(existingLessons);
-            await _context.SaveChangesAsync();
-        }
-
         // Generate lessons from patterns
         var lessonsToCreate = new List<Lesson>();
         var startDate = semester.StartDate;
@@ -596,6 +581,14 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
 
         var currentDate = mondayOfStart;
         int lessonCount = 0;
+        int updatedCount = 0;
+
+        // Get existing lessons for this class in this semester to check for duplicates
+        var existingLessons = await _context.Lessons
+            .Where(l => l.ClassId == request.ClassId && 
+                       l.Date >= semester.StartDate && 
+                       l.Date <= semester.EndDate)
+            .ToListAsync();
 
         // Generate lessons for each week in semester
         while (currentDate <= endDate)
@@ -624,17 +617,36 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 {
                     if (pattern.Weekday == normalizedWeekday)
                     {
-                        var lesson = new Lesson
-                        {
-                            ClassId = request.ClassId,
-                            RoomId = pattern.RoomId,
-                            TimeId = pattern.TimeId,
-                            LectureId = request.LecturerId,
-                            Date = lessonDate
-                        };
+                        // Check if lesson already exists (same date, timeId, roomId for this class)
+                        var existingLesson = existingLessons.FirstOrDefault(l =>
+                            l.Date == lessonDate &&
+                            l.TimeId == pattern.TimeId &&
+                            l.RoomId == pattern.RoomId);
 
-                        lessonsToCreate.Add(lesson);
-                        lessonCount++;
+                        if (existingLesson != null)
+                        {
+                            // Update existing lesson with new lecturer if different
+                            if (existingLesson.LectureId != request.LecturerId)
+                            {
+                                existingLesson.LectureId = request.LecturerId;
+                                updatedCount++;
+                            }
+                        }
+                        else
+                        {
+                            // Create new lesson
+                            var lesson = new Lesson
+                            {
+                                ClassId = request.ClassId,
+                                RoomId = pattern.RoomId,
+                                TimeId = pattern.TimeId,
+                                LectureId = request.LecturerId,
+                                Date = lessonDate
+                            };
+
+                            lessonsToCreate.Add(lesson);
+                            lessonCount++;
+                        }
                     }
                 }
             }
@@ -643,17 +655,22 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             currentDate = currentDate.AddDays(7);
         }
 
-        Console.WriteLine($"Generated {lessonCount} lessons from patterns");
+        Console.WriteLine($"Generated {lessonCount} new lessons and updated {updatedCount} existing lessons from patterns");
 
-        // Save all lessons
+        // Save all new lessons
         if (lessonsToCreate.Any())
         {
             await _context.Lessons.AddRangeAsync(lessonsToCreate);
-            await _context.SaveChangesAsync();
-            Console.WriteLine($"Saved {lessonCount} lessons to database");
         }
 
-        return lessonCount;
+        // Save changes (for both new lessons and updated existing lessons)
+        if (lessonsToCreate.Any() || updatedCount > 0)
+        {
+            await _context.SaveChangesAsync();
+            Console.WriteLine($"Saved {lessonCount} new lessons and updated {updatedCount} existing lessons to database");
+        }
+
+        return lessonCount + updatedCount;
     }
 
     private static decimal? ExtractGradeComponent(List<GradeType> components, params string[] possibleNames)

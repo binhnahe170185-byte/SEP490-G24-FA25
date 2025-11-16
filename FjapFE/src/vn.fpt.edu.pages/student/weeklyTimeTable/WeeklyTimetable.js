@@ -89,8 +89,14 @@ function normalizeLesson(raw, fallbackId) {
     raw.className ??
     raw.class?.className ??
     raw.class?.name ??
-    raw.class?.subject?.name ??
+    null;
+
+  const subjectName =
+    raw.subjectName ??
+    raw.subject?.subjectName ??
+    raw.subject?.name ??
     raw.class?.subject?.subjectName ??
+    raw.class?.subject?.name ??
     null;
 
   // Map instructor and studentGroup
