@@ -10,6 +10,7 @@ public class ClassScheduleDto
     public TimeOnly StartTime { get; set; }
     public TimeOnly EndTime { get; set; }
     public string SubjectCode { get; set; } = "";
+    public string LecturerCode { get; set; } = "";
 }
 
 public class SchedulePatternDto

@@ -447,7 +447,8 @@ public class ClassController : ControllerBase
         catch (ArgumentException ex)
         {
             Console.WriteLine($"ArgumentException in CreateSchedule: {ex.Message}");
-            return BadRequest(new { code = 400, message = ex.Message });
+            // Treat validation conflicts as 409 Conflict
+            return StatusCode(409, new { code = 409, message = ex.Message });
         }
         catch (Exception ex)
         {

@@ -474,6 +474,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             .Include(l => l.Class)
                 .ThenInclude(c => c.Subject)
             .Include(l => l.Room)
+            .Include(l => l.Lecture)
             .Include(l => l.Time)
             .Where(l => l.ClassId == classId 
                 && l.Date >= semesterStart 
@@ -489,7 +490,8 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 TimeId = l.TimeId,
                 StartTime = l.Time.StartTime,
                 EndTime = l.Time.EndTime,
-                SubjectCode = l.Class.Subject.SubjectCode
+                SubjectCode = l.Class.Subject.SubjectCode,
+                LecturerCode = l.Lecture != null ? l.Lecture.LecturerCode : ""
             })
             .ToListAsync();
 
@@ -569,8 +571,9 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
 
         Console.WriteLine($"Holidays count: {holidays.Count}");
 
-        // Generate lessons from patterns
+        // Prepare for conflict detection and lesson generation
         var lessonsToCreate = new List<Lesson>();
+        var conflictMessages = new List<string>();
         var startDate = semester.StartDate;
         var endDate = semester.EndDate;
 
@@ -583,14 +586,31 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         int lessonCount = 0;
         int updatedCount = 0;
 
-        // Get existing lessons for this class in this semester to check for duplicates
-        var existingLessons = await _context.Lessons
-            .Where(l => l.ClassId == request.ClassId && 
-                       l.Date >= semester.StartDate && 
-                       l.Date <= semester.EndDate)
+        // Preload existing lessons in range for conflict checks
+        var existingLessonsInRange = await _context.Lessons
+            .Where(l => l.Date >= semester.StartDate && l.Date <= semester.EndDate)
             .ToListAsync();
 
-        // Generate lessons for each week in semester
+        // Build lookup sets/maps for fast conflict checks
+        // Class-time conflicts (same class, same date/time regardless of room)
+        var classTimeSet = existingLessonsInRange
+            .Where(l => l.ClassId == request.ClassId)
+            .Select(l => $"{l.Date:yyyy-MM-dd}|{l.TimeId}")
+            .ToHashSet();
+
+        // Room-time conflicts (same room, same date/time regardless of class)
+        var roomTimeSet = existingLessonsInRange
+            .Where(l => roomIds.Contains(l.RoomId))
+            .Select(l => $"{l.Date:yyyy-MM-dd}|{l.TimeId}|{l.RoomId}")
+            .ToHashSet();
+
+        // Lecturer-time conflicts (same lecturer, same date/time regardless of class/room)
+        var lecturerTimeSet = existingLessonsInRange
+            .Where(l => l.LectureId == request.LecturerId)
+            .Select(l => $"{l.Date:yyyy-MM-dd}|{l.TimeId}")
+            .ToHashSet();
+
+        // Generate lessons for each week in semester and detect conflicts
         while (currentDate <= endDate)
         {
             // For each weekday (Mon-Sun, which are days 0-6 in C# DayOfWeek)
@@ -617,42 +637,64 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 {
                     if (pattern.Weekday == normalizedWeekday)
                     {
-                        // Check if lesson already exists (same date, timeId, roomId for this class)
-                        var existingLesson = existingLessons.FirstOrDefault(l =>
-                            l.Date == lessonDate &&
-                            l.TimeId == pattern.TimeId &&
-                            l.RoomId == pattern.RoomId);
+                        var dateKey = $"{lessonDate:yyyy-MM-dd}";
+                        var classTimeKey = $"{dateKey}|{pattern.TimeId}";
+                        var roomTimeKey = $"{dateKey}|{pattern.TimeId}|{pattern.RoomId}";
+                        var lecturerTimeKey = $"{dateKey}|{pattern.TimeId}";
 
-                        if (existingLesson != null)
+                        // Detect conflicts:
+                        // 1) Class-time: same class already has a lesson at this date/time
+                        if (classTimeSet.Contains(classTimeKey))
                         {
-                            // Update existing lesson with new lecturer if different
-                            if (existingLesson.LectureId != request.LecturerId)
-                            {
-                                existingLesson.LectureId = request.LecturerId;
-                                updatedCount++;
-                            }
+                            conflictMessages.Add($"Class conflict: class #{request.ClassId} already has a lesson at {dateKey} timeId {pattern.TimeId}.");
+                            continue;
                         }
-                        else
-                        {
-                            // Create new lesson
-                            var lesson = new Lesson
-                            {
-                                ClassId = request.ClassId,
-                                RoomId = pattern.RoomId,
-                                TimeId = pattern.TimeId,
-                                LectureId = request.LecturerId,
-                                Date = lessonDate
-                            };
 
-                            lessonsToCreate.Add(lesson);
-                            lessonCount++;
+                        // 2) Room-time: same room already occupied at this date/time
+                        if (roomTimeSet.Contains(roomTimeKey))
+                        {
+                            conflictMessages.Add($"Room conflict: room #{pattern.RoomId} is occupied at {dateKey} timeId {pattern.TimeId}.");
+                            continue;
                         }
+
+                        // 3) Lecturer-time: lecturer already occupied at this date/time
+                        if (lecturerTimeSet.Contains(lecturerTimeKey))
+                        {
+                            conflictMessages.Add($"Lecturer conflict: lecturer #{request.LecturerId} is teaching at {dateKey} timeId {pattern.TimeId}.");
+                            continue;
+                        }
+
+                        // No conflicts detected; stage new lesson for creation
+                        var lesson = new Lesson
+                        {
+                            ClassId = request.ClassId,
+                            RoomId = pattern.RoomId,
+                            TimeId = pattern.TimeId,
+                            LectureId = request.LecturerId,
+                            Date = lessonDate
+                        };
+
+                        lessonsToCreate.Add(lesson);
+                        lessonCount++;
+
+                        // Update lookup sets to reflect staged additions (avoid intra-batch conflicts)
+                        classTimeSet.Add(classTimeKey);
+                        roomTimeSet.Add(roomTimeKey);
+                        lecturerTimeSet.Add(lecturerTimeKey);
                     }
                 }
             }
 
             // Move to next week
             currentDate = currentDate.AddDays(7);
+        }
+
+        // If any conflicts detected, abort without saving
+        if (conflictMessages.Any())
+        {
+            var details = string.Join(" ", conflictMessages.Distinct());
+            Console.WriteLine($"Conflicts detected, aborting save: {details}");
+            throw new ArgumentException($"Schedule conflicts detected. {details}");
         }
 
         Console.WriteLine($"Generated {lessonCount} new lessons and updated {updatedCount} existing lessons from patterns");
