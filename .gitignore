@@ -14,8 +14,10 @@ Thumbs.db
 
 # Environment / secrets
 
-.env.local
-.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+
 
 #######################################################
 # BACKEND (.NET / ASP.NET)
