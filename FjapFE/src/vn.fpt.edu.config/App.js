@@ -141,9 +141,9 @@ function RoleBasedRedirect() {
   /*comment vào vì hiện tại chưa biết màn hình riêng của Admin url là gì 
   Author: HuyLQ */
   
-  // if (roleId === 1) {
-  //   return <Navigate to="/" replace />;
-  // }
+  if (roleId === 1) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
   
   if (roleId === 2) {
     return <Navigate to="/headOfAdmin/dashboard" replace />;
@@ -180,6 +180,7 @@ function ProtectedLayout() {
   const hideHeader =
     location.pathname.startsWith("/staffAcademic") ||
     location.pathname.startsWith("/headOfAdmin") ||
+    location.pathname.startsWith("/admin") ||
     location.pathname.startsWith("/lecturer") ||
     location.pathname.startsWith("/student") ||
     location.pathname === "/weeklyTimetable" ||
@@ -243,6 +244,28 @@ export default function App() {
               </Route>
 
               <Route element={<ProtectedLayout />}>
+                <Route
+                  path="/admin/*"
+                  element={
+                    <RequireAdmin>
+                      {React.createElement(require("../vn.fpt.edu.pages/admin/AdminLayout").default)}
+                    </RequireAdmin>
+                  }
+                >
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route
+                    path="dashboard"
+                    element={React.createElement(require("../vn.fpt.edu.pages/admin/Dashboard").default)}
+                  />
+                  <Route
+                    path="assign-heads"
+                    element={React.createElement(require("../vn.fpt.edu.pages/admin/AssignHeads").default)}
+                  />
+                  <Route
+                    path="roles"
+                    element={React.createElement(require("../vn.fpt.edu.pages/admin/ManageRoles").default)}
+                  />
+                </Route>
                 <Route
                   path="/student/*"
                   element={
