@@ -101,6 +101,7 @@ builder.Services.AddScoped<INewsRepository, NewsRepository>();
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
 
 // ----- HttpClient for external APIs -----
 builder.Services.AddHttpClient();
