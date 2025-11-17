@@ -68,6 +68,7 @@ import Header from "../vn.fpt.edu.common/Header";
 import Footer from "../vn.fpt.edu.common/footer";
 import { NotificationProvider } from "../vn.fpt.edu.common/notifications";
 import StudentLayout from "../vn.fpt.edu.pages/layouts/student-layout/StudentLayout";
+import ProfilePage from "../vn.fpt.edu.pages/common/ProfilePage";
 
 function RequireAuth({ children }) {
   const { user, initializing } = useAuth();
@@ -242,6 +243,7 @@ export default function App() {
                 <Route path="semesters/edit/:id" element={<EditSemester />} />
                 {/* News Management Routes */}
                 <Route path="news" element={<NewsList title="List News - Staff of Administration Department" />} />
+                <Route path="profile" element={<ProfilePage />} />
               </Route>
 
               <Route element={<ProtectedLayout />}>
@@ -266,6 +268,7 @@ export default function App() {
                     path="roles"
                     element={React.createElement(require("../vn.fpt.edu.pages/admin/ManageRoles").default)}
                   />
+                  <Route path="profile" element={<ProfilePage />} />
                 </Route>
                 <Route
                   path="/student/*"
@@ -286,6 +289,7 @@ export default function App() {
                   <Route path="news/:id" element={<StudentNewsDetail />} />
                   <Route path="class/:classId/students" element={<ClassStudentsList />} />
                   <Route path="weeklyTimetable" element={<WeeklyTimetable />} />
+                  <Route path="profile" element={<ProfilePage />} />
                 </Route>
                 <Route path="/" element={<Home />} />
                 
@@ -334,6 +338,7 @@ export default function App() {
                   <Route path="subject/create" element={<CreateSubject />} />
                   <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                   <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
+                  <Route path="profile" element={<ProfilePage />} />
 
                 </Route>
 
@@ -380,6 +385,7 @@ export default function App() {
                       </RequireLecturer>
                     }
                   />
+                  <Route path="profile" element={<ProfilePage />} />
                 </Route>
 
                 <Route
@@ -396,6 +402,7 @@ export default function App() {
                   <Route path="semesters/edit/:id" element={<EditSemester />} />
                   <Route path="rooms" element={<RoomList title="Room Management" hideActions={true} />} />
                   <Route path="staff" element={<AdministrationStaffList />} />
+                  <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>
 

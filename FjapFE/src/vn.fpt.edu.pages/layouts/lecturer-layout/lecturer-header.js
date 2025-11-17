@@ -102,7 +102,7 @@ const LecturerHeader = () => {
           </div>
           <Dropdown
             menu={{ items: [
-              { key: 'profile', label: 'Profile', icon: <UserOutlined /> },
+              { key: 'profile', label: 'Profile', icon: <UserOutlined />, onClick: () => navigate('/lecturer/profile') },
               { type: 'divider' },
               { key: 'logout', label: 'Logout', icon: <LogoutOutlined />, danger: true, onClick: () => { logout(); navigate('/login', { replace: true }); } }
             ] }}
