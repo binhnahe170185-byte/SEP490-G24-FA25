@@ -1,160 +1,77 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
 	Card,
 	Typography,
 	Space,
-	Upload,
 	Button,
-	Table,
-	Tag,
-	Form,
-	Select,
 	message,
-	Alert,
-	Row,
-	Col,
 	Divider,
-	Tooltip,
 } from 'antd';
 import {
 	FileExcelOutlined,
-	UploadOutlined,
 	SaveOutlined,
-	CheckCircleOutlined,
-		DownloadOutlined,
-	ExclamationCircleOutlined,
-	ReloadOutlined,
 } from '@ant-design/icons';
+import { Form } from 'antd';
 import { api } from '../../../vn.fpt.edu.api/http';
-import RoomApi from '../../../vn.fpt.edu.api/Room';
-import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
+import { useLookups } from './hooks/useLookups';
+import { useValidation } from './hooks/useValidation';
+import UploadSection from './components/UploadSection';
+import ScheduleTable from './components/ScheduleTable';
+import { normalizeString, toNumber, splitSlots } from './utils/helpers';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
+const { Title } = Typography;
 
-// Helpers
-const normalizeString = (s) => (s || '').toString().trim();
-const toNumber = (v) => {
-	const n = Number(v);
-	return Number.isFinite(n) ? n : null;
-};
-const splitSlots = (slotCell) =>
-	normalizeString(slotCell)
-		.replace(/\s+/g, '')
-		.split(',')
-		.filter(Boolean)
-		.map((s) => toNumber(s))
-		.filter((n) => n !== null);
-
-// Core component
 export default function ImportSchedule() {
 	const [form] = Form.useForm();
 	const [msg, ctx] = message.useMessage();
-	const [loadingLookups, setLoadingLookups] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [previewRows, setPreviewRows] = useState([]);
 	const [rawRows, setRawRows] = useState([]);
 
-	// Lookups
-	const [semesters, setSemesters] = useState([]);
-	const [classesBySemester, setClassesBySemester] = useState({});
-	const [rooms, setRooms] = useState([]); // {value,label}
-	const [timeslots, setTimeslots] = useState([]); // {timeId,startTime,endTime,slotNumber?}
-	const [lecturers, setLecturers] = useState([]); // [{ lecturerId, lecturerCode }]
+	// Load lookups
+	const {
+		loading: loadingLookups,
+		semesters,
+		classesBySemester,
+		rooms,
+		timeslots,
+		lecturers,
+		subjects,
+	} = useLookups();
 
 	const selectedSemesterId = Form.useWatch('semesterId', form);
 
-	useEffect(() => {
-		loadLookups();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	// Validation hooks
+	const { revalidateRows } = useValidation({
+		selectedSemesterId,
+		classesBySemester,
+		rooms,
+		timeslots,
+		lecturers,
+	});
 
-	const loadLookups = async () => {
-		setLoadingLookups(true);
-		try {
-			// Semesters and classes grouped for schedule (same API used by CreateSchedule picker)
-			const scheduleOptions = await api.get('/api/staffAcademic/classes/schedule-options');
-			const data = scheduleOptions?.data?.data || scheduleOptions?.data || {};
-			setSemesters(data.semesters || []);
-			setClassesBySemester(data.classesBySemester || {});
-
-			// Rooms
-			const roomRes = await RoomApi.getRooms({ pageSize: 500 });
-			const roomItems = roomRes.items || [];
-			setRooms(
-				roomItems.map((r) => ({
-					value: String(r.roomId),
-					label: r.roomName,
-				}))
-			);
-
-			// Timeslots
-			const ts = await TimeslotApi.getTimeslots();
-			setTimeslots(ts || []);
-
-			// Lecturers
-			try {
-				const lecRes = await api.get('/api/lecturers');
-				const lecData = lecRes?.data?.data || lecRes?.data || [];
-				setLecturers(
-					Array.isArray(lecData)
-						? lecData.map((l) => ({
-								lecturerId: Number(l.lectureId || l.lecturerId || l.id),
-								lecturerCode: normalizeString(l.lecturerCode || l.code),
-						  }))
-						: []
-				);
-			} catch (e) {
-				console.warn('Load lecturers failed (optional):', e);
-				setLecturers([]);
+	// Function to update a single row
+	const updateRow = (rowKey, field, value) => {
+		const updatedRows = previewRows.map((r) => {
+			if (r.key === rowKey) {
+				const updated = { ...r };
+				// Handle null/undefined from Select clear
+				if (value === null || value === undefined) {
+					updated[field] = '';
+				} else {
+					updated[field] = value;
+				}
+				// Normalize string fields
+				if (field === 'className' || field === 'roomName' || field === 'lecturer' || field === 'subject') {
+					updated[field] = normalizeString(updated[field] || '');
+				}
+				return updated;
 			}
-		} catch (e) {
-			console.error('Lookup load failed:', e);
-			msg.error('Failed to load options');
-		} finally {
-			setLoadingLookups(false);
-		}
+			return r;
+		});
+		const revalidated = revalidateRows(updatedRows);
+		setPreviewRows(revalidated);
 	};
-
-	// Map helpers
-	const classNameToId = useMemo(() => {
-		const sid = Number(selectedSemesterId);
-		const list = sid ? classesBySemester[sid] || [] : [];
-		const map = {};
-		list.forEach((c) => {
-			map[normalizeString(c.className)] = c.classId;
-		});
-		return map;
-	}, [classesBySemester, selectedSemesterId]);
-
-	const roomNameToId = useMemo(() => {
-		const map = {};
-		rooms.forEach((r) => {
-			map[normalizeString(r.label)] = Number(r.value);
-		});
-		return map;
-	}, [rooms]);
-
-	const slotNumberToTimeId = useMemo(() => {
-		// Try best-effort mapping: if backend timeslot has sequential "timeId" matching slot number, use that.
-		// Otherwise, try a "slotNumber" property if present; fallback to index order.
-		const map = {};
-		timeslots.forEach((t, idx) => {
-			const slotNum = toNumber(t.slotNumber) ?? toNumber(t.timeId) ?? idx + 1;
-			map[slotNum] = t.timeId;
-		});
-		return map;
-	}, [timeslots]);
-
-	const lecturerCodeToId = useMemo(() => {
-		const map = {};
-		lecturers.forEach((l) => {
-			if (l.lecturerCode) {
-				map[normalizeString(l.lecturerCode)] = l.lecturerId;
-			}
-		});
-		return map;
-	}, [lecturers]);
 
 	// Excel parsing
 	const handleUpload = async (file) => {
@@ -195,48 +112,13 @@ export default function ImportSchedule() {
 				}
 			});
 
-			// Detect duplicates within the imported file
-			const keyCount = {};
-			expanded.forEach((r) => {
-				const key = [
-					normalizeString(r.className),
-					r.dayOfWeek,
-					r.slot,
-					normalizeString(r.roomName),
-				].join('|');
-				keyCount[key] = (keyCount[key] || 0) + 1;
-			});
+			// Add keys and validate
+			const withKeys = expanded.map((r, i) => ({
+				key: `${i}-${r._row}`,
+				...r,
+			}));
 
-			const withFlags = expanded.map((r, i) => {
-				const classId = classNameToId[normalizeString(r.className)];
-				const roomId = roomNameToId[normalizeString(r.roomName)];
-				const timeId = slotNumberToTimeId[r.slot];
-				const lecturerId = lecturerCodeToId[normalizeString(r.lecturer)];
-				const duplicateInFile =
-					keyCount[
-						[
-							normalizeString(r.className),
-							r.dayOfWeek,
-							r.slot,
-							normalizeString(r.roomName),
-						].join('|')
-					] > 1;
-				return {
-					key: `${i}-${r._row}`,
-					...r,
-					classId,
-					roomId,
-					timeId,
-					lecturerId,
-					validMapping:
-						Boolean(classId) &&
-						Boolean(roomId) &&
-						Boolean(timeId) &&
-						Boolean(r.dayOfWeek) &&
-						Boolean(lecturerId),
-					duplicateInFile,
-				};
-			});
+			const withFlags = revalidateRows(withKeys);
 
 			setPreviewRows(withFlags);
 			msg.success(`Đã đọc ${rows.length} hàng, tạo ${withFlags.length} dòng (mở rộng slot).`);
@@ -246,43 +128,6 @@ export default function ImportSchedule() {
 		}
 		return false; // Prevent default upload
 	};
-
-
-	const columns = [
-		{ title: '#', dataIndex: 'key', width: 60, render: (_, __, idx) => idx + 1, fixed: 'left' },
-		{ title: 'Class', dataIndex: 'className' },
-		{ title: 'Subject', dataIndex: 'subject' },
-		{ title: 'Lecturer', dataIndex: 'lecturer' },
-		{ title: 'DayOfWeek', dataIndex: 'dayOfWeek', width: 100 },
-		{ title: 'Slot', dataIndex: 'slot', width: 80 },
-		{ title: 'Room', dataIndex: 'roomName' },
-		{
-			title: 'Mapping',
-			key: 'mapping',
-			width: 160,
-			render: (_, r) =>
-				r.validMapping ? (
-					<Tag color="green">OK</Tag>
-				) : (
-					<Tooltip title="Không map được Class/Room/Slot/DayOfWeek">
-						<Tag color="red">Missing</Tag>
-					</Tooltip>
-				),
-		},
-		{
-			title: 'Conflict',
-			key: 'conflict',
-			width: 120,
-			render: (_, r) =>
-				r.duplicateInFile ? (
-					<Tag color="orange" icon={<ExclamationCircleOutlined />}>
-						Potential dup
-					</Tag>
-				) : (
-					<Tag>None</Tag>
-				),
-		},
-	];
 
 	const handleClear = () => {
 		setRawRows([]);
@@ -431,93 +276,33 @@ export default function ImportSchedule() {
 					<Space align="center">
 						<FileExcelOutlined style={{ fontSize: 26, color: '#2f54eb' }} />
 						<Title level={3} style={{ margin: 0 }}>
-							Import Schedule từ Excel
+							Import Schedule Form Excel
 						</Title>
 					</Space>
-					<Text type="secondary">
-						Chọn Semester, tải file có cột: Class, Subject, Lecturer, Slot, DayOfWeek, room. Ô
-						Slot có thể chứa nhiều giá trị, ví dụ "2,4" sẽ sinh 2 dòng.
-					</Text>
-
-					<Form layout="vertical" form={form}>
-						<Row gutter={16}>
-							<Col xs={24} sm={12} md={8}>
-								<Form.Item
-									label="Semester"
-									name="semesterId"
-									rules={[{ required: true, message: 'Vui lòng chọn Semester' }]}
-								>
-									<Select
-										placeholder="Chọn semester"
-										loading={loadingLookups}
-										showSearch
-										optionFilterProp="children"
-									>
-										{semesters.map((s) => (
-											<Option
-												key={String(s.semesterId || s.id)}
-												value={Number(s.semesterId || s.id)}
-											>
-												{s.name}
-											</Option>
-										))}
-									</Select>
-								</Form.Item>
-							</Col>
-							<Col xs={24} sm={12} md={16} style={{ display: 'flex', alignItems: 'flex-end' }}>
-								<Space wrap>
-									<Upload.Dragger
-										name="file"
-										accept=".xlsx,.xls"
-										beforeUpload={handleUpload}
-										showUploadList={false}
-										disabled={!selectedSemesterId}
-										style={{ minWidth: 320 }}
-									>
-										<p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
-											<UploadOutlined style={{ fontSize: 32, color: '#1890ff' }} />
-										</p>
-										<p className="ant-upload-text" style={{ margin: 0 }}>
-											Kéo thả hoặc bấm để chọn file Excel
-										</p>
-										<p className="ant-upload-hint" style={{ margin: 0 }}>
-											{selectedSemesterId
-												? `Semester: ${selectedSemesterName}`
-												: 'Hãy chọn Semester trước'}
-										</p>
-									</Upload.Dragger>
-									<Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>
-										Download Template
-									</Button>
-									<Button icon={<ReloadOutlined />} onClick={handleClear}>
-										Clear
-									</Button>
-								</Space>
-							</Col>
-						</Row>
-					</Form>
+				
+					<UploadSection
+						form={form}
+						selectedSemesterId={selectedSemesterId}
+						selectedSemesterName={selectedSemesterName}
+						semesters={semesters}
+						loadingLookups={loadingLookups}
+						onUpload={handleUpload}
+						onDownloadTemplate={handleDownloadTemplate}
+						onClear={handleClear}
+					/>
 
 					{previewRows.length > 0 && (
 						<>
 							<Divider />
-							<Alert
-								type="info"
-								showIcon
-								message={
-									<span>
-										Tổng: <b>{rawRows.length}</b> hàng gốc — Sau khi mở rộng:{" "}
-										<b>{previewRows.length}</b> dòng
-									</span>
-								}
-								description="Cột 'Mapping' phải OK trước khi lưu. 'Conflict' cảnh báo trùng trong file, xung đột với dữ liệu hiện có sẽ được backend kiểm tra khi lưu."
-							/>
-							<Table
-								columns={columns}
-								dataSource={previewRows}
-								rowKey="key"
-								pagination={{ pageSize: 10 }}
-								size="small"
-								scroll={{ x: true }}
+							
+							<ScheduleTable
+								previewRows={previewRows}
+								onUpdateRow={updateRow}
+								selectedSemesterId={selectedSemesterId}
+								classesBySemester={classesBySemester}
+								rooms={rooms}
+								lecturers={lecturers}
+								subjects={subjects}
 							/>
 							<Space style={{ justifyContent: 'flex-end', width: '100%' }}>
 								<Button
@@ -536,5 +321,3 @@ export default function ImportSchedule() {
 		</div>
 	);
 }
-
-
