@@ -86,7 +86,8 @@ const StudentLayout = ({ children }) => {
     {
       key: 'profile',
       label: 'Profile',
-      icon: <UserOutlined />
+      icon: <UserOutlined />,
+      onClick: () => navigate('/student/profile')
     },
     {
       type: 'divider'

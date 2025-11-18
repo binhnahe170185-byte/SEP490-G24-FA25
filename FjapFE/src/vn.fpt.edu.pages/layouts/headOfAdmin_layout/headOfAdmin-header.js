@@ -38,7 +38,7 @@ const HeadOfAdminHeader = () => {
 
       <Space>
         <Button icon={<BellOutlined />}>Notifications</Button>
-        <Button icon={<UserOutlined />}>Profile</Button>
+        <Button icon={<UserOutlined />} onClick={() => navigate('/headOfAdmin/profile')}>Profile</Button>
         <Button danger icon={<LogoutOutlined />} onClick={handleLogout}>Logout</Button>
       </Space>
     </Header>

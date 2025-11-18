@@ -253,7 +253,8 @@ namespace FJAP.Services
                 {
                     SubjectId = s.SubjectId,
                     SubjectCode = s.SubjectCode,
-                    SubjectName = s.SubjectName
+                    SubjectName = s.SubjectName,
+                    LevelId = s.LevelId
                 })
                 .ToListAsync();
         }

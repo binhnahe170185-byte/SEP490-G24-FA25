@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, Table, Tag, Spin, message, Empty, Button, Badge } from "antd";
 import { CalendarOutlined, ClockCircleOutlined, FileTextOutlined } from "@ant-design/icons";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
@@ -11,6 +11,7 @@ export default function SlotsList({ course, lecturerId }) {
   const [homeworksMap, setHomeworksMap] = useState({}); // Map lessonId -> homeworks[]
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const navigate = useNavigate();
+  const location = useLocation();
 
   const buildHomeworkMap = (homeworks) => {
     const map = {};
@@ -208,7 +209,18 @@ export default function SlotsList({ course, lecturerId }) {
           size="small"
           onClick={() =>
             navigate(`/lecturer/homework/${record.classId}/${record.lessonId}`, {
-              state: { slot: record, course },
+              state: {
+                slot: record,
+                course,
+                from: {
+                  page: "lecturer-homework",
+                  pathname: location.pathname,
+                  search: location.search,
+                  courseId: course?.classId,
+                  semesterId: course?.semesterId,
+                  course,
+                },
+              },
             })
           }
         >

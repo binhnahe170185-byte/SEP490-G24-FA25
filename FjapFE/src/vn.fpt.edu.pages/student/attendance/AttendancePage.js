@@ -94,6 +94,7 @@ export default function AttendancePage() {
   const columns = [
     { title: 'Date', dataIndex: 'date', key: 'date', width: 140 },
     { title: 'Time', dataIndex: 'timeSlot', key: 'timeSlot', width: 160 },
+    { title: 'Lecturer', dataIndex: 'lectureCode', key: 'lectureCode', width: 120 },
     { title: 'Room', dataIndex: 'roomName', key: 'roomName', width: 120 },
     {
       title: 'Status',
@@ -115,12 +116,9 @@ export default function AttendancePage() {
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <Space align="baseline">
-            <Title level={3} style={{ margin: 0 }}>Attendance Report</Title>
-            <Text type="secondary">{/* subtitle if needed */}</Text>
-          </Space>
-           <div style={{ width: '100%', overflowX: 'auto', padding: '4px 0' }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Title level={3} style={{ margin: 0 }}>Attendance Report</Title>
+          <div style={{ width: '100%', overflowX: 'auto', padding: '4px 0' }}>
             <Space size="middle">
               {semesters.map((s) => {
                 const sid = Number(s.semesterId || s.id);
@@ -154,7 +152,7 @@ export default function AttendancePage() {
           ) : (
             <Space align="start" size="large" style={{ width: '100%' }}>
               <div style={{ width: 320, minWidth: 280 }}>
-                <Card size="small" title={<Text strong>Select course</Text>}>
+                <Card size="small" title={<Text strong>Select subject</Text>}>
                   <List
                     itemLayout="horizontal"
                     dataSource={subjects}
@@ -206,6 +204,7 @@ export default function AttendancePage() {
     </div>
   );
 }
+
 
 
 

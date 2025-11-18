@@ -9,7 +9,7 @@ import {
   Badge,
   Button,
 } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { CalendarOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import LecturerHomework from "../../../../vn.fpt.edu.api/LecturerHomework";
@@ -24,15 +24,18 @@ const formatTimeRange = (start, end) => {
   return [start, end].filter(Boolean).join(" - ");
 };
 
-const LessonHomeworkTable = ({ course }) => {
+const LessonHomeworkTable = ({ course, semester }) => {
   const [lessons, setLessons] = useState([]);
   const [homeworksMap, setHomeworksMap] = useState({});
   const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 8 });
   const classId = course?.classId || course?.courseId;
   const classLabel = course?.className || course?.classCode || "Class";
   const subjectLabel = course?.subjectName || course?.courseName || "Subject";
   const subjectCode = course?.subjectCode || course?.subject?.code || "";
   const navigate = useNavigate();
+  const location = useLocation();
+  const semesterId = semester?.semesterId;
 
   const totalHomeworks = useMemo(() => {
     return Object.values(homeworksMap).reduce(
@@ -82,6 +85,7 @@ const LessonHomeworkTable = ({ course }) => {
       return;
     }
     loadLessonData();
+    setPagination((prev) => ({ ...prev, current: 1 }));
   }, [classId, loadLessonData]);
 
   const handleViewHomeworkDetail = useCallback(
@@ -93,11 +97,27 @@ const LessonHomeworkTable = ({ course }) => {
           course,
           lesson,
           homeworks: homeworksMap[lesson.lessonId] || [],
+          from: {
+            page: "student-homework",
+            pathname: location.pathname,
+            search: location.search,
+            courseId: course?.classId || course?.courseId,
+            semesterId: semesterId || course?.semesterId,
+            course,
+          },
         },
       });
     },
-    [course, homeworksMap, navigate]
+    [course, homeworksMap, navigate, location.pathname, location.search, semesterId]
   );
+
+  const handleTableChange = useCallback((newPagination) => {
+    setPagination((prev) => ({
+      ...prev,
+      current: newPagination.current,
+      pageSize: newPagination.pageSize,
+    }));
+  }, []);
 
   const columns = [
     {
@@ -105,11 +125,15 @@ const LessonHomeworkTable = ({ course }) => {
       key: "lessonNumber",
       width: 100,
       align: "center",
-      render: (_, __, index) => (
-        <Tag color="geekblue" style={{ padding: "2px 12px" }}>
-          Lesson {index + 1}
-        </Tag>
-      ),
+      render: (_, __, index) => {
+        const sequence =
+          (pagination.current - 1) * pagination.pageSize + index + 1;
+        return (
+          <Tag color="geekblue" style={{ padding: "2px 12px" }}>
+            Lesson {sequence}
+          </Tag>
+        );
+      },
     },
     {
       title: "Slot",
@@ -252,7 +276,7 @@ const LessonHomeworkTable = ({ course }) => {
         dataSource={lessons}
         rowKey="lessonId"
         pagination={{
-          pageSize: 8,
+          ...pagination,
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} lessons`,
@@ -261,6 +285,7 @@ const LessonHomeworkTable = ({ course }) => {
           onClick: () => handleViewHomeworkDetail(record),
           style: { cursor: "pointer" },
         })}
+        onChange={handleTableChange}
         bordered
         size="middle"
       />

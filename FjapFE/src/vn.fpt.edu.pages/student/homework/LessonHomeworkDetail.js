@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../login/AuthContext";
 import {
@@ -70,6 +70,57 @@ const isSubmissionClosed = (deadline) => {
   return dayjs(deadline).isBefore(dayjs(), "day");
 };
 
+const getSubmissionStatusMeta = (status) => {
+  const normalized = (status || "").toLowerCase();
+  switch (normalized) {
+    case "graded":
+      return {
+        label: "Graded",
+        color: "green",
+        description: "Marked and finalized by lecturer.",
+      };
+    case "late":
+      return {
+        label: "Late",
+        color: "orange",
+        description: "Submitted after the deadline. Awaiting review.",
+      };
+    case "rejected":
+      return {
+        label: "Rejected",
+        color: "red",
+        description: "Submission rejected. Please review lecturer feedback.",
+      };
+    default:
+      return {
+        label: "Submitted",
+        color: "blue",
+        description: "Waiting for lecturer to review.",
+      };
+  }
+};
+
+const normalizeStudentSubmissionPayload = (homeworkId, payload) => {
+  if (!payload) {
+    return null;
+  }
+  return {
+    submissionId:
+      payload.submissionId ||
+      payload.homeworkSubmissionId ||
+      payload.id ||
+      null,
+    homeworkId: payload.homeworkId || homeworkId,
+    studentId: payload.studentId,
+    studentCode: payload.studentCode || payload.student_code || null,
+    studentName: payload.studentName || payload.student_name || null,
+    submittedAt: payload.submittedAt || payload.createdAt,
+    status: payload.status,
+    comment: payload.comment,
+    filePath: payload.filePath,
+  };
+};
+
 const LessonHomeworkDetail = () => {
   const { classId, lessonId } = useParams();
   const navigate = useNavigate();
@@ -88,11 +139,14 @@ const LessonHomeworkDetail = () => {
   const [form] = Form.useForm();
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [homeworkComments, setHomeworkComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [submissionMethod, setSubmissionMethod] = useState("local");
   const [docLink, setDocLink] = useState("");
   const [studentSubmissions, setStudentSubmissions] = useState({});
+  const previewObjectUrl = useRef(null);
+  const backOrigin = location.state?.from;
 
   const normalizeUploadValue = (event) => {
     if (Array.isArray(event)) {
@@ -105,6 +159,28 @@ const LessonHomeworkDetail = () => {
     const generatedLink = `https://docs.google.com/document/d/${Date.now()}`;
     setDocLink(generatedLink);
     message.success("New Google Doc created. Link attached to submission.");
+  };
+
+  const appendCacheBuster = (url) => {
+    if (!url) return url;
+    try {
+      const parsed = new URL(url, window.location.href);
+      parsed.searchParams.set("_", Date.now().toString());
+      return parsed.toString();
+    } catch {
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}_=${Date.now()}`;
+    }
+  };
+
+  const isSameOrigin = (url) => {
+    if (!url || typeof window === "undefined") return false;
+    try {
+      const parsed = new URL(url, window.location.href);
+      return parsed.origin === window.location.origin;
+    } catch {
+      return false;
+    }
   };
 
   const buildPreviewUrl = (url) => {
@@ -155,62 +231,139 @@ const LessonHomeworkDetail = () => {
     }
   };
 
-  const handleOpenPreview = (url) => {
-    const preview = buildPreviewUrl(url);
-    if (!preview) {
-      message.warning("Preview is unavailable for this file.");
-      return;
+  const cleanupPreviewObjectUrl = () => {
+    if (previewObjectUrl.current) {
+      URL.revokeObjectURL(previewObjectUrl.current);
+      previewObjectUrl.current = null;
     }
-    setPreviewUrl(preview);
-    setPreviewModalVisible(true);
   };
 
+  const handleOpenPreview = async (url) => {
+    if (!url) {
+      message.warning("File path is missing.");
+      return;
+    }
+    const targetUrl = appendCacheBuster(url);
+    cleanupPreviewObjectUrl();
+    setPreviewModalVisible(true);
+    setPreviewLoading(true);
+    setPreviewUrl(null);
+    const canFetchDirectly = isSameOrigin(targetUrl);
+    if (!canFetchDirectly) {
+      handleClosePreviewModal();
+      window.open(targetUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    try {
+      const response = await fetch(targetUrl, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error(`Unable to fetch file (${response.status})`);
+      }
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      previewObjectUrl.current = blobUrl;
+      setPreviewUrl(blobUrl);
+    } catch (error) {
+      console.error("Direct preview failed, falling back to viewer:", error);
+      const fallback = buildPreviewUrl(targetUrl);
+      if (!fallback) {
+        message.warning("Preview is unavailable for this file.");
+        handleClosePreviewModal();
+        return;
+      }
+      setPreviewUrl(fallback);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleClosePreviewModal = () => {
+    cleanupPreviewObjectUrl();
+    setPreviewModalVisible(false);
+    setPreviewUrl(null);
+    setPreviewLoading(false);
+  };
+
+  const handleOpenInNewTab = (url) => {
+    if (!url) {
+      message.warning("File path is missing.");
+      return;
+    }
+    const target = appendCacheBuster(url);
+    window.open(target, "_blank", "noopener,noreferrer");
+  };
+
+  useEffect(() => {
+    return () => {
+      cleanupPreviewObjectUrl();
+    };
+  }, []);
+
   const courseInfo = location.state?.course || null;
+  const handleBackNavigation = useCallback(() => {
+    if (backOrigin && typeof backOrigin === "object" && backOrigin.page === "student-homework") {
+      const destination =
+        (backOrigin.pathname || "/student/homework") +
+        (backOrigin.search || "");
+      navigate(destination, {
+        replace: true,
+        state: {
+          restoredCourse: backOrigin.course,
+          restoredSemesterId:
+            backOrigin.semesterId ?? backOrigin.course?.semesterId,
+        },
+      });
+      return;
+    }
+    if (typeof backOrigin === "string") {
+      navigate(backOrigin);
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/student/homework");
+  }, [backOrigin, navigate]);
 
   const loadStudentSubmissions = useCallback(
-    async (homeworkList) => {
+    (homeworkList) => {
       if (!studentId || !Array.isArray(homeworkList) || homeworkList.length === 0) {
         return;
       }
-      try {
-        const entries = await Promise.all(
-          homeworkList.map(async (hw) => {
-            const hwId = hw.homeworkId || hw.id;
-            if (!hwId) return null;
-            try {
-              const submission = await StudentHomework.getSubmission(hwId, studentId);
-              return { hwId, submission };
-            } catch (error) {
-              console.error("Failed to load submission for homework", hwId, error);
-              return { hwId, submission: null };
-            }
-          })
-        );
-        setStudentSubmissions((prev) => {
-          const next = { ...prev };
-          entries.forEach((entry) => {
-            if (entry) {
-              next[entry.hwId] = entry.submission;
-            }
-          });
-          return next;
-        });
-      } catch (error) {
-        console.error("Failed to load student submissions:", error);
+
+      const updates = {};
+      homeworkList.forEach((hw) => {
+        const hwId = hw.homeworkId || hw.id;
+        if (!hwId) {
+          return;
+        }
+        const normalized = normalizeStudentSubmissionPayload(hwId, hw.studentSubmission);
+        if (normalized) {
+          updates[hwId] = normalized;
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+        setStudentSubmissions((prev) => ({ ...prev, ...updates }));
       }
     },
     [studentId]
   );
 
   useEffect(() => {
-    if (hasPrefetchedHomeworks || !classId || !lessonId) {
+    if (!classId || !lessonId) {
       return;
     }
     let ignore = false;
     const fetchHomeworks = async () => {
-      setLoading(true);
+      if (!hasPrefetchedHomeworks) {
+        setLoading(true);
+      }
       try {
-        const data = await LecturerHomework.getHomeworksBySlot(lessonId, classId);
+        const data = await LecturerHomework.getHomeworksBySlot(lessonId, classId, {
+          studentId,
+        });
         if (!ignore) {
           setHomeworks(data);
           setHomeworkComments((prev) => {
@@ -250,7 +403,7 @@ const LessonHomeworkDetail = () => {
     return () => {
       ignore = true;
     };
-  }, [classId, lessonId, hasPrefetchedHomeworks]);
+  }, [classId, lessonId, studentId, hasPrefetchedHomeworks]);
 
   useEffect(() => {
     if (!homeworks.length) return;
@@ -381,7 +534,11 @@ const LessonHomeworkDetail = () => {
       if (homeworkKey && savedSubmission) {
         setStudentSubmissions((prev) => ({
           ...prev,
-          [homeworkKey]: savedSubmission,
+          [homeworkKey]: {
+            ...savedSubmission,
+            status: savedSubmission?.status || "Submitted",
+            submittedAt: savedSubmission?.submittedAt || new Date().toISOString(),
+          },
         }));
       }
       handleCloseSubmitModal();
@@ -424,6 +581,7 @@ const LessonHomeworkDetail = () => {
     const homeworkId = homework.homeworkId || homework.id;
     const comments = homeworkComments[homeworkId] || [];
     const submission = studentSubmissions[homeworkId];
+    const submissionMeta = submission ? getSubmissionStatusMeta(submission.status) : null;
     return (
       <Card key={homework.homeworkId || homework.id} type="inner" style={{ marginBottom: 16 }}>
         <div
@@ -492,9 +650,7 @@ const LessonHomeworkDetail = () => {
                 <Button
                   type="link"
                   icon={<PaperClipOutlined />}
-                  href={homework.filePath}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={() => handleOpenInNewTab(homework.filePath)}
                   style={{ paddingLeft: 0 }}
                 >
                   Download
@@ -516,7 +672,7 @@ const LessonHomeworkDetail = () => {
           </Button>
         </div>
 
-        {submission && (
+        {submission && submissionMeta && (
           <div
             style={{
               marginTop: 16,
@@ -536,9 +692,13 @@ const LessonHomeworkDetail = () => {
             >
               <div>
                 <Text strong>Your submission</Text>
-                <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
-                  {submission.status || "Submitted"} · {formatDateTime(submission.submittedAt)}
+                <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <Tag color={submissionMeta.color} style={{ marginBottom: 0 }}>
+                    {submissionMeta.label}
+                  </Tag>
+                  <Text type="secondary">{formatDateTime(submission.submittedAt)}</Text>
                 </div>
+                <div style={{ fontSize: 12, color: "#8c8c8c" }}>{submissionMeta.description}</div>
               </div>
               {submission.filePath && (
                 <div style={{ display: "flex", gap: 8 }}>
@@ -551,9 +711,7 @@ const LessonHomeworkDetail = () => {
                   <Button
                     type="link"
                     icon={<PaperClipOutlined />}
-                    href={submission.filePath}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    onClick={() => handleOpenInNewTab(submission.filePath)}
                     style={{ paddingLeft: 0 }}
                   >
                     Open file
@@ -633,7 +791,7 @@ const LessonHomeworkDetail = () => {
             {subjectName} {subjectCode ? `(${subjectCode})` : ""} · {classLabel}
           </Text>
         </div>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+        <Button icon={<ArrowLeftOutlined />} onClick={handleBackNavigation}>
           Back
         </Button>
       </div>
@@ -679,9 +837,14 @@ const LessonHomeworkDetail = () => {
         width={900}
         open={previewModalVisible}
         footer={null}
-        onCancel={() => setPreviewModalVisible(false)}
+        onCancel={handleClosePreviewModal}
+        destroyOnClose
       >
-        {previewUrl ? (
+        {previewLoading ? (
+          <div style={{ textAlign: "center", padding: 40 }}>
+            <Spin />
+          </div>
+        ) : previewUrl ? (
           <iframe
             src={previewUrl}
             title="Attachment preview"

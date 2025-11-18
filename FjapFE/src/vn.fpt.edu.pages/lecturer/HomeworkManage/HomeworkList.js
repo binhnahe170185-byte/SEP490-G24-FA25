@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Breadcrumb,
   message,
   Spin
 } from 'antd';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../login/AuthContext';
 import SemesterTabs from '../../student/MarkReport/SemesterTabs';
 import LecturerClassList from './LecturerClassList';
@@ -12,6 +13,8 @@ import LecturerHomework from '../../../vn.fpt.edu.api/LecturerHomework';
 
 const HomeworkList = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [semesters, setSemesters] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedSemester, setSelectedSemester] = useState(null);
@@ -21,6 +24,7 @@ const HomeworkList = () => {
 
   // Fallback lecturerId when payload does not include one
   const lecturerId = user?.lecturerId || user?.id || "MOCK_LECTURER_123";
+  const restoreRef = useRef(location.state || null);
 
   // Load semesters
   const loadSemesters = useCallback(async () => {
@@ -75,6 +79,49 @@ const HomeworkList = () => {
       loadClasses();
     }
   }, [selectedSemester, loadClasses]);
+
+  useEffect(() => {
+    if (!restoreRef.current) return;
+    if (!semesters.length) return;
+
+    const targetSemesterId =
+      restoreRef.current.restoredSemesterId ||
+      restoreRef.current.restoredCourse?.semesterId;
+    if (!targetSemesterId) return;
+    if (String(selectedSemester?.semesterId) === String(targetSemesterId)) {
+      return;
+    }
+    const matched = semesters.find(
+      (sem) => String(sem.semesterId) === String(targetSemesterId)
+    );
+    if (matched) {
+      setSelectedSemester(matched);
+    }
+  }, [semesters, selectedSemester]);
+
+  useEffect(() => {
+    const payload = restoreRef.current;
+    if (!payload) return;
+    const targetSemesterId =
+      payload.restoredSemesterId || payload.restoredCourse?.semesterId;
+    if (targetSemesterId && String(selectedSemester?.semesterId) !== String(targetSemesterId)) {
+      return;
+    }
+    if (!classes.length) return;
+    const targetClassId = payload.restoredCourse?.classId;
+    if (!targetClassId) {
+      restoreRef.current = null;
+      return;
+    }
+    const matched = classes.find(
+      (cls) => String(cls.classId) === String(targetClassId)
+    );
+    if (matched) {
+      setSelectedClass(matched);
+    }
+    restoreRef.current = null;
+    navigate(location.pathname, { replace: true, state: null });
+  }, [classes, selectedSemester, navigate, location.pathname]);
 
   if (loading) {
     return (

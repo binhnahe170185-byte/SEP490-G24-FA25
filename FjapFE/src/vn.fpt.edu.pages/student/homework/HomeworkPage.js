@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Breadcrumb, message, Spin } from "antd";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FileTextOutlined } from "@ant-design/icons";
 import { useAuth } from "../../login/AuthContext";
 import SemesterTabs from "../MarkReport/SemesterTabs";
@@ -9,7 +10,10 @@ import StudentGrades from "../../../vn.fpt.edu.api/StudentGrades";
 
 const HomeworkPage = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const studentId = user?.studentId || user?.id || "MOCK_STUDENT_001";
+  const restoreRef = useRef(location.state || null);
 
   const [semesters, setSemesters] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -24,7 +28,20 @@ const HomeworkPage = () => {
       const data = await StudentGrades.getSemesters(studentId);
       const normalized = Array.isArray(data) ? data : [];
       setSemesters(normalized);
-      setSelectedSemester(normalized[0] || null);
+
+      const restoreSemesterId =
+        restoreRef.current?.restoredSemesterId ||
+        restoreRef.current?.restoredCourse?.semesterId;
+      let initialSemester = normalized[0] || null;
+      if (restoreSemesterId) {
+        const matched = normalized.find(
+          (semester) => String(semester.semesterId) === String(restoreSemesterId)
+        );
+        if (matched) {
+          initialSemester = matched;
+        }
+      }
+      setSelectedSemester(initialSemester);
     } catch (error) {
       console.error("Failed to load semesters:", error);
       message.error("Unable to load semesters");
@@ -60,7 +77,41 @@ const HomeworkPage = () => {
         classCode: course.classCode || course.className,
       }));
       setCourses(normalized);
-      setSelectedCourse(normalized[0] || null);
+
+      const restorePayload = restoreRef.current;
+      const restoreSemesterId =
+        restorePayload?.restoredSemesterId ||
+        restorePayload?.restoredCourse?.semesterId;
+      let initialCourse = normalized[0] || null;
+
+      if (
+        restorePayload &&
+        (!restoreSemesterId ||
+          String(restoreSemesterId) === String(selectedSemester.semesterId))
+      ) {
+        const targetCourseId =
+          restorePayload.restoredCourse?.classId ||
+          restorePayload.restoredCourse?.courseId ||
+          restorePayload.restoredCourse?.id;
+
+        if (targetCourseId) {
+          const matched = normalized.find((course) =>
+            [course.classId, course.courseId, course.id]
+              .filter((val) => val !== undefined && val !== null)
+              .some((val) => String(val) === String(targetCourseId))
+          );
+          if (matched) {
+            initialCourse = matched;
+            restoreRef.current = null;
+            navigate(location.pathname + location.search, {
+              replace: true,
+              state: null,
+            });
+          }
+        }
+      }
+
+      setSelectedCourse(initialCourse);
     } catch (error) {
       console.error("Failed to load courses:", error);
       message.error("Unable to load courses for this semester");
@@ -69,7 +120,7 @@ const HomeworkPage = () => {
     } finally {
       setLoadingCourses(false);
     }
-  }, [studentId, selectedSemester]);
+  }, [studentId, selectedSemester, navigate, location.pathname, location.search]);
 
   useEffect(() => {
     loadSemesters();
@@ -135,7 +186,10 @@ const HomeworkPage = () => {
           loading={loadingCourses}
         />
 
-        <LessonHomeworkTable course={selectedCourse} />
+        <LessonHomeworkTable
+          course={selectedCourse}
+          semester={selectedSemester}
+        />
       </div>
     </div>
   );

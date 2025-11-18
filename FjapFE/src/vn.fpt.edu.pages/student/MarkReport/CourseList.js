@@ -7,7 +7,7 @@ export default function CourseList({ courses, selectedCourse, onSelectCourse, se
     <Card
       title={
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Select course</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Select subject</div>
           <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 400 }}>
             {semester?.name}
           </div>
