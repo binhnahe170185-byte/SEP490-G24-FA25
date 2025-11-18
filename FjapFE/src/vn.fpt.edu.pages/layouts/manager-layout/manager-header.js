@@ -1,12 +1,16 @@
 import React from "react";
 import { Dropdown, Avatar } from "antd";
 import { UserOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 
 const Header = ({ title }) => {
+  const navigate = useNavigate();
+  
   const items = [
     {
       key: "profile",
       label: "User Profile",
+      onClick: () => navigate('/admin/profile'),
     },
     {
       key: "password",

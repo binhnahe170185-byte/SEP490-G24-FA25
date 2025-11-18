@@ -9,13 +9,17 @@ import {
   InputNumber,
   Space,
   Modal,
-  Form
+  Form,
+  Popover,
+  Input,
+  Tooltip
 } from "antd";
 import { 
   ArrowLeftOutlined,
   SaveOutlined,
   EyeOutlined,
-  EditOutlined
+  EditOutlined,
+  MessageOutlined
 } from "@ant-design/icons";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../login/AuthContext";
@@ -48,6 +52,10 @@ export default function GradeEntry() {
     // Create a unique dataIndex based on SubjectGradeTypeId to avoid conflicts
     return `gradeComponent_${subjectGradeTypeId}`;
   };
+  // Helper to map comment indices per component
+  const getCommentDataIndexForComponent = (gradeTypeName, subjectGradeTypeId) => {
+    return `gradeComponentComment_${subjectGradeTypeId}`;
+  };
 
   // Load course details
   const loadData = useCallback(async () => {
@@ -62,12 +70,14 @@ export default function GradeEntry() {
         const studentData = { ...s, key: s.studentId };
         data.gradeComponentWeights?.forEach(weight => {
           const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+          const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
           
           // Find score from GradeComponentScores
           const gradeComponentScore = s.gradeComponentScores?.find(gcs => 
             gcs.subjectGradeTypeId === weight.subjectGradeTypeId
           );
           studentData[dataIndex] = gradeComponentScore?.score || null;
+          studentData[commentIndex] = gradeComponentScore?.comment || "";
         });
         
         return studentData;
@@ -178,7 +188,9 @@ export default function GradeEntry() {
     // Set values for dynamic grade components
     gradeComponentWeights.forEach(weight => {
       const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+      const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
       formValues[dataIndex] = record[dataIndex];
+      formValues[commentIndex] = record[commentIndex];
     });
     
     form.setFieldsValue(formValues);
@@ -265,13 +277,15 @@ export default function GradeEntry() {
         const gradeComponents = [];
         gradeComponentWeights.forEach(weight => {
           const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+          const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
           const score = row[dataIndex];
+          const comment = row[commentIndex];
           
           if (score !== null && score !== undefined) {
             gradeComponents.push({
               subjectGradeTypeId: weight.subjectGradeTypeId,
               score: score,
-              comment: null
+              comment: typeof comment === 'string' ? comment : null
             });
           }
         });
@@ -305,6 +319,7 @@ export default function GradeEntry() {
     dataIndex,
     title,
     inputType,
+    commentIndex,
     record,
     index,
     children,
@@ -337,55 +352,105 @@ export default function GradeEntry() {
       <td {...restProps}>
         {isCellEditable ? (
           isBatchMode ? (
-            // In batch mode, use controlled InputNumber without Form.Item to avoid field sharing
-            <InputNumber
-              min={0}
-              max={10}
-              step={0.1}
-              precision={1}
-              style={{ width: '100%' }}
-              value={displayValue !== null && displayValue !== undefined ? displayValue : undefined}
-              onChange={(value) => {
-                if (record && record.studentId && dataIndex) {
-                  handleBatchGradeChange(record.studentId, dataIndex, value);
-                }
-              }}
-            />
+            inputType === 'text' ? (
+              <span>{displayValue ?? ''}</span>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                <InputNumber
+                  min={0}
+                  max={10}
+                  step={0.1}
+                  precision={1}
+                  style={{ width: '100%' }}
+                  value={displayValue !== null && displayValue !== undefined ? displayValue : undefined}
+                  onChange={(value) => {
+                    if (record && record.studentId && dataIndex) {
+                      handleBatchGradeChange(record.studentId, dataIndex, value);
+                    }
+                  }}
+                />
+                <Tooltip title="View comment (edit in individual mode)">
+                  <Popover
+                    placement="right"
+                    title="Comment"
+                    content={<div style={{ maxWidth: 260, whiteSpace: 'pre-wrap' }}>{(record && commentIndex) ? (record[commentIndex] || "") : ""}</div>}
+                    trigger="click"
+                  >
+                    <Button size="small" icon={<MessageOutlined />} />
+                  </Popover>
+                </Tooltip>
+              </div>
+            )
           ) : (
-            // In individual edit mode, use Form.Item
-            <Form.Item
-              name={dataIndex}
-              style={{ margin: 0 }}
-              initialValue={displayValue}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (value === null || value === undefined || value === '') {
-                      return Promise.resolve();
+            inputType === 'text' ? (
+              <Form.Item name={dataIndex} style={{ margin: 0 }} initialValue={displayValue}>
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                <Form.Item
+                  name={dataIndex}
+                  style={{ margin: 0, flex: 1 }}
+                  initialValue={displayValue}
+                  rules={[
+                    {
+                      validator: (_, value) => {
+                        if (value === null || value === undefined || value === '') {
+                          return Promise.resolve();
+                        }
+                        if (value < 0 || value > 10) {
+                          return Promise.reject(new Error('Grade must be between 0 and 10'));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                >
+                  <InputNumber min={0} max={10} step={0.1} precision={1} style={{ width: '100%' }} />
+                </Form.Item>
+                {commentIndex && (
+                  <Popover
+                    placement="right"
+                    title="Comment"
+                    trigger="click"
+                    content={
+                      <div style={{ width: 280 }}>
+                        <Form.Item name={commentIndex} style={{ margin: 0 }} initialValue={record?.[commentIndex] ?? ""}>
+                          <Input.TextArea rows={3} maxLength={500} placeholder="Add a comment for this grade item" />
+                        </Form.Item>
+                      </div>
                     }
-                    if (value < 0 || value > 10) {
-                      return Promise.reject(new Error('Grade must be between 0 and 10'));
-                    }
-                    return Promise.resolve();
-                  },
-                },
-              ]}
-            >
-              <InputNumber
-                min={0}
-                max={10}
-                step={0.1}
-                precision={1}
-                style={{ width: '100%' }}
-              />
-            </Form.Item>
+                  >
+                    <Tooltip title="Edit comment">
+                      <Button size="small" icon={<MessageOutlined />} />
+                    </Tooltip>
+                  </Popover>
+                )}
+              </div>
+            )
           )
         ) : (
-          <span>
-            {displayValue != null && typeof displayValue === 'number' && !isNaN(displayValue) 
-              ? displayValue.toFixed(1) 
-              : "-"}
-          </span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+            <span>
+              {inputType === 'text'
+                ? (displayValue ?? '')
+                : (displayValue != null && typeof displayValue === 'number' && !isNaN(displayValue) 
+                  ? displayValue.toFixed(1) 
+                  : "-")}
+            </span>
+            {commentIndex && (
+              <Popover
+                placement="right"
+                title="Comment"
+                content={<div style={{ maxWidth: 260, whiteSpace: 'pre-wrap' }}>{(record && commentIndex) ? (record[commentIndex] || "") : ""}</div>}
+                trigger="click"
+              >
+                <Tooltip title={(record && commentIndex && record[commentIndex]) ? "View comment" : "No comment"}>
+                  <Button size="small" icon={<MessageOutlined />} type={(record && commentIndex && record[commentIndex]) ? "default" : "dashed"} />
+                </Tooltip>
+              </Popover>
+            )}
+          </div>
         )}
       </td>
     );
@@ -414,18 +479,21 @@ export default function GradeEntry() {
       }
     ];
 
-    // Add grade component columns dynamically
-    const gradeColumns = gradeComponentWeights.map(weight => {
+    // Add grade component columns dynamically: score with inline comment popover
+    const gradeColumns = gradeComponentWeights.flatMap(weight => {
       const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
-      return {
+      const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+      return [{
         title: `${weight.gradeTypeName} (${weight.weight}%)`,
         dataIndex: dataIndex,
         key: dataIndex,
-        width: 150,
+        width: 170,
         align: "center",
         editable: true,
+        inputType: 'number',
+        commentIndex: commentIndex,
         render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : "-",
-      };
+      }];
     });
 
     const endColumns = [
@@ -501,7 +569,8 @@ export default function GradeEntry() {
         if (!record || !col.dataIndex) {
           return {
             record: record || {},
-            inputType: 'number',
+            inputType: col.inputType || 'number',
+            commentIndex: col.commentIndex,
             dataIndex: col.dataIndex || '',
             title: col.title || '',
             editing: false,
@@ -509,7 +578,8 @@ export default function GradeEntry() {
         }
         return {
           record,
-          inputType: 'number',
+          inputType: col.inputType || 'number',
+          commentIndex: col.commentIndex,
           dataIndex: col.dataIndex,
           title: col.title || '',
           editing: isEditing(record) || isBatchEditing(),
@@ -589,8 +659,7 @@ export default function GradeEntry() {
                     if (!isNaN(numScore) && numScore >= 0 && numScore <= 10) {
                       gradeComponents.push({
                         subjectGradeTypeId: weight.subjectGradeTypeId,
-                        score: numScore,
-                        comment: null
+                        score: numScore
                       });
                     }
                   }

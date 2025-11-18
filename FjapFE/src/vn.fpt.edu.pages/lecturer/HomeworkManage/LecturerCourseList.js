@@ -7,7 +7,7 @@ export default function LecturerCourseList({ courses, selectedCourse, onSelectCo
     <Card
       title={
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Select course</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Select subject</div>
           <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 400 }}>
             {selectedClass?.className || "Select a class first"}
           </div>
