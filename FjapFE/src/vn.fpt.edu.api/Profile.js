@@ -13,6 +13,17 @@ const ProfileApi = {
 
   // PUT /api/profile
   updateProfile: (payload) => api.put("/api/profile", payload).then(unwrap),
+
+  // POST /api/profile/avatar
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    return api.post("/api/profile/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }).then(unwrap);
+  },
 };
 
 export default ProfileApi;
