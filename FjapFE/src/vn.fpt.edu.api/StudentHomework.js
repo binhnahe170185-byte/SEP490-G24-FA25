@@ -43,19 +43,6 @@ class StudentHomework {
     }
   }
 
-  static async getSubmission(homeworkId, studentId) {
-    if (!homeworkId) {
-      throw new Error("homeworkId is required");
-    }
-    const response = await api.get(`/api/Homeworks/${homeworkId}/submissions`, {
-      params: studentId ? { studentId } : undefined,
-    });
-    const submissions = response.data?.data || response.data || [];
-    if (Array.isArray(submissions)) {
-      return submissions[0] || null;
-    }
-    return submissions || null;
-  }
 }
 
 export default StudentHomework;

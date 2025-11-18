@@ -30,7 +30,10 @@ public class HomeworksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetHomeworks([FromQuery] int? lessonId = null, [FromQuery] int? classId = null)
+    public async Task<IActionResult> GetHomeworks(
+        [FromQuery] int? lessonId = null,
+        [FromQuery] int? classId = null,
+        [FromQuery] int? studentId = null)
     {
         var query = BuildHomeworkQuery();
 
@@ -44,7 +47,7 @@ public class HomeworksController : ControllerBase
             query = query.Where(h => h.Lesson.ClassId == classId);
         }
 
-        var data = await ProjectHomeworkList(query);
+        var data = await ProjectHomeworkList(query, studentId);
         return Ok(new { code = 200, data });
     }
 
@@ -333,7 +336,7 @@ public class HomeworksController : ControllerBase
     /// GET: api/Classes/{classId}/homeworks
     /// </summary>
     [HttpGet("~/api/Classes/{classId:int}/homeworks")]
-    public async Task<IActionResult> GetHomeworksByClass(int classId)
+    public async Task<IActionResult> GetHomeworksByClass(int classId, [FromQuery] int? studentId = null)
     {
         var classExists = await _db.Classes.AnyAsync(c => c.ClassId == classId);
         if (!classExists)
@@ -342,7 +345,7 @@ public class HomeworksController : ControllerBase
         }
 
         var query = BuildHomeworkQuery().Where(h => h.Lesson.ClassId == classId);
-        var data = await ProjectHomeworkList(query);
+        var data = await ProjectHomeworkList(query, studentId);
         return Ok(new { code = 200, data });
     }
 
@@ -414,7 +417,7 @@ public class HomeworksController : ControllerBase
                     .ThenInclude(c => c.Students);
     }
 
-    private async Task<IEnumerable<object>> ProjectHomeworkList(IQueryable<Homework> query)
+    private async Task<IEnumerable<object>> ProjectHomeworkList(IQueryable<Homework> query, int? studentId = null)
     {
         var rows = await query
             .OrderByDescending(h => h.CreatedAt ?? h.Deadline ?? DateTime.MinValue)
@@ -431,14 +434,29 @@ public class HomeworksController : ControllerBase
                 ClassId = h.Lesson.ClassId,
                 ClassName = h.Lesson.Class.ClassName,
                 SubmissionCount = h.HomeworkSubmissions.Count,
-                StudentCount = h.Lesson.Class.Students.Count
+                StudentCount = h.Lesson.Class.Students.Count,
+                StudentSubmission = studentId.HasValue
+                    ? h.HomeworkSubmissions
+                        .Where(s => s.StudentId == studentId.Value)
+                        .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                        .Select(s => new StudentSubmissionProjection
+                        {
+                            SubmissionId = s.HomeworkSubmissionId,
+                            StudentId = s.StudentId,
+                            Status = s.Status,
+                            Comment = s.Comment,
+                            CreatedAt = s.CreatedAt,
+                            FilePath = s.FilePath
+                        })
+                        .FirstOrDefault()
+                    : null
             })
             .ToListAsync();
 
         return rows.Select(FormatProjection);
     }
 
-    private async Task<object?> ProjectHomework(int homeworkId)
+    private async Task<object?> ProjectHomework(int homeworkId, int? studentId = null)
     {
         var dto = await BuildHomeworkQuery()
             .Where(h => h.HomeworkId == homeworkId)
@@ -455,7 +473,22 @@ public class HomeworksController : ControllerBase
                 ClassId = h.Lesson.ClassId,
                 ClassName = h.Lesson.Class.ClassName,
                 SubmissionCount = h.HomeworkSubmissions.Count,
-                StudentCount = h.Lesson.Class.Students.Count
+                StudentCount = h.Lesson.Class.Students.Count,
+                StudentSubmission = studentId.HasValue
+                    ? h.HomeworkSubmissions
+                        .Where(s => s.StudentId == studentId.Value)
+                        .OrderByDescending(s => s.CreatedAt ?? DateTime.MinValue)
+                        .Select(s => new StudentSubmissionProjection
+                        {
+                            SubmissionId = s.HomeworkSubmissionId,
+                            StudentId = s.StudentId,
+                            Status = s.Status,
+                            Comment = s.Comment,
+                            CreatedAt = s.CreatedAt,
+                            FilePath = s.FilePath
+                        })
+                        .FirstOrDefault()
+                    : null
             })
             .FirstOrDefaultAsync();
 
@@ -477,7 +510,19 @@ public class HomeworksController : ControllerBase
             classId = row.ClassId,
             className = row.ClassName,
             submissions = row.SubmissionCount,
-            totalStudents = row.StudentCount
+            totalStudents = row.StudentCount,
+            studentSubmission = row.StudentSubmission == null
+                ? null
+                : new
+                {
+                    homeworkId = row.HomeworkId,
+                    submissionId = row.StudentSubmission.SubmissionId,
+                    studentId = row.StudentSubmission.StudentId,
+                    submittedAt = row.StudentSubmission.CreatedAt,
+                    status = row.StudentSubmission.Status,
+                    comment = row.StudentSubmission.Comment,
+                    filePath = BuildFileUrl(row.StudentSubmission.FilePath)
+                }
         };
     }
 
@@ -589,6 +634,17 @@ public class HomeworksController : ControllerBase
         public string ClassName { get; set; } = string.Empty;
         public int SubmissionCount { get; set; }
         public int StudentCount { get; set; }
+        public StudentSubmissionProjection? StudentSubmission { get; set; }
+    }
+
+    private class StudentSubmissionProjection
+    {
+        public int SubmissionId { get; set; }
+        public int StudentId { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public string? Status { get; set; }
+        public string? Comment { get; set; }
+        public string? FilePath { get; set; }
     }
 }
 
