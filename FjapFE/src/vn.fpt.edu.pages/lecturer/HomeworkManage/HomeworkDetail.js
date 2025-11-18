@@ -35,6 +35,27 @@ const HomeworkDetail = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
   const [editingHomework, setEditingHomework] = useState(null);
+  const backOrigin = location.state?.from;
+  const handleBackNavigation = useCallback(() => {
+    if (backOrigin && typeof backOrigin === "object" && backOrigin.page === "lecturer-homework") {
+      navigate(backOrigin.pathname || "/lecturer/homework", {
+        state: {
+          restoredCourse: backOrigin.course,
+          restoredSemesterId: backOrigin.semesterId ?? backOrigin.course?.semesterId,
+        },
+      });
+      return;
+    }
+    if (typeof backOrigin === "string") {
+      navigate(backOrigin);
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/lecturer/homework");
+  }, [backOrigin, navigate]);
 
   const loadSlotInfo = useCallback(async () => {
     if (slot) return;
@@ -222,6 +243,7 @@ const HomeworkDetail = () => {
                     slot,
                     course: location.state?.course,
                     homework: record,
+                    from: backOrigin,
                   },
                 }
               )
@@ -257,7 +279,7 @@ const HomeworkDetail = () => {
       title: (
         <span
           style={{ cursor: "pointer" }}
-          onClick={() => navigate("/lecturer/homework")}
+          onClick={handleBackNavigation}
         >
           Homework Management
         </span>
@@ -280,12 +302,10 @@ const HomeworkDetail = () => {
       >
         <div>
           <Button
-            type="link"
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate("/lecturer/homework")}
-            style={{ paddingLeft: 0 }}
+            onClick={handleBackNavigation}
           >
-            Back to list
+            Back
           </Button>
           <h1 style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 600 }}>
             Homework detail

@@ -100,6 +100,27 @@ const getSubmissionStatusMeta = (status) => {
   }
 };
 
+const normalizeStudentSubmissionPayload = (homeworkId, payload) => {
+  if (!payload) {
+    return null;
+  }
+  return {
+    submissionId:
+      payload.submissionId ||
+      payload.homeworkSubmissionId ||
+      payload.id ||
+      null,
+    homeworkId: payload.homeworkId || homeworkId,
+    studentId: payload.studentId,
+    studentCode: payload.studentCode || payload.student_code || null,
+    studentName: payload.studentName || payload.student_name || null,
+    submittedAt: payload.submittedAt || payload.createdAt,
+    status: payload.status,
+    comment: payload.comment,
+    filePath: payload.filePath,
+  };
+};
+
 const LessonHomeworkDetail = () => {
   const { classId, lessonId } = useParams();
   const navigate = useNavigate();
@@ -125,6 +146,7 @@ const LessonHomeworkDetail = () => {
   const [docLink, setDocLink] = useState("");
   const [studentSubmissions, setStudentSubmissions] = useState({});
   const previewObjectUrl = useRef(null);
+  const backOrigin = location.state?.from;
 
   const normalizeUploadValue = (event) => {
     if (Array.isArray(event)) {
@@ -278,37 +300,52 @@ const LessonHomeworkDetail = () => {
   }, []);
 
   const courseInfo = location.state?.course || null;
+  const handleBackNavigation = useCallback(() => {
+    if (backOrigin && typeof backOrigin === "object" && backOrigin.page === "student-homework") {
+      const destination =
+        (backOrigin.pathname || "/student/homework") +
+        (backOrigin.search || "");
+      navigate(destination, {
+        replace: true,
+        state: {
+          restoredCourse: backOrigin.course,
+          restoredSemesterId:
+            backOrigin.semesterId ?? backOrigin.course?.semesterId,
+        },
+      });
+      return;
+    }
+    if (typeof backOrigin === "string") {
+      navigate(backOrigin);
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/student/homework");
+  }, [backOrigin, navigate]);
 
   const loadStudentSubmissions = useCallback(
-    async (homeworkList) => {
+    (homeworkList) => {
       if (!studentId || !Array.isArray(homeworkList) || homeworkList.length === 0) {
         return;
       }
-      try {
-        const entries = await Promise.all(
-          homeworkList.map(async (hw) => {
-            const hwId = hw.homeworkId || hw.id;
-            if (!hwId) return null;
-            try {
-              const submission = await StudentHomework.getSubmission(hwId, studentId);
-              return { hwId, submission };
-            } catch (error) {
-              console.error("Failed to load submission for homework", hwId, error);
-              return { hwId, submission: null };
-            }
-          })
-        );
-        setStudentSubmissions((prev) => {
-          const next = { ...prev };
-          entries.forEach((entry) => {
-            if (entry) {
-              next[entry.hwId] = entry.submission;
-            }
-          });
-          return next;
-        });
-      } catch (error) {
-        console.error("Failed to load student submissions:", error);
+
+      const updates = {};
+      homeworkList.forEach((hw) => {
+        const hwId = hw.homeworkId || hw.id;
+        if (!hwId) {
+          return;
+        }
+        const normalized = normalizeStudentSubmissionPayload(hwId, hw.studentSubmission);
+        if (normalized) {
+          updates[hwId] = normalized;
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+        setStudentSubmissions((prev) => ({ ...prev, ...updates }));
       }
     },
     [studentId]
@@ -324,7 +361,9 @@ const LessonHomeworkDetail = () => {
         setLoading(true);
       }
       try {
-        const data = await LecturerHomework.getHomeworksBySlot(lessonId, classId);
+        const data = await LecturerHomework.getHomeworksBySlot(lessonId, classId, {
+          studentId,
+        });
         if (!ignore) {
           setHomeworks(data);
           setHomeworkComments((prev) => {
@@ -364,7 +403,7 @@ const LessonHomeworkDetail = () => {
     return () => {
       ignore = true;
     };
-  }, [classId, lessonId, hasPrefetchedHomeworks]);
+  }, [classId, lessonId, studentId, hasPrefetchedHomeworks]);
 
   useEffect(() => {
     if (!homeworks.length) return;
@@ -752,7 +791,7 @@ const LessonHomeworkDetail = () => {
             {subjectName} {subjectCode ? `(${subjectCode})` : ""} · {classLabel}
           </Text>
         </div>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+        <Button icon={<ArrowLeftOutlined />} onClick={handleBackNavigation}>
           Back
         </Button>
       </div>

@@ -142,7 +142,6 @@ const HomeworkSubmissionPage = () => {
   }, [slot, homework]);
 
   const statusOptions = [
-    { value: "Submitted", label: "Submitted" },
     { value: "Graded", label: "Graded" },
     { value: "Late", label: "Late" },
     { value: "Rejected", label: "Rejected" },
@@ -308,7 +307,11 @@ const HomeworkSubmissionPage = () => {
           style={{ cursor: "pointer" }}
           onClick={() =>
             navigate(`/lecturer/homework/${classId}/${lessonId}`, {
-              state: { slot, course: location.state?.course },
+              state: {
+                slot,
+                course: location.state?.course,
+                from: location.state?.from,
+              },
             })
           }
         >
@@ -337,7 +340,11 @@ const HomeworkSubmissionPage = () => {
             icon={<ArrowLeftOutlined />}
             onClick={() =>
               navigate(`/lecturer/homework/${classId}/${lessonId}`, {
-                state: { slot, course: location.state?.course },
+                state: {
+                  slot,
+                  course: location.state?.course,
+                  from: location.state?.from,
+                },
               })
             }
             style={{ paddingLeft: 0 }}
