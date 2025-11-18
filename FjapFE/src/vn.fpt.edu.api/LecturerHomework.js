@@ -291,20 +291,39 @@ class LecturerHomework {
       // TODO: Thay bằng endpoint thực tế: /api/Classes/{classId}/homeworks
       const response = await api.get(`/api/Classes/${classId}/homeworks`);
       const homeworks = response.data?.data || response.data || [];
-      
-      return homeworks.map(hw => ({
-        homeworkId: hw.homeworkId || hw.id,
-        title: hw.title,
-        description: hw.description,
-        dueDate: hw.dueDate,
-        status: hw.status,
-        submissions: hw.submissions || 0,
-        totalStudents: hw.totalStudents || 0,
-        createdAt: hw.createdAt,
-        attachments: hw.attachments || [],
-        lessonId: hw.lessonId,
-        slotId: hw.slotId,
-      }));
+
+      return homeworks.map((hw) => {
+        const attachments = Array.isArray(hw.attachments)
+          ? hw.attachments
+          : hw.attachments
+          ? [hw.attachments]
+          : [];
+        const firstAttachment = attachments[0];
+
+        const attachmentUrl =
+          typeof firstAttachment === "string"
+            ? firstAttachment
+            : firstAttachment?.url || firstAttachment?.filePath;
+
+        return {
+          homeworkId: hw.homeworkId || hw.id,
+          title: hw.title,
+          content: hw.content ?? hw.description,
+          deadline: hw.deadline ?? hw.dueDate,
+          filePath: hw.filePath || hw.fileUrl || attachmentUrl,
+          submissions: hw.submissions ?? hw.submissionCount ?? 0,
+          totalStudents: hw.totalStudents ?? hw.studentCount ?? 0,
+          createdAt: hw.createdAt,
+          attachments,
+          lessonId: hw.lessonId || hw.slot?.lessonId,
+          slotId: hw.slotId,
+          createdBy: hw.createdBy,
+          createdByName:
+            hw.createdByName ||
+            hw.createdByFullName ||
+            hw.createdByUser?.fullName,
+        };
+      });
     } catch (error) {
       console.error("Failed to load homeworks:", error);
       return [];
