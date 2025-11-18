@@ -16,6 +16,7 @@ public class StudentAttendanceLessonDto
     public int TimeId { get; set; }
     public string RoomName { get; set; } = "";
     public string Status { get; set; } = "Absent";
+    public string LectureCode { get; set; } = "";
 }
 
 
