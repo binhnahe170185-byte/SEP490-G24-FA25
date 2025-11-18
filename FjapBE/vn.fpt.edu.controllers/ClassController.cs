@@ -791,13 +791,17 @@ public class ClassController : ControllerBase
             var classesBySemester = await _db.Classes
                 .AsNoTracking()
                 .Include(c => c.Semester)
+                .Include(c => c.Subject)
                 .Where(c => c.Status != null && c.Status.ToLower() == "active")
                 .OrderBy(c => c.ClassName)
                 .Select(c => new
                 {
                     classId = c.ClassId,
                     className = c.ClassName,
-                    semesterId = c.SemesterId
+                    semesterId = c.SemesterId,
+                    subjectId = c.SubjectId,
+                    subjectCode = c.Subject != null ? c.Subject.SubjectCode : null,
+                    subjectName = c.Subject != null ? c.Subject.SubjectName : null
                 })
                 .ToListAsync();
 
@@ -807,7 +811,10 @@ public class ClassController : ControllerBase
                 .ToDictionary(g => g.Key, g => g.Select(c => new
                 {
                     classId = c.classId,
-                    className = c.className
+                    className = c.className,
+                    subjectId = c.subjectId,
+                    subjectCode = c.subjectCode,
+                    subjectName = c.subjectName
                 }).ToList());
 
             return Ok(new

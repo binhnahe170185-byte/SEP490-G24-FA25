@@ -405,6 +405,7 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             .AsNoTracking()
             .Include(l => l.Room)
             .Include(l => l.Time)
+            .Include(l => l.Lecture)
             .Where(l => classIds.Contains(l.ClassId))
             .OrderBy(l => l.Date)
             .ThenBy(l => l.Time.StartTime)
@@ -413,7 +414,8 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
                 l.LessonId,
                 l.Date,
                 l.TimeId,
-                RoomName = l.Room.RoomName
+                RoomName = l.Room.RoomName,
+                LectureCode = l.Lecture.LecturerCode ?? ""
             })
             .ToListAsync();
 
@@ -429,7 +431,8 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             Date = l.Date.ToString("yyyy-MM-dd"),
             TimeId = l.TimeId,
             RoomName = l.RoomName,
-            Status = attendance.TryGetValue(l.LessonId, out var st) ? st : "Absent"
+            Status = attendance.TryGetValue(l.LessonId, out var st) ? st : "Absent",
+            LectureCode = l.LectureCode
         })
         .ToList();
     }
