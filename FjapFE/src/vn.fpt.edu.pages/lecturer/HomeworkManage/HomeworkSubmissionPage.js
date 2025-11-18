@@ -22,6 +22,7 @@ import {
   UserOutlined,
   FileTextOutlined,
   StarOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
@@ -42,6 +43,71 @@ const HomeworkSubmissionPage = () => {
   const [currentSubmission, setCurrentSubmission] = useState(null);
   const [savingEvaluation, setSavingEvaluation] = useState(false);
   const [evaluationForm] = Form.useForm();
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  const buildPreviewUrl = (url) => {
+    if (!url) return null;
+    try {
+      const parsed = new URL(url, window.location.href);
+      const lowerHost = parsed.hostname.toLowerCase();
+      const isDrive = lowerHost.includes("drive.google.com");
+      const isLocalhost =
+        lowerHost.includes("localhost") || lowerHost.includes("127.0.0.1");
+      const filePath = parsed.pathname || "";
+      const ext = filePath.split(".").pop()?.toLowerCase();
+      const directTypes = ["png", "jpg", "jpeg", "gif", "webp", "svg", "pdf"];
+      const officeTypes = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+
+      if (isLocalhost) {
+        return parsed.toString();
+      }
+
+      if (isDrive) {
+        if (parsed.pathname.includes("/preview")) {
+          return parsed.toString();
+        }
+        const shareIdMatch = parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/);
+        if (shareIdMatch) {
+          return `https://drive.google.com/file/d/${shareIdMatch[1]}/preview`;
+        }
+        return `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(
+          url
+        )}`;
+      }
+
+      if (ext && directTypes.includes(ext)) {
+        return parsed.toString();
+      }
+
+      if (ext && officeTypes.includes(ext)) {
+        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+          parsed.toString()
+        )}`;
+      }
+
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(
+        url
+      )}&embedded=true`;
+    } catch (error) {
+      return url;
+    }
+  };
+
+  const handleOpenPreview = (url) => {
+    const preview = buildPreviewUrl(url);
+    if (!preview) {
+      message.warning("Preview is unavailable for this file.");
+      return;
+    }
+    setPreviewUrl(preview);
+    setPreviewModalVisible(true);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewModalVisible(false);
+    setPreviewUrl(null);
+  };
 
   useEffect(() => {
     const fetchSubmissions = async () => {
@@ -76,17 +142,16 @@ const HomeworkSubmissionPage = () => {
   }, [slot, homework]);
 
   const statusOptions = [
-    { value: "Reviewed", label: "Reviewed" },
-    { value: "Approved", label: "Approved" },
-    { value: "Needs Revision", label: "Needs Revision" },
-    { value: "Rejected", label: "Rejected" },
+    { value: "Submitted", label: "Submitted" },
+    { value: "Graded", label: "Graded" },
     { value: "Late", label: "Late" },
+    { value: "Rejected", label: "Rejected" },
   ];
 
   const openEvaluation = (record) => {
     setCurrentSubmission(record);
     evaluationForm.setFieldsValue({
-      status: record.status || "Reviewed",
+      status: record.status || "Graded",
       comment: record.comment || "",
       feedback: record.feedback || "",
     });
@@ -163,13 +228,13 @@ const HomeworkSubmissionPage = () => {
         if (!status) return <Tag>Submitted</Tag>;
         const lowered = status.toLowerCase();
         const color =
-          lowered === "approved"
+          lowered === "graded"
             ? "green"
             : lowered === "rejected"
             ? "red"
             : lowered === "late"
             ? "orange"
-            : "blue";
+            : "default";
         return <Tag color={color}>{status}</Tag>;
       },
     },
@@ -180,17 +245,25 @@ const HomeworkSubmissionPage = () => {
       width: 160,
       render: (filePath) =>
         filePath ? (
-          <Button
-            type="link"
-            icon={<FileTextOutlined />}
-            href={filePath}
-            target="_blank"
-            rel="noreferrer"
-            download
-            style={{ padding: 0 }}
-          >
-            Download
-          </Button>
+          <Space>
+            <Button
+              icon={<EyeOutlined />}
+              onClick={() => handleOpenPreview(filePath)}
+            >
+              Preview
+            </Button>
+            <Button
+              type="link"
+              icon={<FileTextOutlined />}
+              href={filePath}
+              target="_blank"
+              rel="noreferrer"
+              download
+              style={{ padding: 0 }}
+            >
+              Download
+            </Button>
+          </Space>
         ) : (
           <span style={{ color: "#8c8c8c" }}>No file</span>
         ),
@@ -199,12 +272,6 @@ const HomeworkSubmissionPage = () => {
       title: "Comment",
       dataIndex: "comment",
       key: "comment",
-      render: (text) => text || "-",
-    },
-    {
-      title: "Feedback",
-      dataIndex: "feedback",
-      key: "feedback",
       render: (text) => text || "-",
     },
     {
@@ -343,6 +410,26 @@ const HomeworkSubmissionPage = () => {
       </Card>
 
       <Modal
+        title="Preview attachment"
+        open={previewModalVisible}
+        onCancel={handleClosePreview}
+        footer={null}
+        width={900}
+        destroyOnClose
+      >
+        {previewUrl ? (
+          <iframe
+            src={previewUrl}
+            title="Submission preview"
+            style={{ width: "100%", height: 520, border: "none" }}
+            sandbox="allow-scripts allow-same-origin allow-popups"
+          />
+        ) : (
+          <Empty description="No preview available" />
+        )}
+      </Modal>
+
+      <Modal
         title={
           currentSubmission
             ? `Evaluate ${currentSubmission.studentName || "student"}`
@@ -365,9 +452,6 @@ const HomeworkSubmissionPage = () => {
           </Form.Item>
           <Form.Item name="comment" label="Comment">
             <TextArea rows={3} placeholder="Internal notes..." />
-          </Form.Item>
-          <Form.Item name="feedback" label="Feedback for student">
-            <TextArea rows={4} placeholder="Share feedback with student..." />
           </Form.Item>
         </Form>
       </Modal>
