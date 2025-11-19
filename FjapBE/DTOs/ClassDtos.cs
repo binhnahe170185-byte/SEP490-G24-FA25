@@ -1,4 +1,5 @@
-namespace FJAP.vn.fpt.edu.models;
+ using System.Collections.Generic;
+ namespace FJAP.vn.fpt.edu.models;
 
 public class ClassScheduleDto
 {
@@ -27,4 +28,30 @@ public class CreateScheduleRequest
     public int LecturerId { get; set; }
     public List<SchedulePatternDto> Patterns { get; set; } = new();
 }
+ 
+public class StudentScheduleCache
+{
+    public IReadOnlyList<int> StudentIds { get; set; } = new List<int>();
+    public Dictionary<int, HashSet<string>> StudentTimeMap { get; set; } = new();
+}
 
+ public class AvailabilityCheckRequest
+ {
+         public DateOnly Date { get; set; }
+     public int TimeId { get; set; }
+     public int? ClassId { get; set; }
+     public int? RoomId { get; set; }
+     public int? LecturerId { get; set; }
+     public List<int>? StudentIds { get; set; }
+ }
+ 
+ public class AvailabilityCheckResponse
+ {
+         public bool IsClassBusy { get; set; }
+     public bool IsRoomBusy { get; set; }
+     public bool IsLecturerBusy { get; set; }
+     public List<int> ConflictedStudentIds { get; set; } = new();
+     public List<int> ConflictedClassIds { get; set; } = new();
+     public string SnapshotSource { get; set; } = "slot_view";
+ }
+ 

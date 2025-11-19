@@ -13,12 +13,17 @@ public class ClassController : ControllerBase
     private readonly IClassService _classService;
     private readonly IStudentService _studentService;
     private readonly FjapDbContext _db;
-
-    public ClassController(IClassService classService, IStudentService studentService, FjapDbContext db)
+    private readonly IScheduleAvailabilityService _availabilityService;
+    public ClassController(
+       IClassService classService,
+       IStudentService studentService,
+       FjapDbContext db,
+       IScheduleAvailabilityService availabilityService)
     {
         _classService = classService;
         _studentService = studentService;
         _db = db;
+        _availabilityService = availabilityService;
     }
 
     [HttpGet]
@@ -454,6 +459,32 @@ public class ClassController : ControllerBase
         {
             Console.WriteLine($"Error in CreateSchedule: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    [HttpPost("schedule/availability")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CheckAvailability([FromBody] AvailabilityCheckRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { code = 400, message = "Request payload is required" });
+        }
+
+        try
+        {
+            var result = await _availabilityService.CheckAvailabilityAsync(request);
+            return Ok(new { code = 200, data = result });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in CheckAvailability: {ex.Message}");
             return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
         }
     }
