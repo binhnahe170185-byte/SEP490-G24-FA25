@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,11 @@ namespace FJAP.Repositories;
 
 public class ClassRepository : GenericRepository<Class>, IClassRepository
 {
-    public ClassRepository(FjapDbContext context) : base(context)
+    private readonly IScheduleAvailabilityService _availabilityService;
+
+    public ClassRepository(FjapDbContext context, IScheduleAvailabilityService availabilityService) : base(context)
     {
+        _availabilityService = availabilityService;
     }
 
     public async Task<Class?> GetWithStudentsAsync(int id)
@@ -569,13 +573,18 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             .Select(h => h.HolidayDate)
             .ToListAsync();
 
+        // Get startDate and endDate from semester
+        var startDate = semester.StartDate;
+        var endDate = semester.EndDate;
+
         Console.WriteLine($"Holidays count: {holidays.Count}");
+        var studentScheduleCache = await _availabilityService.BuildStudentScheduleCacheAsync(request.ClassId, startDate, endDate);
+        var classStudentIds = studentScheduleCache.StudentIds ?? Array.Empty<int>();
+        var studentTimeMap = studentScheduleCache.StudentTimeMap ?? new Dictionary<int, HashSet<string>>();
 
         // Prepare for conflict detection and lesson generation
         var lessonsToCreate = new List<Lesson>();
         var conflictMessages = new List<string>();
-        var startDate = semester.StartDate;
-        var endDate = semester.EndDate;
 
         // Find Monday of semester start
         var startDayOfWeek = (int)startDate.DayOfWeek;
@@ -656,6 +665,25 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                             conflictMessages.Add($"Room conflict: room #{pattern.RoomId} is occupied at {dateKey} timeId {pattern.TimeId}.");
                             continue;
                         }
+                        var conflictedStudents = new List<int>();
+                        if (classStudentIds.Any())
+                        {
+                            foreach (var studentId in classStudentIds)
+                            {
+                                if (studentTimeMap.TryGetValue(studentId, out var studentSlots) && studentSlots.Contains(classTimeKey))
+                                {
+                                    conflictedStudents.Add(studentId);
+                                }
+                            }
+                        }
+
+                        if (conflictedStudents.Any())
+                        {
+                            var previewList = string.Join(", ", conflictedStudents.Take(5));
+                            var suffix = conflictedStudents.Count > 5 ? $" (+{conflictedStudents.Count - 5} more)" : string.Empty;
+                            conflictMessages.Add($"Student conflict: students [{previewList}{suffix}] are already scheduled at {dateKey} timeId {pattern.TimeId}.");
+                            continue;
+                        }
 
                         // 3) Lecturer-time: lecturer already occupied at this date/time
                         if (lecturerTimeSet.Contains(lecturerTimeKey))
@@ -681,6 +709,18 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                         classTimeSet.Add(classTimeKey);
                         roomTimeSet.Add(roomTimeKey);
                         lecturerTimeSet.Add(lecturerTimeKey);
+                        if (classStudentIds.Any())
+                        {
+                            foreach (var studentId in classStudentIds)
+                            {
+                                if (!studentTimeMap.TryGetValue(studentId, out var slots))
+                                {
+                                    slots = new HashSet<string>();
+                                    studentTimeMap[studentId] = slots;
+                                }
+                                slots.Add(classTimeKey);
+                            }
+                        }
                     }
                 }
             }

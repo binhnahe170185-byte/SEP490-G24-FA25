@@ -53,7 +53,9 @@ const CreateSchedule = () => {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [classStudents, setClassStudents] = useState([]);
+  const [availabilityMap, setAvailabilityMap] = useState({});
+  const [pendingAvailability, setPendingAvailability] = useState({ status: 'idle' });
   // Static data
   const weekdays = [
     { value: '2', label: 'Mon' },
@@ -100,7 +102,30 @@ const CreateSchedule = () => {
     d.setDate(d.getDate() + days);
     return d;
   };
+ const findNextDateForWeekday = (startDate, targetWeekday) => {
+    if (!startDate || !targetWeekday) return null;
+    const normalizedTarget = parseInt(targetWeekday, 10);
+    if (Number.isNaN(normalizedTarget)) return null;
+    const baseDate = new Date(startDate);
+    for (let offset = 0; offset < 7; offset++) {
+      const candidate = addDays(baseDate, offset);
+      const weekday = candidate.getDay();
+      const normalized = weekday === 0 ? 8 : weekday + 1;
+      if (normalized === normalizedTarget) {
+        return candidate;
+      }
+    }
+    return null;
+  };
 
+  const buildAvailabilityKey = (lesson) => {
+    if (!lesson || !lesson.date) return null;
+    const slotValue = lesson.timeId || lesson.slot;
+    if (!slotValue) return null;
+    const roomKey = lesson.roomId || lesson.room;
+    if (!roomKey) return null;
+    return `${lesson.date}|${slotValue}|${roomKey}`;
+  };
   const clampWeekStartWithinSemester = (weekStart, semStart = null, semEnd = null) => {
     const startDate = semStart || semester.start;
     const endDate = semEnd || semester.end;
@@ -115,7 +140,13 @@ const CreateSchedule = () => {
   const getWeekRange = (weekStart) => {
     return `Week ${toYMD(weekStart)} → ${toYMD(addDays(weekStart, 6))}`;
   };
-
+ const getStudentIds = () => {
+    return (classStudents || [])
+      .map(student => student?.studentId || student?.id)
+      .filter((id) => id !== undefined && id !== null)
+      .map(id => parseInt(id, 10))
+      .filter(id => !Number.isNaN(id));
+  };
   const normalizeDateString = (rawDate) => {
     if (!rawDate) return '';
     if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
@@ -263,7 +294,123 @@ const CreateSchedule = () => {
       setPreviewLessons([]);
     }
   }, [lecturerCode, subjectCode, subjectName, patterns, semester.start, semester.end, rooms, holidays]);
+useEffect(() => {
+    if (!previewLessons || previewLessons.length === 0 || !lecturerId || !classId) {
+      setAvailabilityMap({});
+      return;
+    }
 
+    const uniqueLessons = new Map();
+    previewLessons.forEach((lesson) => {
+      const key = buildAvailabilityKey(lesson);
+      if (key && !uniqueLessons.has(key)) {
+        uniqueLessons.set(key, lesson);
+      }
+    });
+
+    if (uniqueLessons.size === 0) {
+      setAvailabilityMap({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchAvailability = async () => {
+      const entries = [];
+      const studentIds = getStudentIds();
+      for (const [key, lesson] of uniqueLessons.entries()) {
+        try {
+          const payload = {
+            date: lesson.date,
+            timeId: parseInt(lesson.timeId || lesson.slot, 10),
+            classId: classId ? parseInt(classId, 10) : undefined,
+            roomId: lesson.roomId ? parseInt(lesson.roomId, 10) : undefined,
+            lecturerId: lecturerId ? parseInt(lecturerId, 10) : undefined,
+            studentIds,
+          };
+          const availability = await ClassList.checkAvailability(payload);
+          const reasons = [];
+          if (availability?.isRoomBusy) reasons.push('Room busy');
+          if (availability?.isLecturerBusy) reasons.push('Lecturer busy');
+          if (availability?.isClassBusy) reasons.push('Class busy');
+          if (availability?.conflictedStudentIds?.length) {
+            reasons.push(`${availability.conflictedStudentIds.length} students busy`);
+          }
+          entries.push([key, { ...availability, message: reasons.length > 0 ? reasons.join(' | ') : 'Slot looks good' }]);
+        } catch (error) {
+          console.error('Failed to check availability for preview lesson:', error);
+        }
+      }
+
+      if (!cancelled) {
+        setAvailabilityMap(Object.fromEntries(entries));
+      }
+    };
+
+    fetchAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previewLessons, lecturerId, classId, classStudents]);
+
+  useEffect(() => {
+    if (!weekday || !slotId || !roomId || !semester.start || !lecturerId || !classId) {
+      setPendingAvailability({ status: 'idle' });
+      return;
+    }
+
+    const nextDate = findNextDateForWeekday(semester.start, weekday);
+    if (!nextDate) {
+      setPendingAvailability({ status: 'idle' });
+      return;
+    }
+
+    const studentIds = getStudentIds();
+    const payload = {
+      date: toYMD(nextDate),
+      timeId: parseInt(slotId, 10),
+      classId: classId ? parseInt(classId, 10) : undefined,
+      roomId: roomId ? parseInt(roomId, 10) : undefined,
+      lecturerId: lecturerId ? parseInt(lecturerId, 10) : undefined,
+      studentIds,
+    };
+
+    let cancelled = false;
+    setPendingAvailability({ status: 'loading' });
+
+    ClassList.checkAvailability(payload)
+      .then((result) => {
+        if (cancelled) return;
+        const reasons = [];
+        if (result?.isClassBusy) reasons.push('Class already scheduled');
+        if (result?.isRoomBusy) reasons.push('Room is occupied');
+        if (result?.isLecturerBusy) reasons.push('Lecturer is busy');
+        if (result?.conflictedStudentIds && result.conflictedStudentIds.length > 0) {
+          reasons.push(`${result.conflictedStudentIds.length} students have other classes`);
+        }
+        const hasConflict = reasons.length > 0;
+        setPendingAvailability({
+          status: 'ready',
+          hasConflict,
+          result,
+          message: hasConflict ? reasons.join(' | ') : 'Slot is available',
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Failed to check pending selection availability:', error);
+        setPendingAvailability({
+          status: 'error',
+          hasConflict: true,
+          message: error?.response?.data?.message || 'Unable to verify slot availability',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [weekday, slotId, roomId, lecturerId, classId, semester.start, classStudents]);
   // Generate lessons from patterns for entire semester
   const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer, subjectCodeValue, subjectNameValue) => {
     const generatedLessons = [];
@@ -319,7 +466,37 @@ const CreateSchedule = () => {
 
     return generatedLessons;
   };
-
+ const fetchClassStudents = async (clsId) => {
+    if (!clsId) {
+      setClassStudents([]);
+      return;
+    }
+    try {
+      const studentResponse = await ClassList.getStudents(clsId);
+      const rawStudents = studentResponse?.data
+        || studentResponse?.students
+        || studentResponse?.items
+        || studentResponse
+        || [];
+      const formatted = (Array.isArray(rawStudents) ? rawStudents : [])
+        .map((student) => {
+          const user = student.user || {};
+          const firstName = student.firstName || user.firstName || '';
+          const lastName = student.lastName || user.lastName || '';
+          const fullName = `${firstName} ${lastName}`.trim();
+          return {
+            studentId: student.studentId || student.id || student.userId,
+            studentCode: student.studentCode || student.code,
+            fullName: fullName || student.name || '',
+          };
+        })
+        .filter((student) => student.studentId);
+      setClassStudents(formatted);
+    } catch (error) {
+      console.error('Failed to fetch class students:', error);
+      setClassStudents([]);
+    }
+  };
   const handleLoadClass = async (data) => {
     // Nếu nhận được data từ PickSemesterAndClass (API call)
     if (data && data.schedule) {
@@ -452,7 +629,7 @@ const CreateSchedule = () => {
       // Also update semesterId and classId in parent state
       setSemesterId(semId);
       setClassId(clsId);
-
+      fetchClassStudents(clsId);
       return;
     }
 
@@ -482,7 +659,15 @@ const CreateSchedule = () => {
       });
       return;
     }
-
+    if (pendingAvailability?.hasConflict) {
+          api.error({
+            message: 'Slot unavailable',
+            description: pendingAvailability?.message || 'The selected slot is not available for this class',
+            placement: 'bottomRight',
+            duration: 5,
+          });
+          return;
+        }
     const newPatterns = [...patterns, {
       weekday: parseInt(weekday),
       slot: parseInt(slotId),
@@ -644,6 +829,13 @@ const CreateSchedule = () => {
             if (lecturerMatch) {
               const [, date, timeId] = lecturerMatch;
               firstMessage = `Lecturer Conflict: The lecturer is already teaching on ${date}, slot ${timeId}.`;
+            } else {
+              const studentRegex = /Student conflict:\s*students\s*\[(.+?)\]/i;
+              const studentMatch = studentRegex.exec(serverMsg);
+              if (studentMatch) {
+                const conflicted = studentMatch[1];
+                firstMessage = `Student Conflict: ${conflicted} already have lessons at the same time.`;
+              }
             }
           }
         }
@@ -675,8 +867,9 @@ const CreateSchedule = () => {
     }
   };
 
-  // Helper function to check if two lessons conflict (same date, timeId, and room)
-  // Conflict only occurs when preview lesson overlaps with loaded lesson at the exact same date, time, and room
+
+  // Helper function to check if two lessons conflict (same date & slot regardless of room)
+  // We only care about the class occupying a slot, not the physical room, because the BE enforces room conflicts separately.
   const isLessonConflict = (previewLesson, loadedLesson) => {
     if (!previewLesson || !loadedLesson) return false;
 
@@ -686,21 +879,7 @@ const CreateSchedule = () => {
     // Must be at the same time slot
     const timeId1 = previewLesson.timeId || previewLesson.slot;
     const timeId2 = loadedLesson.timeId || loadedLesson.slot;
-    if (parseInt(timeId1) !== parseInt(timeId2)) return false;
-
-    // Must be in the same room (compare by roomId if available, otherwise by room name)
-    const previewRoomId = previewLesson.roomId;
-    const loadedRoomId = loadedLesson.roomId;
-
-    // If both have roomId, compare by roomId
-    if (previewRoomId && loadedRoomId) {
-      return String(previewRoomId) === String(loadedRoomId);
-    }
-
-    // Otherwise, compare by room name
-    const previewRoom = previewLesson.room || '';
-    const loadedRoom = loadedLesson.room || '';
-    return previewRoom === loadedRoom && previewRoom !== '';
+    return parseInt(timeId1, 10) === parseInt(timeId2, 10);
   };
 
   const renderCalendar = (weekStart) => {
@@ -779,7 +958,17 @@ const CreateSchedule = () => {
             return other.date === dateStr && parseInt(otherTimeId) === parseInt(thisTimeId);
           });
 
-          const hasConflict = loadedConflict || hasPreviewClassConflict;
+            const availabilityKey = buildAvailabilityKey(previewLesson);
+          const slotAvailability = availabilityKey ? availabilityMap[availabilityKey] : null;
+          const slotReasons = [];
+          if (slotAvailability?.isRoomBusy) slotReasons.push('Room busy');
+          if (slotAvailability?.isLecturerBusy) slotReasons.push('Lecturer busy');
+          if (slotAvailability?.isClassBusy) slotReasons.push('Class already scheduled');
+          if (slotAvailability?.conflictedStudentIds?.length) {
+            slotReasons.push(`${slotAvailability.conflictedStudentIds.length} students busy`);
+          }
+          const availabilityConflict = slotReasons.length > 0;
+          const hasConflict = loadedConflict || hasPreviewClassConflict || availabilityConflict;
           
           // Preview lesson exists - display SubjectCode, SubjectName, RoomName
           const previewSubjectCode = subjectCode || '';
@@ -795,17 +984,29 @@ const CreateSchedule = () => {
           
           if (hasConflict) {
             // Conflict: red background - show preview with conflict indicator
-            const loadedSubjectCode = loadedLesson.subjectCode || '';
-            const loadedSubjectName = loadedLesson.subjectName || '';
-            const loadedRoomName = loadedLesson.room || '';
-            const loadedParts = [];
-            if (loadedSubjectCode) loadedParts.push(loadedSubjectCode);
-            if (loadedSubjectName) loadedParts.push(loadedSubjectName);
-            if (loadedRoomName) loadedParts.push(loadedRoomName);
-            const conflictText = loadedParts.length > 0 ? loadedParts.join(' | ') : 'Conflict';
-            cellContents.push(`${displayText} ⚠️ (Conflict: ${conflictText})`);
-            cellStyle = { 
-              backgroundColor: '#ffebee', 
+          const conflictParts = [];
+            if (loadedConflict && loadedLesson) {
+              const loadedSubjectCode = loadedLesson.subjectCode || '';
+              const loadedSubjectName = loadedLesson.subjectName || '';
+              const loadedRoomName = loadedLesson.room || '';
+              const loadedParts = [];
+              if (loadedSubjectCode) loadedParts.push(loadedSubjectCode);
+              if (loadedSubjectName) loadedParts.push(loadedSubjectName);
+              if (loadedRoomName) loadedParts.push(loadedRoomName);
+              if (loadedParts.length > 0) {
+                conflictParts.push(loadedParts.join(' | '));
+              }
+            }
+            if (hasPreviewClassConflict) {
+              conflictParts.push('Duplicate pattern in preview');
+            }
+            if (availabilityConflict && slotReasons.length > 0) {
+              conflictParts.push(slotReasons.join(' | '));
+            }
+            const conflictText = conflictParts.length > 0 ? conflictParts.join(' || ') : 'Conflict';
+            cellContents.push(`${displayText} ⚠️ (${conflictText})`);
+            cellStyle = {
+              backgroundColor: '#ffebee',
               color: '#c62828',
               fontWeight: 'bold',
               border: '2px solid #c62828'
@@ -813,9 +1014,10 @@ const CreateSchedule = () => {
             classNames.push('lesson-conflict');
           } else {
             // No conflict: green background
-            cellContents.push(displayText);
-            cellStyle = { 
-              backgroundColor: '#e8f5e9', 
+            const availabilityHint = slotAvailability?.message || '';
+            cellContents.push(availabilityHint ? `${displayText} (${availabilityHint})` : displayText);
+            cellStyle = {
+              backgroundColor: '#e8f5e9',
               color: '#2e7d32',
               fontWeight: 'bold',
               border: '2px solid #2e7d32'
@@ -961,7 +1163,7 @@ const CreateSchedule = () => {
             onSlotChange={setSlotId}
             onRoomChange={setRoomId}
             onAddPattern={handleAddPattern}
-            onRemovePattern={handleRemovePattern}
+            pendingAvailability={pendingAvailability}
           />
 
           <CalendarTable
