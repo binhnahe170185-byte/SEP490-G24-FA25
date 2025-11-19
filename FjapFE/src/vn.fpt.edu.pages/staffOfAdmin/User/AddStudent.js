@@ -19,6 +19,9 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
+const NAME_REGEX = /^[A-Za-zÀ-ỿà-ỹ\s.'-]+$/u;
+const PHONE_REGEX = /^(?:\+?84|0)(?:\d){8,9}$/;
+
 const GENDER_OPTIONS = [
   { value: "Male", label: "Male" },
   { value: "Female", label: "Female" },
@@ -39,6 +42,20 @@ export default function AddStudent() {
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [activeTab, setActiveTab] = useState("manual");
   const [currentSemester, setCurrentSemester] = useState(null); // Semester that student will be added to
+
+  // Phone validation rule (same as AddStaff)
+  const phoneRule = {
+    validator: (_, value) => {
+      const normalized = value ? value.replace(/[\s-]/g, "") : "";
+      if (!normalized) {
+        return Promise.reject(new Error("Enter phone"));
+      }
+      if (!PHONE_REGEX.test(normalized)) {
+        return Promise.reject(new Error("Phone must start with 0 or +84"));
+      }
+      return Promise.resolve();
+    },
+  };
 
   // Load levels and semesters
   useEffect(() => {
@@ -331,20 +348,27 @@ export default function AddStudent() {
         return;
       }
 
-      // Validate phone number format (if provided)
-      if (userData.phoneNumber) {
-        const phoneRegex = /^[0-9]{10,11}$/;
-        if (!phoneRegex.test(userData.phoneNumber.replace(/[\s-]/g, ""))) {
-          Modal.warning({
-            title: "Invalid phone number",
-            centered: true,
-            content: "Phone number must have 10-11 digits."
-          });
-          setLoading(false);
-          return;
-        }
-        userData.phoneNumber = userData.phoneNumber.replace(/[\s-]/g, "");
+      // Validate phone number format (required)
+      const normalizedPhone = userData.phoneNumber.replace(/[\s-]/g, "");
+      if (!normalizedPhone) {
+        Modal.warning({
+          title: "Phone number is required",
+          centered: true,
+          content: "Please enter a phone number."
+        });
+        setLoading(false);
+        return;
       }
+      if (!PHONE_REGEX.test(normalizedPhone)) {
+        Modal.warning({
+          title: "Invalid phone number",
+          centered: true,
+          content: "Phone number must start with 0 or +84 and have 10-11 digits."
+        });
+        setLoading(false);
+        return;
+      }
+      userData.phoneNumber = normalizedPhone;
 
       // Prepare payload for backend to create both user and student
       const studentPayload = {
@@ -574,7 +598,8 @@ export default function AddStudent() {
                           name="lastName"
                           rules={[
                             { required: true, message: "Please enter last name" },
-                            { min: 2, message: "Last name must be at least 2 characters" }
+                            { min: 2, message: "Last name must be at least 2 characters" },
+                            { pattern: NAME_REGEX, message: "Only letters allowed" }
                           ]}
                           style={{ marginBottom: 16 }}
                         >
@@ -590,7 +615,8 @@ export default function AddStudent() {
                           name="firstName"
                           rules={[
                             { required: true, message: "Please enter first name" },
-                            { min: 2, message: "First name must be at least 2 characters" }
+                            { min: 2, message: "First name must be at least 2 characters" },
+                            { pattern: NAME_REGEX, message: "Only letters allowed" }
                           ]}
                           style={{ marginBottom: 16 }}
                         >
@@ -624,17 +650,12 @@ export default function AddStudent() {
                         <Form.Item
                           label={<strong>Phone Number</strong>}
                           name="phoneNumber"
-                          rules={[
-                            {
-                              pattern: /^[0-9\s-]{10,11}$/,
-                              message: "Phone number must have 10-11 digits"
-                            }
-                          ]}
+                          rules={[phoneRule]}
                           style={{ marginBottom: 16 }}
                         >
                           <Input
                             prefix={<PhoneOutlined />}
-                            placeholder="0123456789"
+                            placeholder="0xxxxxxxxx"
                           />
                         </Form.Item>
                       </Col>

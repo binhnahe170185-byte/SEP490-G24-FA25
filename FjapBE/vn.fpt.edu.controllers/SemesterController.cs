@@ -50,7 +50,35 @@ public class SemesterController : ControllerBase
                 .ThenByDescending(x => x.Name)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .Select(x => new
+                {
+                    x.SemesterId,
+                    x.Name,
+                    x.SemesterCode,
+                    x.StartDate,
+                    x.EndDate
+                })
                 .ToListAsync();
+
+            // Get semester IDs for counting
+            var semesterIds = semesters.Select(s => s.SemesterId).ToList();
+
+            // Count classes and students for each semester
+            var classCountsList = await _db.Classes
+                .AsNoTracking()
+                .Where(c => semesterIds.Contains(c.SemesterId))
+                .GroupBy(c => c.SemesterId)
+                .Select(g => new { SemesterId = g.Key, Count = g.Count() })
+                .ToListAsync();
+            var classCounts = classCountsList.ToDictionary(x => x.SemesterId, x => x.Count);
+
+            var studentCountsList = await _db.Students
+                .AsNoTracking()
+                .Where(s => s.SemesterId.HasValue && semesterIds.Contains(s.SemesterId.Value))
+                .GroupBy(s => s.SemesterId!.Value)
+                .Select(g => new { SemesterId = g.Key, Count = g.Count() })
+                .ToListAsync();
+            var studentCounts = studentCountsList.ToDictionary(x => x.SemesterId, x => x.Count);
 
             // Transform to response format
             var items = semesters.Select(x => new
@@ -61,8 +89,8 @@ public class SemesterController : ControllerBase
                 startDate = x.StartDate.ToString("yyyy-MM-dd"),
                 endDate = x.EndDate.ToString("yyyy-MM-dd"),
                 duration = (x.EndDate.DayNumber - x.StartDate.DayNumber),
-                classCount = x.Classes?.Count ?? 0,
-                studentCount = x.Students?.Count ?? 0
+                classCount = classCounts.GetValueOrDefault(x.SemesterId, 0),
+                studentCount = studentCounts.GetValueOrDefault(x.SemesterId, 0)
             }).ToList();
 
             return Ok(new
