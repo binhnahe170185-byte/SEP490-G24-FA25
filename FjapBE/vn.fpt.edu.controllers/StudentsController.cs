@@ -1,4 +1,4 @@
-﻿using FJAP.Services.Interfaces;
+using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
 using FJAP.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -79,42 +79,6 @@ public class StudentsController : ControllerBase
         var gpa = await _studentService.GetStudentSemesterGPAAsync(id, semesterId);
         return Ok(new { code = 200, data = gpa });
     }
-
-    /// Lấy Academic Transcript (bảng điểm tổng hợp) của sinh viên
-    /// GET: api/Students/{id}/academic-transcript
-    [HttpGet("{id:int}/academic-transcript")]
-    [ProducesResponseType(typeof(AcademicTranscriptDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAcademicTranscript(int id)
-    {
-        var transcript = await _studentService.GetAcademicTranscriptAsync(id);
-        return Ok(new { code = 200, data = transcript });
-    }
-
-    /// <summary>
-    /// Lấy danh sách tất cả môn học active trong curriculum với search và pagination
-    /// GET: api/Students/curriculum-subjects?search=&page=1&pageSize=20
-    /// </summary>
-    [HttpGet("curriculum-subjects")]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCurriculumSubjects(
-        [FromQuery] string? search = null,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
-    {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 20;
-        if (pageSize > 100) pageSize = 100;
-
-        var (subjects, totalCount) = await _studentService.GetCurriculumSubjectsAsync(search, page, pageSize);
-        return Ok(new
-        {
-            code = 200,
-            data = subjects,
-            total = totalCount,
-            page = page,
-            pageSize = pageSize
-        });
-    }
    
    
     [HttpGet]
@@ -133,30 +97,6 @@ public class StudentsController : ControllerBase
         var student = await _studentService.GetByIdAsync(id);
         if (student == null) return NotFound();
         return Ok(new { code = 200, data = student });
-    }
-
-    /// <summary>
-    /// List subjects the student took in a semester (for attendance view)
-    /// GET: api/Students/{id}/semesters/{semesterId}/attendance/subjects
-    /// </summary>
-    [HttpGet("{id:int}/semesters/{semesterId:int}/attendance/subjects")]
-    [ProducesResponseType(typeof(IEnumerable<StudentAttendanceSubjectDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetStudentAttendanceSubjects(int id, int semesterId)
-    {
-        var subjects = await _studentService.GetStudentAttendanceSubjectsAsync(id, semesterId);
-        return Ok(new { code = 200, data = subjects });
-    }
-
-    /// <summary>
-    /// List lessons and statuses for a subject in a semester for the student
-    /// GET: api/Students/{id}/semesters/{semesterId}/attendance/subjects/{subjectId}
-    /// </summary>
-    [HttpGet("{id:int}/semesters/{semesterId:int}/attendance/subjects/{subjectId:int}")]
-    [ProducesResponseType(typeof(IEnumerable<StudentAttendanceLessonDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetStudentAttendanceLessons(int id, int semesterId, int subjectId)
-    {
-        var lessons = await _studentService.GetStudentAttendanceLessonsAsync(id, semesterId, subjectId);
-        return Ok(new { code = 200, data = lessons });
     }
 
     [HttpGet("{id:int}/classes")]
@@ -276,8 +216,8 @@ public class StudentsController : ControllerBase
         instructionSheet.Cell(row - 1, 1).Style.Font.FontSize = 12;
 
         instructionSheet.Cell(row++, 1).Value = "1. Fill in student information in the 'Students' sheet";
-        instructionSheet.Cell(row++, 1).Value = "2. Required fields: FirstName, LastName, Email, Gender, Dob";
-        instructionSheet.Cell(row++, 1).Value = "3. Optional fields: Address, PhoneNumber";
+        instructionSheet.Cell(row++, 1).Value = "2. Required fields: FirstName, LastName, Email, Level, Gender, Dob";
+        instructionSheet.Cell(row++, 1).Value = "3. Optional fields: Address, PhoneNumber, Avatar (Google Drive link)";
         instructionSheet.Cell(row++, 1).Value = "4. Delete the example rows (row 2-4) before adding your data";
         instructionSheet.Cell(row++, 1).Value = "5. Save the file and upload it to the system";
 
@@ -286,13 +226,15 @@ public class StudentsController : ControllerBase
         instructionSheet.Cell(row - 1, 1).Style.Font.Bold = true;
         instructionSheet.Cell(row - 1, 1).Style.Font.FontSize = 12;
 
-        instructionSheet.Cell(row++, 1).Value = "• FirstName: Required, minimum 2 characters";
-        instructionSheet.Cell(row++, 1).Value = "• LastName: Required, minimum 2 characters";
-        instructionSheet.Cell(row++, 1).Value = "• Email: Required, must be valid email format (e.g., student@fpt.edu.vn)";
-        instructionSheet.Cell(row++, 1).Value = "• Gender: Required, must be one of: Male, Female, Other";
-        instructionSheet.Cell(row++, 1).Value = "• Dob: Required, format: YYYY-MM-DD (e.g., 2000-01-15)";
-        instructionSheet.Cell(row++, 1).Value = "• Address: Optional, can be left empty";
-        instructionSheet.Cell(row++, 1).Value = "• PhoneNumber: Optional, must be 10-11 digits if provided";
+        instructionSheet.Cell(row++, 1).Value = "• FirstName: Required, minimum 2 characters (Column A)";
+        instructionSheet.Cell(row++, 1).Value = "• LastName: Required, minimum 2 characters (Column B)";
+        instructionSheet.Cell(row++, 1).Value = "• Email: Required, must be valid email format (e.g., student@fpt.edu.vn) (Column C)";
+        instructionSheet.Cell(row++, 1).Value = "• Level: Required, must be valid level name (e.g., N1, N2, N3, N4, N5) - each row can have different level (Column D)";
+        instructionSheet.Cell(row++, 1).Value = "• Gender: Required, must be one of: Male, Female, Other (Column E)";
+        instructionSheet.Cell(row++, 1).Value = "• Dob: Required, format: YYYY-MM-DD (e.g., 2000-01-15) (Column F)";
+        instructionSheet.Cell(row++, 1).Value = "• Address: Optional, can be left empty (Column G)";
+        instructionSheet.Cell(row++, 1).Value = "• PhoneNumber: Optional, must be 10-11 digits if provided (Column H)";
+        instructionSheet.Cell(row++, 1).Value = "• Avatar: Optional, Google Drive link (Column I)";
 
         row += 2;
         instructionSheet.Cell(row++, 1).Value = "IMPORTANT NOTES:";
@@ -302,9 +244,9 @@ public class StudentsController : ControllerBase
 
         instructionSheet.Cell(row++, 1).Value = "• Email must be unique (cannot duplicate existing emails)";
         instructionSheet.Cell(row++, 1).Value = "• Phone number must be unique if provided (cannot duplicate)";
-        instructionSheet.Cell(row++, 1).Value = "• Student codes will be automatically generated by the system";
-        instructionSheet.Cell(row++, 1).Value = "• All students will be assigned to the selected Level and Semester";
-        instructionSheet.Cell(row++, 1).Value = "• Invalid rows will be skipped during import";
+        instructionSheet.Cell(row++, 1).Value = "• Student codes will be automatically generated by the system based on Semester and Level";
+        instructionSheet.Cell(row++, 1).Value = "• Each row can have a different level - student codes will be generated separately per level";
+        instructionSheet.Cell(row++, 1).Value = "• Invalid rows will be skipped during import and shown with error messages";
 
         // Auto-fit instruction sheet
         instructionSheet.Columns().AdjustToContents();
@@ -313,16 +255,19 @@ public class StudentsController : ControllerBase
         var ws = wb.Worksheets.Add("Students");
 
         // Header row with descriptions
+        // Column order: 1=FirstName, 2=LastName, 3=Email, 4=Level, 5=Gender, 6=Dob, 7=Address, 8=PhoneNumber, 9=Avatar
         ws.Cell(1, 1).Value = "FirstName";
         ws.Cell(1, 2).Value = "LastName";
         ws.Cell(1, 3).Value = "Email";
-        ws.Cell(1, 4).Value = "Gender";
-        ws.Cell(1, 5).Value = "Dob";
-        ws.Cell(1, 6).Value = "Address";
-        ws.Cell(1, 7).Value = "PhoneNumber";
+        ws.Cell(1, 4).Value = "Level";
+        ws.Cell(1, 5).Value = "Gender";
+        ws.Cell(1, 6).Value = "Dob";
+        ws.Cell(1, 7).Value = "Address";
+        ws.Cell(1, 8).Value = "PhoneNumber";
+        ws.Cell(1, 9).Value = "Avatar";
 
         // Style header
-        var headerRange = ws.Range(1, 1, 1, 7);
+        var headerRange = ws.Range(1, 1, 1, 9);
         headerRange.Style.Font.Bold = true;
         headerRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
         headerRange.Style.Border.TopBorder = XLBorderStyleValues.Thin;
@@ -334,49 +279,43 @@ public class StudentsController : ControllerBase
         // Users can refer to the Instructions sheet for detailed column requirements
 
         // Example rows with different data
+        // Column order: 1=FirstName, 2=LastName, 3=Email, 4=Level, 5=Gender, 6=Dob, 7=Address, 8=PhoneNumber, 9=Avatar
         ws.Cell(2, 1).Value = "Nguyen";
         ws.Cell(2, 2).Value = "Van A";
         ws.Cell(2, 3).Value = "student1@fpt.edu.vn";
-        ws.Cell(2, 4).Value = "Male";
-        ws.Cell(2, 5).Value = "2000-01-15";
-        ws.Cell(2, 6).Value = "123 Main Street, Hanoi";
-        ws.Cell(2, 7).Value = "0123456789";
+        ws.Cell(2, 4).Value = "N2";
+        ws.Cell(2, 5).Value = "Male";
+        ws.Cell(2, 6).Value = "2000-01-15";
+        ws.Cell(2, 7).Value = "123 Main Street, Hanoi";
+        ws.Cell(2, 8).Value = "0123456789";
+        ws.Cell(2, 9).Value = ""; // Empty avatar example
 
         ws.Cell(3, 1).Value = "Tran";
         ws.Cell(3, 2).Value = "Thi B";
         ws.Cell(3, 3).Value = "student2@fpt.edu.vn";
-        ws.Cell(3, 4).Value = "Female";
-        ws.Cell(3, 5).Value = "2001-05-20";
-        ws.Cell(3, 6).Value = "456 Park Avenue, Ho Chi Minh City";
-        ws.Cell(3, 7).Value = "0987654321";
+        ws.Cell(3, 4).Value = "N3";
+        ws.Cell(3, 5).Value = "Female";
+        ws.Cell(3, 6).Value = "2001-05-20";
+        ws.Cell(3, 7).Value = "456 Park Avenue, Ho Chi Minh City";
+        ws.Cell(3, 8).Value = "0987654321";
+        ws.Cell(3, 9).Value = ""; // Empty avatar example
 
         ws.Cell(4, 1).Value = "Le";
         ws.Cell(4, 2).Value = "Van C";
         ws.Cell(4, 3).Value = "student3@fpt.edu.vn";
-        ws.Cell(4, 4).Value = "Other";
-        ws.Cell(4, 5).Value = "1999-12-31";
-        ws.Cell(4, 6).Value = ""; // Empty address example
-        ws.Cell(4, 7).Value = ""; // Empty phone example
+        ws.Cell(4, 4).Value = "N2";
+        ws.Cell(4, 5).Value = "Other";
+        ws.Cell(4, 6).Value = "1999-12-31";
+        ws.Cell(4, 7).Value = ""; // Empty address example
+        ws.Cell(4, 8).Value = ""; // Empty phone example
+        ws.Cell(4, 9).Value = ""; // Empty avatar example
 
-        // Add data validation for Gender column (dropdown)
-        // Note: DataValidation API may vary by ClosedXML version
-        // For ClosedXML 0.105.0, we'll skip validation and rely on Instructions sheet
-        try
-        {
-            var genderRange = ws.Range(2, 4, 1000, 4);
-            // Data validation is optional - users can refer to Instructions sheet for guidance
-        }
-        catch
-        {
-            // DataValidation may not be fully supported in this ClosedXML version
-        }
-
-        // Format DOB column to show date format hint
-        var dobRange = ws.Range(2, 5, 1000, 5);
+        // Format DOB column to show date format hint (column 6)
+        var dobRange = ws.Range(2, 6, 1000, 6);
         dobRange.Style.NumberFormat.Format = "yyyy-mm-dd";
 
         // Style example rows
-        var exampleRange = ws.Range(2, 1, 4, 7);
+        var exampleRange = ws.Range(2, 1, 4, 9);
         exampleRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
         exampleRange.Style.Border.TopBorder = XLBorderStyleValues.Thin;
         exampleRange.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
@@ -386,7 +325,7 @@ public class StudentsController : ControllerBase
 
         // Add note below examples
         ws.Cell(5, 1).Value = "NOTE: Delete these example rows (rows 2-4) before adding your data";
-        ws.Range(5, 1, 5, 7).Merge();
+        ws.Range(5, 1, 5, 9).Merge();
         ws.Cell(5, 1).Style.Font.Bold = true;
         ws.Cell(5, 1).Style.Font.FontColor = XLColor.Red;
         ws.Cell(5, 1).Style.Fill.BackgroundColor = XLColor.LightPink;
@@ -398,10 +337,12 @@ public class StudentsController : ControllerBase
         ws.Column(1).Width = Math.Max(ws.Column(1).Width, 15); // FirstName
         ws.Column(2).Width = Math.Max(ws.Column(2).Width, 15); // LastName
         ws.Column(3).Width = Math.Max(ws.Column(3).Width, 25); // Email
-        ws.Column(4).Width = Math.Max(ws.Column(4).Width, 12); // Gender
-        ws.Column(5).Width = Math.Max(ws.Column(5).Width, 12); // Dob
-        ws.Column(6).Width = Math.Max(ws.Column(6).Width, 30); // Address
-        ws.Column(7).Width = Math.Max(ws.Column(7).Width, 15); // PhoneNumber
+        ws.Column(4).Width = Math.Max(ws.Column(4).Width, 12); // Level
+        ws.Column(5).Width = Math.Max(ws.Column(5).Width, 12); // Gender
+        ws.Column(6).Width = Math.Max(ws.Column(6).Width, 12); // Dob
+        ws.Column(7).Width = Math.Max(ws.Column(7).Width, 30); // Address
+        ws.Column(8).Width = Math.Max(ws.Column(8).Width, 15); // PhoneNumber
+        ws.Column(9).Width = Math.Max(ws.Column(9).Width, 40); // Avatar
 
             using var stream = new MemoryStream();
             wb.SaveAs(stream);
@@ -426,13 +367,14 @@ public class StudentsController : ControllerBase
     /// <summary>
     /// Preview Excel import - read file and return preview with validation
     /// POST: api/Students/import/preview
+    /// Note: levelId is optional - levels are read from Excel file
     /// </summary>
     [HttpPost("import/preview")]
     [ProducesResponseType(typeof(ImportStudentPreviewResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> PreviewImport(
         IFormFile file,
         [FromForm] int enrollmentSemesterId,
-        [FromForm] int levelId)
+        [FromForm] int? levelId = null)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { code = 400, message = "File is required" });

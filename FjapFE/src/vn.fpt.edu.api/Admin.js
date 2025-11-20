@@ -221,11 +221,13 @@ const AdminApi = {
     api.post("/api/StaffOfAdmin/users/student", payload).then((res) => res?.data ?? res),
 
   // Import students
-  previewImportStudents: (file, enrollmentSemesterId, levelId) => {
+  previewImportStudents: (file, enrollmentSemesterId, levelId = null) => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("enrollmentSemesterId", enrollmentSemesterId);
-    formData.append("levelId", levelId);
+    if (levelId) {
+      formData.append("levelId", levelId);
+    }
     return api.post("/api/Students/import/preview", formData, {
       headers: { "Content-Type": "multipart/form-data" }
     }).then((res) => res?.data?.data ?? res?.data);
