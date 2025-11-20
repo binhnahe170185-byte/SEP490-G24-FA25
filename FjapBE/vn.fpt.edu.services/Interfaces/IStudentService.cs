@@ -21,7 +21,7 @@ public interface IStudentService
     Task<SemesterGPADto> GetStudentSemesterGPAAsync(int studentId, int semesterId);
     Task<AcademicTranscriptDto> GetAcademicTranscriptAsync(int studentId);
     // Import methods
-    Task<ImportStudentPreviewResponse> PreviewImportAsync(Stream excelStream, int enrollmentSemesterId, int levelId);
+    Task<ImportStudentPreviewResponse> PreviewImportAsync(Stream excelStream, int enrollmentSemesterId, int? levelId = null);
     Task<ImportStudentResponse> ImportStudentsAsync(ImportStudentRequest request);
     Task<(IEnumerable<CurriculumSubjectDto> Items, int TotalCount)> GetCurriculumSubjectsAsync(string? search, int page, int pageSize);
 
