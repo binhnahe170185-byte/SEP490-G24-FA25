@@ -43,70 +43,29 @@ const HomeworkSubmissionPage = () => {
   const [currentSubmission, setCurrentSubmission] = useState(null);
   const [savingEvaluation, setSavingEvaluation] = useState(false);
   const [evaluationForm] = Form.useForm();
-  const [previewModalVisible, setPreviewModalVisible] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(null);
-
-  const buildPreviewUrl = (url) => {
-    if (!url) return null;
+  const appendCacheBuster = (url) => {
+    if (!url) return url;
     try {
       const parsed = new URL(url, window.location.href);
-      const lowerHost = parsed.hostname.toLowerCase();
-      const isDrive = lowerHost.includes("drive.google.com");
-      const isLocalhost =
-        lowerHost.includes("localhost") || lowerHost.includes("127.0.0.1");
-      const filePath = parsed.pathname || "";
-      const ext = filePath.split(".").pop()?.toLowerCase();
-      const directTypes = ["png", "jpg", "jpeg", "gif", "webp", "svg", "pdf"];
-      const officeTypes = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
-
-      if (isLocalhost) {
-        return parsed.toString();
-      }
-
-      if (isDrive) {
-        if (parsed.pathname.includes("/preview")) {
-          return parsed.toString();
-        }
-        const shareIdMatch = parsed.pathname.match(/\/d\/([A-Za-z0-9_-]+)/);
-        if (shareIdMatch) {
-          return `https://drive.google.com/file/d/${shareIdMatch[1]}/preview`;
-        }
-        return `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(
-          url
-        )}`;
-      }
-
-      if (ext && directTypes.includes(ext)) {
-        return parsed.toString();
-      }
-
-      if (ext && officeTypes.includes(ext)) {
-        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-          parsed.toString()
-        )}`;
-      }
-
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(
-        url
-      )}&embedded=true`;
-    } catch (error) {
-      return url;
+      parsed.searchParams.set("_", Date.now().toString());
+      return parsed.toString();
+    } catch {
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}_=${Date.now()}`;
     }
+  };
+
+  const handleOpenInNewTab = (url) => {
+    if (!url) {
+      message.warning("File path is missing.");
+      return;
+    }
+    const targetUrl = appendCacheBuster(url);
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleOpenPreview = (url) => {
-    const preview = buildPreviewUrl(url);
-    if (!preview) {
-      message.warning("Preview is unavailable for this file.");
-      return;
-    }
-    setPreviewUrl(preview);
-    setPreviewModalVisible(true);
-  };
-
-  const handleClosePreview = () => {
-    setPreviewModalVisible(false);
-    setPreviewUrl(null);
+    handleOpenInNewTab(url);
   };
 
   useEffect(() => {
@@ -415,26 +374,6 @@ const HomeworkSubmissionPage = () => {
           />
         )}
       </Card>
-
-      <Modal
-        title="Preview attachment"
-        open={previewModalVisible}
-        onCancel={handleClosePreview}
-        footer={null}
-        width={900}
-        destroyOnClose
-      >
-        {previewUrl ? (
-          <iframe
-            src={previewUrl}
-            title="Submission preview"
-            style={{ width: "100%", height: 520, border: "none" }}
-            sandbox="allow-scripts allow-same-origin allow-popups"
-          />
-        ) : (
-          <Empty description="No preview available" />
-        )}
-      </Modal>
 
       <Modal
         title={

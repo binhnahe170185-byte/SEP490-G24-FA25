@@ -1,6 +1,8 @@
 using System.Text;
 using System.Security.Claims;
 using System.IO;
+using System.Linq;
+using Microsoft.AspNetCore.Http;
 using Dapper;
 using FJAP.Hubs;
 using FJAP.vn.fpt.edu.models;
@@ -110,13 +112,15 @@ builder.Services.AddSignalR();
 
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";
+var allowedFrontendOrigins = new[]
+{
+    "http://localhost:3000",
+    "https://gray-plant-0778b1000.3.azurestaticapps.net"
+};
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy(CorsPolicy, p =>
-        p.WithOrigins(
-            "http://localhost:3000",
-            "https://gray-plant-0778b1000.3.azurestaticapps.net"
-        )
+        p.WithOrigins(allowedFrontendOrigins)
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials());
@@ -210,7 +214,7 @@ if (app.Environment.IsDevelopment())
 }
 
 var contentTypeProvider = new FileExtensionContentTypeProvider();
-contentTypeProvider.Mappings[".sql"] = "application/octet-stream";
+contentTypeProvider.Mappings[".sql"] = "text/plain";
 
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -221,11 +225,38 @@ app.UseStaticFiles(new StaticFileOptions
         var path = ctx.Context.Request.Path;
         if (path.HasValue && path.Value.StartsWith("/uploads/homeworks", StringComparison.OrdinalIgnoreCase))
         {
-            var fileName = Path.GetFileName(path);
-            ctx.Context.Response.Headers["Content-Disposition"] =
-                $"attachment; filename=\"{fileName}\"";
+            var origin = ctx.Context.Request.Headers["Origin"].ToString();
+            if (!string.IsNullOrEmpty(origin) &&
+                allowedFrontendOrigins.Any(o => string.Equals(o, origin, StringComparison.OrdinalIgnoreCase)))
+            {
+                ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                ctx.Context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+                ctx.Context.Response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-Requested-With";
+                ctx.Context.Response.Headers["Access-Control-Expose-Headers"] = "Content-Disposition";
+            }
         }
     }
+});
+
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method.Equals("OPTIONS", StringComparison.OrdinalIgnoreCase) &&
+        context.Request.Path.StartsWithSegments("/uploads/homeworks", StringComparison.OrdinalIgnoreCase))
+    {
+        var origin = context.Request.Headers["Origin"].ToString();
+        if (!string.IsNullOrEmpty(origin) &&
+            allowedFrontendOrigins.Any(o => string.Equals(o, origin, StringComparison.OrdinalIgnoreCase)))
+        {
+            context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+            context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+            context.Response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-Requested-With";
+            context.Response.Headers["Access-Control-Allow-Methods"] = "GET, OPTIONS";
+        }
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        return;
+    }
+
+    await next();
 });
 
 // Request logging middleware for debugging
