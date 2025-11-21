@@ -27,6 +27,7 @@ public class CreateScheduleRequest
     public int ClassId { get; set; }
     public int LecturerId { get; set; }
     public List<SchedulePatternDto> Patterns { get; set; } = new();
+    public int? TotalLesson { get; set; } // Optional: limit number of lessons to create
 }
  
 public class StudentScheduleCache

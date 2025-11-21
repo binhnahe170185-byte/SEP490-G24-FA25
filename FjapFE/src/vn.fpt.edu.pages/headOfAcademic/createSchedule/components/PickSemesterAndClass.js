@@ -26,7 +26,6 @@ const PickSemesterAndClass = ({
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [semesterOptions, setSemesterOptions] = useState([]);
   const [allClassesBySemester, setAllClassesBySemester] = useState({}); // { semesterId: [classes] }
-
   // Load semesters and classes grouped by semester from single API
   useEffect(() => {
     const fetchScheduleOptions = async () => {
@@ -64,10 +63,17 @@ const PickSemesterAndClass = ({
             const grouped = {};
             Object.keys(data.classesBySemester).forEach(semId => {
               const classes = data.classesBySemester[semId];
-              grouped[parseInt(semId)] = classes.map(cls => ({
-                value: cls.class_id || cls.classId,
-                label: cls.class_name || cls.className
-              }));
+              grouped[parseInt(semId)] = classes.map(cls => {
+                const className = cls.class_name || cls.className || '';
+                const subjectCode = cls.subject_code || cls.subjectCode || '';
+                const label = subjectCode 
+                  ? `${className} - ${subjectCode}`
+                  : className;
+                return {
+                  value: cls.class_id || cls.classId,
+                  label: label
+                };
+              });
             });
             setAllClassesBySemester(grouped);
           }

@@ -201,7 +201,7 @@ public class ClassController : ControllerBase
         });
     }
 
-    [HttpGet("{id:int}/students")]
+    [HttpGet("{id:int}/getInformationOfClass")]
     public async Task<IActionResult> GetWithStudents(int id)
     {
         var item = await _classService.GetWithStudentsAsync(id);
@@ -226,7 +226,8 @@ public class ClassController : ControllerBase
                     code = subject.SubjectCode,
                     levelId = subject.LevelId,
                     levelName = subject.Level?.LevelName,
-                    status = subject.Status
+                    status = subject.Status,
+                    totalLesson = subject.TotalLesson,
                 },
             level = level == null
                 ? null

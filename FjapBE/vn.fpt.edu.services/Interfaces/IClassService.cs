@@ -20,4 +20,5 @@ public interface IClassService
     Task<bool> HasDuplicateNameForSubjectAsync(string className, int subjectId, int? excludeClassId = null);
     Task<IEnumerable<ClassScheduleDto>> GetClassScheduleBySemesterAsync(int semesterId, int classId);
     Task<int> CreateScheduleFromPatternsAsync(CreateScheduleRequest request);
+    Task GetListStudentOfClassAsync(int id);
 }
