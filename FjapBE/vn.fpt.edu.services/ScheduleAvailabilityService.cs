@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
@@ -37,31 +36,32 @@ public class ScheduleAvailabilityService : IScheduleAvailabilityService
             return cache;
         }
 
-        var studentsClause = string.Join(",", studentIds);
-        var sqlBuilder = new StringBuilder();
-        sqlBuilder.AppendLine("SELECT e.student_id AS student_id,");
-        sqlBuilder.AppendLine("       l.date AS date,");
-        sqlBuilder.AppendLine("       l.time_id AS time_id");
-        sqlBuilder.AppendLine("FROM enrollment e");
-        sqlBuilder.AppendLine("INNER JOIN lesson l ON l.class_id = e.class_id");
-        sqlBuilder.AppendLine($"WHERE l.date >= '{semesterStart:yyyy-MM-dd}'");
-        sqlBuilder.AppendLine($"  AND l.date <= '{semesterEnd:yyyy-MM-dd}'");
-        sqlBuilder.AppendLine($"  AND e.student_id IN ({studentsClause})");
-
-        var snapshots = await _context.StudentScheduleSnapshots
-            .FromSqlRaw(sqlBuilder.ToString())
+        // Query directly from Lesson and Enrollment (many-to-many relationship)
+        var studentLessons = await _context.Lessons
             .AsNoTracking()
+            .Where(l => l.Date >= semesterStart && l.Date <= semesterEnd)
+            .Where(l => l.Class.Students.Any(s => studentIds.Contains(s.StudentId)))
+            .Select(l => new
+            {
+                StudentIds = l.Class.Students
+                    .Where(s => studentIds.Contains(s.StudentId))
+                    .Select(s => s.StudentId)
+                    .ToList(),
+                Date = l.Date,
+                TimeId = l.TimeId
+            })
             .ToListAsync();
 
-        foreach (var snapshot in snapshots)
+        foreach (var lesson in studentLessons)
         {
-            var key = $"{snapshot.Date:yyyy-MM-dd}|{snapshot.TimeId}";
-            if (!cache.StudentTimeMap.TryGetValue(snapshot.StudentId, out var slots))
+            var key = $"{lesson.Date:yyyy-MM-dd}|{lesson.TimeId}";
+            foreach (var studentId in lesson.StudentIds)
             {
-                slots = new HashSet<string>();
-                cache.StudentTimeMap[snapshot.StudentId] = slots;
+                if (cache.StudentTimeMap.TryGetValue(studentId, out var slots))
+                {
+                    slots.Add(key);
+                }
             }
-            slots.Add(key);
         }
 
         return cache;
@@ -84,26 +84,24 @@ public class ScheduleAvailabilityService : IScheduleAvailabilityService
             throw new ArgumentException("date must be provided", nameof(request));
         }
 
-        var slotSql = new StringBuilder();
-        slotSql.AppendLine("SELECT l.class_id AS class_id,");
-        slotSql.AppendLine("       l.room_id AS room_id,");
-        slotSql.AppendLine("       l.lecture_id AS lecture_id,");
-        slotSql.AppendLine("       l.date AS date,");
-        slotSql.AppendLine("       l.time_id AS time_id");
-        slotSql.AppendLine("FROM lesson l");
-        slotSql.AppendLine($"WHERE l.date = '{request.Date:yyyy-MM-dd}'");
-        slotSql.AppendLine($"  AND l.time_id = {request.TimeId}");
-
-        var slotSnapshots = await _context.ScheduleSlotSnapshots
-            .FromSqlRaw(slotSql.ToString())
+        // Query directly from Lesson table
+        var conflictingLessons = await _context.Lessons
             .AsNoTracking()
+            .Where(l => l.Date == request.Date && l.TimeId == request.TimeId)
+            .Select(l => new
+            {
+                ClassId = l.ClassId,
+                RoomId = l.RoomId,
+                LectureId = l.LectureId,
+                StudentIds = l.Class.Students.Select(s => s.StudentId).ToList()
+            })
             .ToListAsync();
 
         var response = new AvailabilityCheckResponse();
 
         if (request.ClassId.HasValue)
         {
-            response.IsClassBusy = slotSnapshots.Any(s => s.ClassId == request.ClassId.Value);
+            response.IsClassBusy = conflictingLessons.Any(l => l.ClassId == request.ClassId.Value);
             if (response.IsClassBusy && !response.ConflictedClassIds.Contains(request.ClassId.Value))
             {
                 response.ConflictedClassIds.Add(request.ClassId.Value);
@@ -112,9 +110,9 @@ public class ScheduleAvailabilityService : IScheduleAvailabilityService
 
         if (request.RoomId.HasValue)
         {
-            var conflictedClasses = slotSnapshots
-                .Where(s => s.RoomId == request.RoomId.Value)
-                .Select(s => s.ClassId)
+            var conflictedClasses = conflictingLessons
+                .Where(l => l.RoomId == request.RoomId.Value)
+                .Select(l => l.ClassId)
                 .Distinct()
                 .ToList();
             response.IsRoomBusy = conflictedClasses.Any();
@@ -129,29 +127,15 @@ public class ScheduleAvailabilityService : IScheduleAvailabilityService
 
         if (request.LecturerId.HasValue)
         {
-            response.IsLecturerBusy = slotSnapshots.Any(s => s.LecturerId == request.LecturerId.Value);
+            response.IsLecturerBusy = conflictingLessons.Any(l => l.LectureId == request.LecturerId.Value);
         }
 
         if (request.StudentIds != null && request.StudentIds.Any())
         {
-            var studentsClause = string.Join(",", request.StudentIds.Distinct());
-            var studentSql = new StringBuilder();
-            studentSql.AppendLine("SELECT e.student_id AS student_id,");
-            studentSql.AppendLine("       l.date AS date,");
-            studentSql.AppendLine("       l.time_id AS time_id");
-            studentSql.AppendLine("FROM enrollment e");
-            studentSql.AppendLine("INNER JOIN lesson l ON l.class_id = e.class_id");
-            studentSql.AppendLine($"WHERE l.date = '{request.Date:yyyy-MM-dd}'");
-            studentSql.AppendLine($"  AND l.time_id = {request.TimeId}");
-            studentSql.AppendLine($"  AND e.student_id IN ({studentsClause})");
-
-            var studentSnapshots = await _context.StudentScheduleSnapshots
-                .FromSqlRaw(studentSql.ToString())
-                .AsNoTracking()
-                .ToListAsync();
-
-            response.ConflictedStudentIds = studentSnapshots
-                .Select(s => s.StudentId)
+            var studentIdSet = request.StudentIds.Distinct().ToHashSet();
+            response.ConflictedStudentIds = conflictingLessons
+                .SelectMany(l => l.StudentIds)
+                .Where(id => studentIdSet.Contains(id))
                 .Distinct()
                 .ToList();
         }

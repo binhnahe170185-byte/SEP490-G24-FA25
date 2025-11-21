@@ -55,8 +55,6 @@ public partial class FjapDbContext : DbContext
     public virtual DbSet<Student> Students { get; set; }
 
     public virtual DbSet<Subject> Subjects { get; set; }
-    public virtual DbSet<ScheduleSlotSnapshot> ScheduleSlotSnapshots { get; set; }
-    public virtual DbSet<StudentScheduleSnapshot> StudentScheduleSnapshots { get; set; }
     public virtual DbSet<SubjectGradeType> SubjectGradeTypes { get; set; }
 
     public virtual DbSet<Timeslot> Timeslots { get; set; }
@@ -698,25 +696,6 @@ public partial class FjapDbContext : DbContext
                         j.IndexerProperty<int>("StudentId").HasColumnName("student_id");
                         j.IndexerProperty<int>("ClassId").HasColumnName("class_id");
                     });
-        });
-        modelBuilder.Entity<ScheduleSlotSnapshot>(entity =>
-        {
-            entity.HasNoKey();
-            entity.ToView(null);
-            entity.Property(e => e.ClassId).HasColumnName("class_id");
-            entity.Property(e => e.RoomId).HasColumnName("room_id");
-            entity.Property(e => e.LecturerId).HasColumnName("lecture_id");
-            entity.Property(e => e.Date).HasColumnName("date");
-            entity.Property(e => e.TimeId).HasColumnName("time_id");
-        });
-
-        modelBuilder.Entity<StudentScheduleSnapshot>(entity =>
-        {
-            entity.HasNoKey();
-            entity.ToView(null);
-            entity.Property(e => e.StudentId).HasColumnName("student_id");
-            entity.Property(e => e.Date).HasColumnName("date");
-            entity.Property(e => e.TimeId).HasColumnName("time_id");
         });
         modelBuilder.Entity<Subject>(entity =>
         {

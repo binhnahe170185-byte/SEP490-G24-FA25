@@ -17,6 +17,7 @@ import {
   Col,
   Typography,
   Tag,
+  Spin,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -102,7 +103,7 @@ const CreateSchedule = () => {
     d.setDate(d.getDate() + days);
     return d;
   };
- const findNextDateForWeekday = (startDate, targetWeekday) => {
+  const findNextDateForWeekday = (startDate, targetWeekday) => {
     if (!startDate || !targetWeekday) return null;
     const normalizedTarget = parseInt(targetWeekday, 10);
     if (Number.isNaN(normalizedTarget)) return null;
@@ -140,7 +141,7 @@ const CreateSchedule = () => {
   const getWeekRange = (weekStart) => {
     return `Week ${toYMD(weekStart)} → ${toYMD(addDays(weekStart, 6))}`;
   };
- const getStudentIds = () => {
+  const getStudentIds = () => {
     return (classStudents || [])
       .map(student => student?.studentId || student?.id)
       .filter((id) => id !== undefined && id !== null)
@@ -294,7 +295,7 @@ const CreateSchedule = () => {
       setPreviewLessons([]);
     }
   }, [lecturerCode, subjectCode, subjectName, patterns, semester.start, semester.end, rooms, holidays]);
-useEffect(() => {
+  useEffect(() => {
     if (!previewLessons || previewLessons.length === 0 || !lecturerId || !classId) {
       setAvailabilityMap({});
       return;
@@ -466,7 +467,7 @@ useEffect(() => {
 
     return generatedLessons;
   };
- const fetchClassStudents = async (clsId) => {
+  const fetchClassStudents = async (clsId) => {
     if (!clsId) {
       setClassStudents([]);
       return;
@@ -660,14 +661,14 @@ useEffect(() => {
       return;
     }
     if (pendingAvailability?.hasConflict) {
-          api.error({
-            message: 'Slot unavailable',
-            description: pendingAvailability?.message || 'The selected slot is not available for this class',
-            placement: 'bottomRight',
-            duration: 5,
-          });
-          return;
-        }
+      api.error({
+        message: 'Slot unavailable',
+        description: pendingAvailability?.message || 'The selected slot is not available for this class',
+        placement: 'bottomRight',
+        duration: 5,
+      });
+      return;
+    }
     const newPatterns = [...patterns, {
       weekday: parseInt(weekday),
       slot: parseInt(slotId),
@@ -847,7 +848,7 @@ useEffect(() => {
           duration: 8,
         });
 
-          } else {
+      } else {
         const fallback =
           error?.response?.data?.message ||
           error?.message ||
@@ -958,7 +959,7 @@ useEffect(() => {
             return other.date === dateStr && parseInt(otherTimeId) === parseInt(thisTimeId);
           });
 
-            const availabilityKey = buildAvailabilityKey(previewLesson);
+          const availabilityKey = buildAvailabilityKey(previewLesson);
           const slotAvailability = availabilityKey ? availabilityMap[availabilityKey] : null;
           const slotReasons = [];
           if (slotAvailability?.isRoomBusy) slotReasons.push('Room busy');
@@ -969,22 +970,22 @@ useEffect(() => {
           }
           const availabilityConflict = slotReasons.length > 0;
           const hasConflict = loadedConflict || hasPreviewClassConflict || availabilityConflict;
-          
+
           // Preview lesson exists - display SubjectCode, SubjectName, RoomName
           const previewSubjectCode = subjectCode || '';
           const previewSubjectName = subjectName || '';
           const previewRoomName = previewLesson.room || '';
-          
+
           const parts = [];
           if (previewSubjectCode) parts.push(previewSubjectCode);
           if (previewSubjectName) parts.push(previewSubjectName);
           if (previewRoomName) parts.push(previewRoomName);
-          
+
           const displayText = parts.join(' | ');
-          
+
           if (hasConflict) {
             // Conflict: red background - show preview with conflict indicator
-          const conflictParts = [];
+            const conflictParts = [];
             if (loadedConflict && loadedLesson) {
               const loadedSubjectCode = loadedLesson.subjectCode || '';
               const loadedSubjectName = loadedLesson.subjectName || '';
@@ -1030,13 +1031,13 @@ useEffect(() => {
           const loadedSubjectName = loadedLesson.subjectName || '';
           const loadedRoomName = loadedLesson.room || '';
           const loadedLecturerCode = loadedLesson.lecturer || '';
-          
+
           const parts = [];
           if (loadedSubjectCode) parts.push(loadedSubjectCode);
           if (loadedSubjectName) parts.push(loadedSubjectName);
           if (loadedRoomName) parts.push(loadedRoomName);
           if (loadedLecturerCode) parts.push(loadedLecturerCode);
-          
+
           cellContents.push(parts.length > 0 ? parts.join(' | ') : '');
           cellStyle = {
             backgroundColor: '#f5f5f5',
@@ -1047,9 +1048,9 @@ useEffect(() => {
 
         if (holidayName) {
           cellContents.unshift(
-            <div key="holiday" className="holiday-badge">
+            <Tag key="holiday" color="gold" style={{ marginBottom: 4 }}>
               {holidayName}
-            </div>
+            </Tag>
           );
           cellStyle = {
             ...(cellStyle || {}),
@@ -1083,11 +1084,14 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <div className="create-schedule-app">
-        <main className="create-schedule-main" style={{ padding: '20px', textAlign: 'center' }}>
-          <p>Loading data...</p>
-        </main>
-      </div>
+      <Layout className="create-schedule-app">
+        <Layout.Content className="create-schedule-main" style={{ padding: '40px', textAlign: 'center' }}>
+          <Space direction="vertical" size="large">
+            <Spin size="large" />
+            <Typography.Text type="secondary">Loading data...</Typography.Text>
+          </Space>
+        </Layout.Content>
+      </Layout>
     );
   }
 
@@ -1163,6 +1167,7 @@ useEffect(() => {
             onSlotChange={setSlotId}
             onRoomChange={setRoomId}
             onAddPattern={handleAddPattern}
+            onRemovePattern={handleRemovePattern}
             pendingAvailability={pendingAvailability}
           />
 
