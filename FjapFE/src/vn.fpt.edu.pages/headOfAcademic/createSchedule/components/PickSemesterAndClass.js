@@ -37,23 +37,34 @@ const PickSemesterAndClass = ({
         if (data) {
           // Format semesters
           if (data.semesters && Array.isArray(data.semesters)) {
-            const formattedSemesters = data.semesters.map(sem => {
-              const id = sem.id || sem.semesterId;
-              const name = sem.name || '';
-              const startDate = sem.startDate || '';
-              const endDate = sem.endDate || '';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
 
-              const label = startDate && endDate
-                ? `${name} (${startDate} → ${endDate})`
-                : name || 'Unknown Semester';
+            const formattedSemesters = data.semesters
+              .map(sem => {
+                const id = sem.id || sem.semesterId;
+                const name = sem.name || '';
+                const startDate = sem.startDate || '';
+                const endDate = sem.endDate || '';
 
-              return {
-                value: id,
-                label: label,
-                startDate: startDate,
-                endDate: endDate
-              };
-            });
+                const label = startDate && endDate
+                  ? `${name} (${startDate} → ${endDate})`
+                  : name || 'Unknown Semester';
+
+                return {
+                  value: id,
+                  label: label,
+                  startDate: startDate,
+                  endDate: endDate
+                };
+              })
+              .filter(sem => {
+                // Only show semesters that are current or future (endDate >= today)
+                if (!sem.endDate) return false; // Exclude semesters without endDate
+                const endDateObj = new Date(sem.endDate);
+                endDateObj.setHours(0, 0, 0, 0);
+                return endDateObj >= today;
+              });
             setSemesterOptions(formattedSemesters);
           }
 
@@ -66,7 +77,7 @@ const PickSemesterAndClass = ({
               grouped[parseInt(semId)] = classes.map(cls => {
                 const className = cls.class_name || cls.className || '';
                 const subjectCode = cls.subject_code || cls.subjectCode || '';
-                const label = subjectCode 
+                const label = subjectCode
                   ? `${className} - ${subjectCode}`
                   : className;
                 return {
@@ -201,13 +212,19 @@ const PickSemesterAndClass = ({
               />
             </Form.Item>
 
-            <Form.Item label=" " colon={false}>
+            <Form.Item
+              label=" "
+              colon={false}
+              style={{ minWidth: 220 }}
+              className="create-schedule-form-item"
+            >
               <Button
                 type="primary"
                 icon={<ReloadOutlined />}
                 onClick={handleLoadClass}
                 disabled={!semesterId || !classId}
                 loading={loadingSchedule}
+                style={{ width: '100%', height: '32px' }}
               >
                 Load Class
               </Button>
