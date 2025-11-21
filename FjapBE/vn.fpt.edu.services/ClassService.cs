@@ -92,4 +92,9 @@ public class ClassService : IClassService
 
     public Task<int> CreateScheduleFromPatternsAsync(CreateScheduleRequest request)
         => _classRepository.CreateScheduleFromPatternsAsync(request);
+
+    public Task GetListStudentOfClassAsync(int id)
+    {
+        throw new NotImplementedException();
+    }
 }

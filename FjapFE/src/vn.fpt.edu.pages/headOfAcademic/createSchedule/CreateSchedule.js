@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import './CreateSchedule.css';
 import CalendarTable from './components/CalendarTable';
 import PickSemesterAndClass from './components/PickSemesterAndClass';
@@ -55,10 +55,18 @@ const CreateSchedule = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [classStudents, setClassStudents] = useState([]);
+  const [totalLesson, setTotalLesson] = useState(null); // Total lesson count from subject
   const [availabilityMap, setAvailabilityMap] = useState({});
   const [pendingAvailability, setPendingAvailability] = useState({ status: 'idle' });
-  // Static data
-  const weekdays = [
+  
+  // Filtered options for valid selections
+  const [filteredLecturers, setFilteredLecturers] = useState([]);
+  const [filteredWeekdays, setFilteredWeekdays] = useState([]);
+  const [filteredSlots, setFilteredSlots] = useState([]);
+  const [filteredRooms, setFilteredRooms] = useState([]);
+  const [filteringOptions, setFilteringOptions] = useState(false);
+  // Static data - use useMemo to prevent reference changes
+  const weekdays = useMemo(() => [
     { value: '2', label: 'Mon' },
     { value: '3', label: 'Tue' },
     { value: '4', label: 'Wed' },
@@ -66,16 +74,18 @@ const CreateSchedule = () => {
     { value: '6', label: 'Fri' },
     { value: '7', label: 'Sat' },
     { value: '8', label: 'Sun' },
-  ];
+  ], []);
 
   // Generate slots from timeslots (will be updated when timeslots are loaded)
   // Slots should map to timeId from timeslots
-  const slots = timeslots.length > 0
-    ? timeslots.map((ts) => ({
-      value: String(ts.timeId),
-      label: `Slot ${ts.timeId}`
-    }))
-    : Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Slot ${i + 1}` }));
+  const slots = useMemo(() => {
+    return timeslots.length > 0
+      ? timeslots.map((ts) => ({
+        value: String(ts.timeId),
+        label: `Slot ${ts.timeId}`
+      }))
+      : Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Slot ${i + 1}` }));
+  }, [timeslots]);
 
   // Helper functions
   const toYMD = (date) => {
@@ -412,6 +422,160 @@ const CreateSchedule = () => {
       cancelled = true;
     };
   }, [weekday, slotId, roomId, lecturerId, classId, semester.start, classStudents]);
+
+  // Initialize filtered options when weekdays, slots, or rooms change
+  useEffect(() => {
+    setFilteredWeekdays(weekdays);
+  }, [weekdays]);
+
+  useEffect(() => {
+    setFilteredSlots(slots);
+  }, [slots]);
+
+  useEffect(() => {
+    setFilteredRooms(rooms);
+  }, [rooms]);
+
+  // Filter options to show only valid selections
+  useEffect(() => {
+    // Skip if prerequisites not met
+    if (!classId || !semester.start || !semester.end || !lecturerId) {
+      setFilteringOptions(false);
+      return;
+    }
+
+    // Skip if no options available
+    if (weekdays.length === 0 || slots.length === 0 || rooms.length === 0) {
+      setFilteringOptions(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const filterOptions = async () => {
+      if (cancelled) return;
+
+      setFilteringOptions(true);
+      const studentIds = getStudentIds();
+      
+      // Only filter if we have enough information
+      // Filter weekdays: check if weekday is valid with current selections (need slot and room)
+      if (slotId && roomId) {
+        const validWeekdays = [];
+        for (const wd of weekdays) {
+          if (cancelled) return;
+          const testDate = findNextDateForWeekday(semester.start, wd.value);
+          if (!testDate) continue;
+          
+          try {
+            const payload = {
+              date: toYMD(testDate),
+              timeId: parseInt(slotId, 10),
+              classId: parseInt(classId, 10),
+              roomId: parseInt(roomId, 10),
+              lecturerId: parseInt(lecturerId, 10),
+              studentIds,
+            };
+            const result = await ClassList.checkAvailability(payload);
+            if (!result?.isClassBusy && !result?.isRoomBusy && 
+                !result?.isLecturerBusy && 
+                (!result?.conflictedStudentIds || result.conflictedStudentIds.length === 0)) {
+              validWeekdays.push(wd);
+            }
+          } catch (error) {
+            // On error, include the option (fail open)
+            validWeekdays.push(wd);
+          }
+        }
+        if (!cancelled) {
+          setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : weekdays);
+        }
+      }
+
+      // Filter slots: check if slot is valid with current selections (need weekday and room)
+      if (weekday && roomId) {
+        const validSlots = [];
+        const testDate = findNextDateForWeekday(semester.start, weekday);
+        if (testDate) {
+          for (const slot of slots) {
+            if (cancelled) return;
+            try {
+              const payload = {
+                date: toYMD(testDate),
+                timeId: parseInt(slot.value, 10),
+                classId: parseInt(classId, 10),
+                roomId: parseInt(roomId, 10),
+                lecturerId: parseInt(lecturerId, 10),
+                studentIds,
+              };
+              const result = await ClassList.checkAvailability(payload);
+              if (!result?.isClassBusy && !result?.isRoomBusy && 
+                  !result?.isLecturerBusy && 
+                  (!result?.conflictedStudentIds || result.conflictedStudentIds.length === 0)) {
+                validSlots.push(slot);
+              }
+            } catch (error) {
+              validSlots.push(slot);
+            }
+          }
+        } else {
+          validSlots.push(...slots);
+        }
+        if (!cancelled) {
+          setFilteredSlots(validSlots.length > 0 ? validSlots : slots);
+        }
+      }
+
+      // Filter rooms: check if room is valid with current selections (need weekday and slot)
+      if (weekday && slotId) {
+        const validRooms = [];
+        const testDate = findNextDateForWeekday(semester.start, weekday);
+        if (testDate) {
+          for (const room of rooms) {
+            if (cancelled) return;
+            try {
+              const payload = {
+                date: toYMD(testDate),
+                timeId: parseInt(slotId, 10),
+                classId: parseInt(classId, 10),
+                roomId: parseInt(room.value, 10),
+                lecturerId: parseInt(lecturerId, 10),
+                studentIds,
+              };
+              const result = await ClassList.checkAvailability(payload);
+              if (!result?.isClassBusy && !result?.isRoomBusy && 
+                  !result?.isLecturerBusy && 
+                  (!result?.conflictedStudentIds || result.conflictedStudentIds.length === 0)) {
+                validRooms.push(room);
+              }
+            } catch (error) {
+              validRooms.push(room);
+            }
+          }
+        } else {
+          validRooms.push(...rooms);
+        }
+        if (!cancelled) {
+          setFilteredRooms(validRooms.length > 0 ? validRooms : rooms);
+        }
+      }
+
+      if (!cancelled) {
+        setFilteringOptions(false);
+      }
+    };
+
+    // Debounce filtering to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      filterOptions();
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [weekday, slotId, roomId, lecturerId, classId, semester.start, semester.end, classStudents]);
+
   // Generate lessons from patterns for entire semester
   const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer, subjectCodeValue, subjectNameValue) => {
     const generatedLessons = [];
@@ -470,14 +634,16 @@ const CreateSchedule = () => {
   const fetchClassStudents = async (clsId) => {
     if (!clsId) {
       setClassStudents([]);
+      setTotalLesson(null);
       return;
     }
     try {
       const studentResponse = await ClassList.getStudents(clsId);
-      const rawStudents = studentResponse?.data
-        || studentResponse?.students
-        || studentResponse?.items
-        || studentResponse
+      const responseData = studentResponse?.data || studentResponse || {};
+      
+      // Extract students
+      const rawStudents = responseData?.students
+        || responseData?.items
         || [];
       const formatted = (Array.isArray(rawStudents) ? rawStudents : [])
         .map((student) => {
@@ -493,17 +659,29 @@ const CreateSchedule = () => {
         })
         .filter((student) => student.studentId);
       setClassStudents(formatted);
+      
+      // Extract totalLesson from subject
+      const subjectTotalLesson = responseData?.subject?.totalLesson 
+        || responseData?.totalLesson 
+        || null;
+      if (subjectTotalLesson !== null && subjectTotalLesson !== undefined) {
+        setTotalLesson(parseInt(subjectTotalLesson, 10));
+        console.log('Total lesson from subject:', subjectTotalLesson);
+      } else {
+        setTotalLesson(null);
+      }
     } catch (error) {
       console.error('Failed to fetch class students:', error);
       setClassStudents([]);
+      setTotalLesson(null);
     }
   };
   const handleLoadClass = async (data) => {
     // Nếu nhận được data từ PickSemesterAndClass (API call)
     if (data && data.schedule) {
-      const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt } = data;
+      const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt, subjectCode: subCode, subjectName: subName } = data;
 
-      console.log('Received schedule data:', { schedule, semOpt, semId, clsId });
+      console.log('Received schedule data:', { schedule, semOpt, semId, clsId, subCode, subName });
 
       // Tính toán semester start/end từ schedule data nếu không có từ semOpt
       let semStart, semEnd;
@@ -617,15 +795,22 @@ const CreateSchedule = () => {
       console.log('Converted loaded lessons:', convertedLessons);
       setLoadedLessons(convertedLessons);
 
-      // Set subject code and name from schedule
-      const firstSubjectCode = schedule[0]?.subjectCode || '';
-      const firstSubjectName = schedule[0]?.subjectName || '';
+      // Set subject code and name from API getInformationOfClass (priority) or from schedule (fallback)
+      const subjectCodeFromApi = subCode || '';
+      const subjectNameFromApi = subName || '';
+      const firstSubjectCode = subjectCodeFromApi || schedule[0]?.subjectCode || '';
+      const firstSubjectName = subjectNameFromApi || schedule[0]?.subjectName || '';
       const firstClassName = schedule[0]?.className || '';
+      
       if (firstSubjectCode) {
         setSubjectCode(firstSubjectCode);
       }
-      setSubjectName(firstSubjectName);
-      setClassName(firstClassName);
+      if (firstSubjectName) {
+        setSubjectName(firstSubjectName);
+      }
+      if (firstClassName) {
+        setClassName(firstClassName);
+      }
 
       // Also update semesterId and classId in parent state
       setSemesterId(semId);
@@ -767,7 +952,8 @@ const CreateSchedule = () => {
         semesterId: parseInt(effectiveSemesterId),
         classId: parseInt(classId),
         lecturerId: parseInt(lecturerId),
-        patterns: formattedPatterns
+        patterns: formattedPatterns,
+        totalLesson: totalLesson ? parseInt(totalLesson, 10) : null
       };
 
       console.log('Saving schedule with payload:', payload);
@@ -892,10 +1078,15 @@ const CreateSchedule = () => {
 
     const holidayLookup = holidays.reduce((acc, holiday) => {
       if (holiday.date) {
-        acc[holiday.date] = holiday.name || holiday.description || 'Holiday';
+        acc[holiday.date] = holiday.name || holiday.holidayName || holiday.reason || holiday.description || 'Holiday';
       }
       return acc;
     }, {});
+    
+    // Debug: log holidays for troubleshooting
+    if (holidays.length > 0 && Object.keys(holidayLookup).length === 0) {
+      console.warn('Holidays loaded but lookup is empty. Holiday dates:', holidays.map(h => h.date));
+    }
 
     const columns = [
       {
@@ -1047,11 +1238,20 @@ const CreateSchedule = () => {
         }
 
         if (holidayName) {
-          cellContents.unshift(
-            <Tag key="holiday" color="gold" style={{ marginBottom: 4 }}>
-              {holidayName}
-            </Tag>
-          );
+          // Always show holiday tag, even if cell is empty
+          if (cellContents.length === 0) {
+            cellContents.push(
+              <Tag key="holiday" color="gold">
+                {holidayName}
+              </Tag>
+            );
+          } else {
+            cellContents.unshift(
+              <Tag key="holiday" color="gold" style={{ marginBottom: 4 }}>
+                {holidayName}
+              </Tag>
+            );
+          }
           cellStyle = {
             ...(cellStyle || {}),
             backgroundColor: cellStyle.backgroundColor || '#fffde7',
@@ -1146,10 +1346,6 @@ const CreateSchedule = () => {
                 }}
                 subjectCode={subjectCode}
                 subjectName={subjectName}
-                onSubjectChange={(code, name) => {
-                  setSubjectCode(code);
-                  setSubjectName(name);
-                }}
               />
             </Col>
           </Row>
@@ -1159,9 +1355,9 @@ const CreateSchedule = () => {
             slotId={slotId}
             roomId={roomId}
             patterns={patterns}
-            weekdays={weekdays}
-            slots={slots}
-            rooms={rooms}
+            weekdays={filteredWeekdays.length > 0 ? filteredWeekdays : weekdays}
+            slots={filteredSlots.length > 0 ? filteredSlots : slots}
+            rooms={filteredRooms.length > 0 ? filteredRooms : rooms}
             weekdayMap={weekdayMap}
             onWeekdayChange={setWeekday}
             onSlotChange={setSlotId}
@@ -1169,6 +1365,7 @@ const CreateSchedule = () => {
             onAddPattern={handleAddPattern}
             onRemovePattern={handleRemovePattern}
             pendingAvailability={pendingAvailability}
+            filteringOptions={filteringOptions}
           />
 
           <CalendarTable

@@ -30,7 +30,8 @@ const WeeklyPatterns = ({
   onRoomChange,
   onAddPattern, 
   onRemovePattern,
-  pendingAvailability
+  pendingAvailability,
+  filteringOptions = false
 }) => {
   const hasValues = weekday && slotId && roomId;
 const availabilityState = pendingAvailability || {};
@@ -68,9 +69,9 @@ const availabilityState = pendingAvailability || {};
         </Tooltip>
       }
     >
-      {isChecking && (
+      {(isChecking || filteringOptions) && (
         <Alert
-          message="Checking availability..."
+          message={filteringOptions ? "Filtering valid options..." : "Checking availability..."}
           type="info"
           icon={<Spin size="small" />}
           showIcon
@@ -99,6 +100,8 @@ const availabilityState = pendingAvailability || {};
               placeholder="Select weekday"
               options={weekdays}
               allowClear
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
 
@@ -109,6 +112,8 @@ const availabilityState = pendingAvailability || {};
               placeholder="Select slot"
               options={slots}
               allowClear
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
 
@@ -121,6 +126,8 @@ const availabilityState = pendingAvailability || {};
               allowClear
               showSearch
               optionFilterProp="label"
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
         </Space>
