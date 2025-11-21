@@ -85,28 +85,28 @@ public class StudentService : IStudentService
     public async Task<AcademicTranscriptDto> GetAcademicTranscriptAsync(int studentId)
         => await _studentRepository.GetAcademicTranscriptAsync(studentId);
     // Import methods
-    public async Task<ImportStudentPreviewResponse> PreviewImportAsync(Stream excelStream, int enrollmentSemesterId, int levelId)
+    public async Task<ImportStudentPreviewResponse> PreviewImportAsync(Stream excelStream, int enrollmentSemesterId, int? levelId = null)
     {
         var response = new ImportStudentPreviewResponse();
         var previewRows = new List<ImportStudentPreviewRow>();
 
-        // Get enrollment semester and level
+        // Get enrollment semester
         var enrollmentSemester = await _db.Semesters.AsNoTracking()
             .FirstOrDefaultAsync(s => s.SemesterId == enrollmentSemesterId);
         if (enrollmentSemester == null)
             throw new ArgumentException("Enrollment semester not found");
 
-        var level = await _db.Levels.AsNoTracking()
-            .FirstOrDefaultAsync(l => l.LevelId == levelId);
-        if (level == null)
-            throw new ArgumentException("Level not found");
+        // Get all levels for validation
+        var allLevels = await _db.Levels.AsNoTracking()
+            .ToListAsync();
+        if (allLevels == null || allLevels.Count == 0)
+            throw new ArgumentException("No levels found in database");
 
         // Determine target semester (current semester)
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var targetSemester = await DetermineTargetSemesterAsync(enrollmentSemester, today);
 
-        // Extract level code and semester code for student code generation
-        var levelCode = ExtractLevelCode(level.LevelName);
+        // Extract semester code for student code generation
         var semesterCode = enrollmentSemester.SemesterCode ?? "";
 
         // Read Excel file - get "Students" sheet, must find it explicitly
@@ -139,7 +139,9 @@ public class StudentService : IStudentService
 
         bool isHeader = true;
         int rowNum = 0;
-        int sequenceNumber = await GetNextSequenceNumberAsync(semesterCode, levelCode);
+        
+        // Track sequence numbers per level
+        var levelSequenceNumbers = new Dictionary<int, int>();
 
         foreach (var row in ws.RowsUsed())
         {
@@ -156,25 +158,63 @@ public class StudentService : IStudentService
                 Errors = new List<string>()
             };
 
-            // Read columns (FirstName, LastName, Email, Gender, Dob, Address, PhoneNumber, Avatar)
-            // Column order: 1=FirstName, 2=LastName, 3=Email, 4=Gender, 5=Dob, 6=Address, 7=PhoneNumber, 8=Avatar
+            // Read columns according to new template order
+            // Column order: 1=FirstName, 2=LastName, 3=Email, 4=Level, 5=Gender, 6=Dob, 7=Address, 8=PhoneNumber, 9=Avatar
             previewRow.FirstName = row.Cell(1).GetString().Trim();
             previewRow.LastName = row.Cell(2).GetString().Trim();
             previewRow.Email = row.Cell(3).GetString().Trim().ToLower();
-            previewRow.Gender = row.Cell(4).GetString().Trim();
-            var dobStr = row.Cell(5).GetString().Trim();
-            previewRow.Address = row.Cell(6).GetString().Trim();
-            previewRow.PhoneNumber = row.Cell(7).GetString().Trim();
-            previewRow.AvatarUrl = row.Cell(8).GetString().Trim(); // Avatar column - Google Drive link
+            var levelStr = row.Cell(4).GetString().Trim(); // Level column
+            previewRow.Gender = row.Cell(5).GetString().Trim();
+            var dobStr = row.Cell(6).GetString().Trim();
+            previewRow.Address = row.Cell(7).GetString().Trim();
+            previewRow.PhoneNumber = row.Cell(8).GetString().Trim();
+            previewRow.AvatarUrl = row.Cell(9).GetString().Trim(); // Avatar column (Google Drive link)
 
-            // Validate and parse
-            ValidateStudentRow(previewRow, dobStr, sequenceNumber);
-
-            // Generate student code if valid
-            if (previewRow.IsValid && !string.IsNullOrWhiteSpace(semesterCode) && !string.IsNullOrWhiteSpace(levelCode))
+            // Validate and find level from Excel
+            var level = await ValidateAndFindLevelAsync(levelStr, allLevels, previewRow.Errors);
+            if (level != null)
             {
-                previewRow.StudentCode = $"{semesterCode}{levelCode}{sequenceNumber.ToString().PadLeft(3, '0')}";
-                sequenceNumber++;
+                previewRow.LevelId = level.LevelId;
+                previewRow.LevelName = level.LevelName;
+            }
+            else
+            {
+                // Level validation failed, but continue with other validations
+                previewRow.LevelId = null;
+                previewRow.LevelName = levelStr;
+            }
+
+            // If levelId was specified in request, filter by it (only show students with that level)
+            // Only filter if level was successfully validated (not null)
+            if (levelId.HasValue)
+            {
+                // Only skip if level was found but doesn't match, or if level is required but not found
+                if (previewRow.LevelId == null || previewRow.LevelId != levelId.Value)
+                {
+                    // Skip this row - doesn't match the selected level or level is invalid
+                    continue;
+                }
+            }
+
+            // Validate and parse other fields
+            ValidateStudentRow(previewRow, dobStr);
+
+            // Generate student code if valid and level is found
+            if (previewRow.IsValid && level != null && !string.IsNullOrWhiteSpace(semesterCode))
+            {
+                var levelCode = ExtractLevelCode(level.LevelName);
+                if (!string.IsNullOrWhiteSpace(levelCode))
+                {
+                    // Get or initialize sequence number for this level
+                    if (!levelSequenceNumbers.ContainsKey(level.LevelId))
+                    {
+                        levelSequenceNumbers[level.LevelId] = await GetNextSequenceNumberAsync(semesterCode, levelCode);
+                    }
+                    
+                    var sequenceNumber = levelSequenceNumbers[level.LevelId];
+                    previewRow.StudentCode = $"{semesterCode}{levelCode}{sequenceNumber.ToString().PadLeft(3, '0')}";
+                    levelSequenceNumbers[level.LevelId] = sequenceNumber + 1;
+                }
             }
 
             previewRow.TargetSemesterId = targetSemester?.SemesterId;
@@ -188,7 +228,57 @@ public class StudentService : IStudentService
         response.ValidRows = previewRows.Count(r => r.IsValid);
         response.InvalidRows = previewRows.Count(r => !r.IsValid);
 
+        // Debug logging
+        Console.WriteLine($"PreviewImportAsync completed: TotalRows={response.TotalRows}, ValidRows={response.ValidRows}, InvalidRows={response.InvalidRows}");
+        Console.WriteLine($"LevelId filter applied: {(levelId.HasValue ? levelId.Value.ToString() : "None")}");
+
         return response;
+    }
+    
+    /// <summary>
+    /// Validate level from Excel and find matching level in database
+    /// </summary>
+    private async Task<Level?> ValidateAndFindLevelAsync(string levelStr, List<Level> allLevels, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(levelStr))
+        {
+            errors.Add("Level is required");
+            return null;
+        }
+
+        // Try to find by exact level name match
+        var level = allLevels.FirstOrDefault(l => 
+            l.LevelName.Equals(levelStr.Trim(), StringComparison.OrdinalIgnoreCase));
+        
+        if (level != null)
+            return level;
+
+        // Try to find by level code (extract from levelStr)
+        var levelCodeFromStr = ExtractLevelCode(levelStr);
+        if (!string.IsNullOrWhiteSpace(levelCodeFromStr))
+        {
+            level = allLevels.FirstOrDefault(l =>
+            {
+                var levelCode = ExtractLevelCode(l.LevelName);
+                return levelCode.Equals(levelCodeFromStr, StringComparison.OrdinalIgnoreCase);
+            });
+            
+            if (level != null)
+                return level;
+        }
+
+        // Try partial match (contains)
+        level = allLevels.FirstOrDefault(l =>
+            l.LevelName.Contains(levelStr.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            levelStr.Trim().Contains(l.LevelName, StringComparison.OrdinalIgnoreCase));
+        
+        if (level != null)
+            return level;
+
+        // Level not found
+        var availableLevels = string.Join(", ", allLevels.Select(l => l.LevelName));
+        errors.Add($"Level '{levelStr}' not found. Available levels: {availableLevels}");
+        return null;
     }
 
     public async Task<ImportStudentResponse> ImportStudentsAsync(ImportStudentRequest request)
@@ -198,28 +288,26 @@ public class StudentService : IStudentService
             Results = new List<ImportStudentResultRow>()
         };
 
-        // Get enrollment semester and level
+        // Get enrollment semester
         var enrollmentSemester = await _db.Semesters.AsNoTracking()
             .FirstOrDefaultAsync(s => s.SemesterId == request.EnrollmentSemesterId);
         if (enrollmentSemester == null)
             throw new ArgumentException("Enrollment semester not found");
 
-        var level = await _db.Levels.AsNoTracking()
-            .FirstOrDefaultAsync(l => l.LevelId == request.LevelId);
-        if (level == null)
-            throw new ArgumentException("Level not found");
-
         // Determine target semester
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var targetSemester = await DetermineTargetSemesterAsync(enrollmentSemester, today);
 
-        // Extract codes
-        var levelCode = ExtractLevelCode(level.LevelName);
+        // Extract semester code for student code generation
         var semesterCode = enrollmentSemester.SemesterCode ?? "";
 
-        // Get starting sequence number
-        int sequenceNumber = await GetNextSequenceNumberAsync(semesterCode, levelCode);
+        // Get all levels for validation
+        var allLevels = await _db.Levels.AsNoTracking()
+            .ToListAsync();
 
+        // Get starting sequence numbers per level
+        var levelSequenceNumbers = new Dictionary<int, int>();
+        
         // Get existing emails and phones for duplicate check
         var existingEmails = await _db.Users.AsNoTracking()
             .Select(u => u.Email.ToLower())
@@ -239,6 +327,16 @@ public class StudentService : IStudentService
 
             try
             {
+                // Validate level
+                var level = allLevels.FirstOrDefault(l => l.LevelId == studentRow.LevelId);
+                if (level == null)
+                {
+                    result.ErrorMessage = $"Level ID {studentRow.LevelId} not found";
+                    response.Results.Add(result);
+                    response.ErrorCount++;
+                    continue;
+                }
+
                 // Validate email uniqueness
                 if (existingEmails.Contains(studentRow.Email.ToLower()))
                 {
@@ -263,10 +361,21 @@ public class StudentService : IStudentService
 
                 // Generate student code if not provided
                 var studentCode = studentRow.StudentCode;
-                if (string.IsNullOrWhiteSpace(studentCode) && !string.IsNullOrWhiteSpace(semesterCode) && !string.IsNullOrWhiteSpace(levelCode))
+                if (string.IsNullOrWhiteSpace(studentCode) && !string.IsNullOrWhiteSpace(semesterCode))
                 {
-                    studentCode = $"{semesterCode}{levelCode}{sequenceNumber.ToString().PadLeft(3, '0')}";
-                    sequenceNumber++;
+                    var levelCode = ExtractLevelCode(level.LevelName);
+                    if (!string.IsNullOrWhiteSpace(levelCode))
+                    {
+                        // Get or initialize sequence number for this level
+                        if (!levelSequenceNumbers.ContainsKey(level.LevelId))
+                        {
+                            levelSequenceNumbers[level.LevelId] = await GetNextSequenceNumberAsync(semesterCode, levelCode);
+                        }
+                        
+                        var sequenceNumber = levelSequenceNumbers[level.LevelId];
+                        studentCode = $"{semesterCode}{levelCode}{sequenceNumber.ToString().PadLeft(3, '0')}";
+                        levelSequenceNumbers[level.LevelId] = sequenceNumber + 1;
+                    }
                 }
 
                 // Normalize gender
@@ -308,11 +417,11 @@ public class StudentService : IStudentService
                 await _db.Users.AddAsync(user);
                 await _db.SaveChangesAsync();
 
-                // Create Student
+                // Create Student with level from row
                 var student = new Student
                 {
                     UserId = user.UserId,
-                    LevelId = request.LevelId,
+                    LevelId = studentRow.LevelId, // Use level from student row
                     SemesterId = targetSemester?.SemesterId,
                     StudentCode = string.IsNullOrWhiteSpace(studentCode) ? null : studentCode,
                     Status = "Active",
@@ -344,7 +453,7 @@ public class StudentService : IStudentService
         return response;
     }
 
-    private void ValidateStudentRow(ImportStudentPreviewRow row, string dobStr, int sequenceNumber)
+    private void ValidateStudentRow(ImportStudentPreviewRow row, string dobStr)
     {
         // Validate FirstName
         if (string.IsNullOrWhiteSpace(row.FirstName))

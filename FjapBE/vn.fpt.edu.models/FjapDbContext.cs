@@ -55,7 +55,6 @@ public partial class FjapDbContext : DbContext
     public virtual DbSet<Student> Students { get; set; }
 
     public virtual DbSet<Subject> Subjects { get; set; }
-
     public virtual DbSet<SubjectGradeType> SubjectGradeTypes { get; set; }
 
     public virtual DbSet<Timeslot> Timeslots { get; set; }
@@ -698,7 +697,6 @@ public partial class FjapDbContext : DbContext
                         j.IndexerProperty<int>("ClassId").HasColumnName("class_id");
                     });
         });
-
         modelBuilder.Entity<Subject>(entity =>
         {
             entity.HasKey(e => e.SubjectId).HasName("PRIMARY");

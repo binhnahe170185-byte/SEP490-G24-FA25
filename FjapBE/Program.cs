@@ -86,6 +86,7 @@ builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISubjectService, SubjectService>();
 builder.Services.AddScoped<ILecturerService, LecturerService>();
+builder.Services.AddScoped<IScheduleAvailabilityService, ScheduleAvailabilityService>();
 
 builder.Services.AddScoped<IStaffOfAdminRepository, StaffOfAdminRepository>();
 builder.Services.AddScoped<IStaffOfAdminService, StaffOfAdminService>();

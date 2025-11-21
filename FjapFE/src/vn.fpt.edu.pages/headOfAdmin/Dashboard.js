@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Typography, Spin, message, Table, Button, Tooltip, Progress, Alert, Empty, Divider, List } from 'antd';
-import { Pie } from '@ant-design/charts';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Row, Col, Card, Typography, Spin, message, Table, Button, Tooltip, Progress, Alert, Empty, Divider, List, Select, Space } from 'antd';
+import { Pie, Column } from '@ant-design/charts';
 import {
   FileTextOutlined,
   CalendarOutlined,
@@ -19,6 +19,17 @@ import AdminApi from '../../vn.fpt.edu.api/Admin';
 import RoomApi from '../../vn.fpt.edu.api/Room';
 import HolidayApi from '../../vn.fpt.edu.api/Holiday';
 import dayjs from 'dayjs';
+
+const normalizeText = (value, fallback) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  }
+  if (value !== undefined && value !== null) {
+    return String(value);
+  }
+  return fallback;
+};
 
 const { Title } = Typography;
 
@@ -41,7 +52,10 @@ const Dashboard = () => {
   const [holidays, setHolidays] = useState([]);
   const [staffByDepartment, setStaffByDepartment] = useState([]);
   const [newsByStatus, setNewsByStatus] = useState([]);
-  const [studentsByLevel, setStudentsByLevel] = useState([]);
+  const [studentLevelTrend, setStudentLevelTrend] = useState([]);
+  const [semesterTimeline, setSemesterTimeline] = useState([]);
+  const [semesterRange, setSemesterRange] = useState(4);
+  const [chartMode] = useState('grouped'); // Fixed to grouped mode
 
   useEffect(() => {
     fetchDashboardData();
@@ -87,6 +101,16 @@ const Dashboard = () => {
       });
       
       setCurrentSemester(current || null);
+      const semesterMap = semesters.reduce((acc, sem) => {
+        const id = sem.semesterId || sem.id;
+        if (!id) return acc;
+        acc[id] = {
+          name: sem.name || sem.SemesterName || `Semester ${id}`,
+          startDate: sem.startDate || sem.StartDate || null,
+          endDate: sem.endDate || sem.EndDate || null,
+        };
+        return acc;
+      }, {});
       
       // Fetch holidays for current semester
       if (current && (current.semesterId || current.id)) {
@@ -156,19 +180,68 @@ const Dashboard = () => {
         const studentsResponse = await AdminApi.getUsers({ role: 4, page: 1, pageSize: 100 });
         const allStudents = studentsResponse?.items || [];
         
-        // Group by level
-        const levelMap = {};
+        // Debug: Log raw data
+        console.log('📊 Raw students data:', allStudents.slice(0, 3));
+        console.log('📅 Semester map:', semesterMap);
+        
+        // Group by semester + level
+        const levelBySemester = {};
         allStudents.forEach(student => {
-          const levelName = student.levelName || 'Unknown';
-          levelMap[levelName] = (levelMap[levelName] || 0) + 1;
+          const levelName = normalizeText(student.levelName ?? student.LevelName, 'Unknown Level');
+          // Try multiple ways to get semesterId
+          const semesterId = student.semesterId ?? student.SemesterId ?? student.semester?.semesterId ?? student.semester?.id ?? null;
+          const semesterIdNum = semesterId ? Number(semesterId) : null;
+          
+          // Try to match semester from map (check both string and number keys)
+          const matchedSemester = semesterMap[semesterIdNum] ?? semesterMap[semesterId] ?? semesterMap[String(semesterIdNum)] ?? semesterMap[String(semesterId)];
+          const semesterName = matchedSemester?.name ?? 
+            normalizeText(student.semesterName ?? student.SemesterName ?? student.semester?.name, 'Unknown Semester');
+          
+          const key = `${semesterIdNum ?? semesterId ?? 'unknown'}-${levelName}`;
+          if (!levelBySemester[key]) {
+            levelBySemester[key] = {
+              semesterId: semesterIdNum ?? semesterId,
+              semesterLabel: matchedSemester?.name || semesterName,
+              level: levelName,
+              count: 0,
+              sortValue: (() => {
+                const meta = matchedSemester;
+                if (meta?.startDate) return dayjs(meta.startDate).valueOf();
+                if (meta?.endDate) return dayjs(meta.endDate).valueOf();
+                return semesterIdNum ?? semesterId ?? 0;
+              })(),
+            };
+          }
+          levelBySemester[key].count += 1;
         });
         
-        const levelData = Object.entries(levelMap).map(([name, count]) => ({
-          level: name,
-          count: count,
-        })).sort((a, b) => b.count - a.count);
+        const levelTrendData = Object.values(levelBySemester).map(item => ({
+          ...item,
+          semesterLabel: normalizeText(item.semesterLabel, 'Unknown Semester'),
+          level: normalizeText(item.level, 'Unknown Level'),
+          count: Number(item.count) || 0,
+        }));
         
-        setStudentsByLevel(levelData);
+        // Debug: Log processed data
+        console.log('📈 Processed level trend data:', levelTrendData);
+        console.log('📊 Total students processed:', allStudents.length);
+        console.log('📊 Total groups created:', levelTrendData.length);
+        
+        setStudentLevelTrend(levelTrendData);
+        const timelineMap = {};
+        levelTrendData.forEach(item => {
+          if (!timelineMap[item.semesterLabel]) {
+            timelineMap[item.semesterLabel] = {
+              semesterId: item.semesterId,
+              label: item.semesterLabel,
+              sortValue: item.sortValue,
+              total: 0,
+            };
+          }
+          timelineMap[item.semesterLabel].total += item.count;
+        });
+        const orderedTimeline = Object.values(timelineMap).sort((a, b) => b.sortValue - a.sortValue);
+        setSemesterTimeline(orderedTimeline);
         
         setStats(prev => ({
           ...prev,
@@ -253,6 +326,136 @@ const Dashboard = () => {
   ];
 
 
+  const levelColorMap = useMemo(() => {
+    const palette = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2', '#a0d911', '#eb2f96', '#fa541c'];
+    const map = {};
+    const uniqueLevels = Array.from(new Set(studentLevelTrend.map(item => item.level || 'Unknown Level')));
+    uniqueLevels.forEach((level, index) => {
+      map[level] = palette[index % palette.length];
+    });
+    console.log('🎨 Level color map:', map);
+    return map;
+  }, [studentLevelTrend]);
+
+  const studentLevelChartData = useMemo(() => {
+    if (!studentLevelTrend.length) {
+      console.log('⚠️ No student level trend data available');
+      return [];
+    }
+    const selectedSemesters =
+      semesterRange === 'all'
+        ? semesterTimeline
+        : semesterTimeline.slice(0, Number(semesterRange));
+    const allowedLabels = new Set(selectedSemesters.map(item => item.label));
+    const filtered = studentLevelTrend
+      .filter(item => (semesterRange === 'all' ? true : allowedLabels.has(item.semesterLabel)))
+      .sort((a, b) => a.sortValue - b.sortValue)
+      .map(item => {
+        const level = item.level || 'Unknown Level';
+        return {
+          semester: item.semesterLabel || 'Unknown Semester',
+          level: level,
+          count: Number(item.count) || 0,
+          // Add color to each record for colorField
+          color: levelColorMap[level] || '#1890ff',
+        };
+      });
+    console.log('📊 Chart data prepared:', filtered);
+    console.log('📊 Chart data summary - Total records:', filtered.length, 'Total students:', filtered.reduce((sum, item) => sum + item.count, 0));
+    return filtered;
+  }, [studentLevelTrend, semesterRange, semesterTimeline, levelColorMap]);
+
+  // Get unique levels in sorted order (used for legend and color mapping)
+  const sortedUniqueLevels = useMemo(() => {
+    return Array.from(new Set(studentLevelChartData.map(item => item.level || 'Unknown Level')))
+      .sort((a, b) => {
+        // Sort N1, N2, N3, N4, N5 in order
+        const order = ['N1', 'N2', 'N3', 'N4', 'N5'];
+        const aIndex = order.indexOf(a);
+        const bIndex = order.indexOf(b);
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        return a.localeCompare(b);
+      });
+  }, [studentLevelChartData]);
+
+  const studentLevelChartConfig = useMemo(() => {
+    // Create color array in the same order as sortedUniqueLevels
+    const colorArray = sortedUniqueLevels.map(level => levelColorMap[level] || '#1890ff');
+    
+    console.log('⚙️ Chart config preparation:', {
+      dataLength: studentLevelChartData.length,
+      sortedUniqueLevels,
+      levelColorMap,
+      colorArray,
+      sampleData: studentLevelChartData.slice(0, 5),
+    });
+    
+    const config = {
+      data: studentLevelChartData,
+      xField: 'semester',
+      yField: 'count',
+      seriesField: 'level',
+      isStack: chartMode === 'stacked',
+      isGroup: chartMode === 'grouped',
+      columnWidthRatio: 0.5,
+      columnStyle: {
+        radius: [4, 4, 0, 0],
+      },
+      legend: false, // Disable default legend, we'll create custom one
+      tooltip: {
+        formatter: (datum) => {
+          const count = datum.count ?? datum.value ?? 0;
+          return {
+            name: `${datum.level || 'Unknown Level'}`,
+            value: `${Number(count).toLocaleString()} students`,
+          };
+        },
+      },
+      // Try using colorField to map colors from data field
+      // If colorField doesn't work, fallback to array
+      colorField: 'color',
+      color: colorArray.length > 0 ? colorArray : ['#1890ff'],
+      label: {
+        position: 'top',
+        layout: [
+          { type: 'interval-adjust-position' },
+          { type: 'interval-hide-overlap' },
+          { type: 'adjust-color' },
+        ],
+        formatter: (datum) => {
+          // Handle both grouped and stacked modes - check multiple possible fields
+          const count = datum?.count ?? datum?.value ?? datum?.y ?? 0;
+          const numCount = Number(count);
+          if (numCount > 0) {
+            return numCount.toLocaleString();
+          }
+          return '';
+        },
+        style: { fontWeight: 600, fill: '#595959', fontSize: 12 },
+      },
+      xAxis: {
+        title: {
+          text: 'Semester',
+          style: { fontSize: 12, fill: '#8c8c8c' },
+        },
+      },
+      yAxis: {
+        title: {
+          text: 'Number of Students',
+          style: { fontSize: 12, fill: '#8c8c8c' },
+        },
+        label: {
+          formatter: (value) => `${value} students`,
+        },
+      },
+      interactions: [{ type: 'active-region' }],
+    };
+    
+    return config;
+  }, [studentLevelChartData, chartMode, levelColorMap, sortedUniqueLevels]);
+
   return (
     <div style={{ padding: '0' }}>
       <Title level={2} style={{ marginBottom: 32, color: '#1890ff' }}>
@@ -293,26 +496,7 @@ const Dashboard = () => {
                   border: '1px solid #e8e8e8',
                   textAlign: 'center'
                 }}
-                bodyStyle={{ padding: '12px' }}
-              >
-                <div style={{ fontSize: '20px', color: '#722ed1', marginBottom: 4 }}>
-                  <TeamOutlined />
-                </div>
-                <div style={{ fontSize: '20px', fontWeight: 600, color: '#262626', marginBottom: 2 }}>
-                  {stats.totalStaff}
-                </div>
-                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>Total Staff</div>
-              </Card>
-            </Col>
-            <Col xs={12} sm={8} md={6} lg={3}>
-              <Card 
-                size="small"
-                style={{ 
-                  borderRadius: '8px',
-                  border: '1px solid #e8e8e8',
-                  textAlign: 'center'
-                }}
-                bodyStyle={{ padding: '12px' }}
+                styles={{ body: { padding: '12px' } }}
               >
                 <div style={{ fontSize: '20px', color: '#13c2c2', marginBottom: 4 }}>
                   <ApartmentOutlined />
@@ -320,7 +504,7 @@ const Dashboard = () => {
                 <div style={{ fontSize: '20px', fontWeight: 600, color: '#262626', marginBottom: 2 }}>
                   {stats.adminStaff}
                 </div>
-                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>Admin Staff</div>
+                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>Administration Staff</div>
               </Card>
             </Col>
             <Col xs={12} sm={8} md={6} lg={3}>
@@ -331,7 +515,7 @@ const Dashboard = () => {
                   border: '1px solid #e8e8e8',
                   textAlign: 'center'
                 }}
-                bodyStyle={{ padding: '12px' }}
+                styles={{ body: { padding: '12px' } }}
               >
                 <div style={{ fontSize: '20px', color: '#fa8c16', marginBottom: 4 }}>
                   <TeamOutlined />
@@ -350,7 +534,7 @@ const Dashboard = () => {
                   border: '1px solid #e8e8e8',
                   textAlign: 'center'
                 }}
-                bodyStyle={{ padding: '12px' }}
+                styles={{ body: { padding: '12px' } }}
               >
                 <div style={{ fontSize: '20px', color: '#2f54eb', marginBottom: 4 }}>
                   <AppstoreOutlined />
@@ -369,7 +553,7 @@ const Dashboard = () => {
                   border: '1px solid #e8e8e8',
                   textAlign: 'center'
                 }}
-                bodyStyle={{ padding: '12px' }}
+                styles={{ body: { padding: '12px' } }}
               >
                 <div style={{ fontSize: '20px', color: '#1890ff', marginBottom: 4 }}>
                   <UserOutlined />
@@ -388,7 +572,7 @@ const Dashboard = () => {
                   border: '1px solid #e8e8e8',
                   textAlign: 'center'
                 }}
-                bodyStyle={{ padding: '12px' }}
+                styles={{ body: { padding: '12px' } }}
               >
                 <div style={{ fontSize: '20px', color: '#52c41a', marginBottom: 4 }}>
                   <BookOutlined />
@@ -583,45 +767,76 @@ const Dashboard = () => {
           </Row>
 
           {/* Students Distribution Chart */}
-          {studentsByLevel.length > 0 && (
+          {studentLevelTrend.length > 0 && (
             <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
-              <Col xs={24} lg={12}>
-                <Card 
+              <Col xs={24}>
+                <Card
                   title={
                     <span style={{ fontSize: '16px', fontWeight: 600 }}>
                       <UserOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-                      Students Distribution by Level
+                      Student Levels by Semester
                     </span>
+                  }
+                  extra={
+                    <Space size={4} align="center">
+                      <span style={{ fontSize: 12, color: '#8c8c8c' }}>Semesters:</span>
+                      <Select
+                        size="small"
+                        style={{ width: 140 }}
+                        value={semesterRange}
+                        onChange={setSemesterRange}
+                      >
+                        <Select.Option value={3}>Last 3 semesters</Select.Option>
+                        <Select.Option value={4}>Last 4 semesters</Select.Option>
+                        <Select.Option value={6}>Last 6 semesters</Select.Option>
+                        <Select.Option value="all">All semesters</Select.Option>
+                      </Select>
+                    </Space>
                   }
                   style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
                 >
-                  <div>
-                    {studentsByLevel.slice(0, 8).map((item, index) => {
-                      const maxCount = Math.max(...studentsByLevel.map(d => d.count));
-                      const percentage = maxCount > 0 ? Math.round((item.count / maxCount) * 100) : 0;
-                      const colors = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2', '#fa8c16', '#2f54eb'];
-                      const color = colors[index % colors.length];
-                      return (
-                        <div key={index} style={{ marginBottom: 16 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <span style={{ fontWeight: 500, fontSize: '14px' }}>{item.level}</span>
-                            <span style={{ fontWeight: 600, color: color }}>{item.count}</span>
-                          </div>
-                          <Progress 
-                            percent={percentage} 
-                            strokeColor={color}
-                            showInfo={false}
-                            style={{ marginBottom: 0 }}
-                          />
-                        </div>
-                      );
-                    })}
-                    {studentsByLevel.length > 8 && (
-                      <div style={{ textAlign: 'center', marginTop: 16, color: '#8c8c8c' }}>
-                        + {studentsByLevel.length - 8} more levels
+                  {studentLevelChartData.length > 0 ? (
+                    <>
+                      <Column {...studentLevelChartConfig} height={360} />
+                      {/* Custom Legend */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        gap: '24px',
+                        marginTop: '16px',
+                        flexWrap: 'wrap'
+                      }}>
+                        {sortedUniqueLevels.map((level, index) => {
+                          const color = levelColorMap[level] || '#1890ff';
+                          return (
+                            <div 
+                              key={level}
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px' 
+                              }}
+                            >
+                              <div 
+                                style={{ 
+                                  width: '16px', 
+                                  height: '16px', 
+                                  backgroundColor: color,
+                                  borderRadius: '2px'
+                                }} 
+                              />
+                              <span style={{ fontSize: '13px', color: '#595959' }}>
+                                {level}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  ) : (
+                    <Empty description="Không có dữ liệu phù hợp với bộ lọc" style={{ padding: '60px 0' }} />
+                  )}
                 </Card>
               </Col>
             </Row>

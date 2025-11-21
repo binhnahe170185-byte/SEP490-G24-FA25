@@ -36,6 +36,7 @@ public class UpdateProfileRequest
 
     [Required(ErrorMessage = "Phone number is required")]
     [StringLength(20, ErrorMessage = "Phone number must not exceed 20 characters")]
+    [RegularExpression(@"^(0\d{1,2}-?\d{4}-?\d{4}|0\d{9,10})$", ErrorMessage = "Phone number must be a valid Japanese number (e.g., 090-1234-5678 or 03-1234-5678)")]
     public string PhoneNumber { get; set; } = null!;
 
     [Required(ErrorMessage = "Gender is required")]
@@ -45,7 +46,7 @@ public class UpdateProfileRequest
     [Required(ErrorMessage = "Date of birth is required")]
     public DateOnly Dob { get; set; }
 
-    [StringLength(512, ErrorMessage = "Avatar URL must not exceed 512 characters")]
+    [StringLength(50000, ErrorMessage = "Avatar data must not exceed 50000 characters")]
     public string? Avatar { get; set; }
 }
 

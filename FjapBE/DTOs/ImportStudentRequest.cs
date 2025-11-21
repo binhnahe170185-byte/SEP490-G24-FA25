@@ -10,8 +10,9 @@ public class ImportStudentRequest
     [Required]
     public int EnrollmentSemesterId { get; set; }
     
-    [Required]
-    public int LevelId { get; set; }
+    // LevelId is no longer required at request level - each student has its own level
+    // This field is kept for backward compatibility but not used
+    public int? LevelId { get; set; }
     
     [Required]
     public List<ImportStudentRow> Students { get; set; } = new();
@@ -46,6 +47,12 @@ public class ImportStudentRow
     /// Avatar URL from Google Form response (will be downloaded and processed to base64)
     /// </summary>
     public string? AvatarUrl { get; set; }
+    
+    // Level information (from Excel)
+    [Required]
+    public int LevelId { get; set; }
+    
+    public string? LevelName { get; set; }
     
     // Auto-generated fields (will be set by backend)
     public string? StudentCode { get; set; }
@@ -82,6 +89,10 @@ public class ImportStudentPreviewRow
     /// Avatar URL from Google Form response
     /// </summary>
     public string? AvatarUrl { get; set; }
+    
+    // Level information (from Excel)
+    public int? LevelId { get; set; }
+    public string? LevelName { get; set; }
     
     // Auto-generated
     public string? StudentCode { get; set; }

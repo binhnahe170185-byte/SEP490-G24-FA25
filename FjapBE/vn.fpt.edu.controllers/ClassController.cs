@@ -13,12 +13,17 @@ public class ClassController : ControllerBase
     private readonly IClassService _classService;
     private readonly IStudentService _studentService;
     private readonly FjapDbContext _db;
-
-    public ClassController(IClassService classService, IStudentService studentService, FjapDbContext db)
+    private readonly IScheduleAvailabilityService _availabilityService;
+    public ClassController(
+       IClassService classService,
+       IStudentService studentService,
+       FjapDbContext db,
+       IScheduleAvailabilityService availabilityService)
     {
         _classService = classService;
         _studentService = studentService;
         _db = db;
+        _availabilityService = availabilityService;
     }
 
     [HttpGet]
@@ -458,6 +463,32 @@ public class ClassController : ControllerBase
         }
     }
 
+    [HttpPost("schedule/availability")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CheckAvailability([FromBody] AvailabilityCheckRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { code = 400, message = "Request payload is required" });
+        }
+
+        try
+        {
+            var result = await _availabilityService.CheckAvailabilityAsync(request);
+            return Ok(new { code = 200, data = result });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in CheckAvailability: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
     [HttpGet("{classId}/subjects")]
     public async Task<IActionResult> GetSubjects(string classId)
     {
@@ -791,13 +822,17 @@ public class ClassController : ControllerBase
             var classesBySemester = await _db.Classes
                 .AsNoTracking()
                 .Include(c => c.Semester)
+                .Include(c => c.Subject)
                 .Where(c => c.Status != null && c.Status.ToLower() == "active")
                 .OrderBy(c => c.ClassName)
                 .Select(c => new
                 {
                     classId = c.ClassId,
                     className = c.ClassName,
-                    semesterId = c.SemesterId
+                    semesterId = c.SemesterId,
+                    subjectId = c.SubjectId,
+                    subjectCode = c.Subject != null ? c.Subject.SubjectCode : null,
+                    subjectName = c.Subject != null ? c.Subject.SubjectName : null
                 })
                 .ToListAsync();
 
@@ -807,7 +842,10 @@ public class ClassController : ControllerBase
                 .ToDictionary(g => g.Key, g => g.Select(c => new
                 {
                     classId = c.classId,
-                    className = c.className
+                    className = c.className,
+                    subjectId = c.subjectId,
+                    subjectCode = c.subjectCode,
+                    subjectName = c.subjectName
                 }).ToList());
 
             return Ok(new

@@ -81,7 +81,10 @@ class ClassList {
     });
     return response.data?.data ?? response.data;
   }
-
+ static async checkAvailability(payload) {
+    const response = await api.post("/api/staffAcademic/classes/schedule/availability", payload);
+    return response.data?.data ?? response.data;
+  }
   static async delete(classId) {
     const response = await api.delete(`/api/staffAcademic/classes/${classId}`);
     return response.data?.data ?? response.data;
