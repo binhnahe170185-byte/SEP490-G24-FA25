@@ -9,7 +9,9 @@ import {
   Tag,
   Empty,
   Tooltip,
-  Typography
+  Typography,
+  Alert,
+  Spin
 } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
@@ -66,10 +68,22 @@ const availabilityState = pendingAvailability || {};
         </Tooltip>
       }
     >
-       {availabilityMessage && (
-        <Typography.Text type={isUnavailable ? 'danger' : 'secondary'}>
-          {availabilityMessage}
-        </Typography.Text>
+      {isChecking && (
+        <Alert
+          message="Checking availability..."
+          type="info"
+          icon={<Spin size="small" />}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      {availabilityMessage && !isChecking && (
+        <Alert
+          message={availabilityMessage}
+          type={isUnavailable ? 'error' : 'success'}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
       )}
       <Form layout="vertical">
         <Space
