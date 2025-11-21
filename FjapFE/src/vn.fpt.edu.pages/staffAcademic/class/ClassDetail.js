@@ -142,6 +142,7 @@ export default function ClassDetail() {
       state: {
         className: record.class_name ?? record.className ?? className,
         subjectName: record.subject_name ?? record.subjectName ?? "-",
+        subjectCode: record.subject_code ?? record.subjectCode ?? "-",
       },
     });
   };
