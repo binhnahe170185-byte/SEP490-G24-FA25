@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Card, 
   Row, 
   Col, 
   Typography,
-  Button,
-  Empty
+  Button
 } from 'antd';
 import { 
   BookOutlined,
@@ -17,7 +16,6 @@ import ScheduleQuickView from './components/ScheduleQuickView';
 import HomeworkList from './components/HomeworkList';
 import HomeworkSubmission from './components/HomeworkSubmission';
 import NewsSection from './components/NewsSection';
-import NotificationsSection from './components/NotificationsSection';
 import './StudentHomepage.css';
 
 const { Title, Text } = Typography;
@@ -28,7 +26,7 @@ const StudentHomepage = () => {
   return (
     <div className="homepage-container">
         <Row gutter={[24, 24]}>
-          {/* Left Column - News & Notifications */}
+          {/* Left Column - News, View Grade & View Attendance */}
           <Col xs={24} lg={8}>
             <Row gutter={[24, 24]}>
               {/* News Section */}
@@ -36,33 +34,8 @@ const StudentHomepage = () => {
                 <NewsSection />
               </Col>
 
-              {/* Notifications Section */}
+              {/* View Grade */}
               <Col xs={24}>
-                <NotificationsSection />
-              </Col>
-            </Row>
-          </Col>
-
-          {/* Right Column - Main Functions */}
-          <Col xs={24} lg={16}>
-            <Row gutter={[24, 24]}>
-              {/* Schedule Quick View */}
-              <Col xs={24}>
-                <ScheduleQuickView />
-              </Col>
-
-              {/* Homework List */}
-              <Col xs={24}>
-                <HomeworkList />
-              </Col>
-
-              {/* Homework Submission */}
-              <Col xs={24}>
-                <HomeworkSubmission />
-              </Col>
-
-              {/* Grade Report */}
-              <Col xs={24} sm={12}>
                 <Card 
                   className="function-card"
                   hoverable
@@ -71,7 +44,7 @@ const StudentHomepage = () => {
                   <div className="function-card-header">
                     <BookOutlined className="function-icon grade-icon" />
                     <div>
-                      <Title level={4} className="function-title">View Grade Report</Title>
+                      <Title level={4} className="function-title">View Grade</Title>
                       <Text className="function-description">View detailed grades for all subjects</Text>
                     </div>
                   </div>
@@ -85,8 +58,8 @@ const StudentHomepage = () => {
                 </Card>
               </Col>
 
-              {/* Attendance Report */}
-              <Col xs={24} sm={12}>
+              {/* View Attendance Report */}
+              <Col xs={24}>
                 <Card 
                   className="function-card"
                   hoverable
@@ -107,6 +80,26 @@ const StudentHomepage = () => {
                     View Details
                   </Button>
                 </Card>
+              </Col>
+            </Row>
+          </Col>
+
+          {/* Right Column - Main Functions */}
+          <Col xs={24} lg={16}>
+            <Row gutter={[24, 24]}>
+              {/* Schedule Quick View */}
+              <Col xs={24}>
+                <ScheduleQuickView />
+              </Col>
+
+              {/* Homework List */}
+              <Col xs={24}>
+                <HomeworkList />
+              </Col>
+
+              {/* Homework Submission */}
+              <Col xs={24}>
+                <HomeworkSubmission />
               </Col>
             </Row>
           </Col>

@@ -79,7 +79,6 @@ public class StudentsController : ControllerBase
         var gpa = await _studentService.GetStudentSemesterGPAAsync(id, semesterId);
         return Ok(new { code = 200, data = gpa });
     }
-
     /// <summary>
     /// Lấy Academic Transcript (bảng điểm tổng hợp) của sinh viên
     /// GET: api/Students/{id}/academic-transcript
@@ -90,6 +89,36 @@ public class StudentsController : ControllerBase
     {
         var transcript = await _studentService.GetAcademicTranscriptAsync(id);
         return Ok(new { code = 200, data = transcript });
+    }
+
+    /// <summary>
+    /// Lấy danh sách tất cả môn học active trong curriculum với search và pagination
+    /// GET: api/Students/curriculum-subjects?search=&page=1&pageSize=20
+    /// </summary>
+    [HttpGet("curriculum-subjects")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCurriculumSubjects(
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var (items, totalCount) = await _studentService.GetCurriculumSubjectsAsync(search, page, pageSize);
+            return Ok(new 
+            { 
+                code = 200, 
+                data = items,
+                total = totalCount,
+                page = page,
+                pageSize = pageSize
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetCurriculumSubjects: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Failed to get curriculum subjects", error = ex.Message });
+        }
     }
    
    
