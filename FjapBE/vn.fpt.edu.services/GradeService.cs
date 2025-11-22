@@ -268,11 +268,14 @@ namespace FJAP.Services
 
             if (result && notificationContext != null)
             {
+                // Grade notification không cần entityId vì link luôn là /student/grades
                 await _notificationService.CreateAsync(new CreateNotificationRequest(
                     notificationContext.UserId,
                     $"{notificationContext.SubjectName} grade has been updated",
                     $"Your grade for {notificationContext.SubjectName} has just been updated. Please review the latest details.",
-                    "grade"
+                    "grade",
+                    null,
+                    null // Grade không cần entityId
                 ));
             }
 

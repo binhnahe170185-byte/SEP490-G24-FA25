@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { Card, Typography, Badge, Empty, Spin, Tooltip } from 'antd';
 import { BellOutlined, WifiOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../vn.fpt.edu.pages/login/AuthContext';
 import {
   describeConnectionState,
   formatNotificationTime,
@@ -11,6 +13,8 @@ import {
 const { Title, Text } = Typography;
 
 const NotificationsSection = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     notifications,
     loading,
@@ -19,6 +23,28 @@ const NotificationsSection = () => {
     unreadCount,
     markAsRead,
   } = useRealtimeNotifications(20);
+
+  const getNotificationLink = (notification) => {
+    if (!notification.link) return null;
+    
+    // Nếu là lecturer (roleId = 3), thay đổi link
+    const roleId = user?.roleId ? Number(user.roleId) : null;
+    if (roleId === 3) {
+      // Lecturer routes
+      if (notification.type === 'news' && notification.entityId) {
+        return `/lecturer/news/${notification.entityId}`;
+      }
+      if (notification.type === 'homework') {
+        return `/lecturer/homework`;
+      }
+      if (notification.type === 'grade') {
+        return `/lecturer/grades`;
+      }
+    }
+    
+    // Student routes (default)
+    return notification.link;
+  };
 
   const connectionTooltip = useMemo(() => {
     return describeConnectionState(connectionState);
@@ -66,10 +92,15 @@ const NotificationsSection = () => {
               className="notification-item"
               onClick={() => {
                 markAsRead(notification.id);
+                const link = getNotificationLink(notification);
+                if (link) {
+                  navigate(link);
+                }
               }}
               style={{
                 backgroundColor: !notification.read ? '#e6f7ff' : 'transparent',
                 fontWeight: !notification.read ? 500 : 400,
+                cursor: getNotificationLink(notification) ? 'pointer' : 'default',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
