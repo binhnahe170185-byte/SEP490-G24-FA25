@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using FJAP.vn.fpt.edu.models;
+using FJAP.Services.Interfaces;
+using FJAP.DTOs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -18,15 +20,18 @@ public class HomeworksController : ControllerBase
     private readonly FjapDbContext _db;
     private readonly ILogger<HomeworksController> _logger;
     private readonly IWebHostEnvironment _env;
+    private readonly INotificationService _notificationService;
 
     public HomeworksController(
         FjapDbContext db,
         ILogger<HomeworksController> logger,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        INotificationService notificationService)
     {
         _db = db;
         _logger = logger;
         _env = env;
+        _notificationService = notificationService;
     }
 
     [HttpGet]
@@ -90,6 +95,9 @@ public class HomeworksController : ControllerBase
 
         _db.Homeworks.Add(homework);
         await _db.SaveChangesAsync();
+
+        // Gửi notification cho tất cả students trong class
+        await SendHomeworkCreatedNotificationsAsync(homework, lesson);
 
         var dto = await ProjectHomework(homework.HomeworkId);
         return Ok(new { code = 200, message = "Homework created", data = dto });
@@ -226,6 +234,9 @@ public class HomeworksController : ControllerBase
         var homework = await _db.Homeworks
             .Include(h => h.Lesson)
                 .ThenInclude(l => l.Class)
+            .Include(h => h.Lesson)
+                .ThenInclude(l => l.Lecture)
+                    .ThenInclude(lec => lec.User)
             .FirstOrDefaultAsync(h => h.HomeworkId == homeworkId);
 
         if (homework == null)
@@ -310,6 +321,12 @@ public class HomeworksController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        // Gửi notification cho giảng viên khi sinh viên submit bài tập
+        if (homework.Lesson?.Lecture?.User != null)
+        {
+            await SendHomeworkSubmissionNotificationAsync(submission, homework, student);
+        }
+
         return Ok(new
         {
             code = 200,
@@ -367,12 +384,16 @@ public class HomeworksController : ControllerBase
         var submission = await _db.HomeworkSubmissions
             .Include(s => s.Student)
                 .ThenInclude(st => st.User)
+            .Include(s => s.Homework)
             .FirstOrDefaultAsync(s => s.HomeworkSubmissionId == submissionId && s.HomeworkId == homeworkId);
 
         if (submission == null)
         {
             return NotFound(new { code = 404, message = "Submission not found" });
         }
+
+        var hadCommentBefore = !string.IsNullOrWhiteSpace(submission.Comment);
+        var commentChanged = false;
 
         if (request.Status != null)
         {
@@ -381,10 +402,18 @@ public class HomeworksController : ControllerBase
 
         if (request.Comment != null)
         {
-            submission.Comment = request.Comment.Trim();
+            var newComment = request.Comment.Trim();
+            commentChanged = newComment != submission.Comment;
+            submission.Comment = newComment;
         }
 
         await _db.SaveChangesAsync();
+
+        // Gửi notification cho student khi giảng viên nhận xét (chỉ khi comment mới được thêm hoặc thay đổi)
+        if (commentChanged && !string.IsNullOrWhiteSpace(submission.Comment) && submission.Student?.User != null && submission.Homework != null)
+        {
+            await SendHomeworkCommentNotificationAsync(submission, submission.Homework);
+        }
 
         return Ok(new
         {
@@ -618,6 +647,108 @@ public class HomeworksController : ControllerBase
             fileName = fileName.Replace(invalid, '_');
         }
         return fileName;
+    }
+
+    private async Task SendHomeworkCreatedNotificationsAsync(Homework homework, Lesson lesson)
+    {
+        try
+        {
+            // Lấy tất cả students trong class (sử dụng lesson.Class đã được load)
+            var studentUserIds = lesson.Class?.Students?
+                .Select(s => s.UserId)
+                .Distinct()
+                .ToList() ?? new List<int>();
+
+            // Nếu không có students trong memory, query từ database
+            if (studentUserIds.Count == 0 && lesson.ClassId > 0)
+            {
+                studentUserIds = await _db.Students
+                    .Where(s => s.Classes.Any(c => c.ClassId == lesson.ClassId))
+                    .Select(s => s.UserId)
+                    .Distinct()
+                    .ToListAsync();
+            }
+
+            if (studentUserIds.Count == 0) return;
+
+            var deadlineText = homework.Deadline?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Not set";
+            var className = lesson.Class?.ClassName ?? "";
+
+            var notifications = studentUserIds.Select(userId => new CreateNotificationRequest(
+                userId,
+                $"New Homework: {homework.Title}",
+                $"You have a new homework in class {className}. Deadline: {deadlineText}",
+                "Homework",
+                homework.CreatedBy,
+                homework.HomeworkId
+            )).ToList();
+
+            // Tạo notifications và broadcast
+            var createdNotifications = new List<NotificationDto>();
+            foreach (var notificationRequest in notifications)
+            {
+                var notification = await _notificationService.CreateAsync(notificationRequest, broadcast: false);
+                createdNotifications.Add(notification);
+            }
+
+            // Broadcast tất cả notifications cùng lúc
+            await _notificationService.BroadcastAsync(createdNotifications);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send homework created notifications for homework {HomeworkId}", homework.HomeworkId);
+        }
+    }
+
+    private async Task SendHomeworkCommentNotificationAsync(HomeworkSubmission submission, Homework homework)
+    {
+        try
+        {
+            if (submission.Student?.User == null) return;
+
+            var notificationRequest = new CreateNotificationRequest(
+                submission.Student.UserId,
+                $"Homework Comment: {homework.Title}",
+                submission.Comment?.Length > 200 ? submission.Comment.Substring(0, 200) + "..." : submission.Comment,
+                "Homework",
+                null, // CreatedBy will be set automatically from controller if needed
+                homework.HomeworkId
+            );
+
+            await _notificationService.CreateAsync(notificationRequest, broadcast: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send homework comment notification for submission {SubmissionId}", submission.HomeworkSubmissionId);
+        }
+    }
+
+    private async Task SendHomeworkSubmissionNotificationAsync(HomeworkSubmission submission, Homework homework, Student student)
+    {
+        try
+        {
+            if (homework.Lesson?.Lecture?.User == null) return;
+
+            var lecturerUserId = homework.Lesson.Lecture.User.UserId;
+            var studentName = student?.User != null 
+                ? $"{student.User.FirstName} {student.User.LastName}".Trim() 
+                : student?.StudentCode ?? "Student";
+
+            var notificationRequest = new CreateNotificationRequest(
+                lecturerUserId,
+                $"New Homework Submission: {homework.Title}",
+                $"{studentName} has submitted homework: {homework.Title}",
+                "Homework",
+                student?.UserId,
+                homework.HomeworkId
+            );
+
+            await _notificationService.CreateAsync(notificationRequest, broadcast: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send homework submission notification for submission {SubmissionId}", submission.HomeworkSubmissionId);
+        }
     }
 
     private class HomeworkProjection

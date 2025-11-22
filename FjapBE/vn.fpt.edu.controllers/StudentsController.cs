@@ -79,6 +79,18 @@ public class StudentsController : ControllerBase
         var gpa = await _studentService.GetStudentSemesterGPAAsync(id, semesterId);
         return Ok(new { code = 200, data = gpa });
     }
+
+    /// <summary>
+    /// Lấy Academic Transcript (bảng điểm tổng hợp) của sinh viên
+    /// GET: api/Students/{id}/academic-transcript
+    /// </summary>
+    [HttpGet("{id:int}/academic-transcript")]
+    [ProducesResponseType(typeof(AcademicTranscriptDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAcademicTranscript(int id)
+    {
+        var transcript = await _studentService.GetAcademicTranscriptAsync(id);
+        return Ok(new { code = 200, data = transcript });
+    }
    
    
     [HttpGet]
