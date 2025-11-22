@@ -58,7 +58,7 @@ export default function GradeEntry() {
   };
 
   // Load course details
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (preserveEditingKey = null) => {
     try {
       setLoading(true);
       const data = await ManagerGrades.getCourseDetails(userId, courseId);
@@ -76,7 +76,10 @@ export default function GradeEntry() {
           const gradeComponentScore = s.gradeComponentScores?.find(gcs => 
             gcs.subjectGradeTypeId === weight.subjectGradeTypeId
           );
-          studentData[dataIndex] = gradeComponentScore?.score || null;
+          // Preserve 0 values - use nullish coalescing instead of logical OR
+          studentData[dataIndex] = gradeComponentScore?.score !== undefined && gradeComponentScore?.score !== null 
+            ? gradeComponentScore.score 
+            : null;
           studentData[commentIndex] = gradeComponentScore?.comment || "";
         });
         
@@ -84,12 +87,28 @@ export default function GradeEntry() {
       });
       
       setStudents(mappedStudents);
+      
+      // After reload, if we were editing a record, update form with latest data
+      if (preserveEditingKey) {
+        const updatedRecord = mappedStudents.find(s => s.key === preserveEditingKey);
+        if (updatedRecord) {
+          // Update form with latest data (including newly saved comments)
+          const latestFormValues = {};
+          data.gradeComponentWeights?.forEach(weight => {
+            const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+            const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
+            latestFormValues[dataIndex] = updatedRecord[dataIndex];
+            latestFormValues[commentIndex] = updatedRecord[commentIndex];
+          });
+          form.setFieldsValue(latestFormValues);
+        }
+      }
     } catch (error) {
       message.error("Failed to load course details");
     } finally {
       setLoading(false);
     }
-  }, [userId, courseId]);
+  }, [userId, courseId, form]);
 
   useEffect(() => {
     loadData();
@@ -273,22 +292,88 @@ export default function GradeEntry() {
 
         newData.splice(index, 1, updatedItem);
 
-        // Prepare data for API - send dynamic grade components directly
+        // Prepare data for API - send ALL grade components that have score
+        // IMPORTANT: Always send ALL grade components with score to preserve existing comments
+        const existingGradeComponentsMap = {};
+        if (item.gradeComponentScores && Array.isArray(item.gradeComponentScores)) {
+          item.gradeComponentScores.forEach(gcs => {
+            existingGradeComponentsMap[gcs.subjectGradeTypeId] = gcs;
+          });
+        }
+        
         const gradeComponents = [];
         gradeComponentWeights.forEach(weight => {
           const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
           const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
-          const score = row[dataIndex];
-          const comment = row[commentIndex];
           
-          if (score !== null && score !== undefined) {
+          // Get values from form (user's current input in the form)
+          const formScore = row[dataIndex];
+          const formComment = row[commentIndex];
+          
+          // Get existing grade component from backend (most reliable source)
+          const existingGradeComponent = existingGradeComponentsMap[weight.subjectGradeTypeId];
+          
+          // Get existing values from record (may not have latest data)
+          const existingScore = item[dataIndex];
+          const existingComment = item[commentIndex];
+          
+          // Determine score: use form value if provided, otherwise use existing from backend
+          let finalScore = null;
+          if (formScore !== null && formScore !== undefined && formScore !== '') {
+            const parsed = parseFloat(formScore);
+            if (!isNaN(parsed)) {
+              finalScore = parsed;
+            }
+          }
+          // If no form score, use existing score (prioritize backend data)
+          if (finalScore === null) {
+            if (existingGradeComponent?.score !== null && existingGradeComponent?.score !== undefined) {
+              finalScore = existingGradeComponent.score;
+            } else if (existingScore !== null && existingScore !== undefined) {
+              finalScore = existingScore;
+            }
+          }
+          
+          // Determine comment: prioritize form value, fallback to backend data
+          let finalComment = null;
+          if (formComment !== null && formComment !== undefined) {
+            // Form has a value - use it (empty string means clear comment)
+            finalComment = typeof formComment === 'string' && formComment.trim() !== '' 
+              ? formComment.trim() 
+              : null;
+          } else {
+            // Form doesn't have value - keep existing comment from backend (most reliable)
+            if (existingGradeComponent?.comment) {
+              finalComment = existingGradeComponent.comment;
+            } else if (existingComment !== null && existingComment !== undefined && existingComment !== '') {
+              finalComment = typeof existingComment === 'string' ? existingComment : null;
+            }
+          }
+          
+          // Only send grade component if it has a valid score
+          if (finalScore !== null && finalScore !== undefined) {
             gradeComponents.push({
               subjectGradeTypeId: weight.subjectGradeTypeId,
-              score: score,
-              comment: typeof comment === 'string' ? comment : null
+              score: finalScore,
+              comment: finalComment || null
             });
           }
         });
+
+        // Validate gradeId exists
+        if (!item.gradeId) {
+          message.error("Grade ID is missing. Cannot save.");
+          return;
+        }
+
+        // Validate that we have at least one grade component to save
+        if (!gradeComponents || gradeComponents.length === 0) {
+          message.warning("No grade data to save. Please enter at least one score.");
+          return;
+        }
+
+        console.log("Saving grade components:", gradeComponents);
+        console.log("Student ID:", item.studentId, "Grade ID:", item.gradeId);
 
         // Save to API
         setSaving(true);
@@ -301,14 +386,18 @@ export default function GradeEntry() {
         );
 
         setStudents(newData);
-        setEditingKey('');
         message.success("Grade updated successfully");
+        
+        // Clear edit mode - return to view mode after successful save
+        setEditingKey('');
         
         // Reload data to get updated values from server
         await loadData();
       }
     } catch (errInfo) {
-      message.error("Failed to update grade");
+      console.error("Error saving grade:", errInfo);
+      const errorMessage = errInfo?.response?.data?.message || errInfo?.message || "Failed to update grade";
+      message.error(`Failed to update grade: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -434,7 +523,7 @@ export default function GradeEntry() {
             <span>
               {inputType === 'text'
                 ? (displayValue ?? '')
-                : (displayValue != null && typeof displayValue === 'number' && !isNaN(displayValue) 
+                : (typeof displayValue === 'number' && !isNaN(displayValue)
                   ? displayValue.toFixed(1) 
                   : "-")}
             </span>
@@ -492,7 +581,13 @@ export default function GradeEntry() {
         editable: true,
         inputType: 'number',
         commentIndex: commentIndex,
-        render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : "-",
+        render: (value) => {
+          // Show value if it's a number (including 0), otherwise show "-" for null/undefined
+          if (typeof value === 'number') {
+            return value.toFixed(1);
+          }
+          return "-";
+        },
       }];
     });
 
@@ -513,7 +608,7 @@ export default function GradeEntry() {
             : value;
           return (
             <span style={{ fontWeight: 600, fontSize: 15 }}>
-              {displayValue != null && typeof displayValue === 'number' ? displayValue.toFixed(1) : "-"}
+              {typeof displayValue === 'number' ? displayValue.toFixed(1) : "-"}
             </span>
           );
         },

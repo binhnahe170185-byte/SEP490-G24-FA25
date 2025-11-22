@@ -85,25 +85,65 @@ export default function GradeDetails() {
   // Calculate statistics
   const getStatistics = () => {
     const totalStudents = students.length;
-    const passMark = courseDetails?.passMark ?? 5.0;
+    // Parse passMark to ensure it's a number
+    const passMark = parseFloat(courseDetails?.passMark) || 5.0;
+    const roundedPassMark = Math.round(passMark * 100) / 100;
+    
+    // Passed: Đã nhập điểm (có GradeId), >= passMark, và attendance >= 0.8
     const passedStudents = students.filter(s => {
+      const hasGradeId = s.gradeId !== null && s.gradeId !== undefined;
+      if (!hasGradeId) return false;
+      
       const avg = parseFloat(s.average);
-      if (isNaN(avg)) return false;
-      const meetsScore = avg >= passMark;
+      if (isNaN(avg) || avg === null || avg === undefined) return false;
+      
+      // Round to avoid floating point precision issues
+      const roundedAvg = Math.round(avg * 100) / 100;
+      const meetsScore = roundedAvg >= roundedPassMark;
+      
       // Enforce attendance 80% if available
       const attendanceRate = s.attendanceRate;
-      const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
+      const meetsAttendance = attendanceRate == null || attendanceRate === undefined ? true : attendanceRate >= 0.8;
       return meetsScore && meetsAttendance;
     }).length;
+    
+    // Failed: Đã nhập điểm (có GradeId), nhưng (< passMark hoặc attendance < 0.8)
     const failedStudents = students.filter(s => {
+      const hasGradeId = s.gradeId !== null && s.gradeId !== undefined;
+      if (!hasGradeId) return false;
+      
       const avg = parseFloat(s.average);
+      // Nếu đã có GradeId thì kể cả avg = 0 cũng tính là Failed
+      if (isNaN(avg) || avg === null || avg === undefined) return false;
+      
+      // Round to avoid floating point precision issues
+      const roundedAvg = Math.round(avg * 100) / 100;
+      
       const attendanceRate = s.attendanceRate;
-      const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
-      return isNaN(avg) || avg < passMark || !meetsAttendance;
+      const meetsAttendance = attendanceRate == null || attendanceRate === undefined ? true : attendanceRate >= 0.8;
+      return roundedAvg < roundedPassMark || !meetsAttendance;
     }).length;
-    const incompleteStudents = students.filter(s => !s.average || s.average === 0).length;
-    const averageGrade = students.length > 0 
-      ? (students.reduce((sum, s) => sum + (parseFloat(s.average) || 0), 0) / totalStudents).toFixed(2)
+    
+    // In Progress: Chưa nhập điểm (không có GradeId hoặc average = null/undefined)
+    const incompleteStudents = students.filter(s => {
+      const hasGradeId = s.gradeId !== null && s.gradeId !== undefined;
+      if (!hasGradeId) return true;
+      
+      const avg = parseFloat(s.average);
+      return isNaN(avg) || avg === null || avg === undefined;
+    }).length;
+    
+    // Average grade chỉ tính cho những học sinh đã nhập điểm (có GradeId)
+    const studentsWithGrades = students.filter(s => {
+      const hasGradeId = s.gradeId !== null && s.gradeId !== undefined;
+      if (!hasGradeId) return false;
+      
+      const avg = parseFloat(s.average);
+      // Nếu đã có GradeId thì kể cả avg = 0 cũng tính vào average
+      return !isNaN(avg) && avg !== null && avg !== undefined;
+    });
+    const averageGrade = studentsWithGrades.length > 0 
+      ? (studentsWithGrades.reduce((sum, s) => sum + parseFloat(s.average), 0) / studentsWithGrades.length).toFixed(2)
       : 0;
     const passRate = totalStudents > 0 ? ((passedStudents / totalStudents) * 100).toFixed(1) : 0;
 
@@ -201,13 +241,28 @@ export default function GradeDetails() {
         align: "center",
         render: (_, record) => {
           const avg = parseFloat(record.average);
-          if (!avg || avg === 0) {
+          
+          // Check if student has been graded (has GradeId) to distinguish between "not graded" and "graded with 0"
+          const hasGradeId = record.gradeId !== null && record.gradeId !== undefined;
+          
+          // In Progress: Chưa nhập điểm (không có GradeId hoặc average = null/undefined)
+          if (!hasGradeId || isNaN(avg) || avg === null || avg === undefined) {
             return <Tag color="default" icon={<ClockCircleOutlined />}>Inprogress</Tag>;
           }
-          const passMark = courseDetails?.passMark ?? 5.0;
+          
+          // Parse passMark to ensure it's a number
+          const passMark = parseFloat(courseDetails?.passMark) || 5.0;
           const attendanceRate = record.attendanceRate;
-          const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
-          const isPassed = avg >= passMark && meetsAttendance;
+          const meetsAttendance = attendanceRate == null || attendanceRate === undefined ? true : attendanceRate >= 0.8;
+          
+          // Round both values to 2 decimal places to avoid floating point precision issues
+          const roundedAvg = Math.round(avg * 100) / 100;
+          const roundedPassMark = Math.round(passMark * 100) / 100;
+          
+          // Passed if average >= passMark (with tolerance for floating point)
+          // Note: If avg = 0 but has GradeId, it's already graded, so it's Failed
+          const isPassed = roundedAvg >= roundedPassMark && meetsAttendance;
+          
           return (
             <Tag 
               color={isPassed ? "green" : "red"} 
