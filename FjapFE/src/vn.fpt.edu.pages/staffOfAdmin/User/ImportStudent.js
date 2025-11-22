@@ -28,6 +28,7 @@ export default function ImportStudent() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [selectedLevelFilter, setSelectedLevelFilter] = useState(null); // Filter by level in preview
   
   // Watch form values to enable/disable upload reactively
   const levelId = Form.useWatch("levelId", form);
@@ -123,30 +124,56 @@ export default function ImportStudent() {
   // Handle file upload for preview
   const handleFileUpload = async (file) => {
     const enrollmentSemesterId = form.getFieldValue("enrollmentSemesterId");
-    const levelId = form.getFieldValue("levelId");
 
     if (!enrollmentSemesterId) {
       msg.error("Please select enrollment semester first");
       return false;
     }
 
-    if (!levelId) {
-      msg.error("Please select level first");
-      return false;
-    }
+    // If level is selected before upload, only show students with that level
+    // If not selected, show all students (can filter later)
+    const levelId = form.getFieldValue("levelId"); // Optional - if selected, filter by it
 
     setPreviewLoading(true);
     try {
-      const preview = await AdminApi.previewImportStudents(file, enrollmentSemesterId, levelId);
+      const preview = await AdminApi.previewImportStudents(file, enrollmentSemesterId, levelId || null);
+      
+      console.log("Preview response:", preview);
+      console.log("Preview students count:", preview?.students?.length);
+      console.log("Preview validRows:", preview?.validRows);
+      console.log("Preview invalidRows:", preview?.invalidRows);
+      
+      // Ensure preview has students array
+      if (!preview || !preview.students) {
+        console.error("Invalid preview response:", preview);
+        msg.error("Invalid response from server. Please try again.");
+        setPreviewData(null);
+        return false;
+      }
+      
       setPreviewData(preview);
       
-      if (preview.validRows > 0) {
-        msg.success(`Preview loaded: ${preview.validRows} valid rows, ${preview.invalidRows} invalid rows`);
+      // Reset level filter when new preview is loaded (unless level was pre-selected)
+      if (!levelId) {
+        setSelectedLevelFilter(null);
       } else {
-        msg.warning("No valid rows found in the file");
+        // If level was pre-selected, set filter to match
+        setSelectedLevelFilter(levelId);
+      }
+      
+      if (preview.validRows > 0) {
+        const filteredCount = levelId 
+          ? preview.students.filter(s => s.levelId === levelId && s.isValid).length
+          : preview.validRows;
+        msg.success(`Preview loaded: ${filteredCount} valid rows, ${preview.invalidRows} invalid rows${levelId ? ` (filtered by selected level)` : ''}`);
+      } else if (preview.students && preview.students.length > 0) {
+        msg.warning(`Found ${preview.students.length} rows but all are invalid. Please check your data.`);
+      } else {
+        msg.warning("No data found in the file. Please check the file format.");
       }
     } catch (error) {
       console.error("Preview error:", error);
+      console.error("Error response:", error?.response);
       const errorMsg = error?.response?.data?.message || error?.message || "Failed to preview file";
       msg.error(errorMsg);
       setPreviewData(null);
@@ -165,31 +192,42 @@ export default function ImportStudent() {
     }
 
     const enrollmentSemesterId = form.getFieldValue("enrollmentSemesterId");
-    const levelId = form.getFieldValue("levelId");
 
-    if (!enrollmentSemesterId || !levelId) {
-      msg.error("Please select semester and level");
+    if (!enrollmentSemesterId) {
+      msg.error("Please select enrollment semester");
+      return;
+    }
+
+    // Filter students based on selected level filter (if any)
+    let studentsToImport = previewData.students.filter(s => s.isValid);
+    
+    if (selectedLevelFilter) {
+      studentsToImport = studentsToImport.filter(s => s.levelId === selectedLevelFilter);
+    }
+
+    if (studentsToImport.length === 0) {
+      msg.error("No valid students to import (after filtering)");
       return;
     }
 
     // Prepare import request
-    const validStudents = previewData.students
-      .filter(s => s.isValid)
-      .map(s => ({
-        firstName: s.firstName,
-        lastName: s.lastName,
-        email: s.email,
-        gender: s.gender,
-        dob: s.dob,
-        address: s.address || "",
-        phoneNumber: s.phoneNumber || "",
-        avatarUrl: s.avatarUrl || "", // Avatar URL from Google Drive
-        studentCode: s.studentCode, // Already generated in preview
-      }));
+    const validStudents = studentsToImport.map(s => ({
+      firstName: s.firstName,
+      lastName: s.lastName,
+      email: s.email,
+      gender: s.gender,
+      dob: s.dob,
+      address: s.address || "",
+      phoneNumber: s.phoneNumber || "",
+      avatarUrl: s.avatarUrl || "", // Avatar URL from Google Drive
+      studentCode: s.studentCode, // Already generated in preview
+      levelId: s.levelId, // Level from Excel
+      levelName: s.levelName || "",
+    }));
 
     const importRequest = {
       enrollmentSemesterId: enrollmentSemesterId,
-      levelId: levelId,
+      levelId: null, // No longer required at request level
       students: validStudents
     };
 
@@ -208,6 +246,7 @@ export default function ImportStudent() {
 
       // Clear preview after import
       setPreviewData(null);
+      setSelectedLevelFilter(null);
     } catch (error) {
       console.error("Import error:", error);
       const errorMsg = error?.response?.data?.message || error?.message || "Failed to import students";
@@ -216,6 +255,30 @@ export default function ImportStudent() {
       setImporting(false);
     }
   };
+
+  // Get unique levels from preview data for filter
+  const uniqueLevels = previewData && previewData.students ? 
+    [...new Map(previewData.students
+      .filter(s => s && s.levelId && s.levelName)
+      .map(s => [s.levelId, { levelId: s.levelId, levelName: s.levelName }]))
+      .values()] : [];
+
+  // Filter preview data based on selected level
+  const filteredPreviewData = previewData && previewData.students ? {
+    ...previewData,
+    totalRows: selectedLevelFilter 
+      ? (previewData.students.filter(s => s && s.levelId === selectedLevelFilter).length)
+      : (previewData.totalRows || previewData.students.length),
+    students: selectedLevelFilter 
+      ? (previewData.students.filter(s => s && s.levelId === selectedLevelFilter))
+      : previewData.students,
+    validRows: selectedLevelFilter 
+      ? (previewData.students.filter(s => s && s.levelId === selectedLevelFilter && s.isValid).length)
+      : (previewData.validRows || previewData.students.filter(s => s && s.isValid).length),
+    invalidRows: selectedLevelFilter 
+      ? (previewData.students.filter(s => s && s.levelId === selectedLevelFilter && !s.isValid).length)
+      : (previewData.invalidRows || previewData.students.filter(s => s && !s.isValid).length),
+  } : null;
 
   // Table columns for preview - flexible widths to use full available space
   const previewColumns = [
@@ -267,6 +330,18 @@ export default function ImportStudent() {
       width: 120,
     },
     {
+      title: "Level",
+      dataIndex: "levelName",
+      key: "levelName",
+      width: 100,
+      align: "center",
+      render: (levelName, record) => levelName ? (
+        <Tag color="purple" style={{ margin: 0 }}>{levelName}</Tag>
+      ) : (
+        <Tag color="red" style={{ margin: 0 }}>Missing</Tag>
+      ),
+    },
+    {
       title: "Avatar",
       dataIndex: "avatarUrl",
       key: "avatarUrl",
@@ -310,7 +385,7 @@ export default function ImportStudent() {
       title: "Errors",
       dataIndex: "errors",
       key: "errors",
-      width: 150,
+      width: 200,
       ellipsis: {
         showTitle: false,
       },
@@ -395,31 +470,36 @@ export default function ImportStudent() {
             )}
 
           <Row gutter={16} align="middle">
-            {/* Level Selection - Compact */}
+            {/* Level Selection - Optional filter before preview */}
             <Col xs={24} sm={8} md={6}>
               <Form.Item
                 label={
                   <span style={{ 
                     fontSize: 14, 
-                    fontWeight: "bold", 
-                    color: "#ff4d4f",
+                    fontWeight: "bold",
                     display: "flex",
                     alignItems: "center",
                     gap: 4
                   }}>
-                    <span style={{ fontSize: 16 }}>⚠️</span>
-                    Level <span style={{ color: "#ff4d4f" }}>*</span>
+                    Level (Optional Filter)
                   </span>
                 }
                 name="levelId"
-                rules={[{ required: true, message: "Please select level" }]}
+                tooltip="If selected before upload, only students with this level will be shown in preview. If not selected, all students will be shown and you can filter later."
                 style={{ marginBottom: 12 }}
               >
                 <Select
-                  placeholder="Select level"
+                  placeholder="Select level to filter (optional)"
                   loading={loadingOptions}
                   showSearch
                   optionFilterProp="children"
+                  allowClear
+                  onChange={(value) => {
+                    // If preview already loaded and level changed, reset preview to reload
+                    if (previewData && value !== form.getFieldValue("levelId")) {
+                      msg.info("Please re-upload the file to apply the new level filter");
+                    }
+                  }}
                   filterOption={(input, option) =>
                     (option?.children ?? "").toLowerCase().includes(input.toLowerCase())
                   }
@@ -456,7 +536,7 @@ export default function ImportStudent() {
             {/* Quick Guide - Compact */}
             <Alert
               message="Quick Guide"
-              description="Required: FirstName, LastName, Email, Gender, Dob. Optional: Address, PhoneNumber, Avatar (Google Drive link)."
+              description="Required: FirstName, LastName, Email, Level, Gender, Dob. Optional: Address, PhoneNumber, Avatar (Google Drive link). Each row can have different level. Select level before upload to filter, or leave empty to see all students and filter later."
               type="info"
               showIcon
               style={{ marginBottom: 12, padding: "8px 12px", fontSize: 12 }}
@@ -485,7 +565,7 @@ export default function ImportStudent() {
               Click or drag file to this area to upload
             </p>
             <p className="ant-upload-hint" style={{ fontSize: 12 }}>
-              Support for Excel files (.xlsx, .xls) only. {!levelId && "Please select level first."}
+              Support for Excel files (.xlsx, .xls) only. Level should be specified in Excel file (column D).
             </p>
           </Upload.Dragger>
           {previewLoading && (
@@ -500,22 +580,50 @@ export default function ImportStudent() {
           <>
             <Divider style={{ margin: "16px 0" }} />
             <div style={{ marginBottom: 12, padding: "0 8px" }}>
-              <Space size="small">
-                <Title level={4} style={{ margin: 0, fontSize: 18 }}>Preview</Title>
-                <Tag color="blue">Total: {previewData.totalRows}</Tag>
-                <Tag color="success">Valid: {previewData.validRows}</Tag>
-                <Tag color="error">Invalid: {previewData.invalidRows}</Tag>
-              </Space>
+              <Row gutter={16} align="middle">
+                <Col xs={24} sm={12}>
+                  <Space size="small" wrap>
+                    <Title level={4} style={{ margin: 0, fontSize: 18 }}>Preview</Title>
+                    <Tag color="blue">Total: {filteredPreviewData.totalRows}</Tag>
+                    <Tag color="success">Valid: {filteredPreviewData.students.filter(s => s.isValid).length}</Tag>
+                    <Tag color="error">Invalid: {filteredPreviewData.students.filter(s => !s.isValid).length}</Tag>
+                  </Space>
+                </Col>
+                <Col xs={24} sm={12} style={{ textAlign: "right" }}>
+                  <Space size="small">
+                    <Text strong style={{ fontSize: 13 }}>Filter by Level:</Text>
+                    <Select
+                      placeholder="All Levels"
+                      allowClear
+                      value={selectedLevelFilter}
+                      onChange={setSelectedLevelFilter}
+                      style={{ minWidth: 150 }}
+                      size="small"
+                    >
+                      {uniqueLevels.map(level => (
+                        <Option key={level.levelId} value={level.levelId}>
+                          {level.levelName}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Space>
+                </Col>
+              </Row>
             </div>
 
             <div style={{ padding: "0 8px" }}>
               <Table
                 columns={previewColumns}
-                dataSource={previewData.students}
-                rowKey="rowNumber"
+                dataSource={filteredPreviewData?.students || []}
+                rowKey={(record) => `row-${record.rowNumber}`}
                 pagination={{ pageSize: 10, showSizeChanger: false }}
                 size="small"
                 style={{ marginBottom: 24, width: "100%" }}
+                locale={{
+                  emptyText: filteredPreviewData?.students?.length === 0 
+                    ? "No students found (after filtering)" 
+                    : "No data"
+                }}
               />
             </div>
 
@@ -525,6 +633,7 @@ export default function ImportStudent() {
                   icon={<ReloadOutlined />}
                   onClick={() => {
                     setPreviewData(null);
+                    setSelectedLevelFilter(null);
                     form.resetFields();
                     loadOptions();
                   }}
@@ -536,10 +645,12 @@ export default function ImportStudent() {
                   icon={<CheckCircleOutlined />}
                   onClick={handleImport}
                   loading={importing}
-                  disabled={previewData.validRows === 0}
+                  disabled={filteredPreviewData.students.filter(s => s.isValid).length === 0}
                   size="large"
                 >
-                  Confirm Import ({previewData.validRows} students)
+                  {selectedLevelFilter 
+                    ? `Import Selected Level (${filteredPreviewData.students.filter(s => s.isValid).length} students)`
+                    : `Import All (${filteredPreviewData.students.filter(s => s.isValid).length} students)`}
                 </Button>
               </Space>
             </div>

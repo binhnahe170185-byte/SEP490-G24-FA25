@@ -9,11 +9,14 @@ import {
   Tag,
   Empty,
   Tooltip,
+  Typography,
+  Alert,
+  Spin
 } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
 
-const WeeklyPatterns = ({
+const WeeklySchedules = ({
   weekday,
   slotId,
   roomId,
@@ -26,10 +29,24 @@ const WeeklyPatterns = ({
   onSlotChange,
   onRoomChange,
   onAddPattern,
-  onRemovePattern
+  onRemovePattern,
+  pendingAvailability,
+  filteringOptions = false
 }) => {
   const hasValues = weekday && slotId && roomId;
+  const availabilityState = pendingAvailability || {};
+  const isChecking = availabilityState.status === 'loading';
+  const isUnavailable = availabilityState.hasConflict;
+  const availabilityMessage = availabilityState.message;
 
+  const addButtonDisabled = !hasValues || isUnavailable || isChecking;
+  const addButtonTooltip = !hasValues
+    ? 'Select weekday, slot & room'
+    : isChecking
+      ? 'Checking slot availability...'
+      : isUnavailable
+        ? availabilityMessage || 'This slot is not available'
+        : 'Add schedule';
   const getRoomLabel = (roomValue) => {
     const room = rooms.find(r => String(r.value) === String(roomValue));
     return room?.label || roomValue;
@@ -37,21 +54,38 @@ const WeeklyPatterns = ({
 
   return (
     <Card
-      title="Weekly Patterns"
+      title="Weekly Schedules"
       className="create-schedule-card"
       extra={
-        <Tooltip title={hasValues ? 'Add pattern' : 'Select weekday, slot & room'}>
+        <Tooltip title={addButtonTooltip}>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={onAddPattern}
-            disabled={!hasValues}
+            disabled={addButtonDisabled}
           >
-            Add pattern
+            Add schedule
           </Button>
         </Tooltip>
       }
     >
+      {(isChecking || filteringOptions) && (
+        <Alert
+          message={filteringOptions ? "Filtering valid options..." : "Checking availability..."}
+          type="info"
+          icon={<Spin size="small" />}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      {availabilityMessage && !isChecking && (
+        <Alert
+          message={availabilityMessage}
+          type={isUnavailable ? 'error' : 'success'}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Form layout="vertical">
         <Space
           direction="horizontal"
@@ -66,6 +100,8 @@ const WeeklyPatterns = ({
               placeholder="Select weekday"
               options={weekdays}
               allowClear
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
 
@@ -76,6 +112,8 @@ const WeeklyPatterns = ({
               placeholder="Select slot"
               options={slots}
               allowClear
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
 
@@ -88,6 +126,8 @@ const WeeklyPatterns = ({
               allowClear
               showSearch
               optionFilterProp="label"
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
         </Space>
@@ -123,5 +163,5 @@ const WeeklyPatterns = ({
   );
 };
 
-export default WeeklyPatterns;
+export default WeeklySchedules;
 

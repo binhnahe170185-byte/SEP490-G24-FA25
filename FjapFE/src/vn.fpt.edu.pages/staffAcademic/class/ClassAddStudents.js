@@ -52,21 +52,35 @@ const ClassAddStudents = () => {
         const data = await ClassListApi.getStudents(classId);
         if (!isMounted) return;
 
+        const subject = data?.subject ?? data?.Subject ?? {};
+        const subjectName =
+          subject.subjectName ??
+          subject.SubjectName ??
+          subject.name ??
+          subject.Name ??
+          data?.subjectName ??
+          data?.SubjectName ??
+          location.state?.subjectName ??
+          "-";
+        const subjectCode =
+          subject.subjectCode ??
+          subject.SubjectCode ??
+          subject.code ??
+          subject.Code ??
+          data?.subjectCode ??
+          data?.SubjectCode ??
+          location.state?.subjectCode ??
+          "-";
         const info = {
           classId: data?.classId ?? data?.ClassId ?? classId,
-          className: data?.className ?? data?.class_name ?? location.state?.className ?? classId,
-          subjectName:
-            data?.subject?.subjectName ??
-            data?.subject?.SubjectName ??
-            data?.subjectName ??
-            location.state?.subjectName ??
-            "-",
-          subjectCode:
-            data?.subject?.subjectCode ??
-            data?.subject?.SubjectCode ??
-            data?.subjectCode ??
-            location.state?.subjectCode ??
-            "-",
+          className:
+            data?.className ??
+            data?.class_name ??
+            data?.ClassName ??
+            location.state?.className ??
+            classId,
+          subjectName: subjectName,
+          subjectCode: subjectCode,
         };
         setClassInfo(info);
       } catch (error) {
@@ -183,7 +197,14 @@ const ClassAddStudents = () => {
     try {
       await ClassListApi.addStudents(classId, studentIds);
       notifySuccess(key, "Students added", "Selected students were added to the class.");
-      navigate(`/staffAcademic/class/${classId}/students`, { replace: true });
+      navigate(`/staffAcademic/class/${classId}/students`, {
+        replace: true,
+        state: {
+          className: classInfo?.className ?? location.state?.className,
+          subjectName: classInfo?.subjectName ?? location.state?.subjectName,
+          subjectCode: classInfo?.subjectCode ?? location.state?.subjectCode,
+        },
+      });
     } catch (error) {
       console.error("Failed to add students", error);
       const message =

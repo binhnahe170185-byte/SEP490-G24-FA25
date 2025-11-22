@@ -173,16 +173,6 @@ const LessonHomeworkDetail = () => {
     }
   };
 
-  const isSameOrigin = (url) => {
-    if (!url || typeof window === "undefined") return false;
-    try {
-      const parsed = new URL(url, window.location.href);
-      return parsed.origin === window.location.origin;
-    } catch {
-      return false;
-    }
-  };
-
   const buildPreviewUrl = (url) => {
     if (!url) return null;
     try {
@@ -238,43 +228,25 @@ const LessonHomeworkDetail = () => {
     }
   };
 
-  const handleOpenPreview = async (url) => {
+  const getAuthHeaders = () => {
+    const headers = {};
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    } catch {
+      // ignore
+    }
+    return headers;
+  };
+
+  const handleOpenPreview = (url) => {
     if (!url) {
       message.warning("File path is missing.");
       return;
     }
-    const targetUrl = appendCacheBuster(url);
-    cleanupPreviewObjectUrl();
-    setPreviewModalVisible(true);
-    setPreviewLoading(true);
-    setPreviewUrl(null);
-    const canFetchDirectly = isSameOrigin(targetUrl);
-    if (!canFetchDirectly) {
-      handleClosePreviewModal();
-      window.open(targetUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-    try {
-      const response = await fetch(targetUrl, { credentials: "include" });
-      if (!response.ok) {
-        throw new Error(`Unable to fetch file (${response.status})`);
-      }
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      previewObjectUrl.current = blobUrl;
-      setPreviewUrl(blobUrl);
-    } catch (error) {
-      console.error("Direct preview failed, falling back to viewer:", error);
-      const fallback = buildPreviewUrl(targetUrl);
-      if (!fallback) {
-        message.warning("Preview is unavailable for this file.");
-        handleClosePreviewModal();
-        return;
-      }
-      setPreviewUrl(fallback);
-    } finally {
-      setPreviewLoading(false);
-    }
+    handleOpenInNewTab(url);
   };
 
   const handleClosePreviewModal = () => {

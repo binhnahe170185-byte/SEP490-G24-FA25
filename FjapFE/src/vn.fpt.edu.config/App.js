@@ -87,7 +87,9 @@ function RequireAdmin({ children }) {
 
 function RequireStaffAcademic({ children }) {
   const { user } = useAuth();
-  if (!user || Number(user.roleId) !== 7) {
+  const roleId = user ? Number(user.roleId) : null;
+  // Allow both role 5 (Head of Academic) and role 7 (Staff Academic)
+  if (!user || (roleId !== 5 && roleId !== 7)) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -142,31 +144,31 @@ function RoleBasedRedirect() {
 
   /*comment vào vì hiện tại chưa biết màn hình riêng của Admin url là gì 
   Author: HuyLQ */
-  
+
   if (roleId === 1) {
     return <Navigate to="/admin/dashboard" replace />;
   }
-  
+
   if (roleId === 2) {
     return <Navigate to="/headOfAdmin/dashboard" replace />;
   }
-  
+
   if (roleId === 3) {
     return <Navigate to="/lecturer/homepage" replace />;
   }
-  
+
   if (roleId === 4) {
     return <Navigate to="/student/homepage" replace />;
   }
-  
+
   if (roleId === 5) {
-    return <Navigate to="/createSchedule" replace />;
+    return <Navigate to="/staffAcademic/dashboard" replace />;
   }
-  
+
   if (roleId === 6) {
     return <Navigate to="/staffOfAdmin" replace />;
   }
-  
+
   if (roleId === 7) {
     return <Navigate to="/staffAcademic/dashboard" replace />;
   }
@@ -292,27 +294,8 @@ export default function App() {
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
                 <Route path="/" element={<Home />} />
-                
 
-                {/* Tạm thời headOfacademic sẽ login vào /createSchedule */}
-                <Route
-                  path="/createSchedule"
-                  element={
-                    <RequireHeadOfAcademic>
-                      <CreateSchedule />
-                    </RequireHeadOfAcademic>
-                  }
-                />
-                <Route
-                  path="/importSchedule"
-                  element={
-                    <RequireHeadOfAcademic>
-                      <ImportSchedule />
-                    </RequireHeadOfAcademic>
-                  }
-                />
 
-             
                 <Route
                   path="/staffAcademic/*"
                   element={
@@ -339,6 +322,22 @@ export default function App() {
                   <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                   <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
                   <Route path="profile" element={<ProfilePage />} />
+                  <Route
+                    path="createSchedule/edit"
+                    element={
+                      <RequireHeadOfAcademic>
+                        <CreateSchedule />
+                      </RequireHeadOfAcademic>
+                    }
+                  />
+                  <Route
+                    path="createSchedule/import"
+                    element={
+                      <RequireHeadOfAcademic>
+                        <ImportSchedule />
+                      </RequireHeadOfAcademic>
+                    }
+                  />
 
                 </Route>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Avatar,
   Button,
@@ -58,7 +58,43 @@ const ClassStudents = () => {
           return;
         }
 
-        const subject = data.subject ?? data.Subject ?? {};
+        const subjectSource =
+          data.subject ??
+          data.Subject ??
+          data.subject_detail ??
+          data.subjectDetail ??
+          data.subjectDetails ??
+          (Array.isArray(data.subjects) ? data.subjects[0] : null) ??
+          {};
+        const subject =
+          subjectSource && typeof subjectSource === "object"
+            ? subjectSource
+            : {};
+        const subjectName =
+          (typeof subjectSource === "string"
+            ? subjectSource
+            : null) ??
+          subject.subjectName ??
+          subject.SubjectName ??
+          subject.name ??
+          subject.Name ??
+          data.subjectName ??
+          data.SubjectName ??
+          location.state?.subjectName ??
+          "-";
+        const subjectCode =
+          subject.subjectCode ??
+          subject.SubjectCode ??
+          subject.code ??
+          subject.Code ??
+          data.subjectCode ??
+          data.SubjectCode ??
+          data.subject_code ??
+          data.Subject_code ??
+          data.subjectDetail?.subjectCode ??
+          data.subject_detail?.subject_code ??
+          location.state?.subjectCode ??
+          "-";
         const normalizedStudents =
           (data.students ?? data.Students ?? []).map((item, index) => {
             const user = item.user ?? item.User ?? {};
@@ -68,6 +104,15 @@ const ClassStudents = () => {
             const fullName =
               ([firstName, lastName].filter(Boolean).join(" ").trim() ||
                 fallbackName) ?? "";
+
+            const avatar =
+              user.avatar ??
+              user.Avatar ??
+              item.avatar ??
+              item.Avatar ??
+              item.user_avatar ??
+              item.userAvatar ??
+              null;
 
             return {
               key:
@@ -82,7 +127,7 @@ const ClassStudents = () => {
               lastName,
               fullName,
               email: user.email ?? user.Email ?? item.email ?? item.Email ?? "-",
-              avatar: user.avatar ?? user.Avatar ?? null,
+              avatar,
             };
           });
 
@@ -90,17 +135,13 @@ const ClassStudents = () => {
         setClassInfo({
           classId: data.classId ?? data.ClassId ?? classId,
           className:
-            data.className ?? data.class_name ?? data.ClassName ?? classId,
-          subjectName:
-            subject.subjectName ??
-            subject.SubjectName ??
-            location.state?.subjectName ??
-            "-",
-          subjectCode:
-            subject.subjectCode ??
-            subject.SubjectCode ??
-            location.state?.subjectCode ??
-            "-",
+            data.className ??
+            data.class_name ??
+            data.ClassName ??
+            location.state?.className ??
+            classId,
+          subjectName: subjectName,
+          subjectCode: subjectCode,
         });
       })
       .catch((err) => {
@@ -124,7 +165,69 @@ const ClassStudents = () => {
     return () => {
       isMounted = false;
     };
-  }, [classId, location.state?.subjectName, location.state?.subjectCode, notifyError]);
+  }, [classId, location.state?.className, location.state?.subjectName, location.state?.subjectCode, notifyError]);
+
+  useEffect(() => {
+    if (!classId) {
+      return;
+    }
+
+    const needsSubjectInfo =
+      !location.state?.subjectName &&
+      (!classInfo?.subjectName || classInfo.subjectName === "-" || !classInfo?.subjectCode || classInfo.subjectCode === "-");
+
+    if (!needsSubjectInfo) {
+      return;
+    }
+
+    let isMounted = true;
+
+    ClassListApi.getDetail(classId)
+      .then((data) => {
+        if (!isMounted || !data) return;
+        const firstRow = Array.isArray(data) ? data[0] : data;
+        if (!firstRow) {
+          return;
+        }
+
+        const subjectName =
+          firstRow.subject_name ??
+          firstRow.subjectName ??
+          firstRow.subject ??
+          firstRow.Subject ??
+          classInfo?.subjectName ??
+          "-";
+        const subjectCode =
+          firstRow.subject_code ??
+          firstRow.subjectCode ??
+          firstRow.code ??
+          firstRow.Code ??
+          classInfo?.subjectCode ??
+          "-";
+
+        setClassInfo((prev) =>
+          prev
+            ? {
+                ...prev,
+                subjectName: prev.subjectName === "-" ? subjectName : prev.subjectName ?? subjectName,
+                subjectCode: prev.subjectCode === "-" ? subjectCode : prev.subjectCode ?? subjectCode,
+              }
+            : {
+                classId,
+                className: location.state?.className ?? classId,
+                subjectName,
+                subjectCode,
+              }
+        );
+      })
+      .catch((error) => {
+        console.error("Failed to load class detail for subject info", error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [classId, classInfo?.subjectName, classInfo?.subjectCode, location.state?.className, location.state?.subjectName, location.state?.subjectCode]);
 
   const totalStudents = useMemo(() => students.length, [students]);
 

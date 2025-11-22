@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import './CreateSchedule.css';
 import CalendarTable from './components/CalendarTable';
 import PickSemesterAndClass from './components/PickSemesterAndClass';
 import LecturerSelector from './components/LecturerSelector';
-import WeeklyPatterns from './components/WeeklyPatterns';
+import WeeklySchedules from './components/WeeklySchedule';
 import SaveButton from './components/SaveButton';
 import SemesterApi from '../../../vn.fpt.edu.api/Semester';
 import RoomApi from '../../../vn.fpt.edu.api/Room';
@@ -17,6 +17,7 @@ import {
   Col,
   Typography,
   Tag,
+  Spin,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -53,9 +54,19 @@ const CreateSchedule = () => {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [classStudents, setClassStudents] = useState([]);
+  const [totalLesson, setTotalLesson] = useState(null); // Total lesson count from subject
+  const [availabilityMap, setAvailabilityMap] = useState({});
+  const [pendingAvailability, setPendingAvailability] = useState({ status: 'idle' });
 
-  // Static data
-  const weekdays = [
+  // Filtered options for valid selections
+  const [filteredLecturers, setFilteredLecturers] = useState([]);
+  const [filteredWeekdays, setFilteredWeekdays] = useState([]);
+  const [filteredSlots, setFilteredSlots] = useState([]);
+  const [filteredRooms, setFilteredRooms] = useState([]);
+  const [filteringOptions, setFilteringOptions] = useState(false);
+  // Static data - use useMemo to prevent reference changes
+  const weekdays = useMemo(() => [
     { value: '2', label: 'Mon' },
     { value: '3', label: 'Tue' },
     { value: '4', label: 'Wed' },
@@ -63,16 +74,18 @@ const CreateSchedule = () => {
     { value: '6', label: 'Fri' },
     { value: '7', label: 'Sat' },
     { value: '8', label: 'Sun' },
-  ];
+  ], []);
 
   // Generate slots from timeslots (will be updated when timeslots are loaded)
   // Slots should map to timeId from timeslots
-  const slots = timeslots.length > 0
-    ? timeslots.map((ts) => ({
-      value: String(ts.timeId),
-      label: `Slot ${ts.timeId}`
-    }))
-    : Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Slot ${i + 1}` }));
+  const slots = useMemo(() => {
+    return timeslots.length > 0
+      ? timeslots.map((ts) => ({
+        value: String(ts.timeId),
+        label: `Slot ${ts.timeId}`
+      }))
+      : Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Slot ${i + 1}` }));
+  }, [timeslots]);
 
   // Helper functions
   const toYMD = (date) => {
@@ -100,7 +113,30 @@ const CreateSchedule = () => {
     d.setDate(d.getDate() + days);
     return d;
   };
+  const findNextDateForWeekday = (startDate, targetWeekday) => {
+    if (!startDate || !targetWeekday) return null;
+    const normalizedTarget = parseInt(targetWeekday, 10);
+    if (Number.isNaN(normalizedTarget)) return null;
+    const baseDate = new Date(startDate);
+    for (let offset = 0; offset < 7; offset++) {
+      const candidate = addDays(baseDate, offset);
+      const weekday = candidate.getDay();
+      const normalized = weekday === 0 ? 8 : weekday + 1;
+      if (normalized === normalizedTarget) {
+        return candidate;
+      }
+    }
+    return null;
+  };
 
+  const buildAvailabilityKey = (lesson) => {
+    if (!lesson || !lesson.date) return null;
+    const slotValue = lesson.timeId || lesson.slot;
+    if (!slotValue) return null;
+    const roomKey = lesson.roomId || lesson.room;
+    if (!roomKey) return null;
+    return `${lesson.date}|${slotValue}|${roomKey}`;
+  };
   const clampWeekStartWithinSemester = (weekStart, semStart = null, semEnd = null) => {
     const startDate = semStart || semester.start;
     const endDate = semEnd || semester.end;
@@ -115,7 +151,13 @@ const CreateSchedule = () => {
   const getWeekRange = (weekStart) => {
     return `Week ${toYMD(weekStart)} → ${toYMD(addDays(weekStart, 6))}`;
   };
-
+  const getStudentIds = () => {
+    return (classStudents || [])
+      .map(student => student?.studentId || student?.id)
+      .filter((id) => id !== undefined && id !== null)
+      .map(id => parseInt(id, 10))
+      .filter(id => !Number.isNaN(id));
+  };
   const normalizeDateString = (rawDate) => {
     if (!rawDate) return '';
     if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
@@ -247,7 +289,7 @@ const CreateSchedule = () => {
     setCurrentWeekStart(initWeek);
   }, []);
 
-  // Regenerate preview lessons when lecturer, patterns, semester, holidays, or rooms change
+  // Regenerate preview lessons when lecturer, patterns, semester, holidays, rooms, or totalLesson change
   useEffect(() => {
     if (patterns.length > 0 && semester.start && semester.end && rooms.length > 0) {
       const newPreviewLessons = generateLessonsFromPatterns(
@@ -256,16 +298,288 @@ const CreateSchedule = () => {
         semester.end,
         lecturerCode,
         subjectCode,
-        subjectName
+        subjectName,
+        totalLesson
       );
       setPreviewLessons(newPreviewLessons);
     } else {
       setPreviewLessons([]);
     }
-  }, [lecturerCode, subjectCode, subjectName, patterns, semester.start, semester.end, rooms, holidays]);
+  }, [lecturerCode, subjectCode, subjectName, patterns, semester.start, semester.end, rooms, holidays, totalLesson]);
+  useEffect(() => {
+    if (!previewLessons || previewLessons.length === 0 || !lecturerId || !classId) {
+      setAvailabilityMap({});
+      return;
+    }
+
+    const uniqueLessons = new Map();
+    previewLessons.forEach((lesson) => {
+      const key = buildAvailabilityKey(lesson);
+      if (key && !uniqueLessons.has(key)) {
+        uniqueLessons.set(key, lesson);
+      }
+    });
+
+    if (uniqueLessons.size === 0) {
+      setAvailabilityMap({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchAvailability = async () => {
+      const entries = [];
+      const studentIds = getStudentIds();
+      for (const [key, lesson] of uniqueLessons.entries()) {
+        try {
+          const payload = {
+            date: lesson.date,
+            timeId: parseInt(lesson.timeId || lesson.slot, 10),
+            classId: classId ? parseInt(classId, 10) : undefined,
+            roomId: lesson.roomId ? parseInt(lesson.roomId, 10) : undefined,
+            lecturerId: lecturerId ? parseInt(lecturerId, 10) : undefined,
+            studentIds,
+          };
+          const availability = await ClassList.checkAvailability(payload);
+          const reasons = [];
+          if (availability?.isRoomBusy) reasons.push('Room busy');
+          if (availability?.isLecturerBusy) reasons.push('Lecturer busy');
+          if (availability?.isClassBusy) reasons.push('Class busy');
+          if (availability?.conflictedStudentIds?.length) {
+            reasons.push(`${availability.conflictedStudentIds.length} students busy`);
+          }
+          const displayLecturer = lecturerCode || lecturerId || '';
+          entries.push([key, { ...availability, message: reasons.length > 0 ? reasons.join(' | ') : `| ${displayLecturer}` }]);
+        } catch (error) {
+          console.error('Failed to check availability for preview lesson:', error);
+        }
+      }
+
+      if (!cancelled) {
+        setAvailabilityMap(Object.fromEntries(entries));
+      }
+    };
+
+    fetchAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previewLessons, lecturerId, lecturerCode, classId, classStudents]);
+
+  useEffect(() => {
+    if (!weekday || !slotId || !roomId || !semester.start || !lecturerId || !classId) {
+      setPendingAvailability({ status: 'idle' });
+      return;
+    }
+
+    const nextDate = findNextDateForWeekday(semester.start, weekday);
+    if (!nextDate) {
+      setPendingAvailability({ status: 'idle' });
+      return;
+    }
+
+    const studentIds = getStudentIds();
+    const payload = {
+      date: toYMD(nextDate),
+      timeId: parseInt(slotId, 10),
+      classId: classId ? parseInt(classId, 10) : undefined,
+      roomId: roomId ? parseInt(roomId, 10) : undefined,
+      lecturerId: lecturerId ? parseInt(lecturerId, 10) : undefined,
+      studentIds,
+    };
+
+    let cancelled = false;
+    setPendingAvailability({ status: 'loading' });
+
+    ClassList.checkAvailability(payload)
+      .then((result) => {
+        if (cancelled) return;
+        const reasons = [];
+        if (result?.isClassBusy) reasons.push('Class already scheduled');
+        if (result?.isRoomBusy) reasons.push('Room is occupied');
+        if (result?.isLecturerBusy) reasons.push('Lecturer is busy');
+        if (result?.conflictedStudentIds && result.conflictedStudentIds.length > 0) {
+          reasons.push(`${result.conflictedStudentIds.length} students have other classes`);
+        }
+        const hasConflict = reasons.length > 0;
+        setPendingAvailability({
+          status: 'ready',
+          hasConflict,
+          result,
+          message: hasConflict ? reasons.join(' | ') : 'Slot is available',
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Failed to check pending selection availability:', error);
+        setPendingAvailability({
+          status: 'error',
+          hasConflict: true,
+          message: error?.response?.data?.message || 'Unable to verify slot availability',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [weekday, slotId, roomId, lecturerId, classId, semester.start, classStudents]);
+
+  // Initialize filtered options when weekdays, slots, or rooms change
+  useEffect(() => {
+    setFilteredWeekdays(weekdays);
+  }, [weekdays]);
+
+  useEffect(() => {
+    setFilteredSlots(slots);
+  }, [slots]);
+
+  useEffect(() => {
+    setFilteredRooms(rooms);
+  }, [rooms]);
+
+  // Filter options to show only valid selections
+  useEffect(() => {
+    // Skip if prerequisites not met
+    if (!classId || !semester.start || !semester.end || !lecturerId) {
+      setFilteringOptions(false);
+      return;
+    }
+
+    // Skip if no options available
+    if (weekdays.length === 0 || slots.length === 0 || rooms.length === 0) {
+      setFilteringOptions(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const filterOptions = async () => {
+      if (cancelled) return;
+
+      setFilteringOptions(true);
+      const studentIds = getStudentIds();
+
+      // Only filter if we have enough information
+      // Filter weekdays: check if weekday is valid with current selections (need slot and room)
+      if (slotId && roomId) {
+        const validWeekdays = [];
+        for (const wd of weekdays) {
+          if (cancelled) return;
+          const testDate = findNextDateForWeekday(semester.start, wd.value);
+          if (!testDate) continue;
+
+          try {
+            const payload = {
+              date: toYMD(testDate),
+              timeId: parseInt(slotId, 10),
+              classId: parseInt(classId, 10),
+              roomId: parseInt(roomId, 10),
+              lecturerId: parseInt(lecturerId, 10),
+              studentIds,
+            };
+            const result = await ClassList.checkAvailability(payload);
+            if (!result?.isClassBusy && !result?.isRoomBusy &&
+              !result?.isLecturerBusy &&
+              (!result?.conflictedStudentIds || result.conflictedStudentIds.length === 0)) {
+              validWeekdays.push(wd);
+            }
+          } catch (error) {
+            // On error, include the option (fail open)
+            validWeekdays.push(wd);
+          }
+        }
+        if (!cancelled) {
+          setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : weekdays);
+        }
+      }
+
+      // Filter slots: check if slot is valid with current selections (need weekday and room)
+      if (weekday && roomId) {
+        const validSlots = [];
+        const testDate = findNextDateForWeekday(semester.start, weekday);
+        if (testDate) {
+          for (const slot of slots) {
+            if (cancelled) return;
+            try {
+              const payload = {
+                date: toYMD(testDate),
+                timeId: parseInt(slot.value, 10),
+                classId: parseInt(classId, 10),
+                roomId: parseInt(roomId, 10),
+                lecturerId: parseInt(lecturerId, 10),
+                studentIds,
+              };
+              const result = await ClassList.checkAvailability(payload);
+              if (!result?.isClassBusy && !result?.isRoomBusy &&
+                !result?.isLecturerBusy &&
+                (!result?.conflictedStudentIds || result.conflictedStudentIds.length === 0)) {
+                validSlots.push(slot);
+              }
+            } catch (error) {
+              validSlots.push(slot);
+            }
+          }
+        } else {
+          validSlots.push(...slots);
+        }
+        if (!cancelled) {
+          setFilteredSlots(validSlots.length > 0 ? validSlots : slots);
+        }
+      }
+
+      // Filter rooms: check if room is valid with current selections (need weekday and slot)
+      if (weekday && slotId) {
+        const validRooms = [];
+        const testDate = findNextDateForWeekday(semester.start, weekday);
+        if (testDate) {
+          for (const room of rooms) {
+            if (cancelled) return;
+            try {
+              const payload = {
+                date: toYMD(testDate),
+                timeId: parseInt(slotId, 10),
+                classId: parseInt(classId, 10),
+                roomId: parseInt(room.value, 10),
+                lecturerId: parseInt(lecturerId, 10),
+                studentIds,
+              };
+              const result = await ClassList.checkAvailability(payload);
+              if (!result?.isClassBusy && !result?.isRoomBusy &&
+                !result?.isLecturerBusy &&
+                (!result?.conflictedStudentIds || result.conflictedStudentIds.length === 0)) {
+                validRooms.push(room);
+              }
+            } catch (error) {
+              validRooms.push(room);
+            }
+          }
+        } else {
+          validRooms.push(...rooms);
+        }
+        if (!cancelled) {
+          setFilteredRooms(validRooms.length > 0 ? validRooms : rooms);
+        }
+      }
+
+      if (!cancelled) {
+        setFilteringOptions(false);
+      }
+    };
+
+    // Debounce filtering to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      filterOptions();
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [weekday, slotId, roomId, lecturerId, classId, semester.start, semester.end, classStudents]);
 
   // Generate lessons from patterns for entire semester
-  const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer, subjectCodeValue, subjectNameValue) => {
+  const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer, subjectCodeValue, subjectNameValue, totalLessonCount) => {
     const generatedLessons = [];
     const holidaysDates = holidays.map(h => h.date);
 
@@ -274,9 +588,14 @@ const CreateSchedule = () => {
     const endDate = semEnd;
 
     // Generate lessons for each week in semester
-    while (currentDate <= endDate) {
+    while (currentDate <= endDate && (!totalLessonCount || generatedLessons.length < totalLessonCount)) {
       // For each weekday (Mon-Sun)
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        // Stop if we've reached the total lesson count
+        if (totalLessonCount && generatedLessons.length >= totalLessonCount) {
+          break;
+        }
+
         const lessonDate = addDays(currentDate, dayOffset);
 
         // Skip if beyond semester end
@@ -293,6 +612,11 @@ const CreateSchedule = () => {
         const normalizedWeekday = weekdayNum === 0 ? 8 : weekdayNum + 1; // Convert: Mon=2 ... Sat=7, Sun=8
 
         patterns.forEach(pattern => {
+          // Stop if we've reached the total lesson count
+          if (totalLessonCount && generatedLessons.length >= totalLessonCount) {
+            return;
+          }
+
           if (pattern.weekday === normalizedWeekday) {
             // Find room name from roomId
             const room = rooms.find(r => r.value === pattern.room);
@@ -319,13 +643,57 @@ const CreateSchedule = () => {
 
     return generatedLessons;
   };
+  const fetchClassStudents = async (clsId) => {
+    if (!clsId) {
+      setClassStudents([]);
+      setTotalLesson(null);
+      return;
+    }
+    try {
+      const studentResponse = await ClassList.getStudents(clsId);
+      const responseData = studentResponse?.data || studentResponse || {};
 
+      // Extract students
+      const rawStudents = responseData?.students
+        || responseData?.items
+        || [];
+      const formatted = (Array.isArray(rawStudents) ? rawStudents : [])
+        .map((student) => {
+          const user = student.user || {};
+          const firstName = student.firstName || user.firstName || '';
+          const lastName = student.lastName || user.lastName || '';
+          const fullName = `${firstName} ${lastName}`.trim();
+          return {
+            studentId: student.studentId || student.id || student.userId,
+            studentCode: student.studentCode || student.code,
+            fullName: fullName || student.name || '',
+          };
+        })
+        .filter((student) => student.studentId);
+      setClassStudents(formatted);
+
+      // Extract totalLesson from subject
+      const subjectTotalLesson = responseData?.subject?.totalLesson
+        || responseData?.totalLesson
+        || null;
+      if (subjectTotalLesson !== null && subjectTotalLesson !== undefined) {
+        setTotalLesson(parseInt(subjectTotalLesson, 10));
+        console.log('Total lesson from subject:', subjectTotalLesson);
+      } else {
+        setTotalLesson(null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch class students:', error);
+      setClassStudents([]);
+      setTotalLesson(null);
+    }
+  };
   const handleLoadClass = async (data) => {
     // Nếu nhận được data từ PickSemesterAndClass (API call)
     if (data && data.schedule) {
-      const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt } = data;
+      const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt, subjectCode: subCode, subjectName: subName } = data;
 
-      console.log('Received schedule data:', { schedule, semOpt, semId, clsId });
+      console.log('Received schedule data:', { schedule, semOpt, semId, clsId, subCode, subName });
 
       // Tính toán semester start/end từ schedule data nếu không có từ semOpt
       let semStart, semEnd;
@@ -439,20 +807,27 @@ const CreateSchedule = () => {
       console.log('Converted loaded lessons:', convertedLessons);
       setLoadedLessons(convertedLessons);
 
-      // Set subject code and name from schedule
-      const firstSubjectCode = schedule[0]?.subjectCode || '';
-      const firstSubjectName = schedule[0]?.subjectName || '';
+      // Set subject code and name from API getInformationOfClass (priority) or from schedule (fallback)
+      const subjectCodeFromApi = subCode || '';
+      const subjectNameFromApi = subName || '';
+      const firstSubjectCode = subjectCodeFromApi || schedule[0]?.subjectCode || '';
+      const firstSubjectName = subjectNameFromApi || schedule[0]?.subjectName || '';
       const firstClassName = schedule[0]?.className || '';
+
       if (firstSubjectCode) {
         setSubjectCode(firstSubjectCode);
       }
-      setSubjectName(firstSubjectName);
-      setClassName(firstClassName);
+      if (firstSubjectName) {
+        setSubjectName(firstSubjectName);
+      }
+      if (firstClassName) {
+        setClassName(firstClassName);
+      }
 
       // Also update semesterId and classId in parent state
       setSemesterId(semId);
       setClassId(clsId);
-
+      fetchClassStudents(clsId);
       return;
     }
 
@@ -482,7 +857,15 @@ const CreateSchedule = () => {
       });
       return;
     }
-
+    if (pendingAvailability?.hasConflict) {
+      api.error({
+        message: 'Slot unavailable',
+        description: pendingAvailability?.message || 'The selected slot is not available for this class',
+        placement: 'bottomRight',
+        duration: 5,
+      });
+      return;
+    }
     const newPatterns = [...patterns, {
       weekday: parseInt(weekday),
       slot: parseInt(slotId),
@@ -581,7 +964,8 @@ const CreateSchedule = () => {
         semesterId: parseInt(effectiveSemesterId),
         classId: parseInt(classId),
         lecturerId: parseInt(lecturerId),
-        patterns: formattedPatterns
+        patterns: formattedPatterns,
+        totalLesson: totalLesson ? parseInt(totalLesson, 10) : null
       };
 
       console.log('Saving schedule with payload:', payload);
@@ -644,6 +1028,13 @@ const CreateSchedule = () => {
             if (lecturerMatch) {
               const [, date, timeId] = lecturerMatch;
               firstMessage = `Lecturer Conflict: The lecturer is already teaching on ${date}, slot ${timeId}.`;
+            } else {
+              const studentRegex = /Student conflict:\s*students\s*\[(.+?)\]/i;
+              const studentMatch = studentRegex.exec(serverMsg);
+              if (studentMatch) {
+                const conflicted = studentMatch[1];
+                firstMessage = `Student Conflict: ${conflicted} already have lessons at the same time.`;
+              }
             }
           }
         }
@@ -655,7 +1046,7 @@ const CreateSchedule = () => {
           duration: 8,
         });
 
-          } else {
+      } else {
         const fallback =
           error?.response?.data?.message ||
           error?.message ||
@@ -675,8 +1066,9 @@ const CreateSchedule = () => {
     }
   };
 
-  // Helper function to check if two lessons conflict (same date, timeId, and room)
-  // Conflict only occurs when preview lesson overlaps with loaded lesson at the exact same date, time, and room
+
+  // Helper function to check if two lessons conflict (same date & slot regardless of room)
+  // We only care about the class occupying a slot, not the physical room, because the BE enforces room conflicts separately.
   const isLessonConflict = (previewLesson, loadedLesson) => {
     if (!previewLesson || !loadedLesson) return false;
 
@@ -686,21 +1078,7 @@ const CreateSchedule = () => {
     // Must be at the same time slot
     const timeId1 = previewLesson.timeId || previewLesson.slot;
     const timeId2 = loadedLesson.timeId || loadedLesson.slot;
-    if (parseInt(timeId1) !== parseInt(timeId2)) return false;
-
-    // Must be in the same room (compare by roomId if available, otherwise by room name)
-    const previewRoomId = previewLesson.roomId;
-    const loadedRoomId = loadedLesson.roomId;
-
-    // If both have roomId, compare by roomId
-    if (previewRoomId && loadedRoomId) {
-      return String(previewRoomId) === String(loadedRoomId);
-    }
-
-    // Otherwise, compare by room name
-    const previewRoom = previewLesson.room || '';
-    const loadedRoom = loadedLesson.room || '';
-    return previewRoom === loadedRoom && previewRoom !== '';
+    return parseInt(timeId1, 10) === parseInt(timeId2, 10);
   };
 
   const renderCalendar = (weekStart) => {
@@ -712,10 +1090,15 @@ const CreateSchedule = () => {
 
     const holidayLookup = holidays.reduce((acc, holiday) => {
       if (holiday.date) {
-        acc[holiday.date] = holiday.name || holiday.description || 'Holiday';
+        acc[holiday.date] = holiday.name || holiday.holidayName || holiday.reason || holiday.description || 'Holiday';
       }
       return acc;
     }, {});
+
+    // Debug: log holidays for troubleshooting
+    if (holidays.length > 0 && Object.keys(holidayLookup).length === 0) {
+      console.warn('Holidays loaded but lookup is empty. Holiday dates:', holidays.map(h => h.date));
+    }
 
     const columns = [
       {
@@ -725,13 +1108,27 @@ const CreateSchedule = () => {
         fixed: 'left',
         width: 140,
       },
-      ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayLabel, idx) => ({
-        title: dayLabel,
-        dataIndex: `day${idx}`,
-        key: `day${idx}`,
-        align: 'left',
-        render: (content) => content || '',
-      })),
+      ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayLabel, idx) => {
+        const dayDate = addDays(weekStart, idx);
+        const dateStr = toYMD(dayDate);
+        const [year, month, day] = dateStr.split('-');
+        const formattedDate = `${day}/${month}`;
+
+        return {
+          title: (
+            <div style={{ textAlign: 'center' }}>
+              <div>{dayLabel}</div>
+              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#666' }}>
+                {formattedDate}
+              </div>
+            </div>
+          ),
+          dataIndex: `day${idx}`,
+          key: `day${idx}`,
+          align: 'left',
+          render: (content) => content || '',
+        };
+      }),
     ];
 
     const dataSource = slotsToRender.map((slotInfo) => {
@@ -779,33 +1176,55 @@ const CreateSchedule = () => {
             return other.date === dateStr && parseInt(otherTimeId) === parseInt(thisTimeId);
           });
 
-          const hasConflict = loadedConflict || hasPreviewClassConflict;
-          
+          const availabilityKey = buildAvailabilityKey(previewLesson);
+          const slotAvailability = availabilityKey ? availabilityMap[availabilityKey] : null;
+          const slotReasons = [];
+          if (slotAvailability?.isRoomBusy) slotReasons.push('Room busy');
+          if (slotAvailability?.isLecturerBusy) slotReasons.push('Lecturer busy');
+          if (slotAvailability?.isClassBusy) slotReasons.push('Class already scheduled');
+          if (slotAvailability?.conflictedStudentIds?.length) {
+            slotReasons.push(`${slotAvailability.conflictedStudentIds.length} students busy`);
+          }
+          const availabilityConflict = slotReasons.length > 0;
+          const hasConflict = loadedConflict || hasPreviewClassConflict || availabilityConflict;
+
           // Preview lesson exists - display SubjectCode, SubjectName, RoomName
           const previewSubjectCode = subjectCode || '';
           const previewSubjectName = subjectName || '';
           const previewRoomName = previewLesson.room || '';
-          
+
           const parts = [];
           if (previewSubjectCode) parts.push(previewSubjectCode);
           if (previewSubjectName) parts.push(previewSubjectName);
           if (previewRoomName) parts.push(previewRoomName);
-          
+
           const displayText = parts.join(' | ');
-          
+
           if (hasConflict) {
             // Conflict: red background - show preview with conflict indicator
-            const loadedSubjectCode = loadedLesson.subjectCode || '';
-            const loadedSubjectName = loadedLesson.subjectName || '';
-            const loadedRoomName = loadedLesson.room || '';
-            const loadedParts = [];
-            if (loadedSubjectCode) loadedParts.push(loadedSubjectCode);
-            if (loadedSubjectName) loadedParts.push(loadedSubjectName);
-            if (loadedRoomName) loadedParts.push(loadedRoomName);
-            const conflictText = loadedParts.length > 0 ? loadedParts.join(' | ') : 'Conflict';
-            cellContents.push(`${displayText} ⚠️ (Conflict: ${conflictText})`);
-            cellStyle = { 
-              backgroundColor: '#ffebee', 
+            const conflictParts = [];
+            if (loadedConflict && loadedLesson) {
+              const loadedSubjectCode = loadedLesson.subjectCode || '';
+              const loadedSubjectName = loadedLesson.subjectName || '';
+              const loadedRoomName = loadedLesson.room || '';
+              const loadedParts = [];
+              if (loadedSubjectCode) loadedParts.push(loadedSubjectCode);
+              if (loadedSubjectName) loadedParts.push(loadedSubjectName);
+              if (loadedRoomName) loadedParts.push(loadedRoomName);
+              if (loadedParts.length > 0) {
+                conflictParts.push(loadedParts.join(' | '));
+              }
+            }
+            if (hasPreviewClassConflict) {
+              conflictParts.push('Duplicate pattern in preview');
+            }
+            if (availabilityConflict && slotReasons.length > 0) {
+              conflictParts.push(slotReasons.join(' | '));
+            }
+            const conflictText = conflictParts.length > 0 ? conflictParts.join(' || ') : 'Conflict';
+            cellContents.push(`${displayText} ⚠️ ${conflictText}`);
+            cellStyle = {
+              backgroundColor: '#ffebee',
               color: '#c62828',
               fontWeight: 'bold',
               border: '2px solid #c62828'
@@ -813,9 +1232,10 @@ const CreateSchedule = () => {
             classNames.push('lesson-conflict');
           } else {
             // No conflict: green background
-            cellContents.push(displayText);
-            cellStyle = { 
-              backgroundColor: '#e8f5e9', 
+            const availabilityHint = slotAvailability?.message || '';
+            cellContents.push(availabilityHint ? `${displayText} ${availabilityHint}` : displayText);
+            cellStyle = {
+              backgroundColor: '#e8f5e9',
               color: '#2e7d32',
               fontWeight: 'bold',
               border: '2px solid #2e7d32'
@@ -828,13 +1248,13 @@ const CreateSchedule = () => {
           const loadedSubjectName = loadedLesson.subjectName || '';
           const loadedRoomName = loadedLesson.room || '';
           const loadedLecturerCode = loadedLesson.lecturer || '';
-          
+
           const parts = [];
           if (loadedSubjectCode) parts.push(loadedSubjectCode);
           if (loadedSubjectName) parts.push(loadedSubjectName);
           if (loadedRoomName) parts.push(loadedRoomName);
           if (loadedLecturerCode) parts.push(loadedLecturerCode);
-          
+
           cellContents.push(parts.length > 0 ? parts.join(' | ') : '');
           cellStyle = {
             backgroundColor: '#f5f5f5',
@@ -844,11 +1264,20 @@ const CreateSchedule = () => {
         }
 
         if (holidayName) {
-          cellContents.unshift(
-            <div key="holiday" className="holiday-badge">
-              {holidayName}
-            </div>
-          );
+          // Always show holiday tag, even if cell is empty
+          if (cellContents.length === 0) {
+            cellContents.push(
+              <Tag key="holiday" color="gold">
+                {holidayName}
+              </Tag>
+            );
+          } else {
+            cellContents.unshift(
+              <Tag key="holiday" color="gold" style={{ marginBottom: 4 }}>
+                {holidayName}
+              </Tag>
+            );
+          }
           cellStyle = {
             ...(cellStyle || {}),
             backgroundColor: cellStyle.backgroundColor || '#fffde7',
@@ -881,11 +1310,14 @@ const CreateSchedule = () => {
 
   if (loading) {
     return (
-      <div className="create-schedule-app">
-        <main className="create-schedule-main" style={{ padding: '20px', textAlign: 'center' }}>
-          <p>Loading data...</p>
-        </main>
-      </div>
+      <Layout className="create-schedule-app">
+        <Layout.Content className="create-schedule-main" style={{ padding: '40px', textAlign: 'center' }}>
+          <Space direction="vertical" size="large">
+            <Spin size="large" />
+            <Typography.Text type="secondary">Loading data...</Typography.Text>
+          </Space>
+        </Layout.Content>
+      </Layout>
     );
   }
 
@@ -899,7 +1331,7 @@ const CreateSchedule = () => {
               Create Class Timetable
             </Typography.Title>
             <Typography.Text type="secondary">
-              Pick semester & class, define weekly patterns, then preview conflicts before saving.
+              Pick semester & class, define weekly schedule, then preview conflicts before saving.
             </Typography.Text>
             <Space size="small" wrap style={{ marginTop: 8 }}>
               {subjectCode && subjectName && (
@@ -920,48 +1352,50 @@ const CreateSchedule = () => {
             </Space>
           </div>
 
-          <Row gutter={[16, 16]}>
-            <Col xs={24} xl={16}>
-              <PickSemesterAndClass
-                semesterId={semesterId}
-                classId={classId}
-                onSemesterChange={setSemesterId}
-                onClassChange={setClassId}
-                onLoadClass={handleLoadClass}
-              />
+          <Row gutter={[16, 16]} style={{ display: 'flex', alignItems: 'stretch' }}>
+            <Col xs={24} xl={16} style={{ display: 'flex' }}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <PickSemesterAndClass
+                  semesterId={semesterId}
+                  classId={classId}
+                  onSemesterChange={setSemesterId}
+                  onClassChange={setClassId}
+                  onLoadClass={handleLoadClass}
+                />
+              </div>
             </Col>
-            <Col xs={24} xl={8}>
-              <LecturerSelector
-                lecturerId={lecturerId}
-                lecturerCode={lecturerCode}
-                onLecturerChange={(id, code) => {
-                  setLecturerId(id);
-                  setLecturerCode(code || '');
-                }}
-                subjectCode={subjectCode}
-                subjectName={subjectName}
-                onSubjectChange={(code, name) => {
-                  setSubjectCode(code);
-                  setSubjectName(name);
-                }}
-              />
+            <Col xs={24} xl={8} style={{ display: 'flex' }}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <LecturerSelector
+                  lecturerId={lecturerId}
+                  lecturerCode={lecturerCode}
+                  onLecturerChange={(id, code) => {
+                    setLecturerId(id);
+                    setLecturerCode(code || '');
+                  }}
+                  subjectCode={subjectCode}
+                  subjectName={subjectName}
+                />
+              </div>
             </Col>
           </Row>
 
-          <WeeklyPatterns
+          <WeeklySchedules
             weekday={weekday}
             slotId={slotId}
             roomId={roomId}
             patterns={patterns}
-            weekdays={weekdays}
-            slots={slots}
-            rooms={rooms}
+            weekdays={filteredWeekdays.length > 0 ? filteredWeekdays : weekdays}
+            slots={filteredSlots.length > 0 ? filteredSlots : slots}
+            rooms={filteredRooms.length > 0 ? filteredRooms : rooms}
             weekdayMap={weekdayMap}
             onWeekdayChange={setWeekday}
             onSlotChange={setSlotId}
             onRoomChange={setRoomId}
             onAddPattern={handleAddPattern}
             onRemovePattern={handleRemovePattern}
+            pendingAvailability={pendingAvailability}
+            filteringOptions={filteringOptions}
           />
 
           <CalendarTable
