@@ -19,7 +19,7 @@ class ClassList {
   }
 
   static async getStudents(classId) {
-    const response = await api.get(`/api/staffAcademic/classes/${classId}/students`);
+    const response = await api.get(`/api/staffAcademic/classes/${classId}/getInformationOfClass`);
     return response.data?.data ?? response.data;
   }
 

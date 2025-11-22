@@ -34,11 +34,22 @@ public class NotificationService : INotificationService
 
     public async Task<NotificationDto> CreateAsync(CreateNotificationRequest request, bool broadcast = true)
     {
+        // Lưu EntityId trong Content dưới dạng JSON metadata nếu có
+        var content = request.Content;
+        if (request.EntityId.HasValue)
+        {
+            var metadata = $"\n\n{{\"entityId\":{request.EntityId.Value}}}";
+            // Luôn thêm \n\n trước metadata để dễ parse
+            content = string.IsNullOrWhiteSpace(content) 
+                ? metadata.TrimStart() 
+                : content + metadata;
+        }
+
         var entity = new Notification
         {
             UserId = request.UserId,
             Title = FormatTitle(request.Title, request.Category),
-            Content = request.Content,
+            Content = content,
             CreatedBy = request.CreatedBy,
             CreatedTime = DateTime.UtcNow
         };

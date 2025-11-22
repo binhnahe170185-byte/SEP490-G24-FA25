@@ -622,9 +622,22 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         // Generate lessons for each week in semester and detect conflicts
         while (currentDate <= endDate)
         {
+            // Check if we've reached the TotalLesson limit
+            if (request.TotalLesson.HasValue && lessonCount >= request.TotalLesson.Value)
+            {
+                Console.WriteLine($"Reached TotalLesson limit ({request.TotalLesson.Value}). Stopping lesson generation.");
+                break;
+            }
+
             // For each weekday (Mon-Sun, which are days 0-6 in C# DayOfWeek)
             for (int dayOffset = 0; dayOffset < 7; dayOffset++)
             {
+                // Check if we've reached the TotalLesson limit (check again inside loop)
+                if (request.TotalLesson.HasValue && lessonCount >= request.TotalLesson.Value)
+                {
+                    break;
+                }
+
                 var lessonDate = currentDate.AddDays(dayOffset);
 
                 // Skip if beyond semester end
@@ -644,6 +657,12 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 // Check if this weekday matches any pattern
                 foreach (var pattern in request.Patterns)
                 {
+                    // Check limit again before processing each pattern
+                    if (request.TotalLesson.HasValue && lessonCount >= request.TotalLesson.Value)
+                    {
+                        break;
+                    }
+
                     if (pattern.Weekday == normalizedWeekday)
                     {
                         var dateKey = $"{lessonDate:yyyy-MM-dd}";
@@ -737,7 +756,14 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             throw new ArgumentException($"Schedule conflicts detected. {details}");
         }
 
-        Console.WriteLine($"Generated {lessonCount} new lessons and updated {updatedCount} existing lessons from patterns");
+        if (request.TotalLesson.HasValue && lessonCount >= request.TotalLesson.Value)
+        {
+            Console.WriteLine($"Generated {lessonCount} new lessons (limited by TotalLesson={request.TotalLesson.Value}) and updated {updatedCount} existing lessons from patterns");
+        }
+        else
+        {
+            Console.WriteLine($"Generated {lessonCount} new lessons and updated {updatedCount} existing lessons from patterns");
+        }
 
         // Save all new lessons
         if (lessonsToCreate.Any())

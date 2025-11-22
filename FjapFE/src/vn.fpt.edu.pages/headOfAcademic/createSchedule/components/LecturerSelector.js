@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../../vn.fpt.edu.api/http';
-import SubjectList from '../../../../vn.fpt.edu.api/SubjectList';
 import {
   Card,
   Form,
@@ -8,7 +7,6 @@ import {
   Typography,
   Space,
   Alert,
-  Spin,
   Tag,
 } from 'antd';
 import { BookOutlined, UserOutlined } from '@ant-design/icons';
@@ -17,17 +15,11 @@ import '../CreateSchedule.css';
 const LecturerSelector = ({
   lecturerId,
   lecturerCode,
-  onLecturerChange,
-  subjectCode,
-  subjectName,
-  onSubjectChange
+  onLecturerChange
 }) => {
   const [lecturers, setLecturers] = useState([]);
   const [loadingLecturers, setLoadingLecturers] = useState(true);
   const [lecturerError, setLecturerError] = useState(null);
-  const [subjectOptions, setSubjectOptions] = useState([]);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-  const [subjectError, setSubjectError] = useState(null);
 
   useEffect(() => {
     const fetchLecturers = async () => {
@@ -51,95 +43,21 @@ const LecturerSelector = ({
       }
     };
 
-    const fetchSubjects = async () => {
-      try {
-        setLoadingSubjects(true);
-        setSubjectError(null);
-        const subjects = await SubjectList.getAllSubjectForStaffAcademic();
-
-        if (Array.isArray(subjects)) {
-          const formatted = subjects.map(subject => {
-            const code = subject.subjectCode || subject.code || '';
-            const name = subject.subjectName || subject.name || '';
-            return {
-              value: code,
-              label: code && name ? `${code} - ${name}` : code || name || 'Unknown',
-              subjectId: subject.subjectId || subject.id || null,
-              subjectCode: code,
-              subjectName: name
-            };
-          });
-          setSubjectOptions(formatted);
-        } else {
-          setSubjectOptions([]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch subjects:', err);
-        setSubjectError('Failed to load subjects. Please try again.');
-        setSubjectOptions([]);
-      } finally {
-        setLoadingSubjects(false);
-      }
-    };
-
     fetchLecturers();
-    fetchSubjects();
   }, []);
-
-  const handleSubjectChange = (value) => {
-    const selectedSubject = subjectOptions.find(option => option.value === value);
-    if (onSubjectChange) {
-      if (selectedSubject) {
-        onSubjectChange(selectedSubject.subjectCode, selectedSubject.subjectName);
-      } else {
-        onSubjectChange('', '');
-      }
-    }
-  };
 
   return (
     <Card
-      title={<Typography.Text strong>Assign Subject & Lecturer</Typography.Text>}
+      title={<Typography.Text strong>Assign Lecturer</Typography.Text>}
       className="create-schedule-card"
     >
       <Form layout="vertical">
         <Space
-          direction="horizontal"
-          size="large"
-          wrap
-          className="create-schedule-space-responsive"
+          direction="vertical"
+          size="middle"
+          style={{ width: '100%' }}
         >
-          <Form.Item
-            label="Choose subject"
-            style={{ minWidth: 260 }}
-            className="create-schedule-form-item"
-          >
-            <Select
-              id="subject_code_assign"
-              value={subjectCode || undefined}
-              onChange={handleSubjectChange}
-              placeholder="Subject Code"
-              loading={loadingSubjects}
-              options={subjectOptions}
-              showSearch
-              optionFilterProp="label"
-              allowClear
-              suffixIcon={loadingSubjects ? <Spin size="small" /> : <BookOutlined />}
-            />
-            {subjectError && (
-              <Alert
-                message={subjectError}
-                type="error"
-                showIcon
-                style={{ marginTop: 8 }}
-              />
-            )}
-            {subjectName && subjectCode && !subjectError && (
-              <Tag color="green" style={{ marginTop: 8 }}>
-                {subjectCode} — {subjectName}
-              </Tag>
-            )}
-          </Form.Item>
+         
 
           <Form.Item
             label="Choose lecturer"
@@ -159,7 +77,7 @@ const LecturerSelector = ({
               showSearch
               optionFilterProp="label"
               allowClear
-              suffixIcon={loadingLecturers ? <Spin size="small" /> : <UserOutlined />}
+              suffixIcon={<UserOutlined />}
             />
             {lecturerError && (
               <Alert
@@ -170,7 +88,7 @@ const LecturerSelector = ({
               />
             )}
             {lecturerCode && !lecturerError && (
-              <Tag color="blue" style={{ marginTop: 8 }}>
+              <Tag icon={<UserOutlined />} color="blue" style={{ marginTop: 8 }}>
                 {lecturerCode}
               </Tag>
             )}

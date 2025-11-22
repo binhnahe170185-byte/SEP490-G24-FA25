@@ -18,7 +18,8 @@ public record CreateNotificationRequest(
     string Title,
     string? Content,
     string? Category = null,
-    int? CreatedBy = null
+    int? CreatedBy = null,
+    int? EntityId = null
 );
 
 public record NotificationFilterRequest(

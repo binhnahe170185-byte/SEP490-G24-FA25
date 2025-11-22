@@ -206,22 +206,60 @@ function normalizeNotification(raw, readMap) {
   const type = deriveType(raw?.category, raw?.title, raw?.content);
   const id = raw?.id ?? generateFallbackId();
 
+  // Parse EntityId từ Content (JSON metadata ở cuối)
+  let content = raw?.content ?? '';
+  let entityId = null;
+  let link = null;
+
+  // Tìm JSON metadata ở cuối content
+  // Format: \n\n{"entityId":123} hoặc {"entityId":123} ở cuối (khi content rỗng)
+  const jsonMatch = content.match(/(?:^|\n\n)\{"entityId":(\d+)\}$/);
+  if (jsonMatch) {
+    entityId = parseInt(jsonMatch[1], 10);
+    // Loại bỏ metadata khỏi content để hiển thị
+    content = content.replace(/(?:^|\n\n)\{"entityId":\d+\}$/, '').trim();
+  }
+
+  // Tạo link động dựa trên category và entityId
+  // Một số type không cần entityId (grade, homework)
+  link = generateNotificationLink(type, entityId);
+
   return {
     id,
     title: raw?.title ?? '',
-    content: raw?.content ?? '',
+    content,
     createdTime,
     read: Boolean(raw?.read) || Boolean(readMap?.[id]),
     type,
+    link,
+    entityId,
   };
 }
 
+function generateNotificationLink(type, entityId) {
+  const normalizedType = type?.toLowerCase();
+  
+  switch (normalizedType) {
+    case 'news':
+      return entityId ? `/student/news/${entityId}` : null;
+    case 'homework':
+      return `/student/homework`;
+    case 'grade':
+      // Grade không cần entityId, link luôn là /student/grades
+      return `/student/grades`;
+    default:
+      return null;
+  }
+}
+
 function deriveType(category, title, content) {
+  // Ưu tiên sử dụng category từ backend
   const normalizedCategory = category?.toLowerCase();
   if (normalizedCategory) {
     return normalizedCategory;
   }
 
+  // Fallback: parse từ title và content
   const text = `${title ?? ''} ${content ?? ''}`.toLowerCase();
   if (text.includes('grade') || text.includes('score') || text.includes('điểm')) return 'grade';
   if (

@@ -16,7 +16,7 @@ import {
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
 
-const WeeklyPatterns = ({
+const WeeklySchedules = ({
   weekday,
   slotId,
   roomId,
@@ -28,12 +28,13 @@ const WeeklyPatterns = ({
   onWeekdayChange,
   onSlotChange,
   onRoomChange,
-  onAddPattern, 
+  onAddPattern,
   onRemovePattern,
-  pendingAvailability
+  pendingAvailability,
+  filteringOptions = false
 }) => {
   const hasValues = weekday && slotId && roomId;
-const availabilityState = pendingAvailability || {};
+  const availabilityState = pendingAvailability || {};
   const isChecking = availabilityState.status === 'loading';
   const isUnavailable = availabilityState.hasConflict;
   const availabilityMessage = availabilityState.message;
@@ -45,7 +46,7 @@ const availabilityState = pendingAvailability || {};
       ? 'Checking slot availability...'
       : isUnavailable
         ? availabilityMessage || 'This slot is not available'
-        : 'Add pattern';
+        : 'Add schedule';
   const getRoomLabel = (roomValue) => {
     const room = rooms.find(r => String(r.value) === String(roomValue));
     return room?.label || roomValue;
@@ -53,7 +54,7 @@ const availabilityState = pendingAvailability || {};
 
   return (
     <Card
-      title="Weekly Patterns"
+      title="Weekly Schedules"
       className="create-schedule-card"
       extra={
         <Tooltip title={addButtonTooltip}>
@@ -61,16 +62,16 @@ const availabilityState = pendingAvailability || {};
             type="primary"
             icon={<PlusOutlined />}
             onClick={onAddPattern}
-              disabled={addButtonDisabled}
+            disabled={addButtonDisabled}
           >
-            Add pattern
+            Add schedule
           </Button>
         </Tooltip>
       }
     >
-      {isChecking && (
+      {(isChecking || filteringOptions) && (
         <Alert
-          message="Checking availability..."
+          message={filteringOptions ? "Filtering valid options..." : "Checking availability..."}
           type="info"
           icon={<Spin size="small" />}
           showIcon
@@ -99,6 +100,8 @@ const availabilityState = pendingAvailability || {};
               placeholder="Select weekday"
               options={weekdays}
               allowClear
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
 
@@ -109,6 +112,8 @@ const availabilityState = pendingAvailability || {};
               placeholder="Select slot"
               options={slots}
               allowClear
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
 
@@ -121,6 +126,8 @@ const availabilityState = pendingAvailability || {};
               allowClear
               showSearch
               optionFilterProp="label"
+              loading={filteringOptions}
+              notFoundContent={filteringOptions ? <Spin size="small" /> : null}
             />
           </Form.Item>
         </Space>
@@ -156,5 +163,5 @@ const availabilityState = pendingAvailability || {};
   );
 };
 
-export default WeeklyPatterns;
+export default WeeklySchedules;
 
