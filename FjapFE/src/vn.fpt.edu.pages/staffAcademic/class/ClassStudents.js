@@ -276,6 +276,7 @@ const ClassStudents = () => {
       align: "center",
       render: (value, record) => (
         <Avatar
+          size={80}
           src={value}
           icon={!value ? <UserOutlined /> : undefined}
           alt={record.fullName}

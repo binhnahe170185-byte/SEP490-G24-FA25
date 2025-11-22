@@ -419,6 +419,12 @@ const normalizeExistingClasses = (records = []) =>
         record.name ??
         normalized.name ??
         "";
+      const classIdValue =
+        record.classId ??
+        record.class_id ??
+        record.id ??
+        record.ClassId ??
+        null;
       const semesterId =
         normalized.semesterId ??
         record.semesterId ??
@@ -447,6 +453,7 @@ const normalizeExistingClasses = (records = []) =>
         record.subject_detail?.subject_id ??
         null;
       return {
+        classId: toComparableId(classIdValue),
         className,
         semesterId: toComparableId(semesterId),
         levelId: toComparableId(levelId),
@@ -623,6 +630,7 @@ export default function ClassFormModal({
   const [existingClasses, setExistingClasses] = useState([]);
   const [loadingExistingClasses, setLoadingExistingClasses] = useState(false);
   const [semesterCodeMap, setSemesterCodeMap] = useState(() => new Map());
+  const [initialRecord, setInitialRecord] = useState(null);
   const watchedSemesterId = Form.useWatch("semesterId", form);
   const watchedLevelId = Form.useWatch("levelId", form);
   const watchedSubjectId = Form.useWatch("subjectId", form);
@@ -744,6 +752,7 @@ export default function ClassFormModal({
         const normalized = normalizeClassDetail(data ?? {});
         form.setFieldsValue(normalized);
         setCurrentLevel(normalized.levelId);
+        setInitialRecord(normalized);
       })
       .catch((error) => {
         console.error("Failed to load class detail:", error);
@@ -766,11 +775,12 @@ export default function ClassFormModal({
       setExistingClasses([]);
       setLoadingExistingClasses(false);
       setSemesterCodeMap(new Map());
+      setInitialRecord(null);
     }
   }, [open, form]);
 
-  useEffect(() => {
-    if (!open || isEditMode) {
+useEffect(() => {
+    if (!open) {
       return;
     }
     setLoadingExistingClasses(true);
@@ -781,7 +791,7 @@ export default function ClassFormModal({
         setExistingClasses([]);
       })
       .finally(() => setLoadingExistingClasses(false));
-  }, [open, isEditMode]);
+  }, [open]);
 
   const filteredSubjects = useMemo(() => {
     if (!currentLevel) {
@@ -796,8 +806,18 @@ export default function ClassFormModal({
   }, [currentLevel, options.subjects]);
 
   const isLoading = loadingOptions || loadingRecord;
-  const isCreateMode = !isEditMode;
-  const effectiveLoading = isLoading || (isCreateMode && loadingExistingClasses);
+  const effectiveLoading = isLoading || loadingExistingClasses;
+
+  const comparableClassId = useMemo(
+    () => toComparableId(classId),
+    [classId]
+  );
+
+  const initialSnapshot = initialRecord ?? derivedInitialValues;
+  const initialSemesterId = toComparableId(initialSnapshot?.semesterId);
+  const initialLevelId = toComparableId(initialSnapshot?.levelId);
+  const initialSubjectId = toComparableId(initialSnapshot?.subjectId);
+  const initialClassName = initialSnapshot?.name ?? "";
 
   const findSemesterById = useCallback(
     (value) => {
@@ -831,7 +851,15 @@ export default function ClassFormModal({
       if (!key) {
         return "";
       }
-      return semesterCodeMap.get(key) ?? "";
+      const code = semesterCodeMap.get(key) ?? "";
+      // Debug: log if code not found
+      if (!code && semesterCodeMap.size > 0) {
+        console.debug(
+          `Semester code not found for semesterId: ${semesterId} (key: ${key}). Available keys:`,
+          Array.from(semesterCodeMap.keys())
+        );
+      }
+      return code;
     },
     [semesterCodeMap]
   );
@@ -844,6 +872,8 @@ export default function ClassFormModal({
       const semester = findSemesterById(semesterId);
       const level = findLevelById(levelId);
       const subject = findSubjectById(subjectId);
+      // Priority: semesterCodeMap (from DB) > semester.code > fallback extraction
+      // Priority: semesterCodeMap (from DB) > semester.code > fallback extraction
       const mappedSemesterCode = getSemesterCodeFromMap(semesterId);
       const semesterCode =
         mappedSemesterCode ||
@@ -869,8 +899,21 @@ export default function ClassFormModal({
       const normalizedSemesterId = toComparableId(semesterId);
       const normalizedLevelId = toComparableId(levelId);
       const normalizedSubjectId = toComparableId(subjectId);
+      if (
+        isEditMode &&
+        initialClassName &&
+        initialSemesterId &&
+        initialLevelId &&
+        initialSubjectId &&
+        normalizedSemesterId === initialSemesterId &&
+        normalizedLevelId === initialLevelId &&
+        normalizedSubjectId === initialSubjectId
+      ) {
+        return initialClassName;
+      }
       const relatedClasses = existingClasses.filter(
         (item) =>
+          (!comparableClassId || item.classId !== comparableClassId) &&
           item.semesterId === normalizedSemesterId &&
           item.levelId === normalizedLevelId &&
           item.subjectId === normalizedSubjectId
@@ -892,12 +935,25 @@ export default function ClassFormModal({
       findSemesterById,
       findSubjectById,
       getSemesterCodeFromMap,
+      isEditMode,
+      initialClassName,
+      initialSemesterId,
+      initialLevelId,
+      initialSubjectId,
+      comparableClassId,
     ]
   );
 
   useEffect(() => {
-    if (!open || !isCreateMode) {
+    if (!open) {
       return;
+    }
+    if (!watchedSemesterId || !watchedLevelId || !watchedSubjectId) {
+      return;
+    }
+    // Wait for semesterCodeMap to be loaded before generating class name
+    if (semesterCodeMap.size === 0 && !loadingOptions) {
+      // Map is empty and not loading, proceed anyway (fallback will be used)
     }
     const generatedName = buildClassName(
       watchedSemesterId,
@@ -910,12 +966,13 @@ export default function ClassFormModal({
     }
   }, [
     open,
-    isCreateMode,
     watchedSemesterId,
     watchedLevelId,
     watchedSubjectId,
     buildClassName,
     form,
+    semesterCodeMap,
+    loadingOptions,
   ]);
 
   const handleSubmit = async () => {
@@ -1121,12 +1178,8 @@ export default function ClassFormModal({
             ]}
           >
             <Input
-              placeholder={
-                isCreateMode
-                  ? "Class name will be generated automatically"
-                  : "Enter class name"
-              }
-              disabled={isCreateMode}
+              placeholder="Class name will be generated automatically"
+              disabled
             />
           </Form.Item>
         </Form>
