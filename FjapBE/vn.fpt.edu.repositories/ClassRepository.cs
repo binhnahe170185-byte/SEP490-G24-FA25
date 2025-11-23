@@ -487,6 +487,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             .ThenBy(l => l.Time.StartTime)
             .Select(l => new ClassScheduleDto
             {
+                LessonId = l.LessonId,
                 ClassId = l.ClassId,
                 ClassName = l.Class.ClassName,
                 Date = l.Date,
@@ -495,7 +496,9 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 StartTime = l.Time.StartTime,
                 EndTime = l.Time.EndTime,
                 SubjectCode = l.Class.Subject.SubjectCode,
-                LecturerCode = l.Lecture != null ? l.Lecture.LecturerCode : ""
+                SubjectName = l.Class.Subject.SubjectName,
+                LecturerCode = l.Lecture != null ? l.Lecture.LecturerCode : "",
+                LectureId = l.LectureId
             })
             .ToListAsync();
 

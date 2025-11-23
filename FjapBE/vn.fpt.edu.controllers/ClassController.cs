@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Services.Interfaces;
+using FJAP.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,16 +15,19 @@ public class ClassController : ControllerBase
     private readonly IStudentService _studentService;
     private readonly FjapDbContext _db;
     private readonly IScheduleAvailabilityService _availabilityService;
+    private readonly ILessonService _lessonService;
     public ClassController(
        IClassService classService,
        IStudentService studentService,
        FjapDbContext db,
-       IScheduleAvailabilityService availabilityService)
+       IScheduleAvailabilityService availabilityService,
+       ILessonService lessonService)
     {
         _classService = classService;
         _studentService = studentService;
         _db = db;
         _availabilityService = availabilityService;
+        _lessonService = lessonService;
     }
 
     [HttpGet]
@@ -486,6 +490,83 @@ public class ClassController : ControllerBase
         catch (Exception ex)
         {
             Console.WriteLine($"Error in CheckAvailability: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update a lesson
+    /// PUT: api/staffAcademic/classes/lessons/{lessonId}
+    /// </summary>
+    [HttpPut("lessons/{lessonId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateLesson(int lessonId, [FromBody] UpdateLessonRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { code = 400, message = "Request payload is required" });
+        }
+
+        try
+        {
+            var result = await _lessonService.UpdateAsync(lessonId, request);
+            if (!result)
+            {
+                return NotFound(new { code = 404, message = "Lesson not found" });
+            }
+
+            return Ok(new { code = 200, message = "Lesson updated successfully", data = new { lessonId } });
+        }
+        catch (ArgumentException ex)
+        {
+            // Handle conflict errors
+            if (ex.Message.Contains("conflict", StringComparison.OrdinalIgnoreCase))
+            {
+                return Conflict(new { code = 409, message = ex.Message });
+            }
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in UpdateLesson: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete a lesson
+    /// DELETE: api/staffAcademic/classes/lessons/{lessonId}
+    /// </summary>
+    [HttpDelete("lessons/{lessonId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteLesson(int lessonId)
+    {
+        try
+        {
+            var result = await _lessonService.DeleteAsync(lessonId);
+            if (!result)
+            {
+                return NotFound(new { code = 404, message = "Lesson not found" });
+            }
+
+            return Ok(new { code = 200, message = "Lesson deleted successfully" });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { code = 404, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in DeleteLesson: {ex.Message}");
             return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
         }
     }
