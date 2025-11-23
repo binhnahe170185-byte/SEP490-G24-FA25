@@ -185,5 +185,131 @@ public class AttendanceRepository : GenericRepository<Attendance>, IAttendanceRe
             .OrderBy(s => s.StudentCode)
             .ToListAsync();
     }
+
+    public async Task<List<AttendanceReportDetailItemDto>> GetAttendanceReportDetailBySubjectAndSemesterAsync(int subjectId, int semesterId, int lecturerId)
+    {
+        // Lấy tất cả classes có cùng subjectId và semesterId
+        var classIds = await _context.Classes
+            .AsNoTracking()
+            .Where(c => c.SubjectId == subjectId && c.SemesterId == semesterId)
+            .Select(c => c.ClassId)
+            .ToListAsync();
+
+        if (!classIds.Any())
+        {
+            return new List<AttendanceReportDetailItemDto>();
+        }
+
+        // Lấy tất cả lessons của các classes đó mà giảng viên dạy
+        var lessons = await _context.Lessons
+            .AsNoTracking()
+            .Include(l => l.Class)
+            .Include(l => l.Room)
+            .Include(l => l.Time)
+            .Where(l => classIds.Contains(l.ClassId) && l.LectureId == lecturerId)
+            .OrderBy(l => l.Date)
+            .ThenBy(l => l.Time.StartTime)
+            .Select(l => new
+            {
+                l.LessonId,
+                l.ClassId,
+                ClassName = l.Class.ClassName,
+                Date = l.Date.ToString("yyyy-MM-dd"),
+                RoomName = l.Room.RoomName,
+                TimeSlot = $"{l.Time.StartTime:HH\\:mm}-{l.Time.EndTime:HH\\:mm}"
+            })
+            .ToListAsync();
+
+        if (!lessons.Any())
+        {
+            return new List<AttendanceReportDetailItemDto>();
+        }
+
+        var lessonIds = lessons.Select(l => l.LessonId).ToList();
+
+        // Lấy tất cả students trong các classes đó (loại bỏ duplicate)
+        // Load dữ liệu trước, sau đó group và distinct trong memory
+        var studentsData = await _context.Classes
+            .AsNoTracking()
+            .Include(c => c.Students)
+                .ThenInclude(s => s.User)
+            .Where(c => classIds.Contains(c.ClassId))
+            .SelectMany(c => c.Students)
+            .Select(s => new
+            {
+                s.StudentId,
+                s.StudentCode,
+                FirstName = s.User.FirstName,
+                LastName = s.User.LastName
+            })
+            .ToListAsync();
+
+        // Loại bỏ duplicate trong memory
+        var students = studentsData
+            .GroupBy(s => s.StudentId)
+            .Select(g => g.First())
+            .Select(s => new AttendanceStudentInfoDto
+            {
+                StudentId = s.StudentId,
+                StudentCode = s.StudentCode,
+                User = new AttendanceUserInfoDto
+                {
+                    FirstName = s.FirstName,
+                    LastName = s.LastName
+                }
+            })
+            .OrderBy(s => s.StudentCode)
+            .ToList();
+
+        // Lấy tất cả attendances của các lessons đó
+        var attendances = await _context.Attendances
+            .AsNoTracking()
+            .Where(a => lessonIds.Contains(a.LessonId))
+            .ToListAsync();
+
+        // Nhóm attendances theo studentId và lessonId
+        var attendanceDict = attendances
+            .GroupBy(a => a.StudentId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToDictionary(a => a.LessonId, a => a)
+            );
+
+        // Tạo report data
+        var reportData = students.Select(student =>
+        {
+            var studentAttendances = attendanceDict.TryGetValue(student.StudentId, out var attDict) 
+                ? attDict 
+                : new Dictionary<int, Attendance>();
+
+            var lessonDetails = lessons.Select(lesson =>
+            {
+                var attendance = studentAttendances.TryGetValue(lesson.LessonId, out var att) 
+                    ? att 
+                    : null;
+
+                return new AttendanceLessonDetailDto
+                {
+                    LessonId = lesson.LessonId,
+                    ClassId = lesson.ClassId,
+                    ClassName = lesson.ClassName,
+                    Date = lesson.Date,
+                    RoomName = lesson.RoomName,
+                    TimeSlot = lesson.TimeSlot,
+                    Status = attendance?.Status,
+                    AttendanceId = attendance?.AttendanceId,
+                    TimeAttendance = attendance?.TimeAttendance
+                };
+            }).ToList();
+
+            return new AttendanceReportDetailItemDto
+            {
+                Student = student,
+                Lessons = lessonDetails
+            };
+        }).ToList();
+
+        return reportData;
+    }
 }
 
