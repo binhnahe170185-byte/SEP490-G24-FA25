@@ -3,6 +3,7 @@ using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 using FJAP.DTOs;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
 
 namespace FJAP.Services;
 
@@ -10,20 +11,34 @@ public class NewsService : INewsService
 {
     private readonly INewsRepository _newsRepository;
     private readonly FjapDbContext _context;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public NewsService(INewsRepository newsRepository, FjapDbContext context)
+    public NewsService(INewsRepository newsRepository, FjapDbContext context, IHttpClientFactory httpClientFactory)
     {
         _newsRepository = newsRepository;
         _context = context;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<NewsDto> CreateAsync(CreateNewsRequest request, int userId)
     {
+        // Validate image URL - reject shortened URLs
+        string? imageUrl = null;
+        if (!string.IsNullOrWhiteSpace(request.NewsImage))
+        {
+            var trimmedUrl = request.NewsImage.Trim();
+            if (IsShortenedUrl(trimmedUrl))
+            {
+                throw new ArgumentException("Shortened URLs are not supported. Please use a direct image URL (must end with .jpg, .jpeg, .png, .gif, .webp or be a data:image/ URL).");
+            }
+            imageUrl = trimmedUrl;
+        }
+
         var news = new News
         {
             Title = request.Title.Trim(),
             Content = request.Content.Trim(),
-            NewsImage = request.NewsImage?.Trim(),
+            NewsImage = imageUrl,
             Status = "draft",
             CreatedBy = userId,
             CreatedAt = DateTime.Now,
@@ -51,7 +66,22 @@ public class NewsService : INewsService
 
         news.Title = request.Title.Trim();
         news.Content = request.Content?.Trim();
-        news.NewsImage = request.NewsImage?.Trim();
+        
+        // Validate image URL - reject shortened URLs
+        if (!string.IsNullOrWhiteSpace(request.NewsImage))
+        {
+            var trimmedUrl = request.NewsImage.Trim();
+            if (IsShortenedUrl(trimmedUrl))
+            {
+                throw new ArgumentException("Shortened URLs are not supported. Please use a direct image URL (must end with .jpg, .jpeg, .png, .gif, .webp or be a data:image/ URL).");
+            }
+            news.NewsImage = trimmedUrl;
+        }
+        else
+        {
+            news.NewsImage = null;
+        }
+        
         news.UpdatedBy = userId;
         news.UpdatedAt = DateTime.Now;
 
@@ -251,6 +281,163 @@ public class NewsService : INewsService
                 ? new { news.UpdatedByNavigation.UserId, news.UpdatedByNavigation.FirstName, news.UpdatedByNavigation.LastName, news.UpdatedByNavigation.Email }
                 : null
         };
+    }
+
+    /// <summary>
+    /// Checks if a URL is a shortened URL that should be rejected
+    /// </summary>
+    private bool IsShortenedUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        // Data URLs are always valid
+        if (url.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Check if URL matches known shortened URL patterns
+        var shortenedUrlPatterns = new[]
+        {
+            "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "buff.ly",
+            "short.link", "is.gd", "v.gd", "rebrand.ly", "cutt.ly",
+            "byvn.net", "tiny.cc", "shorturl.at", "rebrandly.com", "short.cm",
+            "adf.ly", "bc.vc", "bit.do", "clicky.me", "soo.gd", "s.id"
+        };
+
+        var isShortenedUrl = shortenedUrlPatterns.Any(pattern => 
+            url.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+
+        if (isShortenedUrl)
+            return true;
+
+        // Check if URL is suspiciously short and doesn't have image extension
+        var hasImageExtension = url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".png", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".gif", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".webp", StringComparison.OrdinalIgnoreCase);
+
+        // If URL is short (< 50 chars), doesn't have image extension, and is an HTTP(S) URL, likely shortened
+        var isSuspiciouslyShort = url.Length < 50 && !hasImageExtension && 
+                                  (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                                   url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+        return isSuspiciouslyShort;
+    }
+
+    /// <summary>
+    /// Resolves shortened URLs (bit.ly, tinyurl, etc.) to their final destination URL
+    /// DEPRECATED: No longer used, shortened URLs are now rejected
+    /// </summary>
+    private async Task<string?> ResolveShortenedUrlAsync(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return null;
+
+        // If it's already a direct image URL or data URL, return as is
+        if (url.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            return url;
+
+        // Check if URL looks like a shortened URL (common patterns)
+        var shortenedUrlPatterns = new[]
+        {
+            "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "buff.ly",
+            "short.link", "is.gd", "v.gd", "rebrand.ly", "cutt.ly",
+            "byvn.net", "tiny.cc", "shorturl.at", "rebrandly.com", "short.cm",
+            "adf.ly", "bc.vc", "bit.do", "clicky.me", "soo.gd", "s.id"
+        };
+
+        // Check if URL matches known shortened URL patterns
+        var isShortenedUrl = shortenedUrlPatterns.Any(pattern => 
+            url.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+
+        // Also check if URL is suspiciously short and doesn't have image extension
+        // Shortened URLs are typically short and don't end with image extensions
+        var hasImageExtension = url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+                               url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".png", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".gif", StringComparison.OrdinalIgnoreCase) ||
+                               url.Contains(".webp", StringComparison.OrdinalIgnoreCase);
+
+        // If URL is short (< 50 chars), doesn't have image extension, and looks like a link, try to resolve it
+        var isSuspiciouslyShort = url.Length < 50 && !hasImageExtension && 
+                                  (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                                   url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+        // If it doesn't look like a shortened URL and isn't suspiciously short, return as is
+        if (!isShortenedUrl && !isSuspiciouslyShort)
+            return url;
+
+        try
+        {
+            // Create HttpClient with redirect following enabled
+            using var httpClientHandler = new System.Net.Http.HttpClientHandler
+            {
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 10
+            };
+            using var httpClient = new System.Net.Http.HttpClient(httpClientHandler);
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            
+            // Try HEAD request first (more efficient)
+            try
+            {
+                using var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
+                using var headResponse = await httpClient.SendAsync(headRequest, HttpCompletionOption.ResponseHeadersRead);
+                
+                // Get the final URL after redirects - response.RequestMessage.RequestUri contains final URL
+                var finalUrl = headResponse.RequestMessage?.RequestUri?.ToString();
+                
+                // If we got redirected and the final URL is different, return it
+                if (!string.IsNullOrWhiteSpace(finalUrl) && finalUrl != url)
+                {
+                    return finalUrl;
+                }
+            }
+            catch
+            {
+                // If HEAD fails, try GET request (some servers don't support HEAD)
+                try
+                {
+                    using var getRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                    // Only read headers, not the full content
+                    using var getResponse = await httpClient.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
+                    
+                    // Get the final URL after redirects
+                    var finalUrl = getResponse.RequestMessage?.RequestUri?.ToString();
+                    
+                    // If we got redirected and the final URL is different, return it
+                    if (!string.IsNullOrWhiteSpace(finalUrl) && finalUrl != url)
+                    {
+                        return finalUrl;
+                    }
+                }
+                catch
+                {
+                    // If both fail, return original URL
+                }
+            }
+            
+            // If no redirect or error, return original URL
+            return url;
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail - return original URL
+            Console.WriteLine($"Error resolving shortened URL {url}: {ex.Message}");
+            return url;
+        }
     }
 }
 

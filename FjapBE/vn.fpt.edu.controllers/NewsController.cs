@@ -3,6 +3,10 @@ using FJAP.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace FJAP.Controllers;
 
@@ -97,9 +101,25 @@ public class NewsController : ControllerBase
         {
             return BadRequest(new { code = 400, message = ex.Message });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
         catch (Exception ex)
         {
-            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+            Console.WriteLine($"Error updating news: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                Console.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
+            }
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "Internal server error", 
+                error = ex.Message,
+                innerError = ex.InnerException?.Message
+            });
         }
     }
 
@@ -271,6 +291,133 @@ public class NewsController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    // POST: api/news/image
+    [HttpPost("image")]
+    public async Task<IActionResult> UploadImage(IFormFile image)
+    {
+        try
+        {
+            var roleId = GetCurrentRoleId();
+            // Cho phép Head (RoleId 2) và Staff (RoleId 6) được upload ảnh
+            if (roleId != 2 && roleId != 6)
+                return StatusCode(403, new { code = 403, message = $"Only Head or Staff can upload news images. Your roleId: {roleId ?? -1}" });
+
+            if (image == null || image.Length == 0)
+            {
+                return BadRequest(new { code = 400, message = "No file uploaded" });
+            }
+
+            var imageBase64 = await ProcessNewsImageToBase64Async(image);
+            
+            return Ok(new { 
+                code = 200, 
+                message = "Image uploaded successfully",
+                data = new { imageUrl = imageBase64 }
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error uploading news image: {ex.Message}");
+            return StatusCode(500, new { 
+                code = 500, 
+                message = "Error uploading image", 
+                error = ex.Message 
+            });
+        }
+    }
+
+    // Helper method to process news image and convert to base64
+    private async Task<string?> ProcessNewsImageToBase64Async(IFormFile? imageFile)
+    {
+        if (imageFile == null || imageFile.Length == 0)
+            return null;
+
+        // Validate file type
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        var extension = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+        {
+            throw new ArgumentException($"File type not supported. Only accepts: {string.Join(", ", allowedExtensions)}");
+        }
+
+        // Validate file size (max 5MB for news images)
+        const long maxFileSize = 5 * 1024 * 1024; // 5MB
+        if (imageFile.Length > maxFileSize)
+        {
+            throw new ArgumentException("File size must not exceed 5MB");
+        }
+
+        try
+        {
+            // Read image from stream
+            using var imageStream = new MemoryStream();
+            await imageFile.CopyToAsync(imageStream);
+            imageStream.Position = 0;
+
+            // Load image
+            using var image = await Image.LoadAsync(imageStream);
+            
+            // Resize if too large (max width 800px, maintain aspect ratio)
+            const int maxWidth = 800;
+            if (image.Width > maxWidth)
+            {
+                var ratio = (double)maxWidth / image.Width;
+                var newHeight = (int)(image.Height * ratio);
+                
+                var resizeOptions = new ResizeOptions
+                {
+                    Size = new Size(maxWidth, newHeight),
+                    Mode = ResizeMode.Max, // Maintain aspect ratio
+                    Sampler = KnownResamplers.Lanczos3
+                };
+                
+                image.Mutate(x => x.Resize(resizeOptions));
+            }
+
+            // Convert to base64
+            using var outputStream = new MemoryStream();
+            
+            // Determine format and encoder
+            if (extension == ".png")
+            {
+                await image.SaveAsync(outputStream, new PngEncoder { CompressionLevel = PngCompressionLevel.BestCompression });
+            }
+            else if (extension == ".gif")
+            {
+                // Keep GIF as is (no conversion)
+                imageStream.Position = 0;
+                await imageStream.CopyToAsync(outputStream);
+            }
+            else
+            {
+                // JPEG for jpg, jpeg, webp
+                await image.SaveAsync(outputStream, new JpegEncoder { Quality = 70 });
+            }
+
+            var imageBytes = outputStream.ToArray();
+            var base64String = Convert.ToBase64String(imageBytes);
+            
+            // Return data URL format: data:image/{type};base64,{base64}
+            string mimeType;
+            if (extension == ".png")
+                mimeType = "image/png";
+            else if (extension == ".gif")
+                mimeType = "image/gif";
+            else
+                mimeType = "image/jpeg";
+            
+            return $"data:{mimeType};base64,{base64String}";
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Error processing image: {ex.Message}");
         }
     }
 }
