@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Dropdown, Avatar, Badge, Spin, Empty, Typography, Button, Tooltip } from 'antd';
+import { useAuth } from '../../login/AuthContext';
 import { 
   CalendarOutlined,
   FileTextOutlined,
@@ -12,7 +13,6 @@ import {
   BellOutlined,
   WifiOutlined
 } from '@ant-design/icons';
-import { useAuth } from '../../login/AuthContext';
 import '../../student/StudentHomepage.css';
 import {
   describeConnectionState,
@@ -27,6 +27,28 @@ const StudentLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  const getNotificationLink = (notification) => {
+    if (!notification.link) return null;
+    
+    // Nếu là lecturer (roleId = 3), thay đổi link
+    const roleId = user?.roleId ? Number(user.roleId) : null;
+    if (roleId === 3) {
+      // Lecturer routes
+      if (notification.type === 'news' && notification.entityId) {
+        return `/lecturer/news/${notification.entityId}`;
+      }
+      if (notification.type === 'homework') {
+        return `/lecturer/homework`;
+      }
+      if (notification.type === 'grade') {
+        return `/lecturer/grades`;
+      }
+    }
+    
+    // Student routes (default)
+    return notification.link;
+  };
   const {
     notifications,
     loading: notificationsLoading,
@@ -191,6 +213,13 @@ const StudentLayout = ({ children }) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 markAsRead(notification.id);
+                                const link = getNotificationLink(notification);
+                                if (link) {
+                                  navigate(link);
+                                }
+                              }}
+                              style={{
+                                cursor: notification.link ? 'pointer' : 'default',
                               }}
                             >
                               <div className="notification-dropdown-item-icon">

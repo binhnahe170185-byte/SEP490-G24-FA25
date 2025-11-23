@@ -128,7 +128,50 @@ public class NewsService : INewsService
 
         _newsRepository.Update(news);
         await _newsRepository.SaveChangesAsync();
+
+        // Gửi notification cho tất cả students và lecturers khi news được publish
+        await SendNewsPublishedNotificationsAsync(news);
+
         return true;
+    }
+
+    private async Task SendNewsPublishedNotificationsAsync(News news)
+    {
+        try
+        {
+            // Lấy tất cả users có role là Student (roleId = 4) hoặc Lecturer (roleId = 3)
+            var targetUsers = await _context.Users
+                .Where(u => u.RoleId == 3 || u.RoleId == 4) // Lecturer hoặc Student
+                .Select(u => u.UserId)
+                .ToListAsync();
+
+            if (targetUsers.Count == 0) return;
+
+            var notifications = targetUsers.Select(userId => new CreateNotificationRequest(
+                userId,
+                $"New News: {news.Title}",
+                news.Content?.Length > 200 ? news.Content.Substring(0, 200) + "..." : news.Content,
+                "News",
+                news.ApprovedBy,
+                news.Id
+            )).ToList();
+
+            // Tạo notifications và broadcast
+            var createdNotifications = new List<NotificationDto>();
+            foreach (var notificationRequest in notifications)
+            {
+                var notification = await _notificationService.CreateAsync(notificationRequest, broadcast: false);
+                createdNotifications.Add(notification);
+            }
+
+            // Broadcast tất cả notifications cùng lúc
+            await _notificationService.BroadcastAsync(createdNotifications);
+        }
+        catch (Exception ex)
+        {
+            // Log error nhưng không throw để không ảnh hưởng đến flow chính
+            // Có thể thêm logger ở đây nếu cần
+        }
     }
 
     public async Task<bool> RejectAsync(int id, string reviewComment, int headUserId)

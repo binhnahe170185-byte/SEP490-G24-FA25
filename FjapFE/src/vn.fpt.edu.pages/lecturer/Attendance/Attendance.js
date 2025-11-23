@@ -13,6 +13,7 @@ import {
   Row,
   Col,
   notification,
+  Avatar,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -34,7 +35,7 @@ const STATUS_OPTIONS = [
 
 export default function Attendance() {
   const [api, contextHolder] = notification.useNotification();
-  
+
   const [classes, setClasses] = useState([]);
   const [lessons, setLessons] = useState([]);
   const [students, setStudents] = useState([]);
@@ -153,63 +154,63 @@ export default function Attendance() {
     }));
   };
 
- const handleSave = async () => {
+  const handleSave = async () => {
 
-  const hasChanges = students.some((student) => {
-    const originalStatus = student.status || "Absent";
-    const currentStatus = attendanceMap[student.studentId] || "Absent";
-    return originalStatus !== currentStatus;
-  });
-
-  try {
-    setSaving(true);
-
-    const attendances = students.map((student) => ({
-      studentId: student.studentId,
-      status: attendanceMap[student.studentId] || "Absent",
-    }));
-
-    const response = await AttendanceApi.updateBulkAttendance(selectedLessonId, attendances);
-    api.success({
-      message: 'Save Successful',
-      description: 'Attendance has been saved successfully!',
-      placement: 'bottomRight',
-      duration: 5,
+    const hasChanges = students.some((student) => {
+      const originalStatus = student.status || "Absent";
+      const currentStatus = attendanceMap[student.studentId] || "Absent";
+      return originalStatus !== currentStatus;
     });
 
-    // Reload students to get updated data
-    await loadStudents(selectedLessonId);
-  } catch (error) {
+    try {
+      setSaving(true);
 
-    let errorMessage = 'Unable to save attendance. Please try again.';
-    let errorDescription = 'An error occurred while saving attendance.';
+      const attendances = students.map((student) => ({
+        studentId: student.studentId,
+        status: attendanceMap[student.studentId] || "Absent",
+      }));
 
-    if (error?.response?.data) {
-      if (error.response.data.message) {
-        errorMessage = error.response.data.message;
-        errorDescription = errorMessage;
-      } else if (typeof error.response.data === 'string') {
-        errorMessage = error.response.data;
-        errorDescription = errorMessage;
-      } else if (error.response.data.error) {
-        errorMessage = error.response.data.error;
+      const response = await AttendanceApi.updateBulkAttendance(selectedLessonId, attendances);
+      api.success({
+        message: 'Save Successful',
+        description: 'Attendance has been saved successfully!',
+        placement: 'bottomRight',
+        duration: 5,
+      });
+
+      // Reload students to get updated data
+      await loadStudents(selectedLessonId);
+    } catch (error) {
+
+      let errorMessage = 'Unable to save attendance. Please try again.';
+      let errorDescription = 'An error occurred while saving attendance.';
+
+      if (error?.response?.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+          errorDescription = errorMessage;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+          errorDescription = errorMessage;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+          errorDescription = errorMessage;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
         errorDescription = errorMessage;
       }
-    } else if (error?.message) {
-      errorMessage = error.message;
-      errorDescription = errorMessage;
-    }
 
-    api.error({
-      message: 'Save Failed',
-      description: errorDescription,
-      placement: 'bottomRight',
-      duration: 5,
-    });
-  } finally {
-    setSaving(false);
-  }
-};
+      api.error({
+        message: 'Save Failed',
+        description: errorDescription,
+        placement: 'bottomRight',
+        duration: 5,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -274,16 +275,65 @@ export default function Attendance() {
       render: (_value, _record, index) => index + 1,
     },
     {
+      title: "Image",
+      key: "avatar",
+      width: 300,
+      align: "center",
+      render: (_value, record) => {
+        const avatarSrc = record.avatar;
+        if (avatarSrc) {
+          return (
+            <img
+              src={avatarSrc}
+              alt={`${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Avatar'}
+              style={{
+                width: '170px',
+                height: '260px',
+                objectFit: 'cover',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'block',
+                margin: '0 auto',
+              }}
+            />
+          );
+        }
+        return (
+          <div
+            style={{
+              width: '170px',
+              height: '260px',
+              backgroundColor: '#87d068',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: '36px',
+              fontWeight: 'bold',
+              margin: '0 auto',
+            }}
+          >
+            {(record.firstName?.charAt(0) || record.lastName?.charAt(0) || '?').toUpperCase()}
+          </div>
+        );
+      },
+    },
+    {
       title: "Student Code",
       dataIndex: "studentCode",
       key: "studentCode",
       width: 120,
     },
     {
-      title: "Full Name",
-      dataIndex: "fullName",
-      key: "fullName",
-      render: (text) => <strong>{text || "-"}</strong>,
+      title: "First Name",
+      dataIndex: "firstName",
+      key: "firstName",
+    },
+    {
+      title: "Last Name",
+      dataIndex: "lastName",
+      key: "lastName",
     },
     {
       title: "Status",
@@ -387,7 +437,7 @@ export default function Attendance() {
 
         {students.length > 0 && (
           <>
-           
+
 
             <div style={{ marginTop: 24, textAlign: "right" }}>
               <Button
