@@ -522,7 +522,7 @@ public partial class FjapDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.NewsImage)
-                .HasMaxLength(512)
+                .HasColumnType("longtext")
                 .HasColumnName("news_image");
             entity.Property(e => e.ReviewComment)
                 .HasColumnType("text")

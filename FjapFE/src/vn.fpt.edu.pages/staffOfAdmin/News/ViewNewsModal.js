@@ -44,6 +44,32 @@ const processImageUrl = (imageUrl) => {
   
   // Nếu đã là absolute URL (bắt đầu với http:// hoặc https://)
   if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+    // Check if it's a shortened URL or suspiciously short URL
+    const shortenedUrlPatterns = [
+      "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "buff.ly",
+      "short.link", "is.gd", "v.gd", "rebrand.ly", "cutt.ly",
+      "byvn.net", "tiny.cc", "shorturl.at", "rebrandly.com", "short.cm"
+    ];
+    
+    const isShortenedUrl = shortenedUrlPatterns.some(pattern => 
+      trimmedUrl.toLowerCase().includes(pattern.toLowerCase())
+    );
+    
+    // Check if URL is short and doesn't have image extension (likely shortened URL)
+    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(trimmedUrl);
+    const isSuspiciouslyShort = trimmedUrl.length < 50 && !hasImageExtension;
+    
+    // If it's a shortened URL or suspiciously short, use proxy to resolve it
+    if (isShortenedUrl || isSuspiciouslyShort) {
+      try {
+        const stripped = trimmedUrl.replace(/^https?:\/\//i, "");
+        return `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}`;
+      } catch (e) {
+        console.error("Error creating proxy URL:", e);
+        return trimmedUrl;
+      }
+    }
+    
     return trimmedUrl;
   }
   
@@ -78,6 +104,7 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
   const newsImage = processImageUrl(rawImageUrl);
   const [displayUrl, setDisplayUrl] = useState(newsImage);
   const isHttpUrl = useMemo(() => typeof newsImage === "string" && /^(http|https):\/\//i.test(newsImage), [newsImage]);
+  const isDataUrl = useMemo(() => typeof newsImage === "string" && newsImage.startsWith("data:image/"), [newsImage]);
   const [usedProxy, setUsedProxy] = useState(false);
   useEffect(() => {
     setImageError(false);
@@ -441,15 +468,26 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
             src={displayUrl}
             alt="News"
             style={{ width: "100%", maxHeight: "280px", objectFit: "contain" }}
-            referrerPolicy="no-referrer"
-            crossOrigin="anonymous"
+            referrerPolicy={isDataUrl ? undefined : "no-referrer"}
+            crossOrigin={isDataUrl ? undefined : "anonymous"}
             onError={() => {
-              if (isHttpUrl && !usedProxy) {
-                const stripped = newsImage.replace(/^https?:\/\//i, "");
-                const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}`;
-                setUsedProxy(true);
-                setDisplayUrl(proxied);
+              // For data URLs, if they fail, it's likely corrupted
+              if (isDataUrl) {
+                setImageError(true);
                 return;
+              }
+              
+              // For HTTP URLs, try proxy as fallback
+              if (isHttpUrl && !usedProxy) {
+                try {
+                  const stripped = newsImage.replace(/^https?:\/\//i, "");
+                  const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}`;
+                  setUsedProxy(true);
+                  setDisplayUrl(proxied);
+                  return;
+                } catch (e) {
+                  console.error("Error creating proxy URL:", e);
+                }
               }
               setImageError(true);
             }}
@@ -461,8 +499,16 @@ export default function ViewNewsModal({ visible, news, onCancel }) {
           </div>
         )}
         {(imageError || isInvalidImageUrl) && newsImage && (
-          <div style={{ color: "#fa541c", fontSize: 13 }}>
-            Cannot load image. Please check the URL.
+          <div style={{ color: "#fa541c", fontSize: 13, textAlign: "center", padding: "8px" }}>
+            <div style={{ marginBottom: 4 }}>Cannot load image.</div>
+            {isHttpUrl && rawImageUrl && (
+              <div style={{ fontSize: 11, color: "#8c8c8c", wordBreak: "break-all" }}>
+                URL: {rawImageUrl.length > 60 ? `${rawImageUrl.substring(0, 60)}...` : rawImageUrl}
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: "#8c8c8c", marginTop: 4 }}>
+              Please check if the URL is valid or try updating the image.
+            </div>
           </div>
         )}
       </div>

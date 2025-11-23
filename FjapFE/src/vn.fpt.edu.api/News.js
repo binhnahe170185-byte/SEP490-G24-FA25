@@ -49,6 +49,17 @@ const NewsApi = {
   // POST /api/news/{id}/reject
   rejectNews: (id, reviewComment) =>
     api.post(`/api/news/${id}/reject`, { reviewComment }).then(unwrap),
+
+  // POST: api/news/image
+  uploadImage: (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    return api.post("/api/news/image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }).then(unwrap);
+  },
 };
 
 export default NewsApi;

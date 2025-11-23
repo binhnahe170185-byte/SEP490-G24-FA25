@@ -4,12 +4,14 @@ namespace FJAP.DTOs;
 public class CreateMaterialRequest
 {
     [Required]
+    [MaxLength(255)]
     public string Title { get; set; } = null!;
 
     [Required]
     public string FileUrl { get; set; } = null!;
 
     [Required]
+    [Range(1, int.MaxValue, ErrorMessage = "SubjectId must be greater than 0")]
     public int SubjectId { get; set; }
 
     public string? Description { get; set; }
@@ -22,12 +24,14 @@ public class UpdateMaterialRequest
     public int MaterialId { get; set; }
 
     [Required]
+    [MaxLength(255)]
     public string Title { get; set; } = null!;
 
     [Required]
     public string FileUrl { get; set; } = null!;
 
     [Required]
+    [Range(1, int.MaxValue, ErrorMessage = "SubjectId must be greater than 0")]
     public int SubjectId { get; set; }
 
     public string? Description { get; set; }
