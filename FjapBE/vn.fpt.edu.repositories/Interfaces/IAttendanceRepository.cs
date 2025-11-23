@@ -15,5 +15,6 @@ public interface IAttendanceRepository : IGenericRepository<Attendance>
     Task<List<int>> GetLessonIdsByClassAsync(int classId, int lecturerId);
     Task<List<Attendance>> GetAttendancesByLessonIdsAsync(List<int> lessonIds);
     Task<List<AttendanceStudentInfoDto>> GetStudentsByClassAsync(int classId);
+    Task<List<AttendanceReportDetailItemDto>> GetAttendanceReportDetailBySubjectAndSemesterAsync(int subjectId, int semesterId, int lecturerId);
 }
 

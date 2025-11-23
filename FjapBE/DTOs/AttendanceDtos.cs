@@ -80,3 +80,22 @@ public class AttendanceUpdateItemDto
     public string Status { get; set; } = "Present";
 }
 
+public class AttendanceLessonDetailDto
+{
+    public int LessonId { get; set; }
+    public int ClassId { get; set; }
+    public string ClassName { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty; // yyyy-MM-dd
+    public string RoomName { get; set; } = string.Empty;
+    public string TimeSlot { get; set; } = string.Empty; // HH:mm-HH:mm
+    public string? Status { get; set; } // Present, Absent, Late, Excused
+    public int? AttendanceId { get; set; }
+    public DateTime? TimeAttendance { get; set; }
+}
+
+public class AttendanceReportDetailItemDto
+{
+    public AttendanceStudentInfoDto Student { get; set; } = new();
+    public List<AttendanceLessonDetailDto> Lessons { get; set; } = new();
+}
+

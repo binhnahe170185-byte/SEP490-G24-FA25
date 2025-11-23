@@ -301,7 +301,7 @@ export default function Attendance() {
         return (
           <div
             style={{
-              width: '200px',
+              width: '170px',
               height: '260px',
               backgroundColor: '#87d068',
               borderRadius: '4px',

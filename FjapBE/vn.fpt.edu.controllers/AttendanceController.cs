@@ -219,7 +219,8 @@ public class AttendanceController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy attendance report cho một class (số buổi present/absent của mỗi student)
+    /// Lấy attendance report chi tiết cho một class (tất cả bản ghi điểm danh của từng lessonId cho mỗi student)
+    /// Lấy tất cả lessons của subjectId trong semester
     /// GET: api/attendance/classes/{classId}/report
     /// </summary>
     [HttpGet("classes/{classId}/report")]
@@ -228,11 +229,28 @@ public class AttendanceController : ControllerBase
         try
         {
             var lecturerId = await GetCurrentLecturerIdAsync();
-            var reportData = await _attendanceService.GetAttendanceReportAsync(classId, lecturerId);
+            
+            // Lấy thông tin class để lấy subjectId và semesterId
+            var classInfo = await _db.Classes
+                .AsNoTracking()
+                .Where(c => c.ClassId == classId)
+                .Select(c => new { c.SubjectId, c.SemesterId })
+                .FirstOrDefaultAsync();
+
+            if (classInfo == null)
+            {
+                return NotFound(new { code = 404, message = "Class not found" });
+            }
+
+            // Lấy report detail theo subjectId và semesterId
+            var reportData = await _attendanceService.GetAttendanceReportDetailBySubjectAndSemesterAsync(
+                classInfo.SubjectId, 
+                classInfo.SemesterId, 
+                lecturerId);
 
             if (reportData == null || !reportData.Any())
             {
-                return NotFound(new { code = 404, message = "Class not found or not taught by lecturer" });
+                return NotFound(new { code = 404, message = "No attendance data found for this subject and semester" });
             }
 
             return Ok(new
@@ -250,8 +268,18 @@ public class AttendanceController : ControllerBase
                             lastName = r.Student.User.LastName
                         }
                     },
-                    presentCount = r.PresentCount,
-                    absentCount = r.AbsentCount
+                    lessons = r.Lessons.Select(l => new
+                    {
+                        lessonId = l.LessonId,
+                        classId = l.ClassId,
+                        className = l.ClassName,
+                        date = l.Date,
+                        roomName = l.RoomName,
+                        timeSlot = l.TimeSlot,
+                        status = l.Status,
+                        attendanceId = l.AttendanceId,
+                        timeAttendance = l.TimeAttendance
+                    }).ToList()
                 })
             });
         }
