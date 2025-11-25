@@ -109,7 +109,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
 builder.Services.AddScoped<ILessonService, LessonService>();
-
+builder.Services.AddScoped<IEmailService, EmailService>();
 // ----- HttpClient for external APIs -----
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
