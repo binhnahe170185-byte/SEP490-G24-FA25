@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Form,
@@ -30,14 +30,111 @@ const WeeklySchedules = ({
   onRoomChange,
   onAddPattern,
   onRemovePattern,
-  pendingAvailability,
-  filteringOptions = false
+  filteringOptions = false,
+  // Conflict checking props
+  conflictMap = {},
+  semesterStart = null,
+  semesterEnd = null,
+  classId = null,
+  lecturerId = null,
+  holidays = [],
+  // Helper functions
+  findNextDateForWeekday = null,
+  toYMD = null,
+  addDays = null
 }) => {
+  const [conflictStatus, setConflictStatus] = useState({ 
+    hasConflict: false, 
+    message: '', 
+    checking: false 
+  });
+
+  // Check conflict when selections change
+  useEffect(() => {
+    if (!weekday || !slotId || !roomId || !semesterStart || !classId || !lecturerId) {
+      setConflictStatus({ hasConflict: false, message: '', checking: false });
+      return;
+    }
+
+    if (!findNextDateForWeekday || !toYMD || !addDays) {
+      return;
+    }
+
+    setConflictStatus({ hasConflict: false, message: '', checking: true });
+
+    // Check all dates in semester for this weekday+slot+room combination
+    let currentDate = findNextDateForWeekday(semesterStart, weekday);
+    const endDate = semesterEnd;
+    const conflicts = [];
+    const conflictDetails = [];
+
+    while (currentDate && currentDate <= endDate) {
+      const dateStr = toYMD(currentDate);
+      // Skip holidays
+      const isHoliday = holidays.some(h => h.date === dateStr);
+      if (!isHoliday) {
+        const key = `${dateStr}|${slotId}|${roomId}`;
+        const existingConflicts = conflictMap[key];
+        
+        if (existingConflicts && existingConflicts.length > 0) {
+          existingConflicts.forEach(conflict => {
+            // Room conflict: room is occupied
+            if (conflict.roomId === parseInt(roomId, 10)) {
+              conflictDetails.push(`Room ${conflict.roomName} is occupied by ${conflict.className} on ${dateStr}`);
+            }
+            // Class conflict: same class already has lesson
+            if (classId && conflict.classId === parseInt(classId, 10)) {
+              conflictDetails.push(`Class ${conflict.className} already has a lesson on ${dateStr}`);
+            }
+            // Lecturer conflict: same lecturer already has lesson
+            if (lecturerId && conflict.lecturerId === parseInt(lecturerId, 10)) {
+              conflictDetails.push(`Lecturer ${conflict.lecturerCode} is already teaching ${conflict.className} on ${dateStr}`);
+            }
+          });
+          conflicts.push(dateStr);
+        }
+      }
+      // Move to next week
+      currentDate = addDays(currentDate, 7);
+    }
+
+    if (conflicts.length > 0) {
+      // Group conflicts by type
+      const roomConflicts = conflictDetails.filter(d => d.includes('Room'));
+      const classConflicts = conflictDetails.filter(d => d.includes('Class'));
+      const lecturerConflicts = conflictDetails.filter(d => d.includes('Lecturer'));
+      
+      const messages = [];
+      if (roomConflicts.length > 0) {
+        messages.push(`Room conflict: ${roomConflicts.length} occurrence(s)`);
+      }
+      if (classConflicts.length > 0) {
+        messages.push(`Class conflict: ${classConflicts.length} occurrence(s)`);
+      }
+      if (lecturerConflicts.length > 0) {
+        messages.push(`Lecturer conflict: ${lecturerConflicts.length} occurrence(s)`);
+      }
+
+      setConflictStatus({
+        hasConflict: true,
+        message: messages.join(' | '),
+        checking: false,
+        details: conflictDetails.slice(0, 5), // Show first 5 conflicts
+        totalConflicts: conflicts.length
+      });
+    } else {
+      setConflictStatus({
+        hasConflict: false,
+        message: 'Slot is available',
+        checking: false
+      });
+    }
+  }, [weekday, slotId, roomId, semesterStart, semesterEnd, classId, lecturerId, conflictMap, holidays, findNextDateForWeekday, toYMD, addDays]);
+
   const hasValues = weekday && slotId && roomId;
-  const availabilityState = pendingAvailability || {};
-  const isChecking = availabilityState.status === 'loading';
-  const isUnavailable = availabilityState.hasConflict;
-  const availabilityMessage = availabilityState.message;
+  const isChecking = conflictStatus.checking;
+  const isUnavailable = conflictStatus.hasConflict;
+  const availabilityMessage = conflictStatus.message;
 
   const addButtonDisabled = !hasValues || isUnavailable || isChecking;
   const addButtonTooltip = !hasValues
@@ -80,7 +177,32 @@ const WeeklySchedules = ({
       )}
       {availabilityMessage && !isChecking && (
         <Alert
-          message={availabilityMessage}
+          message={
+            <div>
+              <div style={{ marginBottom: conflictStatus.details ? 8 : 0 }}>
+                {availabilityMessage}
+              </div>
+              {conflictStatus.details && conflictStatus.details.length > 0 && (
+                <div style={{ marginTop: 8, fontSize: '12px' }}>
+                  <Typography.Text type="secondary" strong>Details:</Typography.Text>
+                  <ul style={{ marginTop: 4, marginBottom: 0, paddingLeft: 20 }}>
+                    {conflictStatus.details.map((detail, idx) => (
+                      <li key={idx} style={{ marginBottom: 4 }}>
+                        <Typography.Text type="danger" style={{ fontSize: '12px' }}>
+                          {detail}
+                        </Typography.Text>
+                      </li>
+                    ))}
+                  </ul>
+                  {conflictStatus.totalConflicts > conflictStatus.details.length && (
+                    <Typography.Text type="secondary" style={{ fontSize: '12px', fontStyle: 'italic' }}>
+                      ... and {conflictStatus.totalConflicts - conflictStatus.details.length} more conflict(s)
+                    </Typography.Text>
+                  )}
+                </div>
+              )}
+            </div>
+          }
           type={isUnavailable ? 'error' : 'success'}
           showIcon
           style={{ marginBottom: 16 }}
