@@ -468,6 +468,64 @@ public class ClassController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Lấy tất cả lessons của một semester để build conflict map
+    /// GET: api/staffAcademic/classes/semester/{semesterId}/lessons
+    /// </summary>
+    [HttpGet("semester/{semesterId:int}/lessons")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetAllLessonsBySemester(int semesterId)
+    {
+        if (semesterId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "semesterId must be greater than 0" });
+        }
+
+        try
+        {
+            var semester = await _db.Semesters
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.SemesterId == semesterId);
+
+            if (semester == null)
+            {
+                return NotFound(new { code = 404, message = "Semester not found" });
+            }
+
+            // Lấy tất cả lessons trong semester
+            var lessons = await _db.Lessons
+                .AsNoTracking()
+                .Include(l => l.Class)
+                .Include(l => l.Room)
+                .Include(l => l.Lecture)
+                .Include(l => l.Time)
+                .Where(l => l.Class.SemesterId == semesterId)
+                .Select(l => new
+                {
+                    lessonId = l.LessonId,
+                    classId = l.ClassId,
+                    className = l.Class.ClassName,
+                    date = l.Date.ToString("yyyy-MM-dd"),
+                    roomId = l.RoomId,
+                    roomName = l.Room.RoomName,
+                    timeId = l.TimeId,
+                    lecturerId = l.LectureId,
+                    lecturerCode = l.Lecture.LecturerCode ?? "",
+                    startTime = l.Time.StartTime,
+                    endTime = l.Time.EndTime
+                })
+                .ToListAsync();
+
+            return Ok(new { code = 200, data = lessons });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetAllLessonsBySemester: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
     [HttpPost("schedule/availability")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

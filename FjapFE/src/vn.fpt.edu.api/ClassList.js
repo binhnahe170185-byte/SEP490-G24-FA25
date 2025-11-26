@@ -81,6 +81,12 @@ class ClassList {
     });
     return response.data?.data ?? response.data;
   }
+
+  // GET /api/staffAcademic/classes/semester/{semesterId}/lessons - Get all lessons of a semester
+  static async getAllLessonsBySemester(semesterId) {
+    const response = await api.get(`/api/staffAcademic/classes/semester/${semesterId}/lessons`);
+    return response.data?.data ?? response.data;
+  }
  static async checkAvailability(payload) {
     const response = await api.post("/api/staffAcademic/classes/schedule/availability", payload);
     return response.data?.data ?? response.data;
