@@ -109,11 +109,79 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
 builder.Services.AddScoped<ILessonService, LessonService>();
-
+builder.Services.AddScoped<IEmailService, EmailService>();
 // ----- HttpClient for external APIs -----
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
+// ----- AI & Feedback Services -----
 
+// Register HttpClient (needed for OpenAI and Gemini)
+builder.Services.AddHttpClient();
+
+// Always register Mock AI Provider as fallback
+builder.Services.AddScoped<FJAP.Services.AIProviders.MockAIProvider>();
+
+// Configure AI Provider with fallback mechanism
+// Priority: Gemini > OpenAI > Mock
+var aiProvider = builder.Configuration["AI:Provider"] ?? "Gemini";
+var geminiApiKey = builder.Configuration["AI:Gemini:ApiKey"] 
+                ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+var openAiApiKey = builder.Configuration["AI:OpenAI:ApiKey"] 
+                ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+
+FJAP.Services.Interfaces.IAIProvider? primaryProvider = null;
+
+// Try Gemini first
+if (!string.IsNullOrEmpty(geminiApiKey) && (aiProvider == "Gemini" || string.IsNullOrEmpty(openAiApiKey)))
+{
+    Console.WriteLine($"[AI Config] Gemini API Key found: {geminiApiKey.Substring(0, Math.Min(10, geminiApiKey.Length))}...");
+    Console.WriteLine($"[AI Config] Provider setting: {aiProvider}");
+    
+    builder.Services.AddScoped<FJAP.Services.AIProviders.GeminiProvider>(sp =>
+    {
+        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+        var httpClient = httpClientFactory.CreateClient();
+        return new FJAP.Services.AIProviders.GeminiProvider(httpClient, builder.Configuration);
+    });
+    
+    builder.Services.AddScoped<FJAP.Services.Interfaces.IAIProvider>(sp =>
+    {
+        var primary = sp.GetRequiredService<FJAP.Services.AIProviders.GeminiProvider>();
+        var fallback = sp.GetRequiredService<FJAP.Services.AIProviders.MockAIProvider>();
+        var logger = sp.GetService<ILogger<FJAP.Services.AIProviders.FallbackAIProvider>>();
+        return new FJAP.Services.AIProviders.FallbackAIProvider(primary, fallback, logger);
+    });
+    
+    Console.WriteLine("✅ Gemini AI Provider configured with Mock AI fallback");
+}
+// Fallback to OpenAI
+else if (!string.IsNullOrEmpty(openAiApiKey))
+{
+    builder.Services.AddScoped<FJAP.Services.AIProviders.OpenAIProvider>(sp =>
+    {
+        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+        var httpClient = httpClientFactory.CreateClient();
+        return new FJAP.Services.AIProviders.OpenAIProvider(httpClient, builder.Configuration);
+    });
+    
+    builder.Services.AddScoped<FJAP.Services.Interfaces.IAIProvider>(sp =>
+    {
+        var primary = sp.GetRequiredService<FJAP.Services.AIProviders.OpenAIProvider>();
+        var fallback = sp.GetRequiredService<FJAP.Services.AIProviders.MockAIProvider>();
+        var logger = sp.GetService<ILogger<FJAP.Services.AIProviders.FallbackAIProvider>>();
+        return new FJAP.Services.AIProviders.FallbackAIProvider(primary, fallback, logger);
+    });
+    
+    Console.WriteLine("✅ OpenAI AI Provider configured with Mock AI fallback");
+}
+else
+{
+    // No API key, use Mock AI directly
+    builder.Services.AddScoped<FJAP.Services.Interfaces.IAIProvider, FJAP.Services.AIProviders.MockAIProvider>();
+    Console.WriteLine("⚠️ Using Mock AI Provider only (no Gemini or OpenAI API key found)");
+}
+
+builder.Services.AddScoped<IAIService, AIService>();
 // ----- CORS -----
 const string CorsPolicy = "AllowFrontend";
 var allowedFrontendOrigins = new[]
