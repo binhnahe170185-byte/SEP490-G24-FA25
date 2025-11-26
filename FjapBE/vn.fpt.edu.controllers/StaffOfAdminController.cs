@@ -3,6 +3,8 @@ using FJAP.Services.Interfaces;
 using FJAP.vn.fpt.edu.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -19,14 +21,18 @@ public class StaffOfAdminController : ControllerBase
 {
     private readonly IStaffOfAdminService _adminService;
     private readonly FjapDbContext _db;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IConfiguration _configuration;
     private static readonly Regex NameRegex = new(@"^[\p{L}\p{M}][\p{L}\p{M}\s\.'-]*$", RegexOptions.Compiled);
     private static readonly Regex PhoneRegex = new(@"^(?:\+?84|0)(?:\d){8,9}$", RegexOptions.Compiled);
     private static readonly string[] AllowedStatuses = new[] { "Active", "Inactive" };
 
-    public StaffOfAdminController(IStaffOfAdminService adminService, FjapDbContext dbContext)
+    public StaffOfAdminController(IStaffOfAdminService adminService, FjapDbContext dbContext, IServiceScopeFactory serviceScopeFactory, IConfiguration configuration)
     {
         _adminService = adminService;
         _db = dbContext;
+        _serviceScopeFactory = serviceScopeFactory;
+        _configuration = configuration;
     }
 
     // Helper method để resize ảnh và convert sang base64
@@ -819,6 +825,46 @@ public class StaffOfAdminController : ControllerBase
 
         Console.WriteLine($"Student created successfully with ID: {student.StudentId}, SemesterId: {student.SemesterId}");
 
+        // Gửi email chào mừng sau khi tạo student thành công
+        try
+        {
+            Console.WriteLine($"=== Setting up welcome email for student: {user.Email} ===");
+            var frontendOrigins = _configuration.GetSection("Frontend:Origins").Get<string[]>();
+            var loginUrl = frontendOrigins != null && frontendOrigins.Length > 0
+                ? $"{frontendOrigins[0]}/login"
+                : "http://localhost:3000/login";
+
+            Console.WriteLine($"Login URL: {loginUrl}");
+
+            // Gửi email bất đồng bộ, không chờ kết quả để không làm chậm response
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    Console.WriteLine($"Starting email send task for {user.Email}");
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                    await emailService.SendWelcomeEmailAsync(
+                        user.Email,
+                        user.FirstName,
+                        user.LastName,
+                        loginUrl
+                    );
+                    Console.WriteLine($"Email send task completed for {user.Email}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending welcome email to {user.Email}: {ex.Message}");
+                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error setting up welcome email for {user.Email}: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+
         return Created($"/api/Students/{student.StudentId}", new
         {
             code = 201,
@@ -871,6 +917,42 @@ public class StaffOfAdminController : ControllerBase
 
         return Ok(data);
     }
+
+    // ===================== Test Email Service =====================
+    [HttpPost("test-email")]
+    public async Task<IActionResult> TestEmail([FromBody] TestEmailRequest request)
+    {
+        try
+        {
+            Console.WriteLine($"=== Test Email Request ===");
+            Console.WriteLine($"To: {request.Email}");
+            
+            var frontendOrigins = _configuration.GetSection("Frontend:Origins").Get<string[]>();
+            var loginUrl = frontendOrigins != null && frontendOrigins.Length > 0
+                ? $"{frontendOrigins[0]}/login"
+                : "http://localhost:3000/login";
+
+            using var scope = _serviceScopeFactory.CreateScope();
+            var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+            
+            await emailService.SendWelcomeEmailAsync(
+                request.Email,
+                request.FirstName ?? "Test",
+                request.LastName ?? "User",
+                loginUrl
+            );
+
+            return Ok(new { code = 200, message = "Test email sent successfully. Check your inbox and backend console for logs." });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Test email error: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            return StatusCode(500, new { code = 500, message = "Error sending test email", error = ex.Message });
+        }
+    }
+
+    public record TestEmailRequest(string Email, string? FirstName, string? LastName);
 
     // ===================== Rooms (list) =====================
     [HttpGet("rooms")]
