@@ -285,7 +285,7 @@ const HomeworkDetail = () => {
         </span>
       ),
     },
-    { title: "Homework Detail" },
+    { title: "Homework List" },
   ];
 
   return (
@@ -308,7 +308,7 @@ const HomeworkDetail = () => {
             Back
           </Button>
           <h1 style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 600 }}>
-            Homework detail
+            Homework list
           </h1>
           <p style={{ margin: 0, color: "#595959" }}>
             Class {meta.className || classId} • Slot {meta.slotId || "-"}
