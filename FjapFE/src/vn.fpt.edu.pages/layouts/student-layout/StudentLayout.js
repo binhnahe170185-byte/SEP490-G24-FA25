@@ -14,6 +14,7 @@ import {
   WifiOutlined
 } from '@ant-design/icons';
 import '../../student/StudentHomepage.css';
+import FloatingAIChatWidget from '../../student/components/FloatingAIChatWidget';
 import {
   describeConnectionState,
   formatNotificationTime,
@@ -270,6 +271,9 @@ const StudentLayout = ({ children }) => {
       <div className="student-layout-content">
         {children || <Outlet />}
       </div>
+
+      {/* Floating AI Chat Widget - Available on all student pages */}
+      <FloatingAIChatWidget />
     </div>
   );
 };
