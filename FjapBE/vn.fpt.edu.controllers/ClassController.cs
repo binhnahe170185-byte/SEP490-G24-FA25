@@ -469,6 +469,56 @@ public class ClassController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy student schedule cache cho một class trong semester
+    /// GET: api/staffAcademic/classes/{classId}/student-schedule-cache?semesterId={semesterId}
+    /// </summary>
+    [HttpGet("{classId:int}/student-schedule-cache")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetStudentScheduleCache(int classId, [FromQuery] int semesterId)
+    {
+        if (semesterId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "semesterId must be greater than 0" });
+        }
+
+        if (classId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "classId must be greater than 0" });
+        }
+
+        try
+        {
+            var semester = await _db.Semesters
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.SemesterId == semesterId);
+
+            if (semester == null)
+            {
+                return NotFound(new { code = 404, message = "Semester not found" });
+            }
+
+            var classEntity = await _db.Classes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.ClassId == classId);
+
+            if (classEntity == null)
+            {
+                return NotFound(new { code = 404, message = "Class not found" });
+            }
+
+            var cache = await _availabilityService.BuildStudentScheduleCacheAsync(classId, semester.StartDate, semester.EndDate);
+
+            return Ok(new { code = 200, data = cache });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetStudentScheduleCache: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Lấy tất cả lessons của một semester để build conflict map
     /// GET: api/staffAcademic/classes/semester/{semesterId}/lessons
     /// </summary>

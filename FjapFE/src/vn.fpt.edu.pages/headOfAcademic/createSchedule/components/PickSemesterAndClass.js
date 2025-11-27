@@ -66,6 +66,23 @@ const PickSemesterAndClass = ({
                 return endDateObj >= today;
               });
             setSemesterOptions(formattedSemesters);
+
+            // Auto-select current semester (today is between startDate and endDate)
+            if (!semesterId && formattedSemesters.length > 0) {
+              const currentSemester = formattedSemesters.find(sem => {
+                if (!sem.startDate || !sem.endDate) return false;
+                const startDateObj = new Date(sem.startDate);
+                startDateObj.setHours(0, 0, 0, 0);
+                const endDateObj = new Date(sem.endDate);
+                endDateObj.setHours(23, 59, 59, 999); // Include end date
+                return today >= startDateObj && today <= endDateObj;
+              });
+
+              if (currentSemester) {
+                console.log('Auto-selecting current semester:', currentSemester);
+                onSemesterChange(currentSemester.value);
+              }
+            }
           }
 
           // Store classes grouped by semester
@@ -99,7 +116,8 @@ const PickSemesterAndClass = ({
     };
 
     fetchScheduleOptions();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
 
   // Get classes for selected semester

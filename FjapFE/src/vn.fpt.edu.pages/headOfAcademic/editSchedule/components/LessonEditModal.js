@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   Modal,
   Form,
@@ -26,12 +26,17 @@ const LessonEditModal = ({
 }) => {
   const [form] = Form.useForm();
 
+  // Khi mở modal hoặc đổi lesson → fill form
   useEffect(() => {
     if (visible && lesson) {
       form.setFieldsValue({
         date: lesson.date ? dayjs(lesson.date) : null,
-        timeId: lesson.timeId ? String(lesson.timeId) : String(lesson.slot),
-        roomId: lesson.roomId ? String(lesson.roomId) : null,
+        timeId: lesson.timeId
+          ? String(lesson.timeId)
+          : lesson.slot
+          ? String(lesson.slot)
+          : undefined,
+        roomId: lesson.roomId ? String(lesson.roomId) : undefined,
       });
     } else {
       form.resetFields();
@@ -41,59 +46,72 @@ const LessonEditModal = ({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+
       const updatedData = {
-        date: values.date ? values.date.format('YYYY-MM-DD') : lesson.date,
-        timeId: parseInt(values.timeId, 10),
-        roomId: parseInt(values.roomId, 10),
+        date: values.date
+          ? values.date.format('YYYY-MM-DD')
+          : lesson.date,
+        timeId: Number(values.timeId),
+        roomId: Number(values.roomId),
       };
-      
+
       console.log('handleSubmit - lesson:', lesson);
       console.log('handleSubmit - lessonId:', lesson?.lessonId);
       console.log('handleSubmit - updatedData:', updatedData);
-      
+
       if (!lesson?.lessonId) {
         console.error('Lesson ID is missing!', lesson);
         return;
       }
-      
-      if (onUpdate) {
-        await onUpdate(lesson.lessonId, updatedData);
+
+      if (typeof onUpdate === 'function') {
+        await onUpdate(Number(lesson.lessonId), updatedData);
       } else {
         console.error('onUpdate callback is not provided');
       }
     } catch (error) {
       console.error('Form validation or update failed:', error);
-      // Error will be handled by parent component
-      throw error;
+      // cho parent xử lý
     }
   };
 
-  const handleDelete = () => {
-    console.log('handleDelete - lesson:', lesson);
-    console.log('handleDelete - lessonId:', lesson?.lessonId);
-    
-    if (!lesson?.lessonId) {
-      console.error('Lesson ID is missing for delete!', lesson);
-      return;
-    }
-    
-    if (onDelete) {
-      onDelete(lesson.lessonId);
-    } else {
-      console.error('onDelete callback is not provided');
-    }
-  };
+const handleDelete = (e) => {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  console.log('handleDelete called - lesson:', lesson);
+  console.log('handleDelete - lessonId:', lesson?.lessonId);
+  console.log('handleDelete - onDelete callback:', onDelete);
+
+  if (!lesson?.lessonId) {
+    console.error('Lesson ID is missing for delete!', lesson);
+    return;
+  }
+
+  if (typeof onDelete === 'function') {
+    const id = Number(lesson.lessonId);
+    console.log('Calling onDelete with lessonId:', id);
+    onDelete(id);   // gọi thẳng lên cha, không confirm ở đây
+  } else {
+    console.error(
+      'onDelete callback is not provided or not a function',
+      onDelete
+    );
+  }
+};
 
   if (!lesson) return null;
 
-  const slotOptions = timeslots.map(ts => ({
+  const slotOptions = timeslots.map((ts) => ({
     value: String(ts.timeId),
-    label: `Slot ${ts.timeId} (${ts.startTime || ''} - ${ts.endTime || ''})`
+    label: `Slot ${ts.timeId} (${ts.startTime || ''} - ${ts.endTime || ''})`,
   }));
 
-  const roomOptions = rooms.map(room => ({
+  const roomOptions = rooms.map((room) => ({
     value: room.value,
-    label: room.label
+    label: room.label,
   }));
 
   return (
@@ -113,7 +131,9 @@ const LessonEditModal = ({
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
             <Text strong>Subject: </Text>
-            <Text>{lesson.subjectCode || ''} - {lesson.subjectName || ''}</Text>
+            <Text>
+              {lesson.subjectCode || ''} - {lesson.subjectName || ''}
+            </Text>
           </div>
           <div>
             <Text strong>Class: </Text>
@@ -134,10 +154,9 @@ const LessonEditModal = ({
             <DatePicker
               style={{ width: '100%' }}
               format="YYYY-MM-DD"
-              disabledDate={(current) => {
-                // Disable dates before today
-                return current && current < dayjs().startOf('day');
-              }}
+              disabledDate={(current) =>
+                current && current < dayjs().startOf('day')
+              }
             />
           </Form.Item>
 
@@ -171,17 +190,6 @@ const LessonEditModal = ({
 
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Button
-              danger
-              icon={<DeleteOutlined />}
-              onClick={handleDelete}
-              loading={saving}
-            >
-              Delete Lesson
-            </Button>
-            <Button onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
@@ -192,9 +200,22 @@ const LessonEditModal = ({
           </Space>
         </Space>
       </Form>
+
+      <Divider style={{ margin: '12px 0' }} />
+
+      <Space style={{ width: '100%', justifyContent: 'flex-start' }}>
+        <Button
+          danger
+          type="default"
+          icon={<DeleteOutlined />}
+          onClick={handleDelete}
+          disabled={saving || !lesson?.lessonId}
+        >
+          Delete Lesson
+        </Button>
+      </Space>
     </Modal>
   );
 };
 
 export default LessonEditModal;
-
