@@ -38,6 +38,7 @@ const WeeklySchedules = ({
   classId = null,
   lecturerId = null,
   holidays = [],
+  studentScheduleCache = { studentIds: [], studentTimeMap: {} },
   // Helper functions
   findNextDateForWeekday = null,
   toYMD = null,
@@ -74,6 +75,7 @@ const WeeklySchedules = ({
       const isHoliday = holidays.some(h => h.date === dateStr);
       if (!isHoliday) {
         const key = `${dateStr}|${slotId}|${roomId}`;
+        const classTimeKey = `${dateStr}|${slotId}`;
         const existingConflicts = conflictMap[key];
         
         if (existingConflicts && existingConflicts.length > 0) {
@@ -93,6 +95,24 @@ const WeeklySchedules = ({
           });
           conflicts.push(dateStr);
         }
+
+        // Check student conflicts: students in this class already have lessons at this date/time
+        if (studentScheduleCache.studentIds && studentScheduleCache.studentIds.length > 0) {
+          const conflictedStudents = [];
+          studentScheduleCache.studentIds.forEach(studentId => {
+            const studentSlots = studentScheduleCache.studentTimeMap[studentId];
+            if (studentSlots && studentSlots.has(classTimeKey)) {
+              conflictedStudents.push(studentId);
+            }
+          });
+
+          if (conflictedStudents.length > 0) {
+            const previewList = conflictedStudents.slice(0, 5).join(', ');
+            const suffix = conflictedStudents.length > 5 ? ` (+${conflictedStudents.length - 5} more)` : '';
+            conflictDetails.push(`Student conflict: students [${previewList}${suffix}] are already scheduled at ${dateStr} timeId ${slotId}`);
+            conflicts.push(dateStr);
+          }
+        }
       }
       // Move to next week
       currentDate = addDays(currentDate, 7);
@@ -103,6 +123,7 @@ const WeeklySchedules = ({
       const roomConflicts = conflictDetails.filter(d => d.includes('Room'));
       const classConflicts = conflictDetails.filter(d => d.includes('Class'));
       const lecturerConflicts = conflictDetails.filter(d => d.includes('Lecturer'));
+      const studentConflicts = conflictDetails.filter(d => d.includes('Student'));
       
       const messages = [];
       if (roomConflicts.length > 0) {
@@ -113,6 +134,9 @@ const WeeklySchedules = ({
       }
       if (lecturerConflicts.length > 0) {
         messages.push(`Lecturer conflict: ${lecturerConflicts.length} occurrence(s)`);
+      }
+      if (studentConflicts.length > 0) {
+        messages.push(`Student conflict: ${studentConflicts.length} occurrence(s)`);
       }
 
       setConflictStatus({
@@ -129,7 +153,7 @@ const WeeklySchedules = ({
         checking: false
       });
     }
-  }, [weekday, slotId, roomId, semesterStart, semesterEnd, classId, lecturerId, conflictMap, holidays, findNextDateForWeekday, toYMD, addDays]);
+  }, [weekday, slotId, roomId, semesterStart, semesterEnd, classId, lecturerId, conflictMap, holidays, studentScheduleCache, findNextDateForWeekday, toYMD, addDays]);
 
   const hasValues = weekday && slotId && roomId;
   const isChecking = conflictStatus.checking;

@@ -87,6 +87,14 @@ class ClassList {
     const response = await api.get(`/api/staffAcademic/classes/semester/${semesterId}/lessons`);
     return response.data?.data ?? response.data;
   }
+
+  // GET /api/staffAcademic/classes/{classId}/student-schedule-cache?semesterId={semesterId} - Get student schedule cache
+  static async getStudentScheduleCache(classId, semesterId) {
+    const response = await api.get(`/api/staffAcademic/classes/${classId}/student-schedule-cache`, {
+      params: { semesterId }
+    });
+    return response.data?.data ?? response.data;
+  }
  static async checkAvailability(payload) {
     const response = await api.post("/api/staffAcademic/classes/schedule/availability", payload);
     return response.data?.data ?? response.data;
@@ -112,8 +120,18 @@ class ClassList {
 
   // Delete lesson
   static async deleteLesson(lessonId) {
-    const response = await api.delete(`/api/staffAcademic/classes/lessons/${lessonId}`);
-    return response.data?.data ?? response.data;
+    console.log('ClassList.deleteLesson - Calling API with lessonId:', lessonId);
+    try {
+      const response = await api.delete(`/api/staffAcademic/classes/lessons/${lessonId}`);
+      console.log('ClassList.deleteLesson - API response:', response);
+      console.log('ClassList.deleteLesson - Response data:', response.data);
+      return response.data?.data ?? response.data;
+    } catch (error) {
+      console.error('ClassList.deleteLesson - API error:', error);
+      console.error('ClassList.deleteLesson - Error response:', error?.response);
+      console.error('ClassList.deleteLesson - Error data:', error?.response?.data);
+      throw error;
+    }
   }
 }
 

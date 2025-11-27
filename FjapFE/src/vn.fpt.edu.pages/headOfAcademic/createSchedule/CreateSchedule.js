@@ -64,6 +64,13 @@ const CreateSchedule = () => {
   const [conflictMap, setConflictMap] = useState({}); // Object: "date|slot|room" -> [{ classId, lecturerId, className, ... }]
   const [conflictMapSize, setConflictMapSize] = useState(0); // Track size for React to detect changes
   const [loadingSemesterLessons, setLoadingSemesterLessons] = useState(false);
+  
+  // Student schedule cache for student conflict checking
+  const [studentScheduleCache, setStudentScheduleCache] = useState({
+    studentIds: [],
+    studentTimeMap: {} // { studentId: Set of "date|timeId" strings }
+  });
+  const [loadingStudentCache, setLoadingStudentCache] = useState(false);
 
   // Filtered options for valid selections
   const [filteredLecturers, setFilteredLecturers] = useState([]);
@@ -186,7 +193,19 @@ const CreateSchedule = () => {
       if (!isHoliday) {
         const conflict = checkConflictFromMap(dateStr, parseInt(timeId, 10), parseInt(roomId, 10), currentClassId, currentLecturerId);
         if (!conflict.hasConflict) {
-          return true; // Found at least one available date
+          // Also check student conflicts
+          const classTimeKey = `${dateStr}|${timeId}`;
+          if (studentScheduleCache.studentIds && studentScheduleCache.studentIds.length > 0) {
+            const hasStudentConflict = studentScheduleCache.studentIds.some(studentId => {
+              const studentSlots = studentScheduleCache.studentTimeMap[studentId];
+              return studentSlots && studentSlots.has(classTimeKey);
+            });
+            if (!hasStudentConflict) {
+              return true; // Found at least one available date
+            }
+          } else {
+            return true; // No students in class, so no student conflict
+          }
         }
       }
       // Move to next week
@@ -399,6 +418,48 @@ const CreateSchedule = () => {
     fetchHolidays();
   }, [semester.id, semesterId]);
 
+  // Load student schedule cache when class and semester are selected
+  useEffect(() => {
+    const loadStudentScheduleCache = async () => {
+      const semId = semester.id || semesterId;
+      if (!semId || !classId) {
+        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
+        return;
+      }
+
+      try {
+        setLoadingStudentCache(true);
+        console.log('Loading student schedule cache for class:', classId, 'semester:', semId);
+        const cache = await ClassList.getStudentScheduleCache(classId, semId);
+        console.log('Loaded student schedule cache:', cache);
+        
+        // Convert backend format to frontend format
+        // Backend: { studentIds: [1,2,3], studentTimeMap: { 1: Set<string>, 2: Set<string> } }
+        // Frontend: { studentIds: [1,2,3], studentTimeMap: { 1: Set<string>, 2: Set<string> } }
+        const studentTimeMap = {};
+        if (cache.studentTimeMap) {
+          Object.keys(cache.studentTimeMap).forEach(studentId => {
+            const timeSet = cache.studentTimeMap[studentId];
+            // Convert array to Set if needed
+            studentTimeMap[parseInt(studentId, 10)] = new Set(Array.isArray(timeSet) ? timeSet : []);
+          });
+        }
+        
+        setStudentScheduleCache({
+          studentIds: cache.studentIds || [],
+          studentTimeMap: studentTimeMap
+        });
+      } catch (error) {
+        console.error('Failed to load student schedule cache:', error);
+        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
+      } finally {
+        setLoadingStudentCache(false);
+      }
+    };
+
+    loadStudentScheduleCache();
+  }, [classId, semester.id, semesterId]);
+
   // Initialize week
   useEffect(() => {
     const today = new Date();
@@ -569,7 +630,7 @@ const CreateSchedule = () => {
     }
 
     setFilteringOptions(false);
-  }, [weekday, slotId, roomId, lecturerId, classId, semester.start, semester.end, conflictMapSize, holidays, weekdays, slots, rooms, loadingSemesterLessons]);
+  }, [weekday, slotId, roomId, lecturerId, classId, semester.start, semester.end, conflictMapSize, holidays, weekdays, slots, rooms, loadingSemesterLessons, studentScheduleCache]);
 
   // Generate lessons from patterns for entire semester
   const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer, subjectCodeValue, subjectNameValue, totalLessonCount) => {
@@ -1305,6 +1366,7 @@ const CreateSchedule = () => {
             classId={classId}
             lecturerId={lecturerId}
             holidays={holidays}
+            studentScheduleCache={studentScheduleCache}
             findNextDateForWeekday={findNextDateForWeekday}
             toYMD={toYMD}
             addDays={addDays}
