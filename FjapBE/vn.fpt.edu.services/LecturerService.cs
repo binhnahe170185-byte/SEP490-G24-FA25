@@ -21,5 +21,8 @@ public class LecturerService : ILecturerService
 
     public async Task<IEnumerable<LecturerClassDto>> GetClassesByLecturerIdAsync(int lecturerId, int? semesterId = null)
         => await _lecturerRepository.GetClassesByLecturerIdAsync(lecturerId, semesterId);
+
+    public async Task<LecturerDetailDto?> GetLecturerByIdAsync(int lecturerId)
+        => await _lecturerRepository.GetLecturerByIdAsync(lecturerId);
 }
 

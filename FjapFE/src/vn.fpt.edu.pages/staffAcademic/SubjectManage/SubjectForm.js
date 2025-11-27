@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
   Form, Input, InputNumber, Select, Button, Card, message, Spin, 
-  Table, Popconfirm, Divider, Typography, Dropdown, Space 
+  Table, Popconfirm, Divider, Typography, Dropdown, Space, Modal 
 } from "antd";
 import { 
   SaveOutlined, ArrowLeftOutlined, PlusOutlined, 
@@ -25,6 +25,8 @@ export default function SubjectForm({ mode = "create" }) {
   const [submitting, setSubmitting] = useState(false);
   const [options, setOptions] = useState({ levels: [] });
   const [gradeTypesData, setGradeTypesData] = useState([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingValues, setPendingValues] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const basePrefix = location.pathname.startsWith('/manager') ? '/manager' : '/staffAcademic';
@@ -152,38 +154,12 @@ export default function SubjectForm({ mode = "create" }) {
     return Promise.resolve();
   };
 
-  const handleSubmit = async (values) => {
+  const performSubmit = async (values) => {
     let notifyKey = null;
     const actionType = isEditMode ? "update" : "create";
+    const subjectName = values.subjectName?.trim() || values.subjectCode || "Subject";
     
     try {
-      // Additional validation before submit - check for empty names or weights
-      const invalidGradeTypes = [];
-      gradeTypesData.forEach((gt, index) => {
-        const name = (gt?.gradeTypeName || '').trim();
-        const weight = gt?.weight;
-        
-        if (!name || name === '') {
-          invalidGradeTypes.push(`Grade type #${index + 1}: Name is required`);
-        }
-        if (weight === null || weight === undefined || weight === '' || weight <= 0) {
-          invalidGradeTypes.push(`Grade type #${index + 1}${name ? ` (${name})` : ''}: Weight is required and must be greater than 0`);
-        }
-        if (weight > 100) {
-          invalidGradeTypes.push(`Grade type #${index + 1}${name ? ` (${name})` : ''}: Weight cannot exceed 100%`);
-        }
-      });
-      
-      if (invalidGradeTypes.length > 0) {
-        const errorKey = `subject-validation-error-${Date.now()}`;
-        notifyError(
-          errorKey,
-          "Validation Failed",
-          `Please fix the following errors:\n${invalidGradeTypes.join('\n')}`
-        );
-        return; // Stop submission
-      }
-      
       // Normalize grade types: 
       // - Existing grade types (from DB) will have subjectGradeTypeId > 0
       // - New grade types (added in UI) will have subjectGradeTypeId = 0, null, or undefined
@@ -212,7 +188,6 @@ export default function SubjectForm({ mode = "create" }) {
         gradeTypes: normalizedGradeTypes
       };
 
-      const subjectName = values.subjectName?.trim() || values.subjectCode || "Subject";
       notifyKey = `subject-${actionType}-${isEditMode ? subjectId : Date.now()}`;
       
       notifyPending(
@@ -270,6 +245,41 @@ export default function SubjectForm({ mode = "create" }) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = (values) => {
+    // Additional validation before submit - check for empty names or weights
+    const invalidGradeTypes = [];
+    gradeTypesData.forEach((gt, index) => {
+      const name = (gt?.gradeTypeName || '').trim();
+      const weight = gt?.weight;
+      
+      if (!name || name === '') {
+        invalidGradeTypes.push(`Grade type #${index + 1}: Name is required`);
+      }
+      if (weight === null || weight === undefined || weight === '' || weight <= 0) {
+        invalidGradeTypes.push(`Grade type #${index + 1}${name ? ` (${name})` : ''}: Weight is required and must be greater than 0`);
+      }
+      if (weight > 100) {
+        invalidGradeTypes.push(`Grade type #${index + 1}${name ? ` (${name})` : ''}: Weight cannot exceed 100%`);
+      }
+    });
+    
+    if (invalidGradeTypes.length > 0) {
+      const errorKey = `subject-validation-error-${Date.now()}`;
+      notifyError(
+        errorKey,
+        "Validation Failed",
+        `Please fix the following errors:\n${invalidGradeTypes.join('\n')}`
+      );
+      return; // Stop submission
+    }
+
+    const subjectName = values.subjectName?.trim() || values.subjectCode || "Subject";
+    
+    // Store values and show confirmation modal
+    setPendingValues(values);
+    setShowConfirmModal(true);
   };
 
   const handleCancel = () => {
@@ -386,7 +396,6 @@ export default function SubjectForm({ mode = "create" }) {
       <Form
         form={form}
         layout="vertical"
-        onFinish={handleSubmit}
         autoComplete="off"
         initialValues={{
           passMark: 5.0,
@@ -538,16 +547,48 @@ export default function SubjectForm({ mode = "create" }) {
             </Button>
             <Button
               type="primary"
-              htmlType="submit"
               icon={<SaveOutlined />}
               loading={submitting}
               size="large"
+              onClick={async () => {
+                try {
+                  const values = await form.validateFields();
+                  handleSubmit(values);
+                } catch (error) {
+                  // Form validation failed, errors will be shown by Ant Design Form
+                }
+              }}
             >
               {isEditMode ? "Update Subject" : "Create Subject"}
             </Button>
           </div>
         </Form.Item>
       </Form>
+
+      <Modal
+        title={isEditMode ? "Update Subject" : "Create Subject"}
+        open={showConfirmModal}
+        onOk={() => {
+          if (pendingValues) {
+            performSubmit(pendingValues);
+          }
+          setShowConfirmModal(false);
+          setPendingValues(null);
+        }}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setPendingValues(null);
+        }}
+        okText="Save"
+        cancelText="Cancel"
+        okType="primary"
+      >
+        {pendingValues && (
+          <p>
+            You are about to {isEditMode ? "update" : "create"} the subject "{pendingValues.subjectName?.trim() || pendingValues.subjectCode || "Subject"}". Continue?
+          </p>
+        )}
+      </Modal>
     </Card>
   );
 }
