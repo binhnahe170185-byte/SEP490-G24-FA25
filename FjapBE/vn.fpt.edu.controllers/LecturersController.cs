@@ -52,5 +52,25 @@ public class LecturersController : ControllerBase
             return StatusCode(500, new { code = 500, message = $"Error: {ex.Message}" });
         }
     }
+
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(LecturerDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetLecturerById(int id)
+    {
+        try
+        {
+            var lecturer = await _lecturerService.GetLecturerByIdAsync(id);
+            if (lecturer == null)
+            {
+                return NotFound(new { code = 404, message = "Lecturer not found" });
+            }
+            return Ok(new { code = 200, data = lecturer });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { code = 500, message = $"Error: {ex.Message}" });
+        }
+    }
 }
 
