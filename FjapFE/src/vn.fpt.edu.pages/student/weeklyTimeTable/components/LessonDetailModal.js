@@ -42,12 +42,26 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
     const instructorCode = lesson?.instructor || "N/A";
     const studentGroupCode = lesson?.studentGroup || "N/A";
     const classId = lesson?.classId || lesson?.class_id || null;
+    const lessonId = lesson?.lessonId || lesson?.lesson_id || null;
 
     const handleViewStudents = () => {
         if (classId) {
             navigate(`/student/class/${classId}/students`);
             onClose();
         }
+    };
+
+    const handleOpenHomework = () => {
+        if (!classId || !lessonId) return;
+        navigate(`/student/homework/${classId}/${lessonId}`, {
+            state: {
+                lesson,
+                from: {
+                    page: "student-weekly-timetable",
+                },
+            },
+        });
+        onClose();
     };
 
     return (
@@ -213,18 +227,28 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                     </Button>
                                 </Card>
 
-                                {/* EduNext Card */}
+                                {/* Lesson Homework Card */}
                                 <Card
                                     bodyStyle={{ padding: 16, textAlign: "center" }}
                                     hoverable
+                                    onClick={classId && lessonId ? handleOpenHomework : undefined}
+                                    style={{ cursor: classId && lessonId ? "pointer" : "default" }}
                                 >
                                     <BookOutlined style={{ fontSize: 32, color: "#1890ff", marginBottom: 12 }} />
-                                    <Title level={5} style={{ marginBottom: 8 }}>EduNext</Title>
+                                    <Title level={5} style={{ marginBottom: 8 }}>Lesson's Homework</Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
-                                        Access course materials and resources
+                                        Access lesson homework and assignments
                                     </Text>
-                                    <Button type="primary" ghost>
-                                        Open EduNext <LinkOutlined />
+                                    <Button
+                                        type="primary"
+                                        ghost
+                                        disabled={!classId || !lessonId}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleOpenHomework();
+                                        }}
+                                    >
+                                        Open Homework <LinkOutlined />
                                     </Button>
                                 </Card>
 
