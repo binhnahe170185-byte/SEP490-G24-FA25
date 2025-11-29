@@ -21,6 +21,7 @@ import {
   getNotificationIcon,
   useRealtimeNotifications,
 } from '../../../vn.fpt.edu.common/hooks/useRealtimeNotifications';
+import MandatoryFeedbackModal from '../../../vn.fpt.edu.common/components/MandatoryFeedbackModal';
 
 const { Text } = Typography;
 
@@ -272,6 +273,9 @@ const StudentLayout = ({ children }) => {
         {children || <Outlet />}
       </div>
 
+      {/* Mandatory Feedback Modal - blocks UI until feedback is submitted */}
+      <MandatoryFeedbackModal />
+      
       {/* Floating AI Chat Widget - Available on all student pages */}
       <FloatingAIChatWidget />
     </div>

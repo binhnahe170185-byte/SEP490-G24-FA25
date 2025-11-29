@@ -14,16 +14,12 @@ public class NewsService : INewsService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly INotificationService _notificationService;
 
-    public NewsService(
-     INewsRepository newsRepository,
-     FjapDbContext context,
-     IHttpClientFactory httpClientFactory,
-     INotificationService notificationService)
+    public NewsService(INewsRepository newsRepository, FjapDbContext context, IHttpClientFactory httpClientFactory, INotificationService notificationService)
     {
         _newsRepository = newsRepository;
         _context = context;
         _httpClientFactory = httpClientFactory;
-        _notificationService = notificationService; 
+        _notificationService = notificationService;
     }
 
 

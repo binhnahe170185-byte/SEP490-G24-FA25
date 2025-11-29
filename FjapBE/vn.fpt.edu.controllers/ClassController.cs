@@ -143,6 +143,7 @@ public class ClassController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [HttpGet("~/api/Classes/{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
         var cls = await _classService.GetByIdAsync(id);
