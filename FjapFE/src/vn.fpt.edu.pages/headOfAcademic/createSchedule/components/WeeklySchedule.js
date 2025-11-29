@@ -49,13 +49,83 @@ const WeeklySchedules = ({
   // Helper functions
   findNextDateForWeekday = null,
   toYMD = null,
-  addDays = null
+  addDays = null,
+  // Total lesson validation
+  totalLesson = null,
+  mondayOf = null
 }) => {
-  const [conflictStatus, setConflictStatus] = useState({ 
-    hasConflict: false, 
-    message: '', 
-    checking: false 
+  const [conflictStatus, setConflictStatus] = useState({
+    hasConflict: false,
+    message: '',
+    checking: false
   });
+
+  // Calculate total lessons that will be generated from current patterns
+  const calculateTotalLessonsFromPatterns = (patterns, semStart, semEnd) => {
+    if (!patterns || patterns.length === 0 || !semStart || !semEnd || !mondayOf || !toYMD || !addDays) {
+      return 0;
+    }
+
+    const holidaysDates = holidays.map(h => h.date);
+    let lessonCount = 0;
+    let currentDate = mondayOf(semStart);
+    const endDate = semEnd;
+
+    // Generate lessons for each week in semester (without totalLesson limit)
+    while (currentDate <= endDate) {
+      // For each weekday (Mon-Sun)
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const lessonDate = addDays(currentDate, dayOffset);
+
+        // Skip if beyond semester end
+        if (lessonDate > endDate) break;
+
+        // Skip if holiday
+        const dateStr = toYMD(lessonDate);
+        if (holidaysDates.includes(dateStr)) continue;
+
+        // Check if this weekday matches any pattern
+        const weekdayNum = lessonDate.getDay();
+        const normalizedWeekday = weekdayNum === 0 ? 8 : weekdayNum + 1; // Convert: Mon=2 ... Sat=7, Sun=8
+
+        patterns.forEach(pattern => {
+          if (pattern.weekday === normalizedWeekday) {
+            lessonCount++;
+          }
+        });
+      }
+
+      // Move to next week
+      currentDate = addDays(currentDate, 7);
+    }
+
+    return lessonCount;
+  };
+
+  // Calculate and validate total lesson count
+  const [lessonCountStatus, setLessonCountStatus] = useState({
+    currentCount: 0,
+    requiredCount: 0,
+    isInsufficient: false
+  });
+
+  useEffect(() => {
+    if (totalLesson && totalLesson > 0 && semesterStart && semesterEnd && patterns.length > 0) {
+      const currentCount = calculateTotalLessonsFromPatterns(patterns, semesterStart, semesterEnd);
+      const isInsufficient = currentCount < totalLesson;
+      setLessonCountStatus({
+        currentCount,
+        requiredCount: totalLesson,
+        isInsufficient
+      });
+    } else {
+      setLessonCountStatus({
+        currentCount: 0,
+        requiredCount: 0,
+        isInsufficient: false
+      });
+    }
+  }, [patterns, semesterStart, semesterEnd, totalLesson, holidays, mondayOf, toYMD, addDays]);
 
   // Check conflict when selections change
   useEffect(() => {
@@ -74,7 +144,13 @@ const WeeklySchedules = ({
     let currentDate = findNextDateForWeekday(semesterStart, weekday);
     const endDate = semesterEnd;
     const conflicts = [];
-    const conflictDetails = [];
+
+    // Track unique conflicts by type and entity (to avoid duplicates)
+    const roomConflictMap = new Map(); // key: roomName-className, value: count
+    const classConflictMap = new Map(); // key: className, value: count
+    const lecturerConflictMap = new Map(); // key: lecturerDisplay-className, value: count
+    const studentConflictSet = new Set(); // track unique student conflicts
+    let studentConflictCount = 0;
 
     while (currentDate && currentDate <= endDate) {
       const dateStr = toYMD(currentDate);
@@ -84,23 +160,25 @@ const WeeklySchedules = ({
         const key = `${dateStr}|${slotId}|${roomId}`;
         const classTimeKey = `${dateStr}|${slotId}`;
         const existingConflicts = conflictMap[key];
-        
+
         if (existingConflicts && existingConflicts.length > 0) {
           existingConflicts.forEach(conflict => {
             // Room conflict: room is occupied
             if (conflict.roomId === parseInt(roomId, 10)) {
-              conflictDetails.push(`Room ${conflict.roomName} is occupied by ${conflict.className} on ${dateStr}`);
+              const roomKey = `${conflict.roomName}-${conflict.className}`;
+              roomConflictMap.set(roomKey, (roomConflictMap.get(roomKey) || 0) + 1);
             }
             // Class conflict: same class already has lesson
             if (classId && conflict.classId === parseInt(classId, 10)) {
-              conflictDetails.push(`Class ${conflict.className} already has a lesson on ${dateStr}`);
+              classConflictMap.set(conflict.className, (classConflictMap.get(conflict.className) || 0) + 1);
             }
             // Lecturer conflict: same lecturer already has lesson
             if (lecturerId && conflict.lecturerId === parseInt(lecturerId, 10)) {
-              const lecturerDisplay = conflict.lecturerCode 
+              const lecturerDisplay = conflict.lecturerCode
                 ? (conflict.lecturerCode.includes('@') ? getEmailUsername(conflict.lecturerCode) : conflict.lecturerCode)
                 : 'Unknown';
-              conflictDetails.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className} on ${dateStr}`);
+              const lecturerKey = `${lecturerDisplay}-${conflict.className}`;
+              lecturerConflictMap.set(lecturerKey, (lecturerConflictMap.get(lecturerKey) || 0) + 1);
             }
           });
           conflicts.push(dateStr);
@@ -117,9 +195,12 @@ const WeeklySchedules = ({
           });
 
           if (conflictedStudents.length > 0) {
-            const previewList = conflictedStudents.slice(0, 5).join(', ');
-            const suffix = conflictedStudents.length > 5 ? ` (+${conflictedStudents.length - 5} more)` : '';
-            conflictDetails.push(`Student conflict: students [${previewList}${suffix}] are already scheduled at ${dateStr} timeId ${slotId}`);
+            // Track unique student conflict (same students, different dates)
+            const studentKey = conflictedStudents.sort().join(',');
+            if (!studentConflictSet.has(studentKey)) {
+              studentConflictSet.add(studentKey);
+            }
+            studentConflictCount++;
             conflicts.push(dateStr);
           }
         }
@@ -129,31 +210,54 @@ const WeeklySchedules = ({
     }
 
     if (conflicts.length > 0) {
-      // Group conflicts by type
-      const roomConflicts = conflictDetails.filter(d => d.includes('Room'));
-      const classConflicts = conflictDetails.filter(d => d.includes('Class'));
-      const lecturerConflicts = conflictDetails.filter(d => d.includes('Lecturer'));
-      const studentConflicts = conflictDetails.filter(d => d.includes('Student'));
-      
+      // Build unique conflict details (one per conflict type/entity)
+      const conflictDetails = [];
+
+      // Room conflicts
+      roomConflictMap.forEach((count, key) => {
+        const [roomName, className] = key.split('-');
+        conflictDetails.push(`Room ${roomName} is occupied by ${className} (${count} occurrence(s))`);
+      });
+
+      // Class conflicts
+      classConflictMap.forEach((count, className) => {
+        conflictDetails.push(`Class ${className} already has a lesson (${count} occurrence(s))`);
+      });
+
+      // Lecturer conflicts
+      lecturerConflictMap.forEach((count, key) => {
+        const [lecturerDisplay, className] = key.split('-');
+        conflictDetails.push(`Lecturer ${lecturerDisplay} is already teaching ${className} (${count} occurrence(s))`);
+      });
+
+      // Student conflicts
+      if (studentConflictSet.size > 0) {
+        conflictDetails.push(`Student conflict: ${studentConflictCount} occurrence(s) detected`);
+      }
+
+      // Build summary messages
       const messages = [];
-      if (roomConflicts.length > 0) {
-        messages.push(`Room conflict: ${roomConflicts.length} occurrence(s)`);
+      if (roomConflictMap.size > 0) {
+        const totalRoomConflicts = Array.from(roomConflictMap.values()).reduce((sum, count) => sum + count, 0);
+        messages.push(`Room conflict: ${totalRoomConflicts} occurrence(s)`);
       }
-      if (classConflicts.length > 0) {
-        messages.push(`Class conflict: ${classConflicts.length} occurrence(s)`);
+      if (classConflictMap.size > 0) {
+        const totalClassConflicts = Array.from(classConflictMap.values()).reduce((sum, count) => sum + count, 0);
+        messages.push(`Class conflict: ${totalClassConflicts} occurrence(s)`);
       }
-      if (lecturerConflicts.length > 0) {
-        messages.push(`Lecturer conflict: ${lecturerConflicts.length} occurrence(s)`);
+      if (lecturerConflictMap.size > 0) {
+        const totalLecturerConflicts = Array.from(lecturerConflictMap.values()).reduce((sum, count) => sum + count, 0);
+        messages.push(`Lecturer conflict: ${totalLecturerConflicts} occurrence(s)`);
       }
-      if (studentConflicts.length > 0) {
-        messages.push(`Student conflict: ${studentConflicts.length} occurrence(s)`);
+      if (studentConflictSet.size > 0) {
+        messages.push(`Student conflict: ${studentConflictCount} occurrence(s)`);
       }
 
       setConflictStatus({
         hasConflict: true,
         message: messages.join(' | '),
         checking: false,
-        details: conflictDetails.slice(0, 5), // Show first 5 conflicts
+        details: conflictDetails, // Show unique conflicts only
         totalConflicts: conflicts.length
       });
     } else {
@@ -228,16 +332,37 @@ const WeeklySchedules = ({
                       </li>
                     ))}
                   </ul>
-                  {conflictStatus.totalConflicts > conflictStatus.details.length && (
-                    <Typography.Text type="secondary" style={{ fontSize: '12px', fontStyle: 'italic' }}>
-                      ... and {conflictStatus.totalConflicts - conflictStatus.details.length} more conflict(s)
-                    </Typography.Text>
-                  )}
+
                 </div>
               )}
             </div>
           }
           type={isUnavailable ? 'error' : 'success'}
+
+        />
+      )}
+      {lessonCountStatus.isInsufficient && totalLesson && totalLesson > 0 && (
+        <Alert
+          message="Insufficient Lessons"
+          description={
+            <Typography.Text>
+              Subject requires <strong>{lessonCountStatus.requiredCount}</strong> lessons, please add more patterns to meet the requirement.
+            </Typography.Text>
+          }
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      {!lessonCountStatus.isInsufficient && lessonCountStatus.currentCount > 0 && totalLesson && totalLesson > 0 && (
+        <Alert
+          message="Lesson Count Status"
+          description={
+            <Typography.Text type="success">
+              Current patterns will generate enough lessons out of required <strong>{lessonCountStatus.requiredCount}</strong> lesson(s).
+            </Typography.Text>
+          }
+          type="success"
           showIcon
           style={{ marginBottom: 16 }}
         />

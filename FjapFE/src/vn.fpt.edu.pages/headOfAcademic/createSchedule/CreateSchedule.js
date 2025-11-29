@@ -72,7 +72,7 @@ const CreateSchedule = () => {
   const [conflictMap, setConflictMap] = useState({}); // Object: "date|slot|room" -> [{ classId, lecturerId, className, ... }]
   const [conflictMapSize, setConflictMapSize] = useState(0); // Track size for React to detect changes
   const [loadingSemesterLessons, setLoadingSemesterLessons] = useState(false);
-  
+
   // Student schedule cache for student conflict checking
   const [studentScheduleCache, setStudentScheduleCache] = useState({
     studentIds: [],
@@ -156,7 +156,7 @@ const CreateSchedule = () => {
   const checkConflictFromMap = (date, timeId, roomId, currentClassId, currentLecturerId) => {
     const key = `${date}|${timeId}|${roomId}`;
     const conflicts = conflictMap[key];
-    
+
     if (!conflicts || conflicts.length === 0) {
       return { hasConflict: false, reasons: [] };
     }
@@ -170,16 +170,16 @@ const CreateSchedule = () => {
         reasons.push(`Room ${conflict.roomName} is occupied by ${conflict.className}`);
         hasConflict = true;
       }
-      
+
       // Class conflict: same class already has lesson (shouldn't happen if we exclude current class)
       if (currentClassId && conflict.classId === parseInt(currentClassId, 10)) {
         reasons.push(`Class ${conflict.className} already has a lesson`);
         hasConflict = true;
       }
-      
+
       // Lecturer conflict: same lecturer already has lesson
       if (currentLecturerId && conflict.lecturerId === parseInt(currentLecturerId, 10)) {
-        const lecturerDisplay = conflict.lecturerCode 
+        const lecturerDisplay = conflict.lecturerCode
           ? (conflict.lecturerCode.includes('@') ? getEmailUsername(conflict.lecturerCode) : conflict.lecturerCode)
           : 'Unknown';
         reasons.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className}`);
@@ -193,10 +193,10 @@ const CreateSchedule = () => {
   // Check if a weekday+slot+room combination has any available date in semester
   const hasAvailableDateInSemester = (weekdayValue, timeId, roomId, currentClassId, currentLecturerId) => {
     if (!semester.start || !semester.end) return false;
-    
+
     let currentDate = findNextDateForWeekday(semester.start, weekdayValue);
     const endDate = semester.end;
-    
+
     while (currentDate && currentDate <= endDate) {
       const dateStr = toYMD(currentDate);
       // Skip holidays
@@ -222,7 +222,7 @@ const CreateSchedule = () => {
       // Move to next week
       currentDate = addDays(currentDate, 7);
     }
-    
+
     return false; // No available date found
   };
   const clampWeekStartWithinSemester = (weekStart, semStart = null, semEnd = null) => {
@@ -358,7 +358,7 @@ const CreateSchedule = () => {
         console.log('Loading all lessons for semester:', semId);
         const lessons = await ClassList.getAllLessonsBySemester(semId);
         console.log('Loaded semester lessons:', lessons?.length || 0);
-        
+
         setSemesterLessons(lessons || []);
 
         // Build conflict map: key = "date|slot|room", value = array of conflicts
@@ -373,7 +373,7 @@ const CreateSchedule = () => {
             newConflictMap[key] = [];
           }
           // Get lecturer display (prioritize email if available, then substring before @)
-          const lecturerDisplay = lesson.lecturerEmail 
+          const lecturerDisplay = lesson.lecturerEmail
             ? getEmailUsername(lesson.lecturerEmail)
             : (lesson.lecturerCode || '');
 
@@ -388,7 +388,7 @@ const CreateSchedule = () => {
             roomName: lesson.roomName
           });
         });
-        
+
         const mapSize = Object.keys(newConflictMap).length;
         console.log('Built conflict map with', mapSize, 'keys');
         console.log('Sample conflict keys:', Object.keys(newConflictMap).slice(0, 5));
@@ -448,7 +448,7 @@ const CreateSchedule = () => {
         console.log('Loading student schedule cache for class:', classId, 'semester:', semId);
         const cache = await ClassList.getStudentScheduleCache(classId, semId);
         console.log('Loaded student schedule cache:', cache);
-        
+
         // Convert backend format to frontend format
         // Backend: { studentIds: [1,2,3], studentTimeMap: { 1: Set<string>, 2: Set<string> } }
         // Frontend: { studentIds: [1,2,3], studentTimeMap: { 1: Set<string>, 2: Set<string> } }
@@ -460,7 +460,7 @@ const CreateSchedule = () => {
             studentTimeMap[parseInt(studentId, 10)] = new Set(Array.isArray(timeSet) ? timeSet : []);
           });
         }
-        
+
         setStudentScheduleCache({
           studentIds: cache.studentIds || [],
           studentTimeMap: studentTimeMap
@@ -490,7 +490,7 @@ const CreateSchedule = () => {
         patterns,
         semester.start,
         semester.end,
-        lecturerCode,
+        lecturerEmail, // Use lecturerEmail instead of lecturerCode
         subjectCode,
         subjectName,
         totalLesson
@@ -499,7 +499,7 @@ const CreateSchedule = () => {
     } else {
       setPreviewLessons([]);
     }
-  }, [lecturerCode, subjectCode, subjectName, patterns, semester.start, semester.end, rooms, holidays, totalLesson]);
+  }, [lecturerEmail, subjectCode, subjectName, patterns, semester.start, semester.end, rooms, holidays, totalLesson]);
   // Conflict checking is now handled in WeeklySchedule component
   // No need to check availability for preview lessons
 
@@ -570,7 +570,7 @@ const CreateSchedule = () => {
     else if (weekday) {
       const validSlots = [];
       const validRooms = [];
-      
+
       // Check each slot: must have at least one room available
       for (const slot of slots) {
         let slotHasAvailableRoom = false;
@@ -586,7 +586,7 @@ const CreateSchedule = () => {
           validSlots.push(slot);
         }
       }
-      
+
       setFilteredSlots(validSlots.length > 0 ? validSlots : []);
       setFilteredRooms(validRooms.length > 0 ? validRooms : []);
     }
@@ -594,7 +594,7 @@ const CreateSchedule = () => {
     else if (slotId) {
       const validWeekdays = [];
       const validRooms = [];
-      
+
       // Check each weekday: must have at least one room available
       for (const wd of weekdays) {
         let weekdayHasAvailableRoom = false;
@@ -610,7 +610,7 @@ const CreateSchedule = () => {
           validWeekdays.push(wd);
         }
       }
-      
+
       setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : []);
       setFilteredRooms(validRooms.length > 0 ? validRooms : []);
     }
@@ -618,7 +618,7 @@ const CreateSchedule = () => {
     else if (roomId) {
       const validWeekdays = [];
       const validSlots = [];
-      
+
       // Check each weekday: must have at least one slot available
       for (const wd of weekdays) {
         let weekdayHasAvailableSlot = false;
@@ -634,7 +634,7 @@ const CreateSchedule = () => {
           validWeekdays.push(wd);
         }
       }
-      
+
       setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : []);
       setFilteredSlots(validSlots.length > 0 ? validSlots : []);
     }
@@ -647,6 +647,49 @@ const CreateSchedule = () => {
 
     setFilteringOptions(false);
   }, [weekday, slotId, roomId, lecturerId, classId, semester.start, semester.end, conflictMapSize, holidays, weekdays, slots, rooms, loadingSemesterLessons, studentScheduleCache]);
+
+  // Calculate total lessons that will be generated from patterns (without totalLesson limit)
+  // Used for validation to ensure we have enough lessons
+  const calculateTotalLessonsFromPatterns = (patterns, semStart, semEnd) => {
+    if (!patterns || patterns.length === 0 || !semStart || !semEnd) {
+      return 0;
+    }
+
+    const holidaysDates = holidays.map(h => h.date);
+    let lessonCount = 0;
+    let currentDate = mondayOf(semStart);
+    const endDate = semEnd;
+
+    // Generate lessons for each week in semester (without totalLesson limit)
+    while (currentDate <= endDate) {
+      // For each weekday (Mon-Sun)
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const lessonDate = addDays(currentDate, dayOffset);
+
+        // Skip if beyond semester end
+        if (lessonDate > endDate) break;
+
+        // Skip if holiday
+        const dateStr = toYMD(lessonDate);
+        if (holidaysDates.includes(dateStr)) continue;
+
+        // Check if this weekday matches any pattern
+        const weekdayNum = lessonDate.getDay();
+        const normalizedWeekday = weekdayNum === 0 ? 8 : weekdayNum + 1; // Convert: Mon=2 ... Sat=7, Sun=8
+
+        patterns.forEach(pattern => {
+          if (pattern.weekday === normalizedWeekday) {
+            lessonCount++;
+          }
+        });
+      }
+
+      // Move to next week
+      currentDate = addDays(currentDate, 7);
+    }
+
+    return lessonCount;
+  };
 
   // Generate lessons from patterns for entire semester
   const generateLessonsFromPatterns = (patterns, semStart, semEnd, lecturer, subjectCodeValue, subjectNameValue, totalLessonCount) => {
@@ -858,7 +901,7 @@ const CreateSchedule = () => {
         const roomId = room ? room.value : null;
 
         // Get lecturer display (prioritize email if available, then substring before @)
-        const lecturerDisplay = lesson.lecturerEmail 
+        const lecturerDisplay = lesson.lecturerEmail
           ? getEmailUsername(lesson.lecturerEmail)
           : (lesson.lecturerCode || '');
 
@@ -932,7 +975,7 @@ const CreateSchedule = () => {
       });
       return;
     }
-    
+
     // Conflict checking is now handled in WeeklySchedule component
     // If we reach here, it means no conflict (button was enabled)
     const newPatterns = [...patterns, {
@@ -1012,6 +1055,24 @@ const CreateSchedule = () => {
       return;
     }
 
+    // Validate totalLesson: check if patterns will generate enough lessons
+    if (totalLesson && totalLesson > 0 && semester.start && semester.end) {
+      const totalLessonsToBeGenerated = calculateTotalLessonsFromPatterns(patterns, semester.start, semester.end);
+      if (totalLessonsToBeGenerated < totalLesson) {
+        console.warn('Validation failed: Insufficient lessons', {
+          totalLesson: totalLesson,
+          lessonsToBeGenerated: totalLessonsToBeGenerated
+        });
+        api.error({
+          message: 'Insufficient Lessons',
+          description: `Subject requires ${totalLesson} lessons, please add more patterns or adjust the schedule.`,
+          placement: 'bottomRight',
+          duration: 6,
+        });
+        return;
+      }
+    }
+
     // Conflict checking is now handled in WeeklySchedule component
     // If we reach here, all patterns should be valid (no conflicts)
 
@@ -1079,7 +1140,7 @@ const CreateSchedule = () => {
       // Handle 409 conflicts (should not happen if frontend validation works correctly, but keep as fallback)
       if (error?.response?.status === 409) {
         const serverMsg = (error?.response?.data?.message || '').toString();
-        
+
         // This should not happen if frontend validation is working, but show error anyway
         api.error({
           message: 'Schedule Conflict Detected (Backend)',
@@ -1208,16 +1269,19 @@ const CreateSchedule = () => {
         }
 
         if (previewLesson) {
-          // Preview lesson exists - display SubjectCode, SubjectName, RoomName
+          // Preview lesson exists - display SubjectCode, RoomName
           // Conflict checking is handled in WeeklySchedule component
           const previewSubjectCode = subjectCode || '';
-          const previewSubjectName = subjectName || '';
           const previewRoomName = previewLesson.room || '';
-
+          const previewLecturer = previewLesson.lecturer || '';
+          // Ensure lecturer display is substring if it's an email (same as loaded lesson)
+          const previewLecturerDisplay = previewLecturer.includes('@')
+            ? getEmailUsername(previewLecturer)
+            : previewLecturer;
           const parts = [];
           if (previewSubjectCode) parts.push(previewSubjectCode);
-          if (previewSubjectName) parts.push(previewSubjectName);
           if (previewRoomName) parts.push(previewRoomName);
+          if (previewLecturerDisplay) parts.push(previewLecturerDisplay);
 
           const displayText = parts.join(' | ');
           cellContents.push(displayText);
@@ -1229,19 +1293,17 @@ const CreateSchedule = () => {
           };
           classNames.push('lesson-preview');
         } else if (loadedLesson) {
-          // Only loaded lesson exists (no preview) - display SubjectCode, SubjectName, RoomName
+          // Only loaded lesson exists (no preview) - display SubjectCode, RoomName
           const loadedSubjectCode = loadedLesson.subjectCode || '';
-          const loadedSubjectName = loadedLesson.subjectName || '';
           const loadedRoomName = loadedLesson.room || '';
           const loadedLecturer = loadedLesson.lecturer || '';
           // Ensure lecturer display is substring if it's an email
-          const loadedLecturerDisplay = loadedLecturer.includes('@') 
+          const loadedLecturerDisplay = loadedLecturer.includes('@')
             ? getEmailUsername(loadedLecturer)
             : loadedLecturer;
 
           const parts = [];
           if (loadedSubjectCode) parts.push(loadedSubjectCode);
-          if (loadedSubjectName) parts.push(loadedSubjectName);
           if (loadedRoomName) parts.push(loadedRoomName);
           if (loadedLecturerDisplay) parts.push(loadedLecturerDisplay);
 
@@ -1396,6 +1458,8 @@ const CreateSchedule = () => {
             findNextDateForWeekday={findNextDateForWeekday}
             toYMD={toYMD}
             addDays={addDays}
+            totalLesson={totalLesson}
+            mondayOf={mondayOf}
           />
 
           <CalendarTable
@@ -1407,9 +1471,9 @@ const CreateSchedule = () => {
             renderCalendar={() => renderCalendar(currentWeekStart)}
           />
 
-          <SaveButton 
-            onSave={handleSave} 
-            saving={saving} 
+          <SaveButton
+            onSave={handleSave}
+            saving={saving}
           />
         </Space>
       </Layout.Content>
