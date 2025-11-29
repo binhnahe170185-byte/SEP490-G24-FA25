@@ -34,13 +34,13 @@ public class OpenAIProvider : IAIProvider
             throw new InvalidOperationException("OpenAI API key is not configured");
         }
 
-        var systemPrompt = "Bạn là AI Study Companion, một trợ lý học tập thân thiện và hữu ích cho sinh viên. " +
-                          "Bạn giúp sinh viên với:\n" +
-                          "- Trả lời câu hỏi về bài học\n" +
-                          "- Nhắc nhở deadline bài tập\n" +
-                          "- Gợi ý tài liệu học tập\n" +
-                          "- Tư vấn cách học hiệu quả\n\n" +
-                          "Hãy trả lời một cách thân thiện, ngắn gọn và hữu ích bằng tiếng Việt.";
+        var systemPrompt = "You are AI Study Companion, a friendly and helpful study assistant for students. " +
+                          "You help students with:\n" +
+                          "- Answering questions about lessons\n" +
+                          "- Reminding about homework deadlines\n" +
+                          "- Suggesting study materials\n" +
+                          "- Providing study advice\n\n" +
+                          "Please respond in a friendly, concise, and helpful manner. Always respond in the same language that the student uses. If the student asks in Vietnamese, respond in Vietnamese. If the student asks in English, respond in English.";
 
         if (!string.IsNullOrEmpty(context))
         {
@@ -81,11 +81,11 @@ public class OpenAIProvider : IAIProvider
                         if (firstChoice.TryGetProperty("message", out var messageObj) &&
                             messageObj.TryGetProperty("content", out var content))
                         {
-                            return content.GetString() ?? "Xin lỗi, tôi không thể xử lý yêu cầu này.";
+                            return content.GetString() ?? "Sorry, I cannot process this request.";
                         }
                     }
 
-                    return "Xin lỗi, tôi không thể tạo phản hồi.";
+                    return "Sorry, I cannot generate a response.";
                 }
 
                 // Xử lý lỗi 429 (Rate Limit)
@@ -112,12 +112,12 @@ public class OpenAIProvider : IAIProvider
                     
                     // Nếu đã hết lần retry, throw exception với message rõ ràng
                     throw new InvalidOperationException(
-                        "OpenAI API đang bị giới hạn request (Rate Limit). " +
-                        "Có thể do:\n" +
-                        "- Quota API đã hết\n" +
-                        "- Quá nhiều request trong thời gian ngắn\n" +
-                        "- API key không hợp lệ\n\n" +
-                        "Vui lòng thử lại sau vài phút hoặc kiểm tra API key của bạn.");
+                        "OpenAI API is rate limited. " +
+                        "Possible reasons:\n" +
+                        "- API quota exceeded\n" +
+                        "- Too many requests in a short time\n" +
+                        "- Invalid API key\n\n" +
+                        "Please try again in a few minutes or check your API key.");
                 }
 
                 // Các lỗi khác
@@ -132,7 +132,7 @@ public class OpenAIProvider : IAIProvider
             }
         }
 
-        throw new InvalidOperationException("Không thể kết nối đến OpenAI API sau nhiều lần thử.");
+        throw new InvalidOperationException("Unable to connect to OpenAI API after multiple attempts.");
     }
 }
 

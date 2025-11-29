@@ -200,6 +200,7 @@ namespace FJAP.vn.fpt.edu.models
         public string? Description { get; set; }
         public string Status { get; set; } = string.Empty;
         public decimal? PassMark { get; set; }
+        public int TotalLesson { get; set; }
         public List<SubjectGradeComponentInfoDto> GradeComponents { get; set; } = new();
         public List<SubjectMaterialDto> Materials { get; set; } = new();
     }
