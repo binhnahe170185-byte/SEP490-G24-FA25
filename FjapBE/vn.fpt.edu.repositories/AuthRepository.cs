@@ -14,12 +14,11 @@ namespace FJAP.Repositories
         {
             _db = db;
         }
-        public Task<Account?> GetByEmailAsync(string email)
+        public Task<User?> GetByEmailAsync(string email)
         {
-            return _db.Accounts
-                .Include(a => a.User)
-                    .ThenInclude(u => u.Role)
-                .SingleOrDefaultAsync(a => a.Email == email);
+            return _db.Users
+                .Include(u => u.Role)
+                .SingleOrDefaultAsync(u => u.Email == email);
         }
 
       

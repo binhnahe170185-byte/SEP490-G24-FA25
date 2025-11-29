@@ -3,6 +3,8 @@ using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -13,14 +15,18 @@ public class StaffOfAdminService : IStaffOfAdminService
 {
     private readonly IStaffOfAdminRepository _adminRepository;
     private readonly FjapDbContext _db; // cần để validate role/enum khi import
+    private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IConfiguration _configuration;
     private static readonly SemaphoreSlim LecturerCodeLock = new(1, 1);
     private static bool _lecturerCodeInitialized;
     private static int _lecturerCodeCounter;
 
-    public StaffOfAdminService(IStaffOfAdminRepository adminRepository, FjapDbContext db)
+    public StaffOfAdminService(IStaffOfAdminRepository adminRepository, FjapDbContext db, IServiceScopeFactory serviceScopeFactory, IConfiguration configuration)
     {
         _adminRepository = adminRepository;
         _db = db;
+        _serviceScopeFactory = serviceScopeFactory;
+        _configuration = configuration;
     }
 
     public async Task<IEnumerable<User>> GetAllAsync()
@@ -46,6 +52,50 @@ public class StaffOfAdminService : IStaffOfAdminService
         }
 
         await _adminRepository.SaveChangesAsync();
+
+        // Gửi email chào mừng sau khi tạo user thành công
+        try
+        {
+            Console.WriteLine($"=== Setting up welcome email for user: {user.Email} ===");
+            var frontendOrigins = _configuration.GetSection("Frontend:Origins").Get<string[]>();
+            var loginUrl = frontendOrigins != null && frontendOrigins.Length > 0
+                ? $"{frontendOrigins[0]}/login"
+                : "http://localhost:3000/login";
+
+            Console.WriteLine($"Login URL: {loginUrl}");
+
+            // Gửi email bất đồng bộ, không chờ kết quả để không làm chậm response
+            // Sử dụng service scope factory để tạo scope mới cho email service
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    Console.WriteLine($"Starting email send task for {user.Email}");
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                    await emailService.SendWelcomeEmailAsync(
+                        user.Email,
+                        user.FirstName,
+                        user.LastName,
+                        loginUrl
+                    );
+                    Console.WriteLine($"Email send task completed for {user.Email}");
+                }
+                catch (Exception ex)
+                {
+                    // Log lỗi nhưng không throw để không ảnh hưởng đến quá trình tạo user
+                    Console.WriteLine($"Error sending welcome email to {user.Email}: {ex.Message}");
+                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            // Log lỗi nhưng không throw để không ảnh hưởng đến quá trình tạo user
+            Console.WriteLine($"Error setting up welcome email for {user.Email}: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+
         return user;
     }
 

@@ -525,30 +525,121 @@
 
 /* Schedule Preview */
 .schedule-preview {
-  margin-top: 16px;
+  margin-top: 8px;
+}
+
+/* Schedule Timetable */
+.schedule-timetable-wrapper {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.schedule-timetable-wrapper .ant-table {
+  font-size: 12px;
+}
+
+.schedule-timetable-wrapper .ant-table-thead > tr > th {
+  padding: 8px 4px;
+  font-size: 11px;
+}
+
+.schedule-timetable-wrapper .ant-table-tbody > tr > td {
+  padding: 4px;
+  vertical-align: top;
 }
 
 .schedule-preview-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.schedule-preview-item:hover {
+  border-color: #1890ff;
+  background: #f0f7ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
 }
 
 .schedule-preview-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.schedule-preview-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-preview-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.schedule-preview-date-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.schedule-preview-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.schedule-preview-time-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .schedule-preview-time {
-  font-weight: 500;
-  color: #333;
-  font-size: 13px;
+  font-weight: 600;
+  color: #1890ff;
+  font-size: 14px;
+}
+
+.schedule-preview-subject-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .schedule-preview-subject {
+  color: #333;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.schedule-preview-subject-name {
   color: #666;
   font-size: 13px;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.schedule-preview-class {
+  color: #666;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.schedule-preview-room {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.schedule-preview-room-text {
+  color: #666;
+  font-size: 12px;
 }
 
 /* Homework Items */

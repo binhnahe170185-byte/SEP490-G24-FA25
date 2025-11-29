@@ -3,8 +3,10 @@ using FJAP.vn.fpt.edu.models;
 using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -149,43 +151,68 @@ namespace FJAP.Services
 
             var grades = await _gradeRepository.GetGradesWithFilterAsync(filter);
 
-            // TODO: Implement Excel export using a library like EPPlus or ClosedXML
-            // This is a placeholder implementation
-            throw new NotImplementedException("Excel export feature is not yet implemented. Please use a library like EPPlus or ClosedXML.");
+            // Create Excel workbook using ClosedXML
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Grades");
 
-            /* Example implementation with EPPlus:
-            using (var package = new ExcelPackage())
+            // Set headers
+            worksheet.Cell(1, 1).Value = "No.";
+            worksheet.Cell(1, 2).Value = "Student Code";
+            worksheet.Cell(1, 3).Value = "Student Name";
+            worksheet.Cell(1, 4).Value = "Subject Code";
+            worksheet.Cell(1, 5).Value = "Subject Name";
+            worksheet.Cell(1, 6).Value = "Final Score";
+            worksheet.Cell(1, 7).Value = "Status";
+            worksheet.Cell(1, 8).Value = "Level";
+            worksheet.Cell(1, 9).Value = "Semester";
+            worksheet.Cell(1, 10).Value = "Updated At";
+
+            // Style header row
+            var headerRange = worksheet.Range(1, 1, 1, 10);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
+            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            // Add data
+            int row = 2;
+            int no = 1;
+            foreach (var grade in grades.Items)
             {
-                var worksheet = package.Workbook.Worksheets.Add("Grades");
+                worksheet.Cell(row, 1).SetValue(no++);
+                worksheet.Cell(row, 2).SetValue(grade.StudentCode ?? "");
+                worksheet.Cell(row, 3).SetValue(grade.StudentName ?? "");
+                worksheet.Cell(row, 4).SetValue(grade.SubjectCode ?? "");
+                worksheet.Cell(row, 5).SetValue(grade.SubjectName ?? "");
                 
-                // Headers
-                worksheet.Cells[1, 1].Value = "Student Code";
-                worksheet.Cells[1, 2].Value = "Student Name";
-                worksheet.Cells[1, 3].Value = "Subject Code";
-                worksheet.Cells[1, 4].Value = "Subject Name";
-                worksheet.Cells[1, 5].Value = "Final Score";
-                worksheet.Cells[1, 6].Value = "Status";
-                worksheet.Cells[1, 7].Value = "Level";
-                worksheet.Cells[1, 8].Value = "Updated At";
-
-                // Data
-                int row = 2;
-                foreach (var grade in grades.Items)
+                if (grade.FinalScore.HasValue)
                 {
-                    worksheet.Cells[row, 1].Value = grade.StudentCode;
-                    worksheet.Cells[row, 2].Value = grade.StudentName;
-                    worksheet.Cells[row, 3].Value = grade.SubjectCode;
-                    worksheet.Cells[row, 4].Value = grade.SubjectName;
-                    worksheet.Cells[row, 5].Value = grade.FinalScore;
-                    worksheet.Cells[row, 6].Value = grade.Status;
-                    worksheet.Cells[row, 7].Value = grade.LevelName;
-                    worksheet.Cells[row, 8].Value = grade.UpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss");
-                    row++;
+                    worksheet.Cell(row, 6).SetValue(grade.FinalScore.Value);
                 }
-
-                return package.GetAsByteArray();
+                else
+                {
+                    worksheet.Cell(row, 6).SetValue("-");
+                }
+                
+                worksheet.Cell(row, 7).SetValue(grade.Status ?? "");
+                worksheet.Cell(row, 8).SetValue(grade.LevelName ?? "-");
+                worksheet.Cell(row, 9).SetValue(grade.SemesterName ?? "-");
+                worksheet.Cell(row, 10).SetValue(grade.UpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-");
+                
+                // Center align numeric columns
+                worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Cell(row, 6).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Cell(row, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                
+                row++;
             }
-            */
+
+            // Auto-fit columns
+            worksheet.Columns().AdjustToContents();
+
+            // Convert to byte array
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            return stream.ToArray();
         }
 
         public async Task<bool> UpdateGradeComponentsAsync(UpdateGradeComponentsRequest request)

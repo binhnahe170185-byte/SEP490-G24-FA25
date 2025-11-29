@@ -22,6 +22,7 @@ public class NewsService : INewsService
         _notificationService = notificationService;
     }
 
+
     public async Task<NewsDto> CreateAsync(CreateNewsRequest request, int userId)
     {
         // Validate image URL - reject shortened URLs
@@ -169,7 +170,7 @@ public class NewsService : INewsService
             // Broadcast tất cả notifications cùng lúc
             await _notificationService.BroadcastAsync(createdNotifications);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Log error nhưng không throw để không ảnh hưởng đến flow chính
             // Có thể thêm logger ở đây nếu cần

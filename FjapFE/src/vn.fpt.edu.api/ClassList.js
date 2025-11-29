@@ -81,6 +81,20 @@ class ClassList {
     });
     return response.data?.data ?? response.data;
   }
+
+  // GET /api/staffAcademic/classes/semester/{semesterId}/lessons - Get all lessons of a semester
+  static async getAllLessonsBySemester(semesterId) {
+    const response = await api.get(`/api/staffAcademic/classes/semester/${semesterId}/lessons`);
+    return response.data?.data ?? response.data;
+  }
+
+  // GET /api/staffAcademic/classes/{classId}/student-schedule-cache?semesterId={semesterId} - Get student schedule cache
+  static async getStudentScheduleCache(classId, semesterId) {
+    const response = await api.get(`/api/staffAcademic/classes/${classId}/student-schedule-cache`, {
+      params: { semesterId }
+    });
+    return response.data?.data ?? response.data;
+  }
  static async checkAvailability(payload) {
     const response = await api.post("/api/staffAcademic/classes/schedule/availability", payload);
     return response.data?.data ?? response.data;
@@ -96,6 +110,28 @@ class ClassList {
       status,
     });
     return response.data?.data ?? response.data;
+  }
+
+  // Update lesson
+  static async updateLesson(lessonId, payload) {
+    const response = await api.put(`/api/staffAcademic/classes/lessons/${lessonId}`, payload);
+    return response.data?.data ?? response.data;
+  }
+
+  // Delete lesson
+  static async deleteLesson(lessonId) {
+    console.log('ClassList.deleteLesson - Calling API with lessonId:', lessonId);
+    try {
+      const response = await api.delete(`/api/staffAcademic/classes/lessons/${lessonId}`);
+      console.log('ClassList.deleteLesson - API response:', response);
+      console.log('ClassList.deleteLesson - Response data:', response.data);
+      return response.data?.data ?? response.data;
+    } catch (error) {
+      console.error('ClassList.deleteLesson - API error:', error);
+      console.error('ClassList.deleteLesson - Error response:', error?.response);
+      console.error('ClassList.deleteLesson - Error data:', error?.response?.data);
+      throw error;
+    }
   }
 }
 

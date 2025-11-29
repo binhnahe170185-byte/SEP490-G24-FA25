@@ -1,12 +1,10 @@
 import React from "react";
-import { Card, Progress, Tag, Button, Row, Col } from "antd";
+import { Card, Progress, Tag, Button } from "antd";
 import { 
   EyeOutlined, 
   EditOutlined, 
   CheckCircleOutlined,
-  ClockCircleOutlined,
-  UserOutlined,
-  TrophyOutlined
+  ClockCircleOutlined
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -112,55 +110,6 @@ export default function CourseCard({ course, userId, onRefresh }) {
         </div>
       </div>
 
-      {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 20 }}>
-        <Col span={8}>
-          <div style={{
-            padding: "12px",
-            backgroundColor: "#f0f9ff",
-            borderRadius: 8,
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: "#1890ff", marginBottom: 4 }}>
-              {course.students}
-            </div>
-            <div style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-              <UserOutlined /> Students
-            </div>
-          </div>
-        </Col>
-        <Col span={8}>
-          <div style={{
-            padding: "12px",
-            backgroundColor: "#fff7e6",
-            borderRadius: 8,
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: "#fa8c16", marginBottom: 4 }}>
-              {course.average > 0 ? course.average.toFixed(1) : "-"}
-            </div>
-            <div style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-              <TrophyOutlined /> Average
-            </div>
-          </div>
-        </Col>
-        <Col span={8}>
-          <div style={{
-            padding: "12px",
-            backgroundColor: "#f6ffed",
-            borderRadius: 8,
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: "#52c41a", marginBottom: 4 }}>
-              {course.passed}
-            </div>
-            <div style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-              <CheckCircleOutlined /> Passed
-            </div>
-          </div>
-        </Col>
-      </Row>
-
       {/* Progress */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
@@ -186,68 +135,6 @@ export default function CourseCard({ course, userId, onRefresh }) {
           marginTop: 4
         }}>
           <span>{course.completionStatus}</span>
-        </div>
-      </div>
-
-      {/* Results Summary */}
-      <div style={{ 
-        backgroundColor: "#fafafa", 
-        padding: 16, 
-        borderRadius: 8,
-        marginBottom: 20,
-        border: "1px solid #f0f0f0"
-      }}>
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "space-around",
-          alignItems: "center"
-        }}>
-          <div style={{ textAlign: "center", flex: 1 }}>
-            <div style={{ 
-              fontSize: 28, 
-              fontWeight: 700, 
-              color: "#52c41a",
-              lineHeight: 1.2,
-              marginBottom: 4
-            }}>
-              {course.passed}
-            </div>
-            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Passed</div>
-          </div>
-          <div style={{ 
-            width: 1, 
-            height: 40, 
-            backgroundColor: "#e8e8e8" 
-          }} />
-          <div style={{ textAlign: "center", flex: 1 }}>
-            <div style={{ 
-              fontSize: 28, 
-              fontWeight: 700, 
-              color: "#ff4d4f",
-              lineHeight: 1.2,
-              marginBottom: 4
-            }}>
-              {course.failed}
-            </div>
-            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Failed</div>
-          </div>
-          <div style={{ 
-            width: 1, 
-            height: 40, 
-            backgroundColor: "#e8e8e8" 
-          }} />
-          <div style={{ textAlign: "center", flex: 1 }}>
-            <div style={{ 
-              fontSize: 28, 
-              fontWeight: 700, 
-              color: "#faad14",
-              lineHeight: 1.2,
-              marginBottom: 4
-            }}>
-              {course.incomplete}
-            </div>
-            <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Inprogress</div>
-          </div>
         </div>
       </div>
 

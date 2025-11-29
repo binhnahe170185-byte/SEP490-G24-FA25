@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal, Tabs, Typography, Card, Avatar, Button, Space } from "antd";
 import {
     CalendarOutlined,
@@ -12,6 +12,7 @@ import {
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
+import LecturerProfileModal from "./LecturerProfileModal";
 
 const { Title, Text } = Typography;
 
@@ -23,6 +24,7 @@ const STATUS = {
 
 export default function LessonDetailModal({ visible, lesson, onClose }) {
     const navigate = useNavigate();
+    const [lecturerModalVisible, setLecturerModalVisible] = useState(false);
 
     if (!lesson) return null;
 
@@ -40,12 +42,26 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
     const instructorCode = lesson?.instructor || "N/A";
     const studentGroupCode = lesson?.studentGroup || "N/A";
     const classId = lesson?.classId || lesson?.class_id || null;
+    const lessonId = lesson?.lessonId || lesson?.lesson_id || null;
 
     const handleViewStudents = () => {
         if (classId) {
             navigate(`/student/class/${classId}/students`);
             onClose();
         }
+    };
+
+    const handleOpenHomework = () => {
+        if (!classId || !lessonId) return;
+        navigate(`/student/homework/${classId}/${lessonId}`, {
+            state: {
+                lesson,
+                from: {
+                    page: "student-weekly-timetable",
+                },
+            },
+        });
+        onClose();
     };
 
     return (
@@ -211,18 +227,28 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                     </Button>
                                 </Card>
 
-                                {/* EduNext Card */}
+                                {/* Lesson Homework Card */}
                                 <Card
                                     bodyStyle={{ padding: 16, textAlign: "center" }}
                                     hoverable
+                                    onClick={classId && lessonId ? handleOpenHomework : undefined}
+                                    style={{ cursor: classId && lessonId ? "pointer" : "default" }}
                                 >
                                     <BookOutlined style={{ fontSize: 32, color: "#1890ff", marginBottom: 12 }} />
-                                    <Title level={5} style={{ marginBottom: 8 }}>EduNext</Title>
+                                    <Title level={5} style={{ marginBottom: 8 }}>Lesson's Homework</Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
-                                        Access course materials and resources
+                                        Access lesson homework and assignments
                                     </Text>
-                                    <Button type="primary" ghost>
-                                        Open EduNext <LinkOutlined />
+                                    <Button
+                                        type="primary"
+                                        ghost
+                                        disabled={!classId || !lessonId}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleOpenHomework();
+                                        }}
+                                    >
+                                        Open Homework <LinkOutlined />
                                     </Button>
                                 </Card>
 
@@ -241,17 +267,27 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                     </Button>
                                 </Card>
 
-                                {/* Instructor Profile Card */}
+                                {/* Lecturer Profile Card */}
                                 <Card
                                     bodyStyle={{ padding: 16, textAlign: "center" }}
                                     hoverable
+                                    onClick={() => {
+                                        if (lesson?.lectureId) {
+                                            setLecturerModalVisible(true);
+                                        }
+                                    }}
+                                    style={{ cursor: lesson?.lectureId ? "pointer" : "default" }}
                                 >
                                     <UserOutlined style={{ fontSize: 32, color: "#ff7a45", marginBottom: 12 }} />
-                                    <Title level={5} style={{ marginBottom: 8 }}>Instructor Profile</Title>
+                                    <Title level={5} style={{ marginBottom: 8 }}>Lecturer Profile</Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
-                                        View instructor details and contact information
+                                        View lecturer details and contact information
                                     </Text>
-                                    <Button type="primary" ghost>
+                                    <Button 
+                                        type="primary" 
+                                        ghost
+                                        disabled={!lesson?.lectureId}
+                                    >
                                         View Profile <LinkOutlined />
                                     </Button>
                                 </Card>
@@ -267,6 +303,13 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                     <CloseOutlined /> Close
                 </Button>
             </div>
+
+            {/* Lecturer Profile Modal */}
+            <LecturerProfileModal
+                visible={lecturerModalVisible}
+                lecturerId={lesson?.lectureId}
+                onClose={() => setLecturerModalVisible(false)}
+            />
         </Modal>
     );
 }

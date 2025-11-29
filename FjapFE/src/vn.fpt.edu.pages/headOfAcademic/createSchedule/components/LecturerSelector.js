@@ -12,10 +12,19 @@ import {
 import { BookOutlined, UserOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
 
+// Helper function to get email username (part before @)
+const getEmailUsername = (email) => {
+  if (!email) return '';
+  const atIndex = email.indexOf('@');
+  return atIndex > 0 ? email.substring(0, atIndex) : email;
+};
+
 const LecturerSelector = ({
   lecturerId,
   lecturerCode,
-  onLecturerChange
+  onLecturerChange,
+  subjectCode,
+  subjectName
 }) => {
   const [lecturers, setLecturers] = useState([]);
   const [loadingLecturers, setLoadingLecturers] = useState(true);
@@ -31,7 +40,9 @@ const LecturerSelector = ({
 
         const mappedLecturers = data.map(lecturer => ({
           value: String(lecturer.lecturerId),
-          label: lecturer.lecturerCode
+          label: lecturer.email ? getEmailUsername(lecturer.email) : lecturer.lecturerCode,
+          lecturerCode: lecturer.lecturerCode,
+          email: lecturer.email
         }));
 
         setLecturers(mappedLecturers);
@@ -57,7 +68,7 @@ const LecturerSelector = ({
           size="middle"
           style={{ width: '100%' }}
         >
-         
+
 
           <Form.Item
             label="Choose lecturer"
@@ -68,10 +79,14 @@ const LecturerSelector = ({
               id="lecturer_id"
               value={lecturerId || undefined}
               onChange={(value) => {
+                if (!value) {
+                  onLecturerChange('', '', '');
+                  return;
+                }
                 const selected = lecturers.find(l => l.value === value);
-                onLecturerChange(value, selected?.label || '');
+                onLecturerChange(value, selected?.lecturerCode || '', selected?.email || '');
               }}
-              placeholder="Lecturer Code"
+              placeholder="Lecturer Email"
               loading={loadingLecturers}
               options={lecturers}
               showSearch
@@ -87,9 +102,14 @@ const LecturerSelector = ({
                 style={{ marginTop: 8 }}
               />
             )}
-            {lecturerCode && !lecturerError && (
+            {lecturerId && !lecturerError && (
               <Tag icon={<UserOutlined />} color="blue" style={{ marginTop: 8 }}>
-                {lecturerCode}
+                {(() => {
+                  const selectedLecturer = lecturers.find(l => l.value === lecturerId);
+                  return selectedLecturer?.email
+                    ? getEmailUsername(selectedLecturer.email)
+                    : lecturerCode || '';
+                })()}
               </Tag>
             )}
           </Form.Item>

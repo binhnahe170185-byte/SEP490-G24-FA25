@@ -52,7 +52,8 @@ public class LecturerRepository : GenericRepository<Lecture>, ILecturerRepositor
             .Select(l => new LecturerDto
             {
                 LecturerId = l.LectureId,
-                LecturerCode = l.LecturerCode
+                LecturerCode = l.LecturerCode,
+                Email = l.User != null ? l.User.Email : null
             })
             .OrderBy(l => l.LecturerCode)
             .ToListAsync();
@@ -111,6 +112,32 @@ public class LecturerRepository : GenericRepository<Lecture>, ILecturerRepositor
         .ToList();
 
         return result;
+    }
+
+    public async Task<LecturerDetailDto?> GetLecturerByIdAsync(int lecturerId)
+    {
+        var lecturer = await _context.Lectures
+            .AsNoTracking()
+            .Include(l => l.User)
+                .ThenInclude(u => u.Department)
+            .Where(l => l.LectureId == lecturerId)
+            .Select(l => new LecturerDetailDto
+            {
+                LecturerId = l.LectureId,
+                LecturerCode = l.LecturerCode,
+                FirstName = l.User.FirstName,
+                LastName = l.User.LastName,
+                Email = l.User.Email,
+                Avatar = l.User.Avatar,
+                PhoneNumber = l.User.PhoneNumber,
+                Address = l.User.Address,
+                Gender = l.User.Gender,
+                Dob = l.User.Dob,
+                DepartmentName = l.User.Department != null ? l.User.Department.DepartmentName : null
+            })
+            .FirstOrDefaultAsync();
+
+        return lecturer;
     }
 }
 

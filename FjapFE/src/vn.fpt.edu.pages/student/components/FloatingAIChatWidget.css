@@ -1,0 +1,233 @@
+/* Floating Chat Button */
+.floating-chat-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+  z-index: 1050;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.floating-chat-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.5);
+}
+
+.floating-chat-button:active {
+  transform: scale(0.95);
+}
+
+.chat-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 2px solid #fff;
+}
+
+/* Floating Chat Box */
+.floating-chat-box {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  width: 380px;
+  height: 600px;
+  max-height: calc(100vh - 164px);
+  z-index: 1049;
+  transform: translateX(450px);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.floating-chat-box.open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: all;
+}
+
+.chat-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+}
+
+.chat-card .ant-card-head {
+  border-bottom: 1px solid #e8e8e8;
+  padding: 12px 16px;
+  min-height: 56px;
+  background: #ffffff;
+}
+
+.chat-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Chat Messages */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.chat-message {
+  display: flex;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-message {
+  justify-content: flex-end;
+}
+
+.ai-message {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  word-wrap: break-word;
+}
+
+.user-message .message-bubble {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.ai-message .message-bubble {
+  background: #ffffff;
+  color: #1f1f1f;
+  border-bottom-left-radius: 4px;
+  border: 1px solid #d9d9d9;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Chat Input Container */
+.chat-input-container {
+  padding: 12px 16px;
+  background: #ffffff;
+  border-top: 1px solid #e8e8e8;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.chat-input {
+  flex: 1;
+  resize: none;
+}
+
+.chat-input .ant-input {
+  border-radius: 20px;
+  padding: 8px 14px;
+}
+
+.chat-send-button {
+  border-radius: 20px;
+  height: auto;
+  padding: 4px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .floating-chat-box {
+    width: calc(100vw - 48px);
+    max-width: 380px;
+    top: 80px;
+    height: calc(100vh - 180px);
+    right: 24px;
+    left: 24px;
+    margin: 0 auto;
+  }
+
+  .floating-chat-button {
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-chat-box {
+    width: 100vw;
+    height: 100vh;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    border-radius: 0;
+  }
+
+  .chat-card {
+    border-radius: 0;
+  }
+
+  .floating-chat-button {
+    bottom: 16px;
+    right: 16px;
+  }
+}
+

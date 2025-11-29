@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using FJAP.vn.fpt.edu.models;
 using FJAP.Services.Interfaces;
+using FJAP.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,16 +15,19 @@ public class ClassController : ControllerBase
     private readonly IStudentService _studentService;
     private readonly FjapDbContext _db;
     private readonly IScheduleAvailabilityService _availabilityService;
+    private readonly ILessonService _lessonService;
     public ClassController(
        IClassService classService,
        IStudentService studentService,
        FjapDbContext db,
-       IScheduleAvailabilityService availabilityService)
+       IScheduleAvailabilityService availabilityService,
+       ILessonService lessonService)
     {
         _classService = classService;
         _studentService = studentService;
         _db = db;
         _availabilityService = availabilityService;
+        _lessonService = lessonService;
     }
 
     [HttpGet]
@@ -465,6 +469,114 @@ public class ClassController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Lấy student schedule cache cho một class trong semester
+    /// GET: api/staffAcademic/classes/{classId}/student-schedule-cache?semesterId={semesterId}
+    /// </summary>
+    [HttpGet("{classId:int}/student-schedule-cache")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetStudentScheduleCache(int classId, [FromQuery] int semesterId)
+    {
+        if (semesterId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "semesterId must be greater than 0" });
+        }
+
+        if (classId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "classId must be greater than 0" });
+        }
+
+        try
+        {
+            var semester = await _db.Semesters
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.SemesterId == semesterId);
+
+            if (semester == null)
+            {
+                return NotFound(new { code = 404, message = "Semester not found" });
+            }
+
+            var classEntity = await _db.Classes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.ClassId == classId);
+
+            if (classEntity == null)
+            {
+                return NotFound(new { code = 404, message = "Class not found" });
+            }
+
+            var cache = await _availabilityService.BuildStudentScheduleCacheAsync(classId, semester.StartDate, semester.EndDate);
+
+            return Ok(new { code = 200, data = cache });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetStudentScheduleCache: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy tất cả lessons của một semester để build conflict map
+    /// GET: api/staffAcademic/classes/semester/{semesterId}/lessons
+    /// </summary>
+    [HttpGet("semester/{semesterId:int}/lessons")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetAllLessonsBySemester(int semesterId)
+    {
+        if (semesterId <= 0)
+        {
+            return BadRequest(new { code = 400, message = "semesterId must be greater than 0" });
+        }
+
+        try
+        {
+            var semester = await _db.Semesters
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.SemesterId == semesterId);
+
+            if (semester == null)
+            {
+                return NotFound(new { code = 404, message = "Semester not found" });
+            }
+
+            // Lấy tất cả lessons trong semester
+            var lessons = await _db.Lessons
+                .AsNoTracking()
+                .Include(l => l.Class)
+                .Include(l => l.Room)
+                .Include(l => l.Lecture)
+                .Include(l => l.Time)
+                .Where(l => l.Class.SemesterId == semesterId)
+                .Select(l => new
+                {
+                    lessonId = l.LessonId,
+                    classId = l.ClassId,
+                    className = l.Class.ClassName,
+                    date = l.Date.ToString("yyyy-MM-dd"),
+                    roomId = l.RoomId,
+                    roomName = l.Room.RoomName,
+                    timeId = l.TimeId,
+                    lecturerId = l.LectureId,
+                    lecturerCode = l.Lecture.LecturerCode ?? "",
+                    startTime = l.Time.StartTime,
+                    endTime = l.Time.EndTime
+                })
+                .ToListAsync();
+
+            return Ok(new { code = 200, data = lessons });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetAllLessonsBySemester: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
     [HttpPost("schedule/availability")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -487,6 +599,83 @@ public class ClassController : ControllerBase
         catch (Exception ex)
         {
             Console.WriteLine($"Error in CheckAvailability: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update a lesson
+    /// PUT: api/staffAcademic/classes/lessons/{lessonId}
+    /// </summary>
+    [HttpPut("lessons/{lessonId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateLesson(int lessonId, [FromBody] UpdateLessonRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { code = 400, message = "Request payload is required" });
+        }
+
+        try
+        {
+            var result = await _lessonService.UpdateAsync(lessonId, request);
+            if (!result)
+            {
+                return NotFound(new { code = 404, message = "Lesson not found" });
+            }
+
+            return Ok(new { code = 200, message = "Lesson updated successfully", data = new { lessonId } });
+        }
+        catch (ArgumentException ex)
+        {
+            // Handle conflict errors
+            if (ex.Message.Contains("conflict", StringComparison.OrdinalIgnoreCase))
+            {
+                return Conflict(new { code = 409, message = ex.Message });
+            }
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in UpdateLesson: {ex.Message}");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete a lesson
+    /// DELETE: api/staffAcademic/classes/lessons/{lessonId}
+    /// </summary>
+    [HttpDelete("lessons/{lessonId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteLesson(int lessonId)
+    {
+        try
+        {
+            var result = await _lessonService.DeleteAsync(lessonId);
+            if (!result)
+            {
+                return NotFound(new { code = 404, message = "Lesson not found" });
+            }
+
+            return Ok(new { code = 200, message = "Lesson deleted successfully" });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { code = 404, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in DeleteLesson: {ex.Message}");
             return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
         }
     }

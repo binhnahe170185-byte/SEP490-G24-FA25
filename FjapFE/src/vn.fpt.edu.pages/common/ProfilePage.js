@@ -275,7 +275,7 @@ export default function ProfilePage() {
                 <Text type="secondary" style={{ fontSize: "16px" }}>
                   {profile.roleName || "User"}
                 </Text>
-                {profile.departmentName && (
+                {profile.departmentName && (profile.roleId === 1 || profile.roleId === 4) && (
                   <div style={{ marginTop: "8px" }}>
                     <Text type="secondary">{profile.departmentName}</Text>
                   </div>
