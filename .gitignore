@@ -88,3 +88,7 @@ FjapBE/FAJP.sln
 FjapBE/FAJP.sln
 FjapBE/FJAP.sln
 .gitignore
+
+# Do not commit secrets and test project
+FjapBE/appsettings.json
+FjapBE.Tests/

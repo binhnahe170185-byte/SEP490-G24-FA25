@@ -61,6 +61,10 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<Feedback> Feedbacks { get; set; }
+
+    public virtual DbSet<FeedbackQuestion> FeedbackQuestions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -854,6 +858,140 @@ public partial class FjapDbContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_user_role");
+        });
+
+        modelBuilder.Entity<FeedbackQuestion>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("feedback_questions");
+
+            entity.HasIndex(e => e.SubjectId, "idx_fq_subject");
+
+            entity.HasIndex(e => e.IsActive, "idx_fq_active");
+
+            entity.HasIndex(e => e.OrderIndex, "idx_fq_order");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.QuestionText)
+                .HasMaxLength(500)
+                .HasColumnName("question_text");
+            entity.Property(e => e.EvaluationLabel)
+                .HasMaxLength(200)
+                .HasColumnName("evaluation_label");
+            entity.Property(e => e.OrderIndex).HasColumnName("order_index");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.SubjectId).HasColumnName("subject_id");
+            entity.Property(e => e.AnswerOptions)
+                .HasColumnType("json")
+                .HasColumnName("answer_options");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Subject).WithMany()
+                .HasForeignKey(d => d.SubjectId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_feedback_question_subject");
+        });
+
+        modelBuilder.Entity<Feedback>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("feedbacks");
+
+            entity.HasIndex(e => e.StudentId, "idx_feedback_student");
+
+            entity.HasIndex(e => e.ClassId, "idx_feedback_class");
+
+            entity.HasIndex(e => e.SubjectId, "idx_feedback_subject");
+
+            entity.HasIndex(e => e.Sentiment, "idx_feedback_sentiment");
+
+            entity.HasIndex(e => e.Urgency, "idx_feedback_urgency");
+
+            entity.HasIndex(e => e.Status, "idx_feedback_status");
+
+            entity.HasIndex(e => e.CreatedAt, "idx_feedback_created");
+
+            entity.HasIndex(e => new { e.StudentId, e.ClassId }, "uk_feedback_student_class")
+                .IsUnique();
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.StudentId).HasColumnName("student_id");
+            entity.Property(e => e.ClassId).HasColumnName("class_id");
+            entity.Property(e => e.SubjectId).HasColumnName("subject_id");
+            entity.Property(e => e.Answers)
+                .HasColumnType("json")
+                .HasColumnName("answers");
+            entity.Property(e => e.WantsOneToOne).HasColumnName("wants_one_to_one");
+            entity.Property(e => e.FreeText)
+                .HasColumnType("text")
+                .HasColumnName("free_text");
+            entity.Property(e => e.FreeTextTranscript)
+                .HasColumnType("text")
+                .HasColumnName("free_text_transcript");
+            entity.Property(e => e.SatisfactionScore)
+                .HasPrecision(3, 2)
+                .HasDefaultValueSql("'0.00'")
+                .HasColumnName("satisfaction_score");
+            entity.Property(e => e.Sentiment)
+                .HasMaxLength(20)
+                .HasDefaultValueSql("'Neutral'")
+                .HasColumnType("enum('Positive','Neutral','Negative')")
+                .HasColumnName("sentiment");
+            entity.Property(e => e.SentimentScore)
+                .HasPrecision(3, 2)
+                .HasColumnName("sentiment_score");
+            entity.Property(e => e.Keywords)
+                .HasColumnType("json")
+                .HasColumnName("keywords");
+            entity.Property(e => e.AiSuggestions)
+                .HasColumnType("json")
+                .HasColumnName("ai_suggestions");
+            entity.Property(e => e.Urgency)
+                .HasDefaultValueSql("'0'")
+                .HasColumnName("urgency");
+            entity.Property(e => e.MainIssue)
+                .HasMaxLength(500)
+                .HasColumnName("main_issue");
+            entity.Property(e => e.IssueCategory)
+                .HasMaxLength(50)
+                .HasColumnName("issue_category");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValueSql("'New'")
+                .HasColumnType("enum('New','Reviewed','Actioned')")
+                .HasColumnName("status");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+                .HasColumnType("datetime")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Student).WithMany()
+                .HasForeignKey(d => d.StudentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_feedback_student");
+
+            entity.HasOne(d => d.Class).WithMany()
+                .HasForeignKey(d => d.ClassId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_feedback_class");
+
+            entity.HasOne(d => d.Subject).WithMany()
+                .HasForeignKey(d => d.SubjectId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_feedback_subject");
         });
 
         OnModelCreatingPartial(modelBuilder);

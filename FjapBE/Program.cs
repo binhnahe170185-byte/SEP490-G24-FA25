@@ -108,6 +108,15 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 
+builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
+builder.Services.AddScoped<IFeedbackQuestionRepository, FeedbackQuestionRepository>();
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
+builder.Services.AddScoped<IFeedbackQuestionService, FeedbackQuestionService>();
+builder.Services.AddScoped<IFeedbackCheckService, FeedbackCheckService>();
+builder.Services.AddScoped<IFeedbackTextAnalysisService, FeedbackTextAnalysisService>();
+builder.Services.AddScoped<IAiAnalysisService, AiAnalysisService>();
+builder.Services.AddScoped<FJAP.Services.Ai.GeminiFeedbackAnalyzer>();
+
 // ----- HttpClient for external APIs -----
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();

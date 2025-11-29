@@ -12,12 +12,14 @@ public class NewsService : INewsService
     private readonly INewsRepository _newsRepository;
     private readonly FjapDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly INotificationService _notificationService;
 
-    public NewsService(INewsRepository newsRepository, FjapDbContext context, IHttpClientFactory httpClientFactory)
+    public NewsService(INewsRepository newsRepository, FjapDbContext context, IHttpClientFactory httpClientFactory, INotificationService notificationService)
     {
         _newsRepository = newsRepository;
         _context = context;
         _httpClientFactory = httpClientFactory;
+        _notificationService = notificationService;
     }
 
     public async Task<NewsDto> CreateAsync(CreateNewsRequest request, int userId)

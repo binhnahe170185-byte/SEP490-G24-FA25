@@ -36,6 +36,11 @@ import GradeManage from "../vn.fpt.edu.pages/lecturer/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/lecturer/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/lecturer/GradeManage/GradeEntry";
 import StaffMaterialList from "../vn.fpt.edu.pages/staffAcademic/materials/MaterialList";
+import FeedbackList from "../vn.fpt.edu.pages/staffAcademic/feedback/FeedbackList";
+import FeedbackDetail from "../vn.fpt.edu.pages/staffAcademic/feedback/FeedbackDetail";
+import FeedbackQuestionManage from "../vn.fpt.edu.pages/staffAcademic/feedback/FeedbackQuestionManage";
+import FeedbackAnalyticsPage from "../vn.fpt.edu.pages/staffAcademic/feedback/FeedbackAnalyticsPage";
+import EndOfCourseFeedbackPage from "../vn.fpt.edu.pages/student/feedback/EndOfCourseFeedbackPage";
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import HomeworkSubmissionPage from "../vn.fpt.edu.pages/lecturer/HomeworkManage/HomeworkSubmissionPage";
@@ -292,6 +297,7 @@ export default function App() {
                   <Route path="class/:classId/students" element={<ClassStudentsList />} />
                   <Route path="weeklyTimetable" element={<WeeklyTimetable />} />
                   <Route path="profile" element={<ProfilePage />} />
+                  <Route path="feedback/:classId" element={<EndOfCourseFeedbackPage />} />
                 </Route>
                 <Route path="/" element={<Home />} />
 
@@ -322,6 +328,10 @@ export default function App() {
                   <Route path="subject/edit/:subjectId" element={<EditSubject />} />
                   <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
                   <Route path="profile" element={<ProfilePage />} />
+                  <Route path="feedback" element={<FeedbackList />} />
+                      <Route path="feedback/analytics" element={<FeedbackAnalyticsPage />} />
+                  <Route path="feedback/:id" element={<FeedbackDetail />} />
+                  <Route path="feedback/questions" element={<FeedbackQuestionManage />} />
                   <Route
                     path="createSchedule/edit"
                     element={

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Menu } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
-import { TeamOutlined, BookOutlined, ReadOutlined, EditOutlined, HomeOutlined, ScheduleOutlined } from '@ant-design/icons';
+import { BookOutlined, ReadOutlined, EditOutlined, HomeOutlined, ScheduleOutlined, MessageOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../vn.fpt.edu.pages/login/AuthContext';
 
 const { Item, SubMenu } = Menu;
@@ -25,6 +25,7 @@ const StaffAcademicSidebar = () => {
   if (activeGroup === 'classes') defaultOpenKeys.push('classes');
   if (activeGroup === 'grades') defaultOpenKeys.push('grades');
   if (activeGroup === 'subject') defaultOpenKeys.push('subject');
+  if (activeGroup === 'feedback') defaultOpenKeys.push('feedback');
   if (activeGroup === 'createSchedule') defaultOpenKeys.push('/staffAcademic/createSchedule');
 
   return (
@@ -93,6 +94,21 @@ const StaffAcademicSidebar = () => {
             <Link to="/staffAcademic/grades/edit">Edit Grades</Link>
           </Item>
         </SubMenu>
+
+        <SubMenu key="feedback" icon={<MessageOutlined />} title="Feedback">
+          <Item key="/staffAcademic/feedback">
+            <Link to="/staffAcademic/feedback">Feedback List</Link>
+          </Item>
+          <Item key="/staffAcademic/feedback/analytics">
+            <Link to="/staffAcademic/feedback/analytics">Feedback Analytics</Link>
+          </Item>
+          {roleId === 7 && (
+            <Item key="/staffAcademic/feedback/questions">
+              <Link to="/staffAcademic/feedback/questions">Feedback Questions</Link>
+            </Item>
+          )}
+        </SubMenu>
+
         {roleId === 5 && (
           <SubMenu key="/staffAcademic/createSchedule" icon={<ScheduleOutlined />} title="Schedule">
             <Item key="/staffAcademic/createSchedule/edit">

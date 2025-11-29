@@ -20,6 +20,7 @@ import {
   getNotificationIcon,
   useRealtimeNotifications,
 } from '../../../vn.fpt.edu.common/hooks/useRealtimeNotifications';
+import MandatoryFeedbackModal from '../../../vn.fpt.edu.common/components/MandatoryFeedbackModal';
 
 const { Text } = Typography;
 
@@ -270,6 +271,9 @@ const StudentLayout = ({ children }) => {
       <div className="student-layout-content">
         {children || <Outlet />}
       </div>
+
+      {/* Mandatory Feedback Modal - blocks UI until feedback is submitted */}
+      <MandatoryFeedbackModal />
     </div>
   );
 };
