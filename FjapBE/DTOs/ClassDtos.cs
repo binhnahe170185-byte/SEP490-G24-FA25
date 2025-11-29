@@ -15,6 +15,7 @@ public class ClassScheduleDto
     public string? SubjectName { get; set; }
     public string LecturerCode { get; set; } = "";
     public int? LectureId { get; set; }
+    public string? LecturerEmail { get; set; }
 }
 
 public class SchedulePatternDto

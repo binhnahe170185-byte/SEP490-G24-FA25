@@ -52,7 +52,8 @@ public class LecturerRepository : GenericRepository<Lecture>, ILecturerRepositor
             .Select(l => new LecturerDto
             {
                 LecturerId = l.LectureId,
-                LecturerCode = l.LecturerCode
+                LecturerCode = l.LecturerCode,
+                Email = l.User != null ? l.User.Email : null
             })
             .OrderBy(l => l.LecturerCode)
             .ToListAsync();

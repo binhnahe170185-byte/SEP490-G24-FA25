@@ -16,6 +16,13 @@ import {
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
 
+// Helper function to get email username (part before @)
+const getEmailUsername = (email) => {
+  if (!email) return '';
+  const atIndex = email.indexOf('@');
+  return atIndex > 0 ? email.substring(0, atIndex) : email;
+};
+
 const WeeklySchedules = ({
   weekday,
   slotId,
@@ -90,7 +97,10 @@ const WeeklySchedules = ({
             }
             // Lecturer conflict: same lecturer already has lesson
             if (lecturerId && conflict.lecturerId === parseInt(lecturerId, 10)) {
-              conflictDetails.push(`Lecturer ${conflict.lecturerCode} is already teaching ${conflict.className} on ${dateStr}`);
+              const lecturerDisplay = conflict.lecturerCode 
+                ? (conflict.lecturerCode.includes('@') ? getEmailUsername(conflict.lecturerCode) : conflict.lecturerCode)
+                : 'Unknown';
+              conflictDetails.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className} on ${dateStr}`);
             }
           });
           conflicts.push(dateStr);

@@ -4,6 +4,7 @@ public class LecturerDto
 {
     public int LecturerId { get; set; }
     public string LecturerCode { get; set; } = string.Empty;
+    public string? Email { get; set; }
 }
 
 public class LecturerClassDto
