@@ -479,6 +479,7 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 .ThenInclude(c => c.Subject)
             .Include(l => l.Room)
             .Include(l => l.Lecture)
+                .ThenInclude(lec => lec.User)
             .Include(l => l.Time)
             .Where(l => l.ClassId == classId 
                 && l.Date >= semesterStart 
@@ -498,7 +499,8 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
                 SubjectCode = l.Class.Subject.SubjectCode,
                 SubjectName = l.Class.Subject.SubjectName,
                 LecturerCode = l.Lecture != null ? l.Lecture.LecturerCode : "",
-                LectureId = l.LectureId
+                LectureId = l.LectureId,
+                LecturerEmail = l.Lecture != null && l.Lecture.User != null ? l.Lecture.User.Email : null
             })
             .ToListAsync();
 

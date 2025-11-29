@@ -27,6 +27,13 @@ import {
 } from '@ant-design/icons';
 import { notification } from 'antd';
 
+// Helper function to get email username (part before @)
+const getEmailUsername = (email) => {
+  if (!email) return '';
+  const atIndex = email.indexOf('@');
+  return atIndex > 0 ? email.substring(0, atIndex) : email;
+};
+
 const CreateSchedule = () => {
   const [api, contextHolder] = notification.useNotification();
 
@@ -37,6 +44,7 @@ const CreateSchedule = () => {
   const [className, setClassName] = useState('');
   const [lecturerId, setLecturerId] = useState('');
   const [lecturerCode, setLecturerCode] = useState('');
+  const [lecturerEmail, setLecturerEmail] = useState('');
   const [weekday, setWeekday] = useState('');
   const [slotId, setSlotId] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -171,7 +179,10 @@ const CreateSchedule = () => {
       
       // Lecturer conflict: same lecturer already has lesson
       if (currentLecturerId && conflict.lecturerId === parseInt(currentLecturerId, 10)) {
-        reasons.push(`Lecturer ${conflict.lecturerCode} is already teaching ${conflict.className}`);
+        const lecturerDisplay = conflict.lecturerCode 
+          ? (conflict.lecturerCode.includes('@') ? getEmailUsername(conflict.lecturerCode) : conflict.lecturerCode)
+          : 'Unknown';
+        reasons.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className}`);
         hasConflict = true;
       }
     });
@@ -361,11 +372,16 @@ const CreateSchedule = () => {
           if (!newConflictMap[key]) {
             newConflictMap[key] = [];
           }
+          // Get lecturer display (prioritize email if available, then substring before @)
+          const lecturerDisplay = lesson.lecturerEmail 
+            ? getEmailUsername(lesson.lecturerEmail)
+            : (lesson.lecturerCode || '');
+
           newConflictMap[key].push({
             classId: lesson.classId,
             className: lesson.className,
             lecturerId: lesson.lecturerId,
-            lecturerCode: lesson.lecturerCode,
+            lecturerCode: lecturerDisplay, // Store substring email or lecturerCode
             date: lesson.date,
             timeId: lesson.timeId,
             roomId: lesson.roomId,
@@ -841,13 +857,18 @@ const CreateSchedule = () => {
         const room = rooms.find(r => r.label === roomName);
         const roomId = room ? room.value : null;
 
+        // Get lecturer display (prioritize email if available, then substring before @)
+        const lecturerDisplay = lesson.lecturerEmail 
+          ? getEmailUsername(lesson.lecturerEmail)
+          : (lesson.lecturerCode || '');
+
         return {
           date: dateStr, // Ensure YYYY-MM-DD format
           weekday: weekday,
           slot: slot,
           room: roomName,
           roomId: roomId, // Add roomId for conflict checking
-          lecturer: lesson.lecturerCode || '', // map lecturerCode từ API
+          lecturer: lecturerDisplay, // map lecturerEmail or lecturerCode from API
           subjectCode: lesson.subjectCode || '',
           subjectName: lesson.subjectName || '',
           className: lesson.className || '',
@@ -1212,13 +1233,17 @@ const CreateSchedule = () => {
           const loadedSubjectCode = loadedLesson.subjectCode || '';
           const loadedSubjectName = loadedLesson.subjectName || '';
           const loadedRoomName = loadedLesson.room || '';
-          const loadedLecturerCode = loadedLesson.lecturer || '';
+          const loadedLecturer = loadedLesson.lecturer || '';
+          // Ensure lecturer display is substring if it's an email
+          const loadedLecturerDisplay = loadedLecturer.includes('@') 
+            ? getEmailUsername(loadedLecturer)
+            : loadedLecturer;
 
           const parts = [];
           if (loadedSubjectCode) parts.push(loadedSubjectCode);
           if (loadedSubjectName) parts.push(loadedSubjectName);
           if (loadedRoomName) parts.push(loadedRoomName);
-          if (loadedLecturerCode) parts.push(loadedLecturerCode);
+          if (loadedLecturerDisplay) parts.push(loadedLecturerDisplay);
 
           cellContents.push(parts.length > 0 ? parts.join(' | ') : '');
           cellStyle = {
@@ -1304,9 +1329,9 @@ const CreateSchedule = () => {
                   {subjectCode} — {subjectName}
                 </Tag>
               )}
-              {lecturerCode && (
+              {lecturerEmail && (
                 <Tag icon={<UserOutlined />} color="blue">
-                  {lecturerCode}
+                  {lecturerEmail.includes('@') ? lecturerEmail.substring(0, lecturerEmail.indexOf('@')) : lecturerEmail}
                 </Tag>
               )}
               {holidays.length > 0 && (
@@ -1334,9 +1359,10 @@ const CreateSchedule = () => {
                 <LecturerSelector
                   lecturerId={lecturerId}
                   lecturerCode={lecturerCode}
-                  onLecturerChange={(id, code) => {
-                    setLecturerId(id);
+                  onLecturerChange={(id, code, email) => {
+                    setLecturerId(id || '');
                     setLecturerCode(code || '');
+                    setLecturerEmail(email || '');
                   }}
                   subjectCode={subjectCode}
                   subjectName={subjectName}
