@@ -12,7 +12,7 @@ const FloatingAIChatWidget = () => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Xin chào! Tôi là AI Study Companion. Tôi có thể giúp bạn về bài tập, deadline, môn học và nhiều thứ khác. Hãy hỏi tôi bất cứ điều gì!',
+      content: 'Hello! I am AI Study Companion. I can help you with homework, deadlines, subjects, and many other things. Ask me anything!',
     },
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -52,19 +52,19 @@ const FloatingAIChatWidget = () => {
         ...prev,
         {
           role: 'assistant',
-          content: response.response || response.message || 'Xin lỗi, tôi không thể trả lời câu hỏi này.',
+          content: response.response || response.message || 'Sorry, I cannot answer this question.',
         },
       ]);
     } catch (error) {
       console.error('Error chatting with AI:', error);
-      message.error('Không thể kết nối với AI. Vui lòng thử lại sau.');
+      message.error('Unable to connect to AI. Please try again later.');
       
       // Add error message
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Xin lỗi, đã xảy ra lỗi khi xử lý câu hỏi của bạn. Vui lòng thử lại sau.',
+          content: 'Sorry, an error occurred while processing your question. Please try again later.',
         },
       ]);
     } finally {
@@ -146,7 +146,7 @@ const FloatingAIChatWidget = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Nhập câu hỏi của bạn..."
+              placeholder="Enter your question..."
               rows={2}
               disabled={loading}
               className="chat-input"
@@ -160,7 +160,7 @@ const FloatingAIChatWidget = () => {
               disabled={!inputValue.trim()}
               className="chat-send-button"
             >
-              Gửi
+              Send
             </Button>
           </div>
         </Card>

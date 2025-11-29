@@ -294,6 +294,7 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
                 Description = s.Description,
                 PassMark = s.PassMark,
                 Status = s.Status ?? "Active",
+                TotalLesson = s.TotalLesson,
                 GradeComponents = s.SubjectGradeTypes
                     .Select(sgt => new SubjectGradeComponentInfoDto
                     {

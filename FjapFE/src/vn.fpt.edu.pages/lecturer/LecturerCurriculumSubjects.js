@@ -491,6 +491,13 @@ export default function LecturerCurriculumSubjects() {
                     : "N/A"}
                 </Text>
               </Descriptions.Item>
+              <Descriptions.Item label="Total Lesson">
+                <Text strong>
+                  {selectedSubject.totalLesson != null
+                    ? selectedSubject.totalLesson
+                    : "N/A"}
+                </Text>
+              </Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag color={getStatusColor(selectedSubject.status)}>
                   {selectedSubject.status || "Not Started"}

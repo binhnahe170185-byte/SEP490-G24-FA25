@@ -35,13 +35,13 @@ public class GeminiProvider : IAIProvider
             throw new InvalidOperationException("Gemini API key is not configured");
         }
 
-        var systemInstruction = "Bạn là AI Study Companion, một trợ lý học tập thân thiện và hữu ích cho sinh viên. " +
-                          "Bạn giúp sinh viên với:\n" +
-                          "- Trả lời câu hỏi về bài học\n" +
-                          "- Nhắc nhở deadline bài tập\n" +
-                          "- Gợi ý tài liệu học tập\n" +
-                          "- Tư vấn cách học hiệu quả\n\n" +
-                          "Hãy trả lời một cách thân thiện, ngắn gọn và hữu ích bằng tiếng Việt.";
+        var systemInstruction = "You are AI Study Companion, a friendly and helpful study assistant for students. " +
+                          "You help students with:\n" +
+                          "- Answering questions about lessons\n" +
+                          "- Reminding about homework deadlines\n" +
+                          "- Suggesting study materials\n" +
+                          "- Providing study advice\n\n" +
+                          "Please respond in a friendly, concise, and helpful manner. Always respond in the same language that the student uses. If the student asks in Vietnamese, respond in Vietnamese. If the student asks in English, respond in English.";
 
         if (!string.IsNullOrEmpty(context))
         {
@@ -49,8 +49,8 @@ public class GeminiProvider : IAIProvider
         }
 
         // Gemini API format - đơn giản hóa format request
-        // Kết hợp system instruction vào phần đầu của message
-        var fullMessage = $"{systemInstruction}\n\nCâu hỏi của sinh viên: {message}";
+        // Combine system instruction with the student's question
+        var fullMessage = $"{systemInstruction}\n\nStudent's question: {message}";
         
         var requestBody = new
         {
@@ -118,7 +118,7 @@ public class GeminiProvider : IAIProvider
                                 
                                 if (finishReasonValue == "SAFETY" || finishReasonValue == "RECITATION")
                                 {
-                                    return "Xin lỗi, câu hỏi của bạn có thể vi phạm chính sách an toàn. Vui lòng thử lại với câu hỏi khác.";
+                                    return "Sorry, your question may violate safety policies. Please try again with a different question.";
                                 }
                             }
                             
@@ -140,7 +140,7 @@ public class GeminiProvider : IAIProvider
                                         {
                                             var responseText = text.GetString();
                                             // Console.WriteLine($"[GeminiProvider] Extracted text: {responseText?.Substring(0, Math.Min(100, responseText?.Length ?? 0))}...");
-                                            return responseText ?? "Xin lỗi, tôi không thể xử lý yêu cầu này.";
+                                            return responseText ?? "Sorry, I cannot process this request.";
                                         }
                                         else
                                         {
@@ -157,7 +157,7 @@ public class GeminiProvider : IAIProvider
                                     if (content.TryGetProperty("text", out var directText))
                                     {
                                         var responseText = directText.GetString();
-                                        return responseText ?? "Xin lỗi, tôi không thể xử lý yêu cầu này.";
+                                        return responseText ?? "Sorry, I cannot process this request.";
                                     }
                                     
                                     // Nếu bị MAX_TOKENS và không có parts, có nghĩa là response chưa kịp generate text
@@ -165,7 +165,7 @@ public class GeminiProvider : IAIProvider
                                     if (finishReasonValue == "MAX_TOKENS")
                                     {
                                         // Console.WriteLine($"[GeminiProvider] MAX_TOKENS detected without parts - model used tokens for thoughts only");
-                                        return "Xin lỗi, tôi gặp vấn đề khi tạo phản hồi do giới hạn tokens. Vui lòng hỏi câu hỏi ngắn gọn hơn hoặc thử lại sau.";
+                                        return "Sorry, I encountered an issue generating a response due to token limits. Please ask a shorter question or try again later.";
                                     }
                                 }
                             }
@@ -184,7 +184,7 @@ public class GeminiProvider : IAIProvider
                         // Console.WriteLine($"[GeminiProvider] No 'candidates' property in response");
                     }
 
-                    return "Xin lỗi, tôi không thể tạo phản hồi.";
+                    return "Sorry, I cannot generate a response.";
                 }
 
                 // Xử lý lỗi 429 (Rate Limit)
@@ -208,12 +208,12 @@ public class GeminiProvider : IAIProvider
                     }
                     
                     throw new InvalidOperationException(
-                        "Gemini API đang bị giới hạn request (Rate Limit). " +
-                        "Có thể do:\n" +
-                        "- Quota API đã hết\n" +
-                        "- Quá nhiều request trong thời gian ngắn\n" +
-                        "- API key không hợp lệ\n\n" +
-                        "Vui lòng thử lại sau vài phút hoặc kiểm tra API key của bạn.");
+                        "Gemini API is rate limited. " +
+                        "Possible reasons:\n" +
+                        "- API quota exceeded\n" +
+                        "- Too many requests in a short time\n" +
+                        "- Invalid API key\n\n" +
+                        "Please try again in a few minutes or check your API key.");
                 }
 
                 // Đọc error message từ response nếu có
@@ -229,7 +229,7 @@ public class GeminiProvider : IAIProvider
             }
         }
 
-        throw new InvalidOperationException("Không thể kết nối đến Gemini API sau nhiều lần thử.");
+        throw new InvalidOperationException("Unable to connect to Gemini API after multiple attempts.");
     }
 }
 
