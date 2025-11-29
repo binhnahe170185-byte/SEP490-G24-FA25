@@ -4,7 +4,7 @@ using Google.Apis.Auth;
 
 public interface IAuthRepository : IGenericRepository<Account>
 {
-    Task<Account?> GetByEmailAsync(string email);
+    Task<User?> GetByEmailAsync(string email);
     //ask<bool> ValidatePasswordAsync(string email, string password);
     Task<GoogleJsonWebSignature.Payload?> VerifyGoogleTokenAsync(string idToken, string clientId);
 
