@@ -15,6 +15,7 @@ import {
   Select,
   DatePicker,
   Upload,
+  Modal,
 } from "antd";
 import {
   UserOutlined,
@@ -30,6 +31,7 @@ import {
 import dayjs from "dayjs";
 import ProfileApi from "../../vn.fpt.edu.api/Profile";
 import { useAuth } from "../login/AuthContext";
+import { useNotify } from "../../vn.fpt.edu.common/notifications";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -87,8 +89,11 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingValues, setPendingValues] = useState(null);
   const [form] = Form.useForm();
   const { user, login } = useAuth();
+  const { success: notifySuccess } = useNotify();
 
   useEffect(() => {
     loadProfile();
@@ -167,9 +172,8 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSave = async () => {
+  const performSave = async (values) => {
     try {
-      const values = await form.validateFields();
       setSaving(true);
 
       // Format phone number before saving (remove dashes for storage, or keep formatted)
@@ -190,6 +194,12 @@ export default function ProfilePage() {
       setProfile(updated);
       setIsEditing(false);
       setAvatarPreview(null);
+      
+      notifySuccess(
+        "profile-updated",
+        "Success",
+        "Profile information has been updated successfully!"
+      );
       message.success("Profile updated successfully!");
 
       // Update auth context if avatar changed
@@ -198,14 +208,24 @@ export default function ProfilePage() {
         login({ token: user?.token, profile: updatedUser });
       }
     } catch (error) {
-      if (error?.errorFields) {
-        // Form validation errors
-        return;
-      }
       console.error("Error updating profile:", error);
       message.error("Failed to update profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+      // Store values and show confirmation modal
+      setPendingValues(values);
+      setShowConfirmModal(true);
+    } catch (error) {
+      if (error?.errorFields) {
+        // Form validation errors
+        return;
+      }
     }
   };
 
@@ -579,6 +599,27 @@ export default function ProfilePage() {
           </Form>
         )}
       </Card>
+
+      <Modal
+        title="Confirm Save"
+        open={showConfirmModal}
+        onOk={() => {
+          if (pendingValues) {
+            performSave(pendingValues);
+          }
+          setShowConfirmModal(false);
+          setPendingValues(null);
+        }}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setPendingValues(null);
+        }}
+        okText="Save"
+        cancelText="Cancel"
+        okType="primary"
+      >
+        <p>Are you sure you want to save the changes to your profile?</p>
+      </Modal>
     </div>
   );
 }
