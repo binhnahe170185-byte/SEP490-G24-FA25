@@ -1207,11 +1207,12 @@ const CreateSchedule = () => {
 
     const columns = [
       {
-        title: 'Slot / Day',
+        title: '',
         dataIndex: 'slotLabel',
         key: 'slotLabel',
         fixed: 'left',
-        width: 140,
+        width: 60,
+        align: 'center',
       },
       ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayLabel, idx) => {
         const dayDate = addDays(weekStart, idx);
