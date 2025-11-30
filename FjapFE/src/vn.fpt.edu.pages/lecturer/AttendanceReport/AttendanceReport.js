@@ -13,7 +13,7 @@ export default function AttendanceReport() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [classInfo, setClassInfo] = useState(null);
-    const [attendanceData, setAttendanceData] = useState({ students: [], dates: [] });
+    const [attendanceData, setAttendanceData] = useState([]);
     const [error, setError] = useState(null);
 
     useEffect(() => {
@@ -32,7 +32,7 @@ export default function AttendanceReport() {
 
                 // Fetch class info
                 const classData = await ClassListApi.getStudents(classId);
-
+                
                 if (!isMounted) return;
 
                 if (!classData) {
@@ -42,86 +42,36 @@ export default function AttendanceReport() {
 
                 const subject = classData.subject ?? classData.Subject ?? {};
                 setClassInfo({
-
+                   
                     className: classData.className ?? classData.class_name ?? classData.ClassName ?? "-",
                     subjectCode: subject.subjectCode ?? subject.SubjectCode ?? classData.subjectCode ?? "-"
                 });
 
                 // Fetch attendance report
                 const reportData = await AttendanceApi.getAttendanceReport(classId);
-
+                
                 if (!isMounted) return;
 
-                // Normalize report data - API trả về data với lessons array
+                // Normalize report data
                 const normalizedData = reportData.map((item, index) => {
                     const student = item.student ?? item.Student ?? {};
                     const user = student.user ?? student.User ?? {};
                     const firstName = user.firstName ?? user.FirstName ?? student.firstName ?? student.FirstName ?? "";
                     const lastName = user.lastName ?? user.LastName ?? student.lastName ?? student.LastName ?? "";
-                    const fullName = [firstName, lastName].filter(Boolean).join(" ").trim() ||
-                        (student.fullName ?? student.full_name ?? student.FullName ?? "");
-
-                    // Lấy lessons array từ item
-                    const lessons = item.lessons ?? item.Lessons ?? [];
-
-                    // Tạo object với key là date để dễ truy cập
-                    const lessonsByDate = {};
-                    let absentCount = 0;
-                    let totalWithStatus = 0;
-
-                    lessons.forEach(lesson => {
-                        const date = lesson.date ?? lesson.Date ?? "";
-                        const status = lesson.status ?? lesson.Status ?? null;
-
-                        if (date) {
-                            lessonsByDate[date] = {
-                                status: status,
-                                lessonId: lesson.lessonId ?? lesson.LessonId,
-                            };
-                        }
-
-                        // Tính toán percent absent
-                        if (status != null) {
-                            totalWithStatus++;
-                            if (status === "Absent" || status === "absent") {
-                                absentCount++;
-                            }
-                        }
-                    });
-
-                    // Tính percent absent
-                    const percentAbsent = totalWithStatus > 0
-                        ? Math.round((absentCount / totalWithStatus) * 100)
-                        : 0;
+                    const fullName = [firstName, lastName].filter(Boolean).join(" ").trim() || 
+                                    (student.fullName ?? student.full_name ?? student.FullName ?? "");
 
                     return {
                         key: student.studentId ?? student.StudentId ?? index,
                         studentId: student.studentId ?? student.StudentId ?? "-",
                         studentCode: student.studentCode ?? student.student_code ?? student.StudentCode ?? "-",
                         studentName: fullName || "-",
-                        percentAbsent: percentAbsent,
-                        absentCount: absentCount,
-                        totalWithStatus: totalWithStatus,
-                        lessonsByDate: lessonsByDate,
-                        lessons: lessons,
+                        presentCount: item.presentCount ?? item.present_count ?? item.PresentCount ?? 0,
+                        absentCount: item.absentCount ?? item.absent_count ?? item.AbsentCount ?? 0,
                     };
                 });
 
-                // Lấy tất cả các dates duy nhất từ tất cả students
-                const allDates = new Set();
-                normalizedData.forEach(item => {
-                    Object.keys(item.lessonsByDate).forEach(date => {
-                        allDates.add(date);
-                    });
-                });
-
-                // Sắp xếp dates
-                const sortedDates = Array.from(allDates).sort();
-
-                setAttendanceData({
-                    students: normalizedData,
-                    dates: sortedDates,
-                });
+                setAttendanceData(normalizedData);
             } catch (err) {
                 console.error("Error fetching attendance report:", err);
                 if (isMounted) {
@@ -145,87 +95,35 @@ export default function AttendanceReport() {
         navigate('/lecturer/schedule');
     };
 
-    // Tạo columns động dựa trên dates
-    const buildColumns = () => {
-        const baseColumns = [
-            {
-                title: "No.",
-                key: "no",
-                width: 60,
-                align: "center",
-                fixed: "left",
-                render: (_value, _record, index) => index + 1,
-            },
-            {
-                title: "Student Name",
-                dataIndex: "studentName",
-                key: "studentName",
-                fixed: "left",
-                width: 200,
-                render: (text) => <strong>{text || "-"}</strong>,
-            },
-            {
-                title: "Absent",
-                dataIndex: "percentAbsent",
-                key: "percentAbsent",
-                fixed: "left",
-                width: 120,
-                align: "center",
-                render: (percent, record) => {
-                    if (record.totalWithStatus === 0) {
-                        return <Text style={{ color: "#666" }}>-</Text>;
-                    }
-                    // Màu xanh nếu <= 20%, đỏ nếu > 20%
-                    const color = percent <= 20 ? "#52c41a" : "#ff4d4f";
-                    return (
-                        <Text strong style={{ color: color, fontSize: "14px" }}>
-                            {percent}%
-                        </Text>
-                    );
-
-                },
-            },
-        ];
-
-        // Kiểm tra nếu attendanceData chưa có structure đúng
-        if (!attendanceData || !attendanceData.dates) {
-            return baseColumns;
-        }
-
-        // Thêm columns cho mỗi date
-        const dateColumns = attendanceData.dates.map((date) => {
-            // Format date để hiển thị: DD/MM/YYYY
-            const dateObj = new Date(date);
-            const formattedDate = dateObj.toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-
-            return {
-                title: formattedDate,
-                key: `date_${date}`,
-                align: "center",
-                width: 100,
-                render: (_value, record) => {
-                    const lesson = record.lessonsByDate?.[date];
-                    const status = lesson?.status;
-
-                    if (status === "Present" || status === "present") {
-                        return <Text strong style={{ color: "#52c41a", fontSize: "16px" }}>P</Text>;
-                    } else if (status === "Absent" || status === "absent") {
-                        return <Text strong style={{ color: "#ff4d4f", fontSize: "16px" }}>A</Text>;
-                    } else {
-                        return <Text style={{ color: "#000", fontSize: "16px" }}>-</Text>;
-                    }
-                },
-            };
-        });
-
-        return [...baseColumns, ...dateColumns];
-    };
-
-    const columns = buildColumns();
+    const columns = [
+        {
+            title: "No.",
+            key: "no",
+            width: 60,
+            align: "center",
+            render: (_value, _record, index) => index + 1,
+        },
+        {
+            title: "Student Name",
+            dataIndex: "studentName",
+            key: "studentName",
+            render: (text) => <strong>{text || "-"}</strong>,
+        },
+        {
+            title: "Present",
+            dataIndex: "presentCount",
+            key: "presentCount",
+            align: "center",
+            render: (count) => <Text strong style={{ color: "#52c41a" }}>{count ?? 0}</Text>,
+        },
+        {
+            title: "Absent",
+            dataIndex: "absentCount",
+            key: "absentCount",
+            align: "center",
+            render: (count) => <Text strong style={{ color: "#ff4d4f" }}>{count ?? 0}</Text>,
+        },
+    ];
 
     if (loading) {
         return (
@@ -257,8 +155,8 @@ export default function AttendanceReport() {
                     {/* Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                            <Button
-                                icon={<ArrowLeftOutlined />}
+                            <Button 
+                                icon={<ArrowLeftOutlined />} 
                                 onClick={handleBack}
                                 style={{ marginBottom: 16 }}
                             >
@@ -279,20 +177,17 @@ export default function AttendanceReport() {
                     </div>
 
                     {/* Table */}
-                    <div style={{ overflowX: "auto" }}>
-                        <Table
-                            columns={columns}
-                            dataSource={attendanceData.students || []}
-                            loading={loading}
-                            rowKey="key"
-                            pagination={false}
-                            bordered
-                            scroll={{ x: "max-content" }}
-                            locale={{
-                                emptyText: "No attendance data available",
-                            }}
-                        />
-                    </div>
+                    <Table
+                        columns={columns}
+                        dataSource={attendanceData}
+                        loading={loading}
+                        rowKey="key"
+                        pagination={false}
+                        bordered
+                        locale={{
+                            emptyText: "No attendance data available",
+                        }}
+                    />
                 </Space>
             </Card>
         </div>
