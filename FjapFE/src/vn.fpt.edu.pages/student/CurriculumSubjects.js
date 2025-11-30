@@ -544,48 +544,6 @@ export default function CurriculumSubjects() {
                 No grade components configured
               </Text>
             )}
-
-            <Title level={5} style={{ marginBottom: 16 }}>
-              Materials
-            </Title>
-            {selectedSubject.materials &&
-            selectedSubject.materials.length > 0 ? (
-              <Table
-                dataSource={selectedSubject.materials}
-                rowKey="materialId"
-                pagination={false}
-                size="small"
-                columns={[
-                  {
-                    title: "Title",
-                    dataIndex: "title",
-                    key: "title",
-                  },
-                  {
-                    title: "Description",
-                    dataIndex: "description",
-                    key: "description",
-                    render: (desc) => desc || "N/A",
-                  },
-                  {
-                    title: "Action",
-                    key: "action",
-                    align: "center",
-                    render: (_, record) => (
-                      <Button
-                        type="link"
-                        icon={<LinkOutlined />}
-                        onClick={() => window.open(record.fileUrl, "_blank")}
-                      >
-                        Open Drive
-                      </Button>
-                    ),
-                  },
-                ]}
-              />
-            ) : (
-              <Text type="secondary">No materials available</Text>
-            )}
           </div>
         )}
       </Modal>
