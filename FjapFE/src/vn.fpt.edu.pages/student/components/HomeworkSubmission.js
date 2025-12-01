@@ -101,7 +101,7 @@ const HomeworkSubmission = () => {
             <span>Submit Homework: {selectedHomework?.title}</span>
           </div>
         }
-        visible={isModalVisible}
+        open={isModalVisible}
         onOk={handleModalSubmit}
         onCancel={() => {
           setIsModalVisible(false);

@@ -115,7 +115,7 @@ const FloatingAIChatWidget = () => {
               />
             </div>
           }
-          bordered={false}
+          variant="borderless"
         >
           <div className="chat-messages">
             {messages.map((msg, index) => (

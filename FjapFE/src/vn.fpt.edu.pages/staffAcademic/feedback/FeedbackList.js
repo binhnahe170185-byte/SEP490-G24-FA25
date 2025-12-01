@@ -12,21 +12,74 @@ import {
   Input,
   Popconfirm,
   Tabs,
-  DatePicker,
+  Empty,
 } from "antd";
 import { EyeOutlined, ReloadOutlined, SyncOutlined } from "@ant-design/icons";
 import FeedbackApi from "../../../vn.fpt.edu.api/Feedback";
+import DailyFeedbackApi from "../../../vn.fpt.edu.api/DailyFeedback";
 import ClassList from "../../../vn.fpt.edu.api/ClassList";
-import SemesterApi from "../../../vn.fpt.edu.api/Semester";
 import { api } from "../../../vn.fpt.edu.api/http";
 import { useAuth } from "../../login/AuthContext";
-import QuestionParetoChart from "./QuestionParetoChart";
-import FeedbackTextSummary from "./FeedbackTextSummary";
 
-const { Title } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
-const { RangePicker } = DatePicker;
 const { TabPane } = Tabs;
+
+function FeedbackText({ text }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!text) {
+    return <Text>N/A</Text>;
+  }
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      {expanded ? (
+        <>
+          <Text style={{ whiteSpace: "pre-line" }}>{text}</Text>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            style={{
+              marginLeft: 8,
+              fontSize: 12,
+              border: "none",
+              background: "none",
+              padding: 0,
+              color: "#1890ff",
+              cursor: "pointer",
+            }}
+          >
+            Less
+          </button>
+        </>
+      ) : (
+        <>
+          <Paragraph
+            style={{ marginBottom: 0, whiteSpace: "pre-line" }}
+            ellipsis={{ rows: 2 }}
+          >
+            {text}
+          </Paragraph>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            style={{
+              fontSize: 12,
+              border: "none",
+              background: "none",
+              padding: 0,
+              color: "#1890ff",
+              cursor: "pointer",
+            }}
+          >
+            More
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function FeedbackList() {
   const navigate = useNavigate();
@@ -44,25 +97,26 @@ export default function FeedbackList() {
     status: null,
   });
   const [classes, setClasses] = useState([]);
-  const [semesters, setSemesters] = useState([]);
   const [searchText, setSearchText] = useState("");
-  const [activeTab, setActiveTab] = useState("list");
-  const [analyticsFilters, setAnalyticsFilters] = useState({
+  const [activeTab, setActiveTab] = useState("course");
+
+  // Daily feedback state
+  const [dailyFeedbacks, setDailyFeedbacks] = useState([]);
+  const [dailyTotal, setDailyTotal] = useState(0);
+  const [dailyPage, setDailyPage] = useState(1);
+  const [dailyPageSize, setDailyPageSize] = useState(20);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [updatingDailyId, setUpdatingDailyId] = useState(null);
+  const [dailyFilters, setDailyFilters] = useState({
     classId: null,
-    semesterId: null,
-    range: [null, null],
+    status: null,
   });
-  const [questionData, setQuestionData] = useState([]);
-  const [questionLoading, setQuestionLoading] = useState(false);
-  const [textSummaryData, setTextSummaryData] = useState(null);
-  const [textSummaryLoading, setTextSummaryLoading] = useState(false);
 
   // Check if user has permission (role 5 or 7)
   const canReAnalyzeAll = user?.roleId === 5 || user?.roleId === 7;
 
   useEffect(() => {
     loadClasses();
-    loadSemesters();
   }, []);
 
   useEffect(() => {
@@ -70,13 +124,12 @@ export default function FeedbackList() {
   }, [page, pageSize, filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (activeTab === "questions") {
-      loadQuestionData();
-    } else if (activeTab === "text") {
-      loadTextSummary();
+    if (activeTab === "daily") {
+      loadDailyFeedbacks();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, analyticsFilters.classId, analyticsFilters.semesterId, analyticsFilters.range]);
+  }, [activeTab, dailyPage, dailyPageSize, dailyFilters.classId, dailyFilters.status]);
+
 
   const loadClasses = async () => {
     try {
@@ -92,17 +145,6 @@ export default function FeedbackList() {
         console.error("Fallback load classes failed:", fallbackErr);
         setClasses([]);
       }
-    }
-  };
-
-  const loadSemesters = async () => {
-    try {
-      const result = await SemesterApi.getSemesters();
-      const items = result?.items || result || [];
-      setSemesters(Array.isArray(items) ? items : []);
-    } catch (error) {
-      console.error("Failed to load semesters:", error);
-      setSemesters([]);
     }
   };
 
@@ -122,6 +164,100 @@ export default function FeedbackList() {
       message.error("Failed to load feedback list");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDailyFeedbacks = async () => {
+    try {
+      setDailyLoading(true);
+      const params = {
+        page: dailyPage,
+        pageSize: dailyPageSize,
+      };
+
+      if (dailyFilters.status) {
+        params.status = dailyFilters.status;
+      }
+
+      let items = [];
+      let totalCount = 0;
+
+      if (dailyFilters.classId) {
+        // Load for specific class
+        const result = await DailyFeedbackApi.getClassDailyFeedbacks(
+          dailyFilters.classId,
+          params
+        );
+        items = result.items || [];
+        totalCount = result.total || 0;
+      } else {
+        // Load all daily feedbacks from all classes
+        // We need to aggregate from all classes
+        const allClasses = classes.length > 0 ? classes : await ClassList.getAll();
+        
+        if (allClasses.length === 0) {
+          setDailyFeedbacks([]);
+          setDailyTotal(0);
+          return;
+        }
+
+        // Load feedbacks from all classes and aggregate
+        const promises = allClasses.map((cls) =>
+          DailyFeedbackApi.getClassDailyFeedbacks(cls.classId, {
+            ...params,
+            page: 1,
+            pageSize: 1000, // Get all for aggregation
+          }).catch(() => ({ items: [], total: 0 }))
+        );
+
+        const results = await Promise.all(promises);
+        const allItems = results.flatMap((r) => r.items || []);
+        
+        // Apply status filter if needed
+        let filteredItems = allItems;
+        if (dailyFilters.status) {
+          filteredItems = allItems.filter(
+            (item) => item.status === dailyFilters.status
+          );
+        }
+
+        // Sort by createdAt descending
+        filteredItems.sort(
+          (a, b) =>
+            new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+        );
+
+        // Manual pagination
+        totalCount = filteredItems.length;
+        const startIndex = (dailyPage - 1) * dailyPageSize;
+        items = filteredItems.slice(startIndex, startIndex + dailyPageSize);
+      }
+
+      setDailyFeedbacks(items || []);
+      setDailyTotal(totalCount || 0);
+    } catch (error) {
+      console.error("Failed to load daily feedbacks:", error);
+      message.error("Failed to load daily feedback list");
+      setDailyFeedbacks([]);
+      setDailyTotal(0);
+    } finally {
+      setDailyLoading(false);
+    }
+  };
+
+  const handleDailyStatusUpdate = async (record, status) => {
+    if (!status || status === record.status) return;
+
+    try {
+      setUpdatingDailyId(record.id);
+      await DailyFeedbackApi.updateStatus(record.id, status);
+      message.success("Daily feedback status updated");
+      await loadDailyFeedbacks();
+    } catch (error) {
+      console.error("Failed to update daily feedback status:", error);
+      message.error("Failed to update daily feedback status");
+    } finally {
+      setUpdatingDailyId(null);
     }
   };
 
@@ -179,83 +315,37 @@ export default function FeedbackList() {
     }
   };
 
-  const buildAnalyticsParams = () => {
-    const params = {};
-    if (analyticsFilters.classId) params.classId = analyticsFilters.classId;
-    if (analyticsFilters.semesterId) params.semesterId = analyticsFilters.semesterId;
-    const [from, to] = analyticsFilters.range || [];
-    if (from && to) {
-      params.from = from.toISOString();
-      params.to = to.toISOString();
-    }
-    return params;
-  };
-
-  const loadQuestionData = async () => {
-    try {
-      setQuestionLoading(true);
-      const params = buildAnalyticsParams();
-      const result = await FeedbackApi.getQuestionPareto(params);
-      setQuestionData(Array.isArray(result) ? result : []);
-    } catch (error) {
-      console.error("Failed to load question data:", error);
-      message.error("Failed to load question analysis");
-      setQuestionData([]);
-    } finally {
-      setQuestionLoading(false);
-    }
-  };
-
-  const loadTextSummary = async () => {
-    try {
-      setTextSummaryLoading(true);
-      const params = buildAnalyticsParams();
-      const result = await FeedbackApi.getTextSummary(params);
-      
-      if (result && typeof result === 'object') {
-        if (result.positiveSummary || result.negativeSummary) {
-          setTextSummaryData(result);
-        } else if (result.data) {
-          setTextSummaryData(result.data);
-        } else {
-          setTextSummaryData(result);
-        }
-      } else {
-        setTextSummaryData(null);
-      }
-    } catch (error) {
-      console.error("Failed to load text summary:", error);
-      const errorMsg = error.response?.data?.message || error.message || "Failed to load text analysis";
-      message.error(errorMsg);
-      setTextSummaryData(null);
-    } finally {
-      setTextSummaryLoading(false);
-    }
-  };
-
-  const handleAnalyticsReload = () => {
-    if (activeTab === "questions") {
-      loadQuestionData();
-    } else if (activeTab === "text") {
-      loadTextSummary();
-    }
-  };
-
   const columns = [
     {
-      title: "Student",
+      title: "No.",
+      key: "index",
+      width: 70,
+      align: "center",
+      render: (text, record, index) => (page - 1) * pageSize + index + 1,
+    },
+    {
+      title: "Student ID",
+      dataIndex: "studentCode",
+      key: "studentCode",
+      width: 110,
+    },
+    {
+      title: "Student Name",
       dataIndex: "studentName",
       key: "studentName",
+      width: 180,
     },
     {
       title: "Class",
       dataIndex: "className",
       key: "className",
+      width: 160,
     },
     {
       title: "Subject",
       dataIndex: "subjectName",
       key: "subjectName",
+      width: 220,
     },
     {
       title: "Satisfaction",
@@ -283,6 +373,7 @@ export default function FeedbackList() {
       title: "Status",
       dataIndex: "status",
       key: "status",
+      width: 100,
       render: (status) => (
         <Tag color={status === "New" ? "blue" : status === "Reviewed" ? "green" : "default"}>
           {status}
@@ -303,12 +394,89 @@ export default function FeedbackList() {
     },
   ];
 
+  const dailyColumns = [
+    {
+      title: "No.",
+      key: "index",
+      width: 70,
+      align: "center",
+      render: (text, record, index) =>
+        (dailyPage - 1) * dailyPageSize + index + 1,
+    },
+    {
+      title: "Student ID",
+      dataIndex: "studentCode",
+      key: "studentCode",
+      width: 110,
+    },
+    {
+      title: "Student Name",
+      dataIndex: "studentName",
+      key: "studentName",
+      width: 180,
+    },
+    {
+      title: "Class",
+      dataIndex: "className",
+      key: "className",
+      width: 160,
+    },
+    {
+      title: "Subject",
+      dataIndex: "subjectName",
+      key: "subjectName",
+      width: 220,
+    },
+    {
+      title: "Feedback",
+      dataIndex: "feedbackText",
+      key: "feedbackText",
+      width: "45%",
+      render: (text) => <FeedbackText text={text} />,
+    },
+    {
+      title: "Urgency",
+      dataIndex: "urgency",
+      key: "urgency",
+      render: (urgency) => (
+        <Tag
+          color={
+            urgency >= 7 ? "red" : urgency >= 4 ? "orange" : "green"
+          }
+        >
+          {urgency}/10
+        </Tag>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 120,
+      render: (status, record) => (
+        <Select
+          size="small"
+          value={status}
+          style={{ width: "100%" }}
+          loading={updatingDailyId === record.id}
+          onChange={(value) => handleDailyStatusUpdate(record, value)}
+        >
+          <Option value="New">New</Option>
+          <Option value="Reviewed">Reviewed</Option>
+          <Option value="Actioned">Actioned</Option>
+        </Select>
+      ),
+    },
+  ];
+
   return (
     <div style={{ padding: "24px" }}>
-      <Title level={2}>Feedback List</Title>
+      <Title level={2}>
+        {activeTab === "daily" ? "Daily Feedback" : "Course Feedback"}
+      </Title>
 
-      <Tabs defaultActiveKey="list" onChange={setActiveTab}>
-        <TabPane tab="Feedback List" key="list">
+      <Tabs activeKey={activeTab} onChange={setActiveTab}>
+        <TabPane tab="Course Feedback" key="course">
           <Card style={{ marginBottom: "16px" }}>
             <Space wrap>
               <Input
@@ -409,17 +577,22 @@ export default function FeedbackList() {
           />
         </TabPane>
 
-        <TabPane tab="Question Analysis" key="questions">
-          <Card style={{ marginBottom: 16 }}>
+        <TabPane tab="Daily Feedback" key="daily">
+          <Card style={{ marginBottom: "16px" }}>
             <Space wrap>
               <Select
-                placeholder="Filter by Class"
+                placeholder="Filter by Class (Optional)"
                 style={{ width: 220 }}
                 allowClear
-                value={analyticsFilters.classId}
-                onChange={(value) =>
-                  setAnalyticsFilters((prev) => ({ ...prev, classId: value || null }))
-                }
+                value={dailyFilters.classId}
+                onChange={(value) => {
+                  setDailyFilters((prev) => ({
+                    ...prev,
+                    classId: value || null,
+                  }));
+                  // Reset to page 1 when class changes
+                  setDailyPage(1);
+                }}
               >
                 {classes.map((cls) => (
                   <Option key={cls.classId} value={cls.classId}>
@@ -429,86 +602,48 @@ export default function FeedbackList() {
               </Select>
 
               <Select
-                placeholder="Filter by Semester"
-                style={{ width: 220 }}
+                placeholder="Status"
+                style={{ width: 150 }}
                 allowClear
-                value={analyticsFilters.semesterId}
-                onChange={(value) =>
-                  setAnalyticsFilters((prev) => ({ ...prev, semesterId: value || null }))
-                }
+                value={dailyFilters.status}
+                onChange={(value) => {
+                  setDailyFilters((prev) => ({
+                    ...prev,
+                    status: value || null,
+                  }));
+                  // Reset to page 1 when status changes
+                  setDailyPage(1);
+                }}
               >
-                {semesters.map((sem) => (
-                  <Option key={sem.semesterId} value={sem.semesterId}>
-                    {sem.name} ({sem.semesterCode})
-                  </Option>
-                ))}
+                <Option value="New">New</Option>
+                <Option value="Reviewed">Reviewed</Option>
+                <Option value="Actioned">Actioned</Option>
               </Select>
 
-              <RangePicker
-                allowEmpty={[true, true]}
-                onChange={(values) =>
-                  setAnalyticsFilters((prev) => ({ ...prev, range: values || [null, null] }))
-                }
-              />
-
-              <Button icon={<ReloadOutlined />} onClick={handleAnalyticsReload}>
-                Reload
+              <Button icon={<ReloadOutlined />} onClick={loadDailyFeedbacks}>
+                Refresh
               </Button>
             </Space>
           </Card>
 
-          <QuestionParetoChart data={questionData} loading={questionLoading} />
-        </TabPane>
-
-        <TabPane tab="Text Analysis" key="text">
-          <Card style={{ marginBottom: 16 }}>
-            <Space wrap>
-              <Select
-                placeholder="Filter by Class"
-                style={{ width: 220 }}
-                allowClear
-                value={analyticsFilters.classId}
-                onChange={(value) =>
-                  setAnalyticsFilters((prev) => ({ ...prev, classId: value || null }))
-                }
-              >
-                {classes.map((cls) => (
-                  <Option key={cls.classId} value={cls.classId}>
-                    {cls.className}
-                  </Option>
-                ))}
-              </Select>
-
-              <Select
-                placeholder="Filter by Semester"
-                style={{ width: 220 }}
-                allowClear
-                value={analyticsFilters.semesterId}
-                onChange={(value) =>
-                  setAnalyticsFilters((prev) => ({ ...prev, semesterId: value || null }))
-                }
-              >
-                {semesters.map((sem) => (
-                  <Option key={sem.semesterId} value={sem.semesterId}>
-                    {sem.name} ({sem.semesterCode})
-                  </Option>
-                ))}
-              </Select>
-
-              <RangePicker
-                allowEmpty={[true, true]}
-                onChange={(values) =>
-                  setAnalyticsFilters((prev) => ({ ...prev, range: values || [null, null] }))
-                }
-              />
-
-              <Button icon={<ReloadOutlined />} onClick={handleAnalyticsReload}>
-                Reload
-              </Button>
-            </Space>
-          </Card>
-
-          <FeedbackTextSummary data={textSummaryData} loading={textSummaryLoading} />
+          <Table
+            columns={dailyColumns}
+            dataSource={dailyFeedbacks}
+            loading={dailyLoading}
+            rowKey="id"
+            pagination={{
+              current: dailyPage,
+              pageSize: dailyPageSize,
+              total: dailyTotal,
+              onChange: (p, ps) => {
+                setDailyPage(p);
+                setDailyPageSize(ps);
+              },
+            }}
+            locale={{
+              emptyText: <Empty description="No daily feedbacks found" />,
+            }}
+          />
         </TabPane>
       </Tabs>
     </div>

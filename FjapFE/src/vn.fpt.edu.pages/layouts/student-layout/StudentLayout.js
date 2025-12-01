@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Dropdown, Avatar, Badge, Spin, Empty, Typography, Button, Tooltip } from 'antd';
+import { Dropdown, Avatar, Badge, Spin, Empty, Typography, Button, Tooltip, message } from 'antd';
 import { useAuth } from '../../login/AuthContext';
 import { 
   CalendarOutlined,
@@ -11,7 +11,10 @@ import {
   UserOutlined,
   LogoutOutlined,
   BellOutlined,
-  WifiOutlined
+  WifiOutlined,
+  MessageOutlined,
+  DownOutlined,
+  AppstoreOutlined
 } from '@ant-design/icons';
 import '../../student/StudentHomepage.css';
 import FloatingAIChatWidget from '../../student/components/FloatingAIChatWidget';
@@ -22,6 +25,7 @@ import {
   useRealtimeNotifications,
 } from '../../../vn.fpt.edu.common/hooks/useRealtimeNotifications';
 import MandatoryFeedbackModal from '../../../vn.fpt.edu.common/components/MandatoryFeedbackModal';
+import FeedbackApi from '../../../vn.fpt.edu.api/Feedback';
 
 const { Text } = Typography;
 
@@ -29,6 +33,8 @@ const StudentLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [pendingFeedbacks, setPendingFeedbacks] = useState([]);
+  const [checkingPending, setCheckingPending] = useState(false);
 
   const getNotificationLink = (notification) => {
     if (!notification.link) return null;
@@ -61,7 +67,7 @@ const StudentLayout = ({ children }) => {
     markAllAsRead,
   } = useRealtimeNotifications(20);
 
-  const menuItems = [
+  const mainMenuItems = [
     {
       key: '/',
       label: 'Home',
@@ -87,10 +93,19 @@ const StudentLayout = ({ children }) => {
       path: '/student/grades'
     },
     {
-      key: '/student/academic-transcript',
-      label: 'Academic Transcript',
-      icon: <FileTextOutlined />,
-      path: '/student/academic-transcript'
+      key: '/student/attendance',
+      label: 'Attendance',
+      icon: <BarChartOutlined />,
+      path: '/student/attendance'
+    }
+  ];
+
+  const otherMenuItems = [
+    {
+      key: '/student/feedback/daily',
+      label: 'Daily Feedback',
+      icon: <MessageOutlined />,
+      path: '/student/feedback/daily'
     },
     {
       key: '/student/curriculum-subjects',
@@ -99,12 +114,22 @@ const StudentLayout = ({ children }) => {
       path: '/student/curriculum-subjects'
     },
     {
-      key: '/student/attendance',
-      label: 'Attendance',
-      icon: <BarChartOutlined />,
-      path: '/student/attendance'
+      key: '/student/academic-transcript',
+      label: 'Academic Transcript',
+      icon: <FileTextOutlined />,
+      path: '/student/academic-transcript'
     }
   ];
+
+  const otherDropdownItems = otherMenuItems.map(item => ({
+    key: item.key,
+    label: (
+      <div onClick={() => handleMenuClick(item.path)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {item.icon}
+        <span>{item.label}</span>
+      </div>
+    )
+  }));
 
   const userMenuItems = [
     {
@@ -128,7 +153,48 @@ const StudentLayout = ({ children }) => {
     }
   ];
 
+  // Check pending feedbacks on mount and location change
+  useEffect(() => {
+    checkPendingFeedbacks();
+  }, [location.pathname]);
+
+  const checkPendingFeedbacks = async () => {
+    try {
+      setCheckingPending(true);
+      const classes = await FeedbackApi.getPendingFeedbackClasses();
+      setPendingFeedbacks(Array.isArray(classes) ? classes : []);
+    } catch (error) {
+      console.error("Failed to check pending feedbacks:", error);
+      setPendingFeedbacks([]);
+    } finally {
+      setCheckingPending(false);
+    }
+  };
+
+  // Navigation guard: Block navigation to homepage if there are pending feedbacks
+  useEffect(() => {
+    if (pendingFeedbacks.length > 0) {
+      // If user tries to navigate to homepage, redirect to first pending feedback
+      if (location.pathname === '/student/homepage' || location.pathname === '/') {
+        const firstPending = pendingFeedbacks[0];
+        message.warning("Please complete all pending feedbacks before accessing homepage");
+        navigate(`/student/feedback/${firstPending.classId}`, { replace: true });
+        return;
+      }
+      
+      // If user is on a page other than feedback page, allow but show modal
+      // The MandatoryFeedbackModal will handle showing the modal
+    }
+  }, [location.pathname, pendingFeedbacks, navigate]);
+
   const handleMenuClick = (path) => {
+    // Block navigation to homepage if there are pending feedbacks
+    if ((path === '/student/homepage' || path === '/') && pendingFeedbacks.length > 0) {
+      const firstPending = pendingFeedbacks[0];
+      message.warning("Please complete all pending feedbacks before accessing homepage");
+      navigate(`/student/feedback/${firstPending.classId}`);
+      return;
+    }
     navigate(path);
   };
 
@@ -139,14 +205,22 @@ const StudentLayout = ({ children }) => {
         <div className="student-header-content">
           {/* Left: Logo/Icon */}
           <div className="student-header-left">
-            <div className="student-logo" onClick={() => navigate('/')}>
+            <div className="student-logo" onClick={() => {
+              if (pendingFeedbacks.length > 0) {
+                const firstPending = pendingFeedbacks[0];
+                message.warning("Please complete all pending feedbacks before accessing homepage");
+                navigate(`/student/feedback/${firstPending.classId}`);
+              } else {
+                navigate('/');
+              }
+            }}>
               <img src="/FJAP.png" alt="FJAP" className="logo-icon" style={{ width: 150, height: 80, objectFit: 'contain' }} />
             </div>
           </div>
 
           {/* Center: Navigation Menu */}
           <nav className="student-header-nav">
-            {menuItems.map(item => (
+            {mainMenuItems.map(item => (
               <div
                 key={item.key}
                 className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
@@ -156,6 +230,21 @@ const StudentLayout = ({ children }) => {
                 <span className="nav-label">{item.label}</span>
               </div>
             ))}
+            {/* Other Dropdown */}
+            <Dropdown
+              menu={{ items: otherDropdownItems }}
+              placement="bottom"
+              trigger={['click']}
+            >
+              <div
+                className={`nav-item ${otherMenuItems.some(item => location.pathname === item.path) ? 'active' : ''}`}
+                style={{ cursor: 'pointer' }}
+              >
+                <AppstoreOutlined />
+                <span className="nav-label">Other</span>
+                <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+              </div>
+            </Dropdown>
           </nav>
 
           {/* Right: User Menu & Notifications */}
@@ -165,7 +254,7 @@ const StudentLayout = ({ children }) => {
                 trigger={['click']}
                 placement="bottomRight"
                 overlayClassName="notification-dropdown-wrapper"
-                dropdownRender={() => (
+                popupRender={() => (
                   <div className="notification-dropdown">
                     <div className="notification-dropdown-header">
                       <div className="notification-dropdown-title">Notifications</div>

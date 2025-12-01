@@ -41,6 +41,7 @@ import FeedbackDetail from "../vn.fpt.edu.pages/staffAcademic/feedback/FeedbackD
 import FeedbackQuestionManage from "../vn.fpt.edu.pages/staffAcademic/feedback/FeedbackQuestionManage";
 import FeedbackAnalyticsPage from "../vn.fpt.edu.pages/staffAcademic/feedback/FeedbackAnalyticsPage";
 import EndOfCourseFeedbackPage from "../vn.fpt.edu.pages/student/feedback/EndOfCourseFeedbackPage";
+import DailyFeedbackList from "../vn.fpt.edu.pages/student/feedback/DailyFeedbackList";
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import HomeworkSubmissionPage from "../vn.fpt.edu.pages/lecturer/HomeworkManage/HomeworkSubmissionPage";
@@ -299,6 +300,7 @@ export default function App() {
                   <Route path="weeklyTimetable" element={<WeeklyTimetable />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="feedback/:classId" element={<EndOfCourseFeedbackPage />} />
+                  <Route path="feedback/daily" element={<DailyFeedbackList />} />
                 </Route>
                 <Route path="/" element={<Home />} />
 

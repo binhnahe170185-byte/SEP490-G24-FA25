@@ -74,10 +74,28 @@ export default function EndOfCourseFeedbackPage() {
   const [classInfo, setClassInfo] = useState(null);
   const [freeText, setFreeText] = useState("");
   const [freeTextTranscript, setFreeTextTranscript] = useState("");
+  const [pendingFeedbacks, setPendingFeedbacks] = useState([]);
+  const [currentFeedbackIndex, setCurrentFeedbackIndex] = useState(0);
 
   useEffect(() => {
     loadData();
+    loadPendingFeedbacks();
   }, [classId]);
+
+  const loadPendingFeedbacks = async () => {
+    try {
+      const classes = await FeedbackApi.getPendingFeedbackClasses();
+      const pendingList = Array.isArray(classes) ? classes : [];
+      setPendingFeedbacks(pendingList);
+      
+      // Find current feedback index
+      const currentIndex = pendingList.findIndex(c => c.classId === parseInt(classId, 10));
+      setCurrentFeedbackIndex(currentIndex >= 0 ? currentIndex : 0);
+    } catch (error) {
+      console.error("Failed to load pending feedbacks:", error);
+      setPendingFeedbacks([]);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -180,13 +198,14 @@ export default function EndOfCourseFeedbackPage() {
         if (pendingFeedbacks && pendingFeedbacks.length > 0) {
           // Redirect to next pending feedback
           const nextClass = pendingFeedbacks[0];
-          navigate(`/student/feedback/${nextClass.classId}`);
+          navigate(`/student/feedback/${nextClass.classId}`, { replace: true });
         } else {
-          navigate("/student/homepage");
+          // No more pending feedbacks, go to homepage
+          navigate("/student/homepage", { replace: true });
         }
       } catch (err) {
         // If check fails, just go to homepage
-        navigate("/student/homepage");
+        navigate("/student/homepage", { replace: true });
       }
     } catch (error) {
       console.error("Failed to submit feedback:", error);
@@ -252,12 +271,26 @@ export default function EndOfCourseFeedbackPage() {
           <Button
             type="link"
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate("/student/homepage")}
+            onClick={() => {
+              if (pendingFeedbacks.length > 0) {
+                message.warning("Please complete all pending feedbacks before going back");
+              } else {
+                navigate("/student/homepage");
+              }
+            }}
+            disabled={pendingFeedbacks.length > 0}
           >
             Home
           </Button>
         </Breadcrumb.Item>
-        <Breadcrumb.Item>End-of-Course Feedback</Breadcrumb.Item>
+        <Breadcrumb.Item>
+          End-of-Course Feedback
+          {pendingFeedbacks.length > 1 && (
+            <Text type="secondary" style={{ marginLeft: 8 }}>
+              ({currentFeedbackIndex + 1}/{pendingFeedbacks.length})
+            </Text>
+          )}
+        </Breadcrumb.Item>
       </Breadcrumb>
 
       <Card>
@@ -364,9 +397,22 @@ export default function EndOfCourseFeedbackPage() {
               <Button type="primary" htmlType="submit" loading={submitting} size="large">
                 Submit Feedback
               </Button>
-              <Button onClick={() => navigate("/student/homepage")} size="large">
-                Cancel
-              </Button>
+              {pendingFeedbacks.length === 0 && (
+                <Button onClick={() => navigate("/student/homepage")} size="large">
+                  Cancel
+                </Button>
+              )}
+              {pendingFeedbacks.length > 0 && (
+                <Button 
+                  onClick={() => {
+                    message.warning("Please complete all pending feedbacks. You cannot cancel at this time.");
+                  }} 
+                  size="large"
+                  disabled
+                >
+                  Cancel (Disabled)
+                </Button>
+              )}
             </Space>
           </Form.Item>
         </Form>
