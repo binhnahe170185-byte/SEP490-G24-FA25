@@ -102,7 +102,7 @@ const StaffAcademicSidebar = () => {
           <Item key="/staffAcademic/feedback/analytics">
             <Link to="/staffAcademic/feedback/analytics">Feedback Analytics</Link>
           </Item>
-          {roleId === 7 && (
+          {(roleId === 5 || roleId === 7) && (
             <Item key="/staffAcademic/feedback/questions">
               <Link to="/staffAcademic/feedback/questions">Feedback Questions</Link>
             </Item>

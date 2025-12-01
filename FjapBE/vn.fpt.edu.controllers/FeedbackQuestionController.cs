@@ -48,10 +48,10 @@ public class FeedbackQuestionController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Academic Staff (RoleId 7) can view all questions
-            if (roleId != 7)
+            // Only Head of Academic (RoleId 5) and Academic Staff (RoleId 7) can view all questions
+            if (roleId != 5 && roleId != 7)
             {
-                return StatusCode(403, new { code = 403, message = "Only Academic Staff can view all questions" });
+                return StatusCode(403, new { code = 403, message = "Only Head of Academic or Academic Staff can view all questions" });
             }
 
             var questions = await _questionService.GetAllQuestionsAsync();
@@ -70,10 +70,10 @@ public class FeedbackQuestionController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Academic Staff (RoleId 7) can create questions
-            if (roleId != 7)
+            // Only Head of Academic (RoleId 5) and Academic Staff (RoleId 7) can create questions
+            if (roleId != 5 && roleId != 7)
             {
-                return StatusCode(403, new { code = 403, message = "Only Academic Staff can create questions" });
+                return StatusCode(403, new { code = 403, message = "Only Head of Academic or Academic Staff can create questions" });
             }
 
             var created = await _questionService.CreateQuestionAsync(request);
@@ -97,10 +97,10 @@ public class FeedbackQuestionController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Academic Staff (RoleId 7) can update questions
-            if (roleId != 7)
+            // Only Head of Academic (RoleId 5) and Academic Staff (RoleId 7) can update questions
+            if (roleId != 5 && roleId != 7)
             {
-                return StatusCode(403, new { code = 403, message = "Only Academic Staff can update questions" });
+                return StatusCode(403, new { code = 403, message = "Only Head of Academic or Academic Staff can update questions" });
             }
 
             var updated = await _questionService.UpdateQuestionAsync(id, request);
@@ -128,10 +128,10 @@ public class FeedbackQuestionController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Academic Staff (RoleId 7) can delete questions
-            if (roleId != 7)
+            // Only Head of Academic (RoleId 5) and Academic Staff (RoleId 7) can delete questions
+            if (roleId != 5 && roleId != 7)
             {
-                return StatusCode(403, new { code = 403, message = "Only Academic Staff can delete questions" });
+                return StatusCode(403, new { code = 403, message = "Only Head of Academic or Academic Staff can delete questions" });
             }
 
             var success = await _questionService.DeleteQuestionAsync(id);

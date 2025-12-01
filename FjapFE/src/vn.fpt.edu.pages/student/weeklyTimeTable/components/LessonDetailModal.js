@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Modal, Tabs, Typography, Card, Avatar, Button, Space } from "antd";
+import React, { useState, useEffect } from "react";
+import { Modal, Tabs, Typography, Card, Avatar, Button, Space, List, Spin, Empty, message } from "antd";
 import {
     CalendarOutlined,
     ClockCircleOutlined,
@@ -8,11 +8,13 @@ import {
     CloseOutlined,
     VideoCameraOutlined,
     BookOutlined,
-    LinkOutlined
+    LinkOutlined,
+    FileTextOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import LecturerProfileModal from "./LecturerProfileModal";
+import { getMaterials } from "../../../../vn.fpt.edu.api/Material";
 
 const { Title, Text } = Typography;
 
@@ -25,6 +27,9 @@ const STATUS = {
 export default function LessonDetailModal({ visible, lesson, onClose }) {
     const navigate = useNavigate();
     const [lecturerModalVisible, setLecturerModalVisible] = useState(false);
+    const [materialsModalVisible, setMaterialsModalVisible] = useState(false);
+    const [materials, setMaterials] = useState([]);
+    const [loadingMaterials, setLoadingMaterials] = useState(false);
 
     if (!lesson) return null;
 
@@ -62,6 +67,43 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
             },
         });
         onClose();
+    };
+
+    const handleViewMaterials = async () => {
+        const subjectCode = lesson?.code || lesson?.subjectCode;
+        if (!subjectCode) {
+            message.warning("Subject information not available");
+            return;
+        }
+
+        setMaterialsModalVisible(true);
+        setLoadingMaterials(true);
+        setMaterials([]);
+
+        try {
+            const response = await getMaterials({
+                subject: subjectCode,
+                status: "active"
+            });
+            
+            const materialsList = response.items || [];
+            // Sort by created date (newest first)
+            const sortedMaterials = [...materialsList].sort((a, b) => {
+                const dateA = a.createdAt || a.createdDate || a.created || null;
+                const dateB = b.createdAt || b.createdDate || b.created || null;
+                const timeA = dateA ? new Date(dateA).getTime() : 0;
+                const timeB = dateB ? new Date(dateB).getTime() : 0;
+                return timeB - timeA;
+            });
+            
+            setMaterials(sortedMaterials);
+        } catch (error) {
+            console.error("Failed to load materials:", error);
+            message.error("Failed to load materials");
+            setMaterials([]);
+        } finally {
+            setLoadingMaterials(false);
+        }
     };
 
     return (
@@ -252,18 +294,27 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                                     </Button>
                                 </Card>
 
-                                {/* Student Group Card */}
+                                {/* Course Materials Card */}
                                 <Card
                                     bodyStyle={{ padding: 16, textAlign: "center" }}
                                     hoverable
+                                    onClick={handleViewMaterials}
+                                    style={{ cursor: "pointer" }}
                                 >
-                                    <TeamOutlined style={{ fontSize: 32, color: "#722ed1", marginBottom: 12 }} />
-                                    <Title level={5} style={{ marginBottom: 8 }}>Student Group</Title>
+                                    <FileTextOutlined style={{ fontSize: 32, color: "#1890ff", marginBottom: 12 }} />
+                                    <Title level={5} style={{ marginBottom: 8 }}>Course Materials</Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
-                                        View student group details
+                                        View learning materials and resources
                                     </Text>
-                                    <Button type="primary" ghost>
-                                        View Group <LinkOutlined />
+                                    <Button
+                                        type="primary"
+                                        ghost
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleViewMaterials();
+                                        }}
+                                    >
+                                        View Materials <LinkOutlined />
                                     </Button>
                                 </Card>
 
@@ -310,6 +361,68 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                 lecturerId={lesson?.lectureId}
                 onClose={() => setLecturerModalVisible(false)}
             />
+
+            {/* Materials Modal */}
+            <Modal
+                open={materialsModalVisible}
+                onCancel={() => setMaterialsModalVisible(false)}
+                footer={null}
+                width={600}
+                title={
+                    <Space>
+                        <FileTextOutlined />
+                        <span>Course Materials - {lesson?.code || lesson?.subjectCode || "N/A"}</span>
+                    </Space>
+                }
+            >
+                <Spin spinning={loadingMaterials}>
+                    {materials.length === 0 && !loadingMaterials ? (
+                        <Empty
+                            description="No materials available for this subject"
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                    ) : (
+                        <List
+                            dataSource={materials}
+                            renderItem={(material) => (
+                                <List.Item
+                                    actions={[
+                                        material.filePath ? (
+                                            <Button
+                                                type="primary"
+                                                icon={<LinkOutlined />}
+                                                onClick={() => window.open(material.filePath, "_blank")}
+                                            >
+                                                Open Drive
+                                            </Button>
+                                        ) : (
+                                            <Button disabled>No Link</Button>
+                                        ),
+                                    ]}
+                                >
+                                    <List.Item.Meta
+                                        title={material.title || "Untitled Material"}
+                                        description={
+                                            <div>
+                                                {material.description && (
+                                                    <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
+                                                        {material.description}
+                                                    </Text>
+                                                )}
+                                                {material.createdAt && (
+                                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                                        {dayjs(material.createdAt).format("DD/MM/YYYY")}
+                                                    </Text>
+                                                )}
+                                            </div>
+                                        }
+                                    />
+                                </List.Item>
+                            )}
+                        />
+                    )}
+                </Spin>
+            </Modal>
         </Modal>
     );
 }

@@ -25,14 +25,14 @@ const SimpleClassChip = ({ item, onClick }) => {
   return (
     <Card
       size="small"
-      bordered
+      variant="outlined"
       style={{
         borderColor: s.color,
         background: s.background || "#fff",
         cursor: onClick ? "pointer" : "default",
         transition: "all 0.2s"
       }}
-      bodyStyle={{ padding: 6, textAlign: 'center' }}
+      styles={{ body: { padding: 6, textAlign: 'center' } }}
       onClick={() => onClick && onClick(item)}
       hoverable={!!onClick}
     >
