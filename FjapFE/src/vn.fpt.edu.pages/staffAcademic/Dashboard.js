@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, message, Select, Progress, Table, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, message } from 'antd';
 import {
   BookOutlined,
   TeamOutlined,
@@ -7,12 +7,13 @@ import {
   UserOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
+import { Column, Pie, Line } from '@ant-design/charts';
 import ClassList from '../../vn.fpt.edu.api/ClassList';
 import ManagerGrades from '../../vn.fpt.edu.api/ManagerGrades';
 import { getSubjects } from '../../vn.fpt.edu.api/Material';
+import LecturerHomework from '../../vn.fpt.edu.api/LecturerHomework';
 
 const { Title } = Typography;
-const { Option } = Select;
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -22,11 +23,12 @@ const Dashboard = () => {
     activeClasses: 0,
     totalStudents: 0,
   });
-  
+
   const [classesData, setClassesData] = useState([]);
   const [subjectsData, setSubjectsData] = useState([]);
   const [gradeStats, setGradeStats] = useState(null);
-  
+  const [homeworkData, setHomeworkData] = useState([]);
+
   // Hardcoded data fallback
   const mockData = {
     classesBySubject: [
@@ -38,18 +40,31 @@ const Dashboard = () => {
       { subject: 'JPD113', count: 9, students: 180 },
     ],
     classesByStatus: [
-      { type: 'Active', value: 45, color: '#52c41a' },
-      { type: 'Completed', value: 23, color: '#1890ff' },
-      { type: 'Upcoming', value: 12, color: '#faad14' },
-      { type: 'Cancelled', value: 3, color: '#f5222d' },
+      { type: 'Active', value: 45 },
+      { type: 'Completed', value: 23 },
+      { type: 'Upcoming', value: 12 },
+      { type: 'Cancelled', value: 3 },
     ],
     gradeTrend: [
-      { semester: 'FA23', average: 7.8, passed: 85, total: 100 },
-      { semester: 'SP24', average: 8.1, passed: 88, total: 100 },
-      { semester: 'SU24', average: 7.9, passed: 86, total: 100 },
-      { semester: 'FA24', average: 8.3, passed: 90, total: 100 },
-      { semester: 'SP25', average: 8.0, passed: 87, total: 100 },
+      { semester: 'FA23', average: 7.8, passed: 85 },
+      { semester: 'SP24', average: 8.1, passed: 88 },
+      { semester: 'SU24', average: 7.9, passed: 86 },
+      { semester: 'FA24', average: 8.3, passed: 90 },
+      { semester: 'SP25', average: 8.0, passed: 87 },
     ],
+    homeworkBySubject: [
+      { subject: 'PRF192', submissions: 450 },
+      { subject: 'MAE101', submissions: 320 },
+      { subject: 'SWP391', submissions: 580 },
+      { subject: 'CSI104', submissions: 210 },
+      { subject: 'JPD113', submissions: 190 },
+    ],
+    homeworkStatus: [
+      { type: 'Submitted', value: 1250 },
+      { type: 'Pending', value: 340 },
+      { type: 'Late', value: 120 },
+      { type: 'Missing', value: 45 },
+    ]
   };
 
   useEffect(() => {
@@ -67,6 +82,15 @@ const Dashboard = () => {
       const subjects = await getSubjects();
       setSubjectsData(Array.isArray(subjects) ? subjects : []);
 
+      // Fetch homework data
+      try {
+        const homeworks = await LecturerHomework.getAllHomeworks();
+        setHomeworkData(Array.isArray(homeworks) ? homeworks : []);
+      } catch (err) {
+        console.warn('Homework data not available:', err);
+        setHomeworkData([]);
+      }
+
       // Fetch grade statistics
       try {
         const gradeStatsData = await ManagerGrades.getStatistics();
@@ -80,7 +104,7 @@ const Dashboard = () => {
       if (Array.isArray(classes) && classes.length > 0) {
         const activeClasses = classes.filter(c => c.status === 'Active' || c.status === 'active');
         const totalStudents = classes.reduce((sum, c) => sum + (c.studentCount || 0), 0);
-        
+
         setStats({
           totalClasses: classes.length,
           totalSubjects: Array.isArray(subjects) ? subjects.length : mockData.classesBySubject.length,
@@ -111,130 +135,135 @@ const Dashboard = () => {
     }
   };
 
-  // Prepare data for charts
-  const getClassesBySubjectData = () => {
-    if (classesData.length > 0 && subjectsData.length > 0) {
+  // Prepare homework data for charts
+  const getHomeworkBySubjectData = () => {
+    if (homeworkData.length > 0) {
       const subjectMap = {};
-      classesData.forEach(cls => {
-        const subjectCode = cls.subject?.code || cls.subject?.subjectCode || 'Unknown';
-        if (!subjectMap[subjectCode]) {
-          subjectMap[subjectCode] = { count: 0, students: 0 };
+      homeworkData.forEach(hw => {
+        const subject = hw.subjectCode || 'Unknown';
+        if (!subjectMap[subject]) {
+          subjectMap[subject] = { subject, submissions: 0 };
         }
-        subjectMap[subjectCode].count += 1;
-        subjectMap[subjectCode].students += cls.studentCount || 0;
+        subjectMap[subject].submissions += hw.submissions || 0;
       });
-      
-      return Object.entries(subjectMap).map(([subject, data]) => ({
-        subject,
-        count: data.count,
-        students: data.students,
-      })).slice(0, 10);
+
+      return Object.values(subjectMap).sort((a, b) => b.submissions - a.submissions).slice(0, 10);
     }
-    return mockData.classesBySubject;
+    return mockData.homeworkBySubject;
   };
 
-  const getClassesByStatusData = () => {
-    if (classesData.length > 0) {
-      const statusMap = {};
-      classesData.forEach(cls => {
-        const status = cls.status || 'Unknown';
-        statusMap[status] = (statusMap[status] || 0) + 1;
+  const getHomeworkStatusData = () => {
+    if (homeworkData.length > 0) {
+      let submitted = 0;
+      let pending = 0;
+      let late = 0;
+
+      homeworkData.forEach(hw => {
+        const submissionCount = hw.submissions || 0;
+        const totalStudents = hw.totalStudents || 0;
+        const deadline = hw.deadline ? new Date(hw.deadline) : null;
+        const now = new Date();
+
+        submitted += submissionCount;
+
+        if (deadline && now > deadline) {
+          late += Math.max(0, totalStudents - submissionCount);
+        } else {
+          pending += Math.max(0, totalStudents - submissionCount);
+        }
       });
-      
-      return Object.entries(statusMap).map(([type, value]) => ({
-        type,
-        value,
-        color: type === 'Active' || type === 'active' ? '#52c41a' :
-               type === 'Completed' || type === 'completed' ? '#1890ff' :
-               type === 'Upcoming' || type === 'upcoming' ? '#faad14' : '#f5222d',
-      }));
+
+      return [
+        { type: 'Submitted', value: submitted },
+        { type: 'Pending', value: pending },
+        { type: 'Late', value: late },
+      ].filter(item => item.value > 0);
     }
-    return mockData.classesByStatus;
+    return mockData.homeworkStatus;
   };
 
-  // Chart data columns for Table
-  const subjectColumns = [
-    {
-      title: 'Subject',
-      dataIndex: 'subject',
-      key: 'subject',
-      width: '30%',
-    },
-    {
-      title: 'Classes',
-      dataIndex: 'count',
-      key: 'count',
-      width: '30%',
-      render: (count) => <Tag color="blue" style={{ fontSize: '14px' }}>{count}</Tag>,
-    },
-    {
-      title: 'Students',
-      dataIndex: 'students',
-      key: 'students',
-      width: '40%',
-      render: (students) => (
-        <Progress 
-          percent={Math.round((students / 1200) * 100)} 
-          format={() => students}
-          size="small"
-          strokeColor="#1890ff"
-        />
-      ),
-    },
-  ];
-
-  const statusColumns = [
-    {
-      title: 'Status',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type) => (
-        <Tag color={
-          type === 'Active' || type === 'active' ? 'green' :
-          type === 'Completed' || type === 'completed' ? 'blue' :
-          type === 'Upcoming' || type === 'upcoming' ? 'orange' : 'red'
-        } style={{ fontSize: '13px', padding: '2px 12px' }}>
-          {type}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Count',
-      dataIndex: 'value',
-      key: 'value',
-      render: (value) => <strong style={{ fontSize: '16px' }}>{value}</strong>,
-    },
-    {
-      title: 'Percentage',
-      key: 'percentage',
-      render: (_, record) => {
-        const total = getClassesByStatusData().reduce((sum, item) => sum + item.value, 0);
-        const percentage = total > 0 ? Math.round((record.value / total) * 100) : 0;
-        return <Progress percent={percentage} size="small" strokeColor={record.color} />;
+  // Chart Configurations
+  const columnConfig = {
+    data: getHomeworkBySubjectData(),
+    xField: 'subject',
+    yField: 'submissions',
+    height: 280,
+    label: {
+      position: 'top',
+      style: {
+        fill: '#000000',
+        opacity: 0.6,
       },
     },
-  ];
+    xAxis: {
+      label: {
+        autoHide: true,
+        autoRotate: false,
+      },
+    },
+    meta: {
+      subject: { alias: 'Subject' },
+      submissions: { alias: 'Submissions' },
+    },
+    color: '#1890ff',
+  };
 
-  const trendColumns = [
-    {
-      title: 'Semester',
-      dataIndex: 'semester',
-      key: 'semester',
-      render: (semester) => <strong>{semester}</strong>,
+  const pieConfig = {
+    appendPadding: 10,
+    data: getHomeworkStatusData(),
+    angleField: 'value',
+    colorField: 'type',
+    radius: 0.8,
+    legend: {
+      position: 'bottom',
     },
-    {
-      title: 'Average Score',
-      dataIndex: 'average',
-      key: 'average',
-      render: (average) => <Tag color={average >= 8 ? 'green' : average >= 7 ? 'orange' : 'red'} style={{ fontSize: '14px' }}>{average}</Tag>,
+    statistic: {
+      title: false,
+      content: {
+        style: {
+          whiteSpace: 'pre-wrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+      },
     },
-    {
-      title: 'Pass Rate (%)',
-      dataIndex: 'passed',
-      key: 'passed',
-      render: (passed) => <Progress percent={passed} size="small" status={passed >= 85 ? 'success' : 'active'} />,
+    interactions: [{ type: 'pie-legend-active' }, { type: 'element-active' }],
+    color: ({ type }) => {
+      if (type === 'Submitted') return '#52c41a';
+      if (type === 'Pending') return '#faad14';
+      if (type === 'Late') return '#fa8c16';
+      return '#f5222d';
     },
-  ];
+  };
+
+  const lineConfig = {
+    data: mockData.gradeTrend,
+    xField: 'semester',
+    yField: 'average',
+    height: 280,
+    label: {},
+    point: {
+      size: 5,
+      shape: 'diamond',
+      style: {
+        fill: 'white',
+        stroke: '#5B8FF9',
+        lineWidth: 2,
+      },
+    },
+    tooltip: { showMarkers: false },
+    state: {
+      active: {
+        style: {
+          shadowBlur: 4,
+          stroke: '#000',
+          fill: 'red',
+        },
+      },
+    },
+    interactions: [{ type: 'marker-active' }],
+    color: '#52c41a',
+  };
 
   return (
     <div style={{ padding: '0' }}>
@@ -252,9 +281,9 @@ const Dashboard = () => {
           {/* Statistics Cards */}
           <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
             <Col xs={24} sm={12} lg={6}>
-              <Card 
-                hoverable 
-                style={{ 
+              <Card
+                hoverable
+                style={{
                   borderRadius: '8px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                   borderTop: '4px solid #1890ff'
@@ -269,9 +298,9 @@ const Dashboard = () => {
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card 
-                hoverable 
-                style={{ 
+              <Card
+                hoverable
+                style={{
                   borderRadius: '8px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                   borderTop: '4px solid #52c41a'
@@ -286,9 +315,9 @@ const Dashboard = () => {
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card 
-                hoverable 
-                style={{ 
+              <Card
+                hoverable
+                style={{
                   borderRadius: '8px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                   borderTop: '4px solid #722ed1'
@@ -303,16 +332,16 @@ const Dashboard = () => {
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card 
-                hoverable 
-                style={{ 
+              <Card
+                hoverable
+                style={{
                   borderRadius: '8px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                   borderTop: '4px solid #fa8c16'
                 }}
               >
                 <Statistic
-                  title="Total Students"
+                  title="Total Enrollments"
                   value={stats.totalStudents}
                   prefix={<UserOutlined style={{ fontSize: '24px' }} />}
                   valueStyle={{ color: '#fa8c16', fontSize: '32px' }}
@@ -321,48 +350,10 @@ const Dashboard = () => {
             </Col>
           </Row>
 
-          {/* Charts Row 1 */}
+          {/* Charts Row 1 - Grade Statistics */}
           <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
-            <Col xs={24} lg={14}>
-              <Card 
-                title={
-                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#1890ff' }}>
-                    Classes by Subject
-                  </span>
-                }
-                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-              >
-                <Table
-                  columns={subjectColumns}
-                  dataSource={getClassesBySubjectData()}
-                  pagination={false}
-                  rowKey="subject"
-                />
-              </Card>
-            </Col>
-            <Col xs={24} lg={10}>
-              <Card 
-                title={
-                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#722ed1' }}>
-                    Class Status Distribution
-                  </span>
-                }
-                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-              >
-                <Table
-                  columns={statusColumns}
-                  dataSource={getClassesByStatusData()}
-                  pagination={false}
-                  rowKey="type"
-                />
-              </Card>
-            </Col>
-          </Row>
-
-          {/* Charts Row 2 */}
-          <Row gutter={[24, 24]}>
             <Col xs={24} lg={16}>
-              <Card 
+              <Card
                 title={
                   <span style={{ fontSize: '18px', fontWeight: 600, color: '#52c41a' }}>
                     Average Score Trend by Semester
@@ -370,16 +361,11 @@ const Dashboard = () => {
                 }
                 style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
               >
-                <Table
-                  columns={trendColumns}
-                  dataSource={mockData.gradeTrend}
-                  pagination={false}
-                  rowKey="semester"
-                />
+                <Line {...lineConfig} />
               </Card>
             </Col>
             <Col xs={24} lg={8}>
-              <Card 
+              <Card
                 title={
                   <span style={{ fontSize: '18px', fontWeight: 600, color: '#fa8c16' }}>
                     Grade Statistics
@@ -434,6 +420,34 @@ const Dashboard = () => {
                     />
                   </div>
                 )}
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Charts Row 2 - Homework */}
+          <Row gutter={[24, 24]}>
+            <Col xs={24} lg={14}>
+              <Card
+                title={
+                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#1890ff' }}>
+                    Homework Submissions by Subject
+                  </span>
+                }
+                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+              >
+                <Column {...columnConfig} />
+              </Card>
+            </Col>
+            <Col xs={24} lg={10}>
+              <Card
+                title={
+                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#722ed1' }}>
+                    Homework Completion Status
+                  </span>
+                }
+                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+              >
+                <Pie {...pieConfig} />
               </Card>
             </Col>
           </Row>
