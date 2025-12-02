@@ -327,6 +327,31 @@ class LecturerHomework {
       return [];
     }
   }
+
+  // Get all homeworks for dashboard statistics
+  static async getAllHomeworks() {
+    try {
+      const response = await api.get(`/api/Homeworks`);
+      const homeworks = response.data?.data || response.data || [];
+
+      return homeworks.map((hw) => ({
+        homeworkId: hw.homeworkId || hw.id,
+        title: hw.title,
+        content: hw.content ?? hw.description,
+        deadline: hw.deadline ?? hw.dueDate,
+        submissions: hw.submissions ?? hw.submissionCount ?? 0,
+        totalStudents: hw.totalStudents ?? hw.studentCount ?? 0,
+        createdAt: hw.createdAt,
+        lessonId: hw.lessonId,
+        classId: hw.classId,
+        subjectCode: hw.subjectCode || hw.subject?.code || hw.subject?.subjectCode,
+        status: hw.status,
+      }));
+    } catch (error) {
+      console.error("Failed to load all homeworks:", error);
+      return [];
+    }
+  }
 }
 
 export default LecturerHomework;
