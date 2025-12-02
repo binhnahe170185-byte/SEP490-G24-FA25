@@ -326,6 +326,17 @@ public class ClassController : ControllerBase
             return NotFound(new { code = 404, message = "Class not found" });
         }
 
+        // Enforce MaxStudents if set
+        if (cls.MaxStudents.HasValue)
+        {
+            var existingCount = cls.Students?.Count ?? 0;
+            var requestedToAdd = request.StudentIds.Count;
+            if (existingCount + requestedToAdd > cls.MaxStudents.Value)
+            {
+                return BadRequest(new { code = 400, message = $"Adding {requestedToAdd} students would exceed class max capacity of {cls.MaxStudents.Value}" });
+            }
+        }
+
         try
         {
             await _studentService.AddStudentsToClassAsync(classId, request.StudentIds);
@@ -347,6 +358,14 @@ public class ClassController : ControllerBase
         {
             return BadRequest(new { code = 400, message = "Class name and subject are required" });
         }
+
+        // Validate min/max if provided
+        if (request.MinStudents.HasValue && request.MinStudents < 0)
+            return BadRequest(new { code = 400, message = "MinStudents must be >= 0" });
+        if (request.MaxStudents.HasValue && request.MaxStudents < 0)
+            return BadRequest(new { code = 400, message = "MaxStudents must be >= 0" });
+        if (request.MinStudents.HasValue && request.MaxStudents.HasValue && request.MinStudents > request.MaxStudents)
+            return BadRequest(new { code = 400, message = "MinStudents cannot be greater than MaxStudents" });
 
         var duplicate = await _classService.HasDuplicateNameForSubjectAsync(request.ClassName, request.SubjectId);
         if (duplicate)
@@ -371,6 +390,14 @@ public class ClassController : ControllerBase
         {
             return BadRequest(new { code = 400, message = "Class name and subject are required" });
         }
+
+        // Validate min/max if provided
+        if (request.MinStudents.HasValue && request.MinStudents < 0)
+            return BadRequest(new { code = 400, message = "MinStudents must be >= 0" });
+        if (request.MaxStudents.HasValue && request.MaxStudents < 0)
+            return BadRequest(new { code = 400, message = "MaxStudents must be >= 0" });
+        if (request.MinStudents.HasValue && request.MaxStudents.HasValue && request.MinStudents > request.MaxStudents)
+            return BadRequest(new { code = 400, message = "MinStudents cannot be greater than MaxStudents" });
 
         var duplicate = await _classService.HasDuplicateNameForSubjectAsync(request.ClassName, request.SubjectId, request.ClassId);
         if (duplicate)
@@ -759,6 +786,17 @@ public class ClassController : ControllerBase
     {
         try
         {
+            // If activating, ensure MinStudents satisfied
+            var cls = await _classService.GetByIdAsync(int.TryParse(classId, out var parsedId) ? parsedId : 0);
+            if (request.Status && cls != null && cls.MinStudents.HasValue)
+            {
+                var currentCount = cls.Students?.Count ?? 0;
+                if (currentCount < cls.MinStudents.Value)
+                {
+                    return BadRequest(new { code = 400, message = $"Cannot activate class: current students {currentCount} less than MinStudents {cls.MinStudents.Value}" });
+                }
+            }
+
             var updated = await _classService.UpdateStatusAsync(classId, request.Status);
 
             var semesterStart = updated.Semester?.StartDate.ToDateTime(TimeOnly.MinValue);

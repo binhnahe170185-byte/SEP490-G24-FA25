@@ -29,8 +29,6 @@ public partial class User
 
     public int? DepartmentId { get; set; }
 
-    public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
-
     public virtual Department? Department { get; set; }
 
     public virtual ICollection<Lecture> Lectures { get; set; } = new List<Lecture>();
