@@ -29,6 +29,11 @@ public class ClassService : IClassService
 
     public async Task<Class> CreateAsync(Class item)
     {
+        // Ensure status is explicit to avoid null/default surprises on client
+        if (string.IsNullOrWhiteSpace(item.Status))
+        {
+            item.Status = "Inactive";
+        }
         item.UpdatedAt = DateTime.UtcNow;
         await _classRepository.AddAsync(item);
         await _classRepository.SaveChangesAsync();
@@ -45,6 +50,9 @@ public class ClassService : IClassService
         existing.LevelId = item.LevelId;
         existing.SubjectId = item.SubjectId;
         existing.Status = string.IsNullOrWhiteSpace(item.Status) ? existing.Status : item.Status;
+    // persist enrollment limits
+    existing.MinStudents = item.MinStudents;
+    existing.MaxStudents = item.MaxStudents;
         existing.UpdatedAt = DateTime.UtcNow;
 
         _classRepository.Update(existing);

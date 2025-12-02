@@ -195,6 +195,22 @@ const ClassAddStudents = () => {
     notifyPending(key, "Adding students", "Processing selected students...");
     setSubmitting(true);
     try {
+      // Check current students count and MaxStudents
+      const cls = await ClassListApi.getStudents(classId);
+      const currentCount = (cls?.students ?? cls?.Students ?? []).length || 0;
+      const max = cls?.maxStudents ?? cls?.MaxStudents ?? null;
+      if (max !== null && max !== undefined) {
+        if (currentCount + studentIds.length > Number(max)) {
+          notifyError(
+            key,
+            "Add failed",
+            `Adding ${studentIds.length} students would exceed class capacity of ${max} (current ${currentCount}).`
+          );
+          setSubmitting(false);
+          return;
+        }
+      }
+
       await ClassListApi.addStudents(classId, studentIds);
       notifySuccess(key, "Students added", "Selected students were added to the class.");
       navigate(`/staffAcademic/class/${classId}/students`, {

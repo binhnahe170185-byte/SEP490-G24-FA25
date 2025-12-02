@@ -19,9 +19,9 @@ public partial class Class
 
     public int SubjectId { get; set; }
 
-    public int MaxStudents { get; set; }
+    public int? MaxStudents { get; set; }
 
-    public int MinStudents { get; set; }
+    public int? MinStudents { get; set; }
 
     public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
 
