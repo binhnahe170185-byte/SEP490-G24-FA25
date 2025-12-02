@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Form, Input, Modal, Select, Spin } from "antd";
+import { Form, Input, Modal, Select, Spin, InputNumber } from "antd";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 import SemesterApi from "../../../vn.fpt.edu.api/Semester";
@@ -976,10 +976,12 @@ useEffect(() => {
   ]);
 
   const handleSubmit = async () => {
+    console.debug("ClassFormModal.handleSubmit invoked", { isEditMode, classId });
     let notifyKey = null;
     const actionType = isEditMode ? "update" : "create";
     try {
       const values = await form.validateFields();
+      console.debug("ClassFormModal.validateFields result", values);
       const trimmedName = values.name.trim();
       if (!trimmedName) {
         form.setFields([
@@ -1029,6 +1031,27 @@ useEffect(() => {
         subjectId: subjectIdValue,
       };
 
+      // include min/max if provided
+      if (values.minStudents !== undefined && values.minStudents !== null && values.minStudents !== "") {
+        payload.minStudents = Number(values.minStudents);
+      }
+      if (values.maxStudents !== undefined && values.maxStudents !== null && values.maxStudents !== "") {
+        payload.maxStudents = Number(values.maxStudents);
+      }
+
+      // Client-side enforcement: cannot create as Active if minStudents > current (create -> current = 0)
+      if (!isEditMode && values.status && values.status === "Active") {
+        const min = payload.minStudents ?? 0;
+        if (0 < min) {
+          notifyError(
+            notifyKey ?? `class-create-validation`,
+            "Cannot create class as Active",
+            `Class requires at least ${min} students before activating.`
+          );
+          return;
+        }
+      }
+
       if (isEditMode && classId) {
         const numericId = Number(classId);
         if (Number.isNaN(numericId)) {
@@ -1050,15 +1073,18 @@ useEffect(() => {
       );
 
       setSubmitting(true);
+      console.debug("ClassFormModal.submitting payload", payload);
       if (isEditMode && classId) {
-        await ClassListApi.update(classId, payload);
+        const result = await ClassListApi.update(classId, payload);
+        console.debug("ClassListApi.update result", result);
         notifySuccess(
           notifyKey,
           "Class updated",
           `${trimmedName} updated successfully.`
         );
       } else {
-        await ClassListApi.create(payload);
+        const result = await ClassListApi.create(payload);
+        console.debug("ClassListApi.create result", result);
         notifySuccess(
           notifyKey,
           "Class created",
@@ -1071,6 +1097,7 @@ useEffect(() => {
         return;
       }
       console.error("Class form submission failed:", error);
+      console.error("Submission error response data:", error?.response?.data ?? error?.data ?? null);
       const errorMessage =
         error?.response?.data?.message ??
         error?.message ??
@@ -1181,6 +1208,53 @@ useEffect(() => {
               placeholder="Class name will be generated automatically"
               disabled
             />
+          </Form.Item>
+
+          <Form.Item
+            label="Min Students"
+            name="minStudents"
+            rules={[
+              { required: false },
+              {
+                validator: async (_, value) => {
+                  if (value === undefined || value === null || value === "") return;
+                  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+                    throw new Error('Min students must be an integer >= 0');
+                  }
+                }
+              }
+            ]}
+          >
+            <InputNumber placeholder="Minimum students to activate" min={0} style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item
+            label="Max Students"
+            name="maxStudents"
+            rules={[
+              { required: false },
+              {
+                validator: async (rule, value, callback) => {
+                  if (value === undefined || value === null || value === "") {
+                    callback();
+                    return;
+                  }
+                  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+                    callback(new Error('Max students must be an integer >= 0'));
+                    return;
+                  }
+                  const minVal = form.getFieldValue('minStudents');
+                  const minNum = (typeof minVal === 'number') ? minVal : (minVal ? Number(minVal) : null);
+                  if (minNum !== null && minNum !== undefined && Number(minNum) > Number(value)) {
+                    callback(new Error('Max students must be >= Min students'));
+                    return;
+                  }
+                  callback();
+                }
+              }
+            ]}
+          >
+            <InputNumber placeholder="Maximum students allowed" min={0} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       )}

@@ -326,10 +326,14 @@ public class ClassController : ControllerBase
             return NotFound(new { code = 404, message = "Class not found" });
         }
 
-        // Enforce MaxStudents if set
+        // Enforce MaxStudents if set - get current count from DB
         if (cls.MaxStudents.HasValue)
         {
-            var existingCount = cls.Students?.Count ?? 0;
+            var clsWithStudents = await _db.Classes
+                .Include(c => c.Students)
+                .FirstOrDefaultAsync(c => c.ClassId == classId);
+            
+            var existingCount = clsWithStudents?.Students?.Count ?? 0;
             var requestedToAdd = request.StudentIds.Count;
             if (existingCount + requestedToAdd > cls.MaxStudents.Value)
             {
@@ -339,11 +343,45 @@ public class ClassController : ControllerBase
 
         try
         {
+            Console.WriteLine($"AddStudents: Adding {request.StudentIds.Count} students to class {classId}");
             await _studentService.AddStudentsToClassAsync(classId, request.StudentIds);
+            
+            // Auto-activate class if minStudents is satisfied
+            if (cls.MinStudents.HasValue && cls.MinStudents.Value > 0)
+            {
+                Console.WriteLine($"AddStudents: Checking auto-activate for class {classId}, minStudents={cls.MinStudents.Value}");
+                
+                // Reload class from DB with students to get fresh count
+                var clsWithStudents = await _db.Classes
+                    .AsNoTracking()
+                    .Include(c => c.Students)
+                    .FirstOrDefaultAsync(c => c.ClassId == classId);
+                
+                if (clsWithStudents != null)
+                {
+                    var currentCount = clsWithStudents.Students?.Count ?? 0;
+                    var isActive = clsWithStudents.Status?.Equals("Active", StringComparison.OrdinalIgnoreCase) ?? false;
+                    
+                    Console.WriteLine($"AddStudents: Class {classId} has {currentCount} students, isActive={isActive}");
+                    
+                    if (currentCount >= cls.MinStudents.Value && !isActive)
+                    {
+                        Console.WriteLine($"AddStudents: Auto-activating class {classId}");
+                        // Auto-activate the class by updating via service
+                        await _classService.UpdateStatusAsync(classId.ToString(), true);
+                    }
+                }
+            }
         }
-        catch (KeyNotFoundException)
+        catch (Exception ex)
         {
-            return NotFound(new { code = 404, message = "Class not found" });
+            Console.WriteLine($"AddStudents error: {ex.Message}");
+            Console.WriteLine($"AddStudents error stack: {ex.StackTrace}");
+            if (ex is KeyNotFoundException)
+            {
+                return NotFound(new { code = 404, message = "Class not found" });
+            }
+            throw;
         }
 
         return Ok(new { code = 200, message = "Students added to class" });
@@ -352,7 +390,16 @@ public class ClassController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(Class request)
     {
-        if (request == null) return BadRequest(new { code = 400, message = "Invalid payload" });
+        if (request == null) {
+            Console.WriteLine("ClassController.Create called with null payload");
+            return BadRequest(new { code = 400, message = "Invalid payload" });
+        }
+
+        if (!ModelState.IsValid)
+        {
+            Console.WriteLine("ClassController.Create - ModelState invalid: " + System.Text.Json.JsonSerializer.Serialize(ModelState));
+            return BadRequest(new { code = 400, message = "Invalid payload - model state invalid", errors = ModelState });
+        }
 
         if (request.SubjectId <= 0 || string.IsNullOrWhiteSpace(request.ClassName))
         {
@@ -377,6 +424,16 @@ public class ClassController : ControllerBase
             });
         }
 
+        // If request tries to create as Active, ensure MinStudents satisfied (current students would be 0)
+        if (!string.IsNullOrWhiteSpace(request.Status) && request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+        {
+            var min = request.MinStudents ?? 0;
+            if (0 < min)
+            {
+                return BadRequest(new { code = 400, message = $"Cannot create class as Active: requires at least {min} students" });
+            }
+        }
+
         var created = await _classService.CreateAsync(request);
         return CreatedAtAction(nameof(GetById), new { id = created.ClassId }, new { code = 201, data = created });
     }
@@ -389,6 +446,18 @@ public class ClassController : ControllerBase
         if (request.SubjectId <= 0 || string.IsNullOrWhiteSpace(request.ClassName))
         {
             return BadRequest(new { code = 400, message = "Class name and subject are required" });
+        }
+
+        // If request sets status to Active, ensure current students >= MinStudents
+        if (!string.IsNullOrWhiteSpace(request.Status) && request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+        {
+            var cls = await _classService.GetByIdAsync(id);
+            var currentCount = cls?.Students?.Count ?? 0;
+            var min = request.MinStudents ?? cls?.MinStudents ?? 0;
+            if (currentCount < min)
+            {
+                return BadRequest(new { code = 400, message = $"Cannot activate class: current students {currentCount} less than MinStudents {min}" });
+            }
         }
 
         // Validate min/max if provided
@@ -787,10 +856,20 @@ public class ClassController : ControllerBase
         try
         {
             // If activating, ensure MinStudents satisfied
-            var cls = await _classService.GetByIdAsync(int.TryParse(classId, out var parsedId) ? parsedId : 0);
+            if (!int.TryParse(classId, out var classIdInt))
+            {
+                return BadRequest(new { code = 400, message = "Invalid class ID" });
+            }
+            
+            var cls = await _classService.GetByIdAsync(classIdInt);
             if (request.Status && cls != null && cls.MinStudents.HasValue)
             {
-                var currentCount = cls.Students?.Count ?? 0;
+                // Get class with students loaded to count accurately
+                var clsWithStudents = await _db.Classes
+                    .Include(c => c.Students)
+                    .FirstOrDefaultAsync(c => c.ClassId == classIdInt);
+                
+                var currentCount = clsWithStudents?.Students?.Count ?? 0;
                 if (currentCount < cls.MinStudents.Value)
                 {
                     return BadRequest(new { code = 400, message = $"Cannot activate class: current students {currentCount} less than MinStudents {cls.MinStudents.Value}" });
