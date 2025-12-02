@@ -163,3 +163,51 @@ public record FeedbackTextSummaryDto(
     int TotalNegativeCount
 );
 
+// Daily Feedback DTOs
+public record CreateDailyFeedbackRequest(
+    int StudentId,
+    int LessonId,
+    int ClassId,
+    int SubjectId,
+    string FeedbackText,
+    string? FeedbackTextTranscript
+);
+
+public record DailyFeedbackDto(
+    int Id,
+    int StudentId,
+    string? StudentName,
+    string? StudentCode,
+    int LessonId,
+    string? LessonDate,
+    int ClassId,
+    string? ClassName,
+    int SubjectId,
+    string? SubjectCode,
+    string? SubjectName,
+    string FeedbackText,
+    string? FeedbackTextTranscript,
+    string Sentiment,
+    int Urgency,
+    string Status,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+public record DailyFeedbackFilterRequest(
+    int? ClassId = null,
+    int? SubjectId = null,
+    int? LessonId = null,
+    DateTime? DateFrom = null,
+    DateTime? DateTo = null,
+    string? Sentiment = null,
+    int? Urgency = null,
+    string? Status = null,
+    int Page = 1,
+    int PageSize = 20
+);
+
+public record UpdateDailyFeedbackStatusRequest(
+    string Status
+);
+

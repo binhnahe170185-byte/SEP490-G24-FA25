@@ -112,8 +112,10 @@ builder.Services.AddScoped<ILessonService, LessonService>();
 
 builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
 builder.Services.AddScoped<IFeedbackQuestionRepository, FeedbackQuestionRepository>();
+builder.Services.AddScoped<IDailyFeedbackRepository, DailyFeedbackRepository>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 builder.Services.AddScoped<IFeedbackQuestionService, FeedbackQuestionService>();
+builder.Services.AddScoped<IDailyFeedbackService, DailyFeedbackService>();
 builder.Services.AddScoped<IFeedbackCheckService, FeedbackCheckService>();
 builder.Services.AddScoped<IFeedbackTextAnalysisService, FeedbackTextAnalysisService>();
 builder.Services.AddScoped<IAiAnalysisService, AiAnalysisService>();
