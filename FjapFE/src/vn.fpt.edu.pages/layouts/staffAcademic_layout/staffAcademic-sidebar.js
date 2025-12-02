@@ -73,9 +73,9 @@ const StaffAcademicSidebar = () => {
           flex: 1,
         }}
       >
-        <Item key="/staffAcademic/dashboard" icon={<HomeOutlined />}>
+        {roleId === 5 && ( <Item key="/staffAcademic/dashboard" icon={<HomeOutlined />}>
           <Link to="/staffAcademic/dashboard">Dashboard</Link>
-        </Item>
+        </Item> )}
 
         <Item key="/staffAcademic/materials" icon={<BookOutlined />}>
           <Link to="/staffAcademic/materials">Materials</Link>
@@ -88,12 +88,6 @@ const StaffAcademicSidebar = () => {
         <Item key="/staffAcademic/classes" icon={<ReadOutlined />}>
           <Link to="/staffAcademic/classes">Classes</Link>
         </Item>
-
-        <SubMenu key="grades" icon={<EditOutlined />} title="Grades">
-          <Item key="/staffAcademic/grades/edit">
-            <Link to="/staffAcademic/grades/edit">Edit Grades</Link>
-          </Item>
-        </SubMenu>
 
         <SubMenu key="feedback" icon={<MessageOutlined />} title="Feedback">
           <Item key="/staffAcademic/feedback">
