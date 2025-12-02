@@ -25,6 +25,10 @@ public partial class Subject
 
     public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
 
+    public virtual ICollection<FeedbackQuestion> FeedbackQuestions { get; set; } = new List<FeedbackQuestion>();
+
+    public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
+
     public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
 
     public virtual Level Level { get; set; } = null!;

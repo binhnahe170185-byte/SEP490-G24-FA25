@@ -19,6 +19,12 @@ public partial class Class
 
     public int SubjectId { get; set; }
 
+    public int MaxStudents { get; set; }
+
+    public int MinStudents { get; set; }
+
+    public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
+
     public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
 
     public virtual Level Level { get; set; } = null!;
