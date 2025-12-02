@@ -110,16 +110,16 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 
-// builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
-// builder.Services.AddScoped<IFeedbackQuestionRepository, FeedbackQuestionRepository>();
-// builder.Services.AddScoped<IDailyFeedbackRepository, DailyFeedbackRepository>();
-// builder.Services.AddScoped<IFeedbackService, FeedbackService>();
-// builder.Services.AddScoped<IFeedbackQuestionService, FeedbackQuestionService>();
-// builder.Services.AddScoped<IDailyFeedbackService, DailyFeedbackService>();
-// builder.Services.AddScoped<IFeedbackCheckService, FeedbackCheckService>();
-// builder.Services.AddScoped<IFeedbackTextAnalysisService, FeedbackTextAnalysisService>();
-// builder.Services.AddScoped<IAiAnalysisService, AiAnalysisService>();
-// builder.Services.AddScoped<FJAP.Services.Ai.GeminiFeedbackAnalyzer>();
+builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
+builder.Services.AddScoped<IFeedbackQuestionRepository, FeedbackQuestionRepository>();
+builder.Services.AddScoped<IDailyFeedbackRepository, DailyFeedbackRepository>();
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
+builder.Services.AddScoped<IFeedbackQuestionService, FeedbackQuestionService>();
+builder.Services.AddScoped<IDailyFeedbackService, DailyFeedbackService>();
+builder.Services.AddScoped<IFeedbackCheckService, FeedbackCheckService>();
+builder.Services.AddScoped<IFeedbackTextAnalysisService, FeedbackTextAnalysisService>();
+builder.Services.AddScoped<IAiAnalysisService, AiAnalysisService>();
+builder.Services.AddScoped<FJAP.Services.Ai.GeminiFeedbackAnalyzer>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 // ----- HttpClient for external APIs -----
 builder.Services.AddHttpClient();
