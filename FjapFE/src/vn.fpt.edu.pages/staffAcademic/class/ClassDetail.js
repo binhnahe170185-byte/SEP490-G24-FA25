@@ -61,13 +61,7 @@ const tableCardStyle = {
   background: "#f8fafc",
 };
 
-const filterBarStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 12,
-  alignItems: "center",
-  padding: "16px 16px 0",
-};
+
 
 export default function ClassDetail() {
   const { classId } = useParams();
@@ -251,17 +245,6 @@ export default function ClassDetail() {
       
 
       <article style={tableCardStyle}>
-        <div style={filterBarStyle}>
-          <Input
-            allowClear
-            placeholder="Search subjects or lecturers..."
-            prefix={<SearchOutlined style={{ color: "#9ca3af" }} />}
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            style={{ minWidth: 220, maxWidth: 340 }}
-          />
-        </div>
-
         <Table
           columns={columns}
           dataSource={filteredSubjects}
