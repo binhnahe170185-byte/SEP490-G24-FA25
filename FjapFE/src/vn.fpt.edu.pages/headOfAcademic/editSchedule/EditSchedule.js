@@ -28,6 +28,13 @@ import { notification } from 'antd';
 
 const { confirm } = Modal;
 
+// Helper function to get email username (part before @)
+const getEmailUsername = (email) => {
+  if (!email) return '';
+  const atIndex = email.indexOf('@');
+  return atIndex > 0 ? email.substring(0, atIndex) : email;
+};
+
 const EditSchedule = () => {
   const [api, contextHolder] = notification.useNotification();
 
@@ -53,14 +60,6 @@ const EditSchedule = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [classStudents, setClassStudents] = useState([]);
-
-  // State cho conflict checking (batch transfer)
-  const [semesterLessons, setSemesterLessons] = useState([]);
-  const [conflictMap, setConflictMap] = useState({});
-  const [studentScheduleCache, setStudentScheduleCache] = useState({
-    studentIds: [],
-    studentTimeMap: {}
-  });
 
   const toYMD = (date) => {
     const y = date.getFullYear();
@@ -210,89 +209,6 @@ const EditSchedule = () => {
     fetchHolidays();
   }, [semester.id, semesterId]);
 
-  // Load all lessons of semester for conflict checking
-  useEffect(() => {
-    const loadSemesterLessons = async () => {
-      const semId = semester.id || semesterId;
-      if (!semId) {
-        setSemesterLessons([]);
-        setConflictMap({});
-        return;
-      }
-
-      try {
-        const lessons = await ClassList.getAllLessonsBySemester(semId);
-        setSemesterLessons(lessons || []);
-
-        // Build conflict map: key = "date|slot|room", value = array of conflicts
-        const newConflictMap = {};
-        (lessons || []).forEach(lesson => {
-          if (!lesson.date || !lesson.timeId || !lesson.roomId) {
-            return;
-          }
-          const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
-          if (!newConflictMap[key]) {
-            newConflictMap[key] = [];
-          }
-          const lecturerDisplay = lesson.lecturerEmail
-            ? lesson.lecturerEmail.substring(0, lesson.lecturerEmail.indexOf('@'))
-            : (lesson.lecturerCode || '');
-
-          newConflictMap[key].push({
-            classId: lesson.classId,
-            className: lesson.className,
-            lecturerId: lesson.lecturerId,
-            lecturerCode: lecturerDisplay,
-            date: lesson.date,
-            timeId: lesson.timeId,
-            roomId: lesson.roomId,
-            roomName: lesson.roomName
-          });
-        });
-
-        setConflictMap(newConflictMap);
-      } catch (error) {
-        console.error('Failed to load semester lessons:', error);
-        setSemesterLessons([]);
-        setConflictMap({});
-      }
-    };
-
-    loadSemesterLessons();
-  }, [semester.id, semesterId]);
-
-  // Load student schedule cache for conflict checking
-  useEffect(() => {
-    const loadStudentScheduleCache = async () => {
-      const semId = semester.id || semesterId;
-      if (!semId || !classId) {
-        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
-        return;
-      }
-
-      try {
-        const cache = await ClassList.getStudentScheduleCache(classId, semId);
-        const studentTimeMap = {};
-        if (cache.studentTimeMap) {
-          Object.keys(cache.studentTimeMap).forEach(studentId => {
-            const timeSet = cache.studentTimeMap[studentId];
-            studentTimeMap[parseInt(studentId, 10)] = new Set(Array.isArray(timeSet) ? timeSet : []);
-          });
-        }
-
-        setStudentScheduleCache({
-          studentIds: cache.studentIds || [],
-          studentTimeMap: studentTimeMap
-        });
-      } catch (error) {
-        console.error('Failed to load student schedule cache:', error);
-        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
-      }
-    };
-
-    loadStudentScheduleCache();
-  }, [classId, semester.id, semesterId]);
-
   // Init week
   useEffect(() => {
     const today = new Date();
@@ -417,6 +333,11 @@ const EditSchedule = () => {
       const room = rooms.find((r) => r.label === roomName);
       const roomId = room ? room.value : null;
 
+      // Get lecturer display (prioritize email if available, then substring before @)
+      const lecturerDisplay = lesson.lecturerEmail
+        ? getEmailUsername(lesson.lecturerEmail)
+        : (lesson.lecturerCode || '');
+
       return {
         lessonId: Number(lesson.lessonId || lesson.id),
         date: dateStr,
@@ -424,10 +345,9 @@ const EditSchedule = () => {
         slot,
         room: roomName,
         roomId,
-        lecturer: lesson.lecturerCode || '',
+        lecturer: lecturerDisplay,
         subjectCode: lesson.subjectCode || '',
         subjectName: lesson.subjectName || '',
-        subjectId: lesson.subjectId || null, // Thêm subjectId
         className: lesson.className || '',
         startTime: lesson.startTime || '',
         endTime: lesson.endTime || '',
@@ -713,6 +633,11 @@ const EditSchedule = () => {
             const room = rooms.find((r) => r.label === roomName);
             const roomId = room ? room.value : null;
 
+            // Get lecturer display (prioritize email if available, then substring before @)
+            const lecturerDisplay = lesson.lecturerEmail
+              ? getEmailUsername(lesson.lecturerEmail)
+              : (lesson.lecturerCode || '');
+
             return {
               lessonId: Number(lesson.lessonId || lesson.id),
               date: dateStr,
@@ -720,7 +645,7 @@ const EditSchedule = () => {
               slot,
               room: roomName,
               roomId,
-              lecturer: lesson.lecturerCode || '',
+              lecturer: lecturerDisplay,
               subjectCode: lesson.subjectCode || '',
               subjectName: lesson.subjectName || '',
               className: lesson.className || '',
@@ -865,13 +790,11 @@ const EditSchedule = () => {
 
         if (loadedLesson) {
           const loadedSubjectCode = loadedLesson.subjectCode || '';
-          const loadedSubjectName = loadedLesson.subjectName || '';
           const loadedRoomName = loadedLesson.room || '';
           const loadedLecturerCode = loadedLesson.lecturer || '';
 
           const parts = [];
           if (loadedSubjectCode) parts.push(loadedSubjectCode);
-          if (loadedSubjectName) parts.push(loadedSubjectName);
           if (loadedRoomName) parts.push(loadedRoomName);
           if (loadedLecturerCode) parts.push(loadedLecturerCode);
 
@@ -987,7 +910,7 @@ const EditSchedule = () => {
             gutter={[16, 16]}
             style={{ display: 'flex', alignItems: 'stretch' }}
           >
-            <Col xs={24} xl={24} style={{ display: 'flex' }}>
+            <Col xs={24} xl={16} style={{ display: 'flex' }}>
               <div
                 style={{
                   width: '100%',
@@ -1001,6 +924,26 @@ const EditSchedule = () => {
                   onSemesterChange={setSemesterId}
                   onClassChange={setClassId}
                   onLoadClass={handleLoadClass}
+                />
+              </div>
+            </Col>
+            <Col xs={24} xl={8} style={{ display: 'flex' }}>
+              <div
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <LecturerSelector
+                  lecturerId={lecturerId}
+                  lecturerCode={lecturerCode}
+                  onLecturerChange={(id, code) => {
+                    setLecturerId(id);
+                    setLecturerCode(code || '');
+                  }}
+                  subjectCode={subjectCode}
+                  subjectName={subjectName}
                 />
               </div>
             </Col>
@@ -1024,20 +967,14 @@ const EditSchedule = () => {
         lesson={selectedLesson}
         rooms={rooms}
         timeslots={timeslots}
+        semester={semester}
         onUpdate={handleUpdateLesson}
-        onDelete={handleDeleteLesson}
-        onBatchTransfer={handleBatchTransfer}
+        onDelete={handleDeleteLesson}   // dùng hàm mới
         onCancel={() => {
           setEditModalVisible(false);
           setSelectedLesson(null);
         }}
         saving={saving}
-        semester={semester}
-        conflictMap={conflictMap}
-        holidays={holidays}
-        studentScheduleCache={studentScheduleCache}
-        classId={classId}
-        lecturerId={lecturerId}
       />
 
     </Layout>
