@@ -26,9 +26,7 @@ public partial class FjapDbContext : DbContext
 
     public virtual DbSet<FeedbackQuestion> FeedbackQuestions { get; set; }
 
-    public virtual DbSet<Feedback> Feedbacks { get; set; }
 
-    public virtual DbSet<FeedbackQuestion> FeedbackQuestions { get; set; }
 
     public virtual DbSet<Grade> Grades { get; set; }
 

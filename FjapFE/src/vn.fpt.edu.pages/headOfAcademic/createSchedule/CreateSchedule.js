@@ -65,6 +65,7 @@ const CreateSchedule = () => {
   const [saving, setSaving] = useState(false);
   const [classStudents, setClassStudents] = useState([]);
   const [totalLesson, setTotalLesson] = useState(null); // Total lesson count from subject
+  const [scheduleComplete, setScheduleComplete] = useState(false); // Flag to indicate if schedule is complete
   // Conflict checking is now handled in WeeklySchedule component
 
   // New state for semester lessons and conflict map
@@ -476,6 +477,25 @@ const CreateSchedule = () => {
     loadStudentScheduleCache();
   }, [classId, semester.id, semesterId]);
 
+  // Check if schedule is complete when loadedLessons or totalLesson changes
+  useEffect(() => {
+    if (totalLesson !== null && totalLesson !== undefined && loadedLessons.length > 0) {
+      const isComplete = loadedLessons.length >= totalLesson;
+      setScheduleComplete(isComplete);
+
+      if (isComplete) {
+        api.warning({
+          message: 'The class has been fully scheduled.',
+          description: `This class already has ${loadedLessons.length}/${totalLesson} class. Cannot add more schedule.`,
+          placement: 'bottomRight',
+          duration: 5,
+        });
+      }
+    } else {
+      setScheduleComplete(false);
+    }
+  }, [loadedLessons.length, totalLesson, api]);
+
   // Initialize week
   useEffect(() => {
     const today = new Date();
@@ -696,7 +716,7 @@ const CreateSchedule = () => {
     const generatedLessons = [];
     const holidaysDates = holidays.map(h => h.date);
 
-    // Start from Monday of semester
+    // Start from Monday of semester start week
     let currentDate = mondayOf(semStart);
     const endDate = semEnd;
 
@@ -710,6 +730,9 @@ const CreateSchedule = () => {
         }
 
         const lessonDate = addDays(currentDate, dayOffset);
+
+        // Skip if before semester start (important: only generate from semStart onwards)
+        if (lessonDate < semStart) continue;
 
         // Skip if beyond semester end
         if (lessonDate > endDate) break;
@@ -802,6 +825,9 @@ const CreateSchedule = () => {
     }
   };
   const handleLoadClass = async (data) => {
+    // Clear pending patterns to avoid duplicates when loading a new class
+    setPatterns([]);
+
     // Nếu nhận được data từ PickSemesterAndClass (API call)
     if (data && data.schedule) {
       const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt, subjectCode: subCode, subjectName: subName } = data;
@@ -945,7 +971,10 @@ const CreateSchedule = () => {
       // Also update semesterId and classId in parent state
       setSemesterId(semId);
       setClassId(clsId);
-      fetchClassStudents(clsId);
+      await fetchClassStudents(clsId);
+
+      // Check if schedule is complete after fetching class students
+      // Note: We need to wait for totalLesson to be set, so we'll check in useEffect
       return;
     }
 
@@ -955,6 +984,17 @@ const CreateSchedule = () => {
   };
 
   const handleAddPattern = () => {
+    // Check if schedule is already complete
+    if (scheduleComplete) {
+      api.error({
+        message: 'Không thể thêm lịch học',
+        description: `Lớp này đã có đủ ${totalLesson} buổi học. Không thể thêm lịch học mới.`,
+        placement: 'bottomRight',
+        duration: 4,
+      });
+      return;
+    }
+
     if (!weekday || !slotId || !roomId) {
       api.error({
         message: 'Error',
@@ -1401,6 +1441,11 @@ const CreateSchedule = () => {
                   {holidays.length} holidays loaded
                 </Tag>
               )}
+              {totalLesson !== null && totalLesson !== undefined && (
+                <Tag color={scheduleComplete ? "warning" : "success"}>
+                  Lessons: {loadedLessons.length}/{totalLesson}
+                </Tag>
+              )}
             </Space>
           </div>
 
@@ -1460,6 +1505,7 @@ const CreateSchedule = () => {
             addDays={addDays}
             totalLesson={totalLesson}
             mondayOf={mondayOf}
+            scheduleComplete={scheduleComplete}
           />
 
           <CalendarTable

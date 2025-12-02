@@ -19,6 +19,7 @@ const LessonEditModal = ({
   lesson,
   rooms = [],
   timeslots = [],
+  semester,
   onUpdate,
   onDelete,
   onCancel,
@@ -34,8 +35,8 @@ const LessonEditModal = ({
         timeId: lesson.timeId
           ? String(lesson.timeId)
           : lesson.slot
-          ? String(lesson.slot)
-          : undefined,
+            ? String(lesson.slot)
+            : undefined,
         roomId: lesson.roomId ? String(lesson.roomId) : undefined,
       });
     } else {
@@ -75,32 +76,32 @@ const LessonEditModal = ({
     }
   };
 
-const handleDelete = (e) => {
-  if (e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
+  const handleDelete = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
-  console.log('handleDelete called - lesson:', lesson);
-  console.log('handleDelete - lessonId:', lesson?.lessonId);
-  console.log('handleDelete - onDelete callback:', onDelete);
+    console.log('handleDelete called - lesson:', lesson);
+    console.log('handleDelete - lessonId:', lesson?.lessonId);
+    console.log('handleDelete - onDelete callback:', onDelete);
 
-  if (!lesson?.lessonId) {
-    console.error('Lesson ID is missing for delete!', lesson);
-    return;
-  }
+    if (!lesson?.lessonId) {
+      console.error('Lesson ID is missing for delete!', lesson);
+      return;
+    }
 
-  if (typeof onDelete === 'function') {
-    const id = Number(lesson.lessonId);
-    console.log('Calling onDelete with lessonId:', id);
-    onDelete(id);   // gọi thẳng lên cha, không confirm ở đây
-  } else {
-    console.error(
-      'onDelete callback is not provided or not a function',
-      onDelete
-    );
-  }
-};
+    if (typeof onDelete === 'function') {
+      const id = Number(lesson.lessonId);
+      console.log('Calling onDelete with lessonId:', id);
+      onDelete(id);   // gọi thẳng lên cha, không confirm ở đây
+    } else {
+      console.error(
+        'onDelete callback is not provided or not a function',
+        onDelete
+      );
+    }
+  };
 
   if (!lesson) return null;
 
@@ -154,9 +155,24 @@ const handleDelete = (e) => {
             <DatePicker
               style={{ width: '100%' }}
               format="YYYY-MM-DD"
-              disabledDate={(current) =>
-                current && current < dayjs().startOf('day')
-              }
+              disabledDate={(current) => {
+                if (!current) return false;
+
+                // Disable past dates
+                if (current < dayjs().startOf('day')) {
+                  return true;
+                }
+
+                // Disable dates after semester end date
+                if (semester?.end) {
+                  const semesterEndDate = dayjs(semester.end);
+                  if (current > semesterEndDate.endOf('day')) {
+                    return true;
+                  }
+                }
+
+                return false;
+              }}
             />
           </Form.Item>
 
