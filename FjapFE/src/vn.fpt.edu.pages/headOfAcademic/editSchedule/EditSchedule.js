@@ -54,14 +54,6 @@ const EditSchedule = () => {
   const [saving, setSaving] = useState(false);
   const [classStudents, setClassStudents] = useState([]);
 
-  // State cho conflict checking (batch transfer)
-  const [semesterLessons, setSemesterLessons] = useState([]);
-  const [conflictMap, setConflictMap] = useState({});
-  const [studentScheduleCache, setStudentScheduleCache] = useState({
-    studentIds: [],
-    studentTimeMap: {}
-  });
-
   const toYMD = (date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -210,89 +202,6 @@ const EditSchedule = () => {
     fetchHolidays();
   }, [semester.id, semesterId]);
 
-  // Load all lessons of semester for conflict checking
-  useEffect(() => {
-    const loadSemesterLessons = async () => {
-      const semId = semester.id || semesterId;
-      if (!semId) {
-        setSemesterLessons([]);
-        setConflictMap({});
-        return;
-      }
-
-      try {
-        const lessons = await ClassList.getAllLessonsBySemester(semId);
-        setSemesterLessons(lessons || []);
-
-        // Build conflict map: key = "date|slot|room", value = array of conflicts
-        const newConflictMap = {};
-        (lessons || []).forEach(lesson => {
-          if (!lesson.date || !lesson.timeId || !lesson.roomId) {
-            return;
-          }
-          const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
-          if (!newConflictMap[key]) {
-            newConflictMap[key] = [];
-          }
-          const lecturerDisplay = lesson.lecturerEmail
-            ? lesson.lecturerEmail.substring(0, lesson.lecturerEmail.indexOf('@'))
-            : (lesson.lecturerCode || '');
-
-          newConflictMap[key].push({
-            classId: lesson.classId,
-            className: lesson.className,
-            lecturerId: lesson.lecturerId,
-            lecturerCode: lecturerDisplay,
-            date: lesson.date,
-            timeId: lesson.timeId,
-            roomId: lesson.roomId,
-            roomName: lesson.roomName
-          });
-        });
-
-        setConflictMap(newConflictMap);
-      } catch (error) {
-        console.error('Failed to load semester lessons:', error);
-        setSemesterLessons([]);
-        setConflictMap({});
-      }
-    };
-
-    loadSemesterLessons();
-  }, [semester.id, semesterId]);
-
-  // Load student schedule cache for conflict checking
-  useEffect(() => {
-    const loadStudentScheduleCache = async () => {
-      const semId = semester.id || semesterId;
-      if (!semId || !classId) {
-        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
-        return;
-      }
-
-      try {
-        const cache = await ClassList.getStudentScheduleCache(classId, semId);
-        const studentTimeMap = {};
-        if (cache.studentTimeMap) {
-          Object.keys(cache.studentTimeMap).forEach(studentId => {
-            const timeSet = cache.studentTimeMap[studentId];
-            studentTimeMap[parseInt(studentId, 10)] = new Set(Array.isArray(timeSet) ? timeSet : []);
-          });
-        }
-
-        setStudentScheduleCache({
-          studentIds: cache.studentIds || [],
-          studentTimeMap: studentTimeMap
-        });
-      } catch (error) {
-        console.error('Failed to load student schedule cache:', error);
-        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
-      }
-    };
-
-    loadStudentScheduleCache();
-  }, [classId, semester.id, semesterId]);
-
   // Init week
   useEffect(() => {
     const today = new Date();
@@ -427,7 +336,6 @@ const EditSchedule = () => {
         lecturer: lesson.lecturerCode || '',
         subjectCode: lesson.subjectCode || '',
         subjectName: lesson.subjectName || '',
-        subjectId: lesson.subjectId || null, // Thêm subjectId
         className: lesson.className || '',
         startTime: lesson.startTime || '',
         endTime: lesson.endTime || '',
@@ -460,65 +368,65 @@ const EditSchedule = () => {
   };
 
   // === DELETE LESSON ===
-  const handleDeleteLesson = async (lessonId) => {
-    const id = Number(lessonId);
-    console.log('handleDeleteLesson called with lessonId:', id);
+const handleDeleteLesson = async (lessonId) => {
+  const id = Number(lessonId);
+  console.log('handleDeleteLesson called with lessonId:', id);
 
-    if (!id) {
-      console.error('handleDeleteLesson: lessonId is invalid', lessonId);
-      return;
-    }
+  if (!id) {
+    console.error('handleDeleteLesson: lessonId is invalid', lessonId);
+    return;
+  }
 
-    try {
-      setSaving(true);
-      console.log('Calling ClassList.deleteLesson with lessonId:', id);
+  try {
+    setSaving(true);
+    console.log('Calling ClassList.deleteLesson with lessonId:', id);
 
-      const response = await ClassList.deleteLesson(id);
-      console.log('Delete API call successful, response:', response);
+    const response = await ClassList.deleteLesson(id);
+    console.log('Delete API call successful, response:', response);
 
-      // Xóa khỏi loadedLessons
-      setLoadedLessons((prev) => {
-        const filtered = prev.filter((l) => Number(l.lessonId) !== id);
-        console.log(
-          'Updated loadedLessons, removed lesson:',
-          id,
-          'remaining:',
-          filtered.length
-        );
-        return filtered;
-      });
+    // Xóa khỏi loadedLessons
+    setLoadedLessons((prev) => {
+      const filtered = prev.filter((l) => Number(l.lessonId) !== id);
+      console.log(
+        'Updated loadedLessons, removed lesson:',
+        id,
+        'remaining:',
+        filtered.length
+      );
+      return filtered;
+    });
 
-      // Đóng modal edit
-      setEditModalVisible(false);
-      setSelectedLesson(null);
+    // Đóng modal edit
+    setEditModalVisible(false);
+    setSelectedLesson(null);
 
-      api.success({
-        message: 'Success',
-        description: 'Lesson deleted successfully',
-        placement: 'bottomRight',
-        duration: 3,
-      });
-    } catch (error) {
-      console.error('Error deleting lesson:', error);
-      console.error('Error response:', error?.response);
-      console.error('Error data:', error?.response?.data);
-      console.error('Error message:', error?.message);
+    api.success({
+      message: 'Success',
+      description: 'Lesson deleted successfully',
+      placement: 'bottomRight',
+      duration: 3,
+    });
+  } catch (error) {
+    console.error('Error deleting lesson:', error);
+    console.error('Error response:', error?.response);
+    console.error('Error data:', error?.response?.data);
+    console.error('Error message:', error?.message);
 
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Failed to delete lesson. Please try again.';
+    const errorMessage =
+      error?.response?.data?.message ||
+      error?.message ||
+      'Failed to delete lesson. Please try again.';
 
-      api.error({
-        message: 'Error',
-        description: errorMessage,
-        placement: 'bottomRight',
-        duration: 5,
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+    api.error({
+      message: 'Error',
+      description: errorMessage,
+      placement: 'bottomRight',
+      duration: 5,
+    });
+  } finally {
+    setSaving(false);
+  }
+};
 
 
   const handleUpdateLesson = async (lessonId, updatedData) => {
@@ -566,199 +474,6 @@ const EditSchedule = () => {
       setSaving(false);
     }
   };
-  const handleBatchTransfer = async (transferData) => {
-    console.log('=== handleBatchTransfer in EditSchedule ===');
-    console.log('transferData:', transferData);
-
-    const { subjectCode, patterns, lecturerId: transferLecturerId, deleteOnly } = transferData;
-
-    if (!subjectCode) {
-      console.error('Invalid transfer data: missing subjectCode');
-      api.error({
-        message: 'Error',
-        description: 'Subject code is required',
-        placement: 'bottomRight',
-        duration: 4,
-      });
-      return;
-    }
-
-    // Validation for transfer mode (not delete-only)
-    if (!deleteOnly) {
-      if (!patterns || patterns.length === 0) {
-        console.error('Invalid transfer data:', { subjectCode, patterns });
-        api.error({
-          message: 'Error',
-          description: 'Invalid transfer data',
-          placement: 'bottomRight',
-          duration: 4,
-        });
-        return;
-      }
-
-      if (!transferLecturerId) {
-        console.error('Lecturer ID is missing in transfer data');
-        api.error({
-          message: 'Error',
-          description: 'Lecturer information is required',
-          placement: 'bottomRight',
-          duration: 4,
-        });
-        return;
-      }
-    }
-
-    try {
-      setSaving(true);
-      console.log(deleteOnly ? 'Starting batch delete...' : 'Starting batch transfer...');
-
-      // Tìm tất cả lessons có cùng subjectCode
-      const lessonsToDelete = loadedLessons.filter(
-        (l) =>
-          (l.subjectCode || '').toString() === subjectCode.toString()
-      );
-
-      console.log(
-        `Found ${lessonsToDelete.length} lessons to delete with subjectCode: ${subjectCode}`
-      );
-
-      // Xóa tất cả lessons có cùng subjectCode
-      for (const lesson of lessonsToDelete) {
-        if (lesson.lessonId) {
-          try {
-            console.log(`Deleting lesson ${lesson.lessonId}...`);
-            await ClassList.deleteLesson(Number(lesson.lessonId));
-            console.log(`Deleted lesson ${lesson.lessonId} successfully`);
-          } catch (error) {
-            console.error(`Error deleting lesson ${lesson.lessonId}:`, error);
-          }
-        }
-      }
-
-      console.log('Finished deleting lessons');
-
-      // Update loaded lessons - remove deleted lessons
-      setLoadedLessons((prev) =>
-        prev.filter((l) => (l.subjectCode || '').toString() !== subjectCode.toString())
-      );
-
-      // If deleteOnly, stop here
-      if (deleteOnly) {
-        api.success({
-          message: 'Success',
-          description: `Đã xóa ${lessonsToDelete.length} lessons thành công`,
-          placement: 'bottomRight',
-          duration: 5,
-        });
-
-        setEditModalVisible(false);
-        setSelectedLesson(null);
-        return;
-      }
-
-      // Tạo schedule mới với patterns (giống create schedule)
-      const effectiveSemesterId = semester.id || semesterId;
-      console.log('Creating new schedule with:', {
-        semesterId: effectiveSemesterId,
-        classId,
-        lecturerId: transferLecturerId,
-        patternsCount: patterns.length,
-      });
-
-      if (!effectiveSemesterId || !classId || !transferLecturerId) {
-        throw new Error('Missing semester, class, or lecturer information');
-      }
-
-      const payload = {
-        semesterId: parseInt(effectiveSemesterId, 10),
-        classId: parseInt(classId, 10),
-        lecturerId: parseInt(transferLecturerId, 10),
-        patterns,
-      };
-
-      console.log('Calling createSchedule with payload:', payload);
-      const createResponse = await ClassList.createSchedule(payload);
-      console.log('createSchedule response:', createResponse);
-
-      // Reload lessons sau khi tạo lại schedule
-      if (effectiveSemesterId && classId) {
-        const scheduleData = await ClassList.getSchedule(
-          effectiveSemesterId,
-          classId
-        );
-
-        if (scheduleData && scheduleData.schedule) {
-          const convertedLessons = scheduleData.schedule.map((lesson) => {
-            let dateStr = lesson.date;
-            try {
-              if (
-                typeof lesson.date === 'string' &&
-                /^\d{4}-\d{2}-\d{2}$/.test(lesson.date)
-              ) {
-                dateStr = lesson.date;
-              } else {
-                const parsedDate = new Date(lesson.date);
-                dateStr = toYMD(parsedDate);
-              }
-            } catch (e) {
-              console.error('Error parsing date:', lesson.date, e);
-            }
-
-            const lessonDate = fromYMD(dateStr);
-            const dayOfWeek = lessonDate.getDay();
-            const weekday = dayOfWeek === 0 ? 8 : dayOfWeek + 1;
-
-            const slot = lesson.timeId || 1;
-            const roomName = lesson.roomName || '';
-            const room = rooms.find((r) => r.label === roomName);
-            const roomId = room ? room.value : null;
-
-            return {
-              lessonId: Number(lesson.lessonId || lesson.id),
-              date: dateStr,
-              weekday,
-              slot,
-              room: roomName,
-              roomId,
-              lecturer: lesson.lecturerCode || '',
-              subjectCode: lesson.subjectCode || '',
-              subjectName: lesson.subjectName || '',
-              className: lesson.className || '',
-              startTime: lesson.startTime || '',
-              endTime: lesson.endTime || '',
-              timeId: lesson.timeId,
-              subjectId: lesson.subjectId, // giữ lại nếu backend có
-              isLoaded: true,
-            };
-          });
-
-          setLoadedLessons(convertedLessons);
-        }
-      }
-
-      api.success({
-        message: 'Success',
-        description: 'Batch transfer completed successfully',
-        placement: 'bottomRight',
-        duration: 5,
-      });
-
-      setEditModalVisible(false);
-      setSelectedLesson(null);
-    } catch (error) {
-      console.error('Error in batch transfer:', error);
-      api.error({
-        message: 'Error',
-        description:
-          error?.response?.data?.message || 'Failed to transfer lessons',
-        placement: 'bottomRight',
-        duration: 5,
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
 
   const handlePrevWeek = () => {
     if (!currentWeekStart) return;
@@ -778,13 +493,13 @@ const EditSchedule = () => {
     const slotsToRender =
       timeslots.length > 0
         ? timeslots.map((ts) => ({
-          timeId: ts.timeId,
-          label: `Slot ${ts.timeId}`,
-        }))
+            timeId: ts.timeId,
+            label: `Slot ${ts.timeId}`,
+          }))
         : Array.from({ length: 8 }, (_, i) => ({
-          timeId: i + 1,
-          label: `Slot ${i + 1}`,
-        }));
+            timeId: i + 1,
+            label: `Slot ${i + 1}`,
+          }));
 
     const holidayLookup = holidays.reduce((acc, holiday) => {
       if (holiday.date) {
@@ -918,10 +633,10 @@ const EditSchedule = () => {
           >
             {cellContents.length > 0
               ? cellContents.map((content, idx) =>
-                typeof content === 'string'
-                  ? <div key={idx}>{content}</div>
-                  : React.cloneElement(content, { key: idx })
-              )
+                  typeof content === 'string'
+                    ? <div key={idx}>{content}</div>
+                    : React.cloneElement(content, { key: idx })
+                )
               : ''}
           </div>
         );
@@ -987,7 +702,7 @@ const EditSchedule = () => {
             gutter={[16, 16]}
             style={{ display: 'flex', alignItems: 'stretch' }}
           >
-            <Col xs={24} xl={24} style={{ display: 'flex' }}>
+            <Col xs={24} xl={16} style={{ display: 'flex' }}>
               <div
                 style={{
                   width: '100%',
@@ -1001,6 +716,26 @@ const EditSchedule = () => {
                   onSemesterChange={setSemesterId}
                   onClassChange={setClassId}
                   onLoadClass={handleLoadClass}
+                />
+              </div>
+            </Col>
+            <Col xs={24} xl={8} style={{ display: 'flex' }}>
+              <div
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <LecturerSelector
+                  lecturerId={lecturerId}
+                  lecturerCode={lecturerCode}
+                  onLecturerChange={(id, code) => {
+                    setLecturerId(id);
+                    setLecturerCode(code || '');
+                  }}
+                  subjectCode={subjectCode}
+                  subjectName={subjectName}
                 />
               </div>
             </Col>
@@ -1019,26 +754,19 @@ const EditSchedule = () => {
         </Space>
       </Layout.Content>
 
-      <LessonEditModal
-        visible={editModalVisible}
-        lesson={selectedLesson}
-        rooms={rooms}
-        timeslots={timeslots}
-        onUpdate={handleUpdateLesson}
-        onDelete={handleDeleteLesson}
-        onBatchTransfer={handleBatchTransfer}
-        onCancel={() => {
-          setEditModalVisible(false);
-          setSelectedLesson(null);
-        }}
-        saving={saving}
-        semester={semester}
-        conflictMap={conflictMap}
-        holidays={holidays}
-        studentScheduleCache={studentScheduleCache}
-        classId={classId}
-        lecturerId={lecturerId}
-      />
+    <LessonEditModal
+  visible={editModalVisible}
+  lesson={selectedLesson}
+  rooms={rooms}
+  timeslots={timeslots}
+  onUpdate={handleUpdateLesson}
+  onDelete={handleDeleteLesson}   // dùng hàm mới
+  onCancel={() => {
+    setEditModalVisible(false);
+    setSelectedLesson(null);
+  }}
+  saving={saving}
+/>
 
     </Layout>
   );

@@ -277,7 +277,7 @@ export default function Attendance() {
     {
       title: "Image",
       key: "avatar",
-      width: 100,
+      width: 300,
       align: "center",
       render: (_value, record) => {
         const avatarSrc = record.avatar;
@@ -287,8 +287,8 @@ export default function Attendance() {
               src={avatarSrc}
               alt={`${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Avatar'}
               style={{
-                width: '60px',
-                height: '80px',
+                width: '170px',
+                height: '260px',
                 objectFit: 'cover',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -301,15 +301,15 @@ export default function Attendance() {
         return (
           <div
             style={{
-              width: '60px',
-              height: '80px',
+              width: '170px',
+              height: '260px',
               backgroundColor: '#87d068',
               borderRadius: '4px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#fff',
-              fontSize: '24px',
+              fontSize: '36px',
               fontWeight: 'bold',
               margin: '0 auto',
             }}
@@ -329,13 +329,11 @@ export default function Attendance() {
       title: "First Name",
       dataIndex: "firstName",
       key: "firstName",
-      render: (text) => <strong>{text || "-"}</strong>,
     },
     {
       title: "Last Name",
       dataIndex: "lastName",
       key: "lastName",
-      render: (text) => <strong>{text || "-"}</strong>,
     },
     {
       title: "Status",
