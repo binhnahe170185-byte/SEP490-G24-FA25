@@ -92,6 +92,30 @@ public class StudentsController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy danh sách môn học có attendance của sinh viên trong một semester
+    /// GET: api/Students/{id}/semesters/{semesterId}/attendance/subjects
+    /// </summary>
+    [HttpGet("{id:int}/semesters/{semesterId:int}/attendance/subjects")]
+    [ProducesResponseType(typeof(IEnumerable<StudentAttendanceSubjectDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudentAttendanceSubjects(int id, int semesterId)
+    {
+        var subjects = await _studentService.GetStudentAttendanceSubjectsAsync(id, semesterId);
+        return Ok(new { code = 200, data = subjects });
+    }
+
+    /// <summary>
+    /// Lấy danh sách lessons với attendance của sinh viên cho một môn học trong semester
+    /// GET: api/Students/{id}/semesters/{semesterId}/attendance/subjects/{subjectId}/lessons
+    /// </summary>
+    [HttpGet("{id:int}/semesters/{semesterId:int}/attendance/subjects/{subjectId:int}/lessons")]
+    [ProducesResponseType(typeof(IEnumerable<StudentAttendanceLessonDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudentAttendanceLessons(int id, int semesterId, int subjectId)
+    {
+        var lessons = await _studentService.GetStudentAttendanceLessonsAsync(id, semesterId, subjectId);
+        return Ok(new { code = 200, data = lessons });
+    }
+
+    /// <summary>
     /// Lấy danh sách tất cả môn học active trong curriculum với search và pagination
     /// GET: api/Students/curriculum-subjects?search=&page=1&pageSize=20
     /// </summary>

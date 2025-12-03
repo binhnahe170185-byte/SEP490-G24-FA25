@@ -52,7 +52,8 @@ const WeeklySchedules = ({
   addDays = null,
   // Total lesson validation
   totalLesson = null,
-  mondayOf = null
+  mondayOf = null,
+  scheduleComplete = false
 }) => {
   const [conflictStatus, setConflictStatus] = useState({
     hasConflict: false,
@@ -274,14 +275,16 @@ const WeeklySchedules = ({
   const isUnavailable = conflictStatus.hasConflict;
   const availabilityMessage = conflictStatus.message;
 
-  const addButtonDisabled = !hasValues || isUnavailable || isChecking;
-  const addButtonTooltip = !hasValues
-    ? 'Select weekday, slot & room'
-    : isChecking
-      ? 'Checking slot availability...'
-      : isUnavailable
-        ? availabilityMessage || 'This slot is not available'
-        : 'Add schedule';
+  const addButtonDisabled = !hasValues || isUnavailable || isChecking || scheduleComplete;
+  const addButtonTooltip = scheduleComplete
+    ? 'The class is full. No new schedule can be added.'
+    : !hasValues
+      ? 'Select weekday, slot & room'
+      : isChecking
+        ? 'Checking slot availability...'
+        : isUnavailable
+          ? availabilityMessage || 'This slot is not available'
+          : 'Add schedule';
   const getRoomLabel = (roomValue) => {
     const room = rooms.find(r => String(r.value) === String(roomValue));
     return room?.label || roomValue;
@@ -309,6 +312,15 @@ const WeeklySchedules = ({
           message={filteringOptions ? "Filtering valid options..." : "Checking availability..."}
           type="info"
           icon={<Spin size="small" />}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      {!lecturerId && patterns.length > 0 && (
+        <Alert
+          message="Please assign lecturer"
+          description="You have added schedule but have not selected a lecturer. Please select a lecturer before saving the schedule."
+          type="warning"
           showIcon
           style={{ marginBottom: 16 }}
         />
@@ -367,6 +379,19 @@ const WeeklySchedules = ({
           style={{ marginBottom: 16 }}
         />
       )}
+      {scheduleComplete && (
+        <Alert
+          message="The class has been fully scheduled"
+          description={
+            <Typography.Text>
+              This class already has enough classes to meet the course requirements. No new classes can be added.
+            </Typography.Text>
+          }
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Form layout="vertical">
         <Space
           direction="horizontal"
@@ -383,6 +408,7 @@ const WeeklySchedules = ({
               allowClear
               loading={filteringOptions}
               notFoundContent={filteringOptions ? <Spin size="small" /> : null}
+              disabled={scheduleComplete}
             />
           </Form.Item>
 
@@ -395,6 +421,7 @@ const WeeklySchedules = ({
               allowClear
               loading={filteringOptions}
               notFoundContent={filteringOptions ? <Spin size="small" /> : null}
+              disabled={scheduleComplete}
             />
           </Form.Item>
 
@@ -409,6 +436,7 @@ const WeeklySchedules = ({
               optionFilterProp="label"
               loading={filteringOptions}
               notFoundContent={filteringOptions ? <Spin size="small" /> : null}
+              disabled={scheduleComplete}
             />
           </Form.Item>
         </Space>
