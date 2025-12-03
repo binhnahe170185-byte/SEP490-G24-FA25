@@ -432,7 +432,7 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             Date = l.Date.ToString("yyyy-MM-dd"),
             TimeId = l.TimeId,
             RoomName = l.RoomName,
-            Status = attendance.TryGetValue(l.LessonId, out var st) ? st : "Absent",
+            Status = attendance.TryGetValue(l.LessonId, out var st) ? st : "Not Yet",
             LectureCode = l.LectureCode
         })
         .ToList();

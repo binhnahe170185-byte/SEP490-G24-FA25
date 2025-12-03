@@ -319,7 +319,7 @@ const WeeklySchedules = ({
       {!lecturerId && patterns.length > 0 && (
         <Alert
           message="Please assign lecturer"
-          description="You have added schedule(s) but have not selected a lecturer. Please select a lecturer before saving the schedule."
+          description="You have added schedule but have not selected a lecturer. Please select a lecturer before saving the schedule."
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
