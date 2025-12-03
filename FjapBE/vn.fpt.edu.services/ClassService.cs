@@ -23,7 +23,8 @@ public class ClassService : IClassService
     public Task<Class?> GetByIdAsync(int id)
         => _classRepository.FirstOrDefaultAsync(
             cls => cls.ClassId == id,
-            includeProperties: "Semester,Level,Subject,Students");
+            includeProperties: "Semester,Level,Subject,Students",
+            noTracking: false);
 
     public Task<Class?> GetWithStudentsAsync(int id) => _classRepository.GetWithStudentsAsync(id);
 
