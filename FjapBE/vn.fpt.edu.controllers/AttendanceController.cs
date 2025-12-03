@@ -219,8 +219,7 @@ public class AttendanceController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy attendance report chi tiết cho một class (tất cả bản ghi điểm danh của từng lessonId cho mỗi student)
-    /// Lấy tất cả lessons của subjectId trong semester
+    /// Lấy attendance report chi tiết cho một class
     /// GET: api/attendance/classes/{classId}/report
     /// </summary>
     [HttpGet("classes/{classId}/report")]
@@ -230,27 +229,14 @@ public class AttendanceController : ControllerBase
         {
             var lecturerId = await GetCurrentLecturerIdAsync();
             
-            // Lấy thông tin class để lấy subjectId và semesterId
-            var classInfo = await _db.Classes
-                .AsNoTracking()
-                .Where(c => c.ClassId == classId)
-                .Select(c => new { c.SubjectId, c.SemesterId })
-                .FirstOrDefaultAsync();
-
-            if (classInfo == null)
-            {
-                return NotFound(new { code = 404, message = "Class not found" });
-            }
-
-            // Lấy report detail theo subjectId và semesterId
-            var reportData = await _attendanceService.GetAttendanceReportDetailBySubjectAndSemesterAsync(
-                classInfo.SubjectId, 
-                classInfo.SemesterId, 
+            // Gọi service method với classId
+            var reportData = await _attendanceService.GetAttendanceReportDetailByClassAsync(
+                classId, 
                 lecturerId);
 
             if (reportData == null || !reportData.Any())
             {
-                return NotFound(new { code = 404, message = "No attendance data found for this subject and semester" });
+                return NotFound(new { code = 404, message = "No attendance data found for this class" });
             }
 
             return Ok(new
