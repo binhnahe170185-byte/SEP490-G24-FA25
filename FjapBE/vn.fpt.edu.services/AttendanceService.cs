@@ -116,9 +116,9 @@ public class AttendanceService : IAttendanceService
         return reportData;
     }
 
-    public async Task<List<AttendanceReportDetailItemDto>> GetAttendanceReportDetailBySubjectAndSemesterAsync(int subjectId, int semesterId, int lecturerId)
+    public async Task<List<AttendanceReportDetailItemDto>> GetAttendanceReportDetailByClassAsync(int classId, int lecturerId)
     {
-        return await _attendanceRepository.GetAttendanceReportDetailBySubjectAndSemesterAsync(subjectId, semesterId, lecturerId);
+        return await _attendanceRepository.GetAttendanceReportDetailByClassAsync(classId, lecturerId);
     }
 
     public async Task<List<object>> UpdateBulkAttendanceAsync(int lessonId, List<AttendanceUpdateItemDto> attendances, int lecturerId)
