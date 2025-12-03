@@ -90,7 +90,9 @@ public class ClassController : ControllerBase
                 subjectDetail = subjectDetail,
                 levelName = levelName,
                 levelId = cls.LevelId,
-                levelDetail = levelDetail
+                levelDetail = levelDetail,
+                minStudents = cls.MinStudents,
+                maxStudents = cls.MaxStudents
             };
         }).ToList();
 
@@ -146,7 +148,14 @@ public class ClassController : ControllerBase
     [HttpGet("~/api/Classes/{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var cls = await _classService.GetByIdAsync(id);
+        var cls = await _db.Classes
+            .Include(c => c.Semester)
+            .Include(c => c.Level)
+            .Include(c => c.Subject)
+            .Include(c => c.Students)
+                .ThenInclude(s => s.User)
+            .FirstOrDefaultAsync(c => c.ClassId == id);
+        
         if (cls == null) return NotFound();
 
         var semesterStart = cls.Semester?.StartDate.ToDateTime(TimeOnly.MinValue);
@@ -201,7 +210,11 @@ public class ClassController : ControllerBase
                 subjectCode = subject?.SubjectCode,
                 subjectName = subject?.SubjectName,
                 subjectLevel = subject?.Level?.LevelName ?? subject?.LevelId.ToString(),
-                subjectDetail = subjectDetail
+                subjectDetail = subjectDetail,
+                minStudents = cls.MinStudents,
+                maxStudents = cls.MaxStudents,
+                totalStudents = cls.Students?.Count ?? 0,
+                students = cls.Students?.Select(s => new { s.StudentId, code = s.StudentCode, fullName = $"{s.User?.FirstName} {s.User?.LastName}".Trim() }) ?? (object)Enumerable.Empty<object>()
             }
         });
     }

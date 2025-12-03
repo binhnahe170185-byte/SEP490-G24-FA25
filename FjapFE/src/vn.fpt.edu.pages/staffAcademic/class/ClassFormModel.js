@@ -372,6 +372,9 @@ const normalizeClassDetail = (record = {}) => {
     record.subjectAssignments ??
     [];
 
+  // Calculate total students in class - use API field if available, fallback to students array length
+  const totalStudents = record.totalStudents ?? record.students?.length ?? 0;
+
   return {
     name:
       record.name ??
@@ -395,6 +398,9 @@ const normalizeClassDetail = (record = {}) => {
       record.levelName ??
       undefined,
     subjectId: extractSubjectId(subjectSource),
+    minStudents: record.minStudents ?? record.min_students ?? undefined,
+    maxStudents: record.maxStudents ?? record.max_students ?? undefined,
+    totalStudents: totalStudents,
   };
 };
 
@@ -602,6 +608,8 @@ const deriveInitialFormValues = (initialValues = {}) => {
       initialValues.levelName ??
       undefined,
     subjectId: subjectId ?? undefined,
+    minStudents: initialValues.minStudents ?? initialValues.min_students ?? undefined,
+    maxStudents: initialValues.maxStudents ?? initialValues.max_students ?? undefined,
   };
 };
 
@@ -631,6 +639,7 @@ export default function ClassFormModal({
   const [loadingExistingClasses, setLoadingExistingClasses] = useState(false);
   const [semesterCodeMap, setSemesterCodeMap] = useState(() => new Map());
   const [initialRecord, setInitialRecord] = useState(null);
+  const [totalStudents, setTotalStudents] = useState(0);
   const watchedSemesterId = Form.useWatch("semesterId", form);
   const watchedLevelId = Form.useWatch("levelId", form);
   const watchedSubjectId = Form.useWatch("subjectId", form);
@@ -749,10 +758,15 @@ export default function ClassFormModal({
     setLoadingRecord(true);
     ClassListApi.getById(classId)
       .then((data) => {
+        console.log("DEBUG: API response data:", data);
+        console.log("DEBUG: students array:", data?.students);
+        console.log("DEBUG: totalStudents field:", data?.totalStudents);
         const normalized = normalizeClassDetail(data ?? {});
+        console.log("DEBUG: normalized data:", normalized);
         form.setFieldsValue(normalized);
         setCurrentLevel(normalized.levelId);
         setInitialRecord(normalized);
+        setTotalStudents(normalized.totalStudents ?? 0);
       })
       .catch((error) => {
         console.error("Failed to load class detail:", error);
@@ -776,6 +790,7 @@ export default function ClassFormModal({
       setLoadingExistingClasses(false);
       setSemesterCodeMap(new Map());
       setInitialRecord(null);
+      setTotalStudents(0);
     }
   }, [open, form]);
 
@@ -1039,6 +1054,32 @@ useEffect(() => {
         payload.maxStudents = Number(values.maxStudents);
       }
 
+      // Validate maxStudents cannot be less than current students
+      if (isEditMode && totalStudents > 0) {
+        const maxVal = payload.maxStudents;
+        if (maxVal !== undefined && maxVal < totalStudents) {
+          notifyError(
+            `class-validation-error`,
+            "Validation failed",
+            `Max students (${maxVal}) cannot be less than current students (${totalStudents})`
+          );
+          return;
+        }
+      }
+
+      // Auto-deactivate if minStudents > current students (only on edit mode)
+      if (isEditMode && totalStudents > 0) {
+        const minVal = payload.minStudents;
+        if (minVal !== undefined && minVal > totalStudents) {
+          // If minStudents requirement exceeds current students, must deactivate
+          payload.status = "Inactive";
+          console.debug("Auto-deactivating class: minStudents exceeds current students", {
+            minStudents: minVal,
+            totalStudents,
+          });
+        }
+      }
+
       // Client-side enforcement: cannot create as Active if minStudents > current (create -> current = 0)
       if (!isEditMode && values.status && values.status === "Active") {
         const min = payload.minStudents ?? 0;
@@ -1210,6 +1251,20 @@ useEffect(() => {
             />
           </Form.Item>
 
+          {totalStudents > 0 && (
+            <Form.Item
+              label="Current Students"
+            >
+              <Input
+                value={totalStudents}
+                disabled
+                readOnly
+                placeholder="Total students in this class"
+                style={{ fontSize: "16px", fontWeight: "bold", color: "#1f1f1f" }}
+              />
+            </Form.Item>
+          )}
+
           <Form.Item
             label="Min Students"
             name="minStudents"
@@ -1247,6 +1302,10 @@ useEffect(() => {
                   const minNum = (typeof minVal === 'number') ? minVal : (minVal ? Number(minVal) : null);
                   if (minNum !== null && minNum !== undefined && Number(minNum) > Number(value)) {
                     callback(new Error('Max students must be >= Min students'));
+                    return;
+                  }
+                  if (totalStudents > 0 && Number(value) < totalStudents) {
+                    callback(new Error(`Max students cannot be less than current students (${totalStudents})`));
                     return;
                   }
                   callback();
