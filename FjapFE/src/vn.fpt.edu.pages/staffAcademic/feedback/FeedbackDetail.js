@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   Typography,
@@ -76,6 +76,7 @@ const getAnswerLabel = (question, answerValue) => {
 export default function FeedbackDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [updating, setUpdating] = useState(false);
@@ -156,7 +157,10 @@ export default function FeedbackDetail() {
           <Button
             type="link"
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate("/staffAcademic/feedback")}
+            onClick={() => {
+              const basePath = location.pathname.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+              navigate(`${basePath}/feedback`);
+            }}
           >
             Feedback List
           </Button>

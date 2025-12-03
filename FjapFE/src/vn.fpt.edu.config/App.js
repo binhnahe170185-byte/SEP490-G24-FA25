@@ -23,6 +23,7 @@ import ManagerLayout from "../vn.fpt.edu.pages/layouts/manager-layout";
 import StaffAcademicLayout from "../vn.fpt.edu.pages/layouts/staffAcademic_layout";
 import LecturerLayout from "../vn.fpt.edu.pages/layouts/lecturer-layout";
 import HeadOfAdminLayout from "../vn.fpt.edu.pages/layouts/headOfAdmin_layout";
+import HeadOfAcademicLayout from "../vn.fpt.edu.pages/layouts/headOfAcademic_layout";
 import ClassPage from "../vn.fpt.edu.pages/staffAcademic/class";
 import ClassDetail from "../vn.fpt.edu.pages/staffAcademic/class/ClassDetail";
 import ClassStudents from "../vn.fpt.edu.pages/staffAcademic/class/ClassStudents";
@@ -32,6 +33,7 @@ import CreateSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/Creat
 import EditSubject from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/EditSubject";
 import SubjectDetail from "../vn.fpt.edu.pages/staffAcademic/SubjectManage/SubjectDetail";
 import Dashboard from "../vn.fpt.edu.pages/staffAcademic/Dashboard";
+import HeadOfAcademicDashboard from "../vn.fpt.edu.pages/headOfAcademic/Dashboard";
 import GradeManage from "../vn.fpt.edu.pages/lecturer/GradeManage/Index";
 import GradeDetails from "../vn.fpt.edu.pages/lecturer/GradeManage/GradeDetails";
 import GradeEntry from "../vn.fpt.edu.pages/lecturer/GradeManage/GradeEntry";
@@ -95,8 +97,8 @@ function RequireAdmin({ children }) {
 function RequireStaffAcademic({ children }) {
   const { user } = useAuth();
   const roleId = user ? Number(user.roleId) : null;
-  // Allow both role 5 (Head of Academic) and role 7 (Staff Academic)
-  if (!user || (roleId !== 5 && roleId !== 7)) {
+  // Only allow role 7 (Staff Academic)
+  if (!user || roleId !== 7) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -169,7 +171,7 @@ function RoleBasedRedirect() {
   }
 
   if (roleId === 5) {
-    return <Navigate to="/staffAcademic/dashboard" replace />;
+    return <Navigate to="/headOfAcademic/dashboard" replace />;
   }
 
   if (roleId === 6) {
@@ -190,6 +192,7 @@ function ProtectedLayout() {
   const isStudent = user && Number(user.roleId) === 4;
   const hideHeader =
     location.pathname.startsWith("/staffAcademic") ||
+    location.pathname.startsWith("/headOfAcademic") ||
     location.pathname.startsWith("/headOfAdmin") ||
     location.pathname.startsWith("/admin") ||
     location.pathname.startsWith("/lecturer") ||
@@ -306,6 +309,27 @@ export default function App() {
 
 
                 <Route
+                  path="/headOfAcademic/*"
+                  element={
+                    <RequireHeadOfAcademic>
+                      <HeadOfAcademicLayout />
+                    </RequireHeadOfAcademic>
+                  }
+                >
+                  <Route
+                    path="dashboard"
+                    element={<HeadOfAcademicDashboard />}
+                  />
+                  <Route path="classes" element={<ClassPage />} />
+                  <Route path="class/:classId" element={<ClassDetail />} />
+                  <Route path="class/:classId/students" element={<ClassStudents />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="feedback" element={<FeedbackList />} />
+                  <Route path="feedback/analytics" element={<FeedbackAnalyticsPage />} />
+                  <Route path="feedback/:id" element={<FeedbackDetail />} />
+                </Route>
+
+                <Route
                   path="/staffAcademic/*"
                   element={
                     <RequireStaffAcademic>
@@ -332,34 +356,33 @@ export default function App() {
                   <Route path="subject/detail/:subjectId" element={<SubjectDetail />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="feedback" element={<FeedbackList />} />
-                      <Route path="feedback/analytics" element={<FeedbackAnalyticsPage />} />
+                  <Route path="feedback/analytics" element={<FeedbackAnalyticsPage />} />
                   <Route path="feedback/:id" element={<FeedbackDetail />} />
                   <Route path="feedback/questions" element={<FeedbackQuestionManage />} />
                   <Route
                     path="createSchedule/edit"
                     element={
-                      <RequireHeadOfAcademic>
+                      <RequireStaffAcademic>
                         <CreateSchedule />
-                      </RequireHeadOfAcademic>
+                      </RequireStaffAcademic>
                     }
                   />
                   <Route
                     path="createSchedule/import"
                     element={
-                      <RequireHeadOfAcademic>
+                      <RequireStaffAcademic>
                         <ImportSchedule />
-                      </RequireHeadOfAcademic>
+                      </RequireStaffAcademic>
                     }
                   />
                   <Route
                     path="createSchedule/editSchedule"
                     element={
-                      <RequireHeadOfAcademic>
+                      <RequireStaffAcademic>
                         <EditSchedule />
-                      </RequireHeadOfAcademic>
+                      </RequireStaffAcademic>
                     }
                   />
-
                 </Route>
 
                 <Route

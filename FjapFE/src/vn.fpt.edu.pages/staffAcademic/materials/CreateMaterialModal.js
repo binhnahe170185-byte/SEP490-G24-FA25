@@ -10,6 +10,7 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
   const [subjects, setSubjects] = useState([]);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -29,14 +30,22 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
       fetchSubjects();
       setHasValidationErrors(false);
       setErrors([]);
+      setSubmitting(false);
     } else {
       form.resetFields();
+      setSubmitting(false);
     }
   }, [visible, form]);
 
   const handleOk = async () => {
+    // Prevent double submission
+    if (submitting) {
+      return;
+    }
+
     try {
       const values = await form.validateFields();
+      setSubmitting(true);
       await onCreate(values);
       form.resetFields();
       setErrors([]);
@@ -48,10 +57,12 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
         });
         setErrors(list);
         try { form.scrollToField(err.errorFields[0].name); } catch (e) {}
+        setSubmitting(false);
         return;
       }
       const apiMsg = err?.response?.data?.message || err?.message || 'An error occurred while saving';
       setErrors([apiMsg]);
+      setSubmitting(false);
     }
   };
 
@@ -95,9 +106,11 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
       onOk={handleOk} 
       onCancel={onCancel} 
       okText="Create"
-      okButtonProps={{ disabled: hasValidationErrors }}
+      okButtonProps={{ disabled: hasValidationErrors || submitting, loading: submitting }}
       width={800}
       bodyStyle={{ padding: '24px' }}
+      maskClosable={!submitting}
+      closable={!submitting}
     >
       <Form form={form} layout="vertical" onFinishFailed={onFinishFailed} onValuesChange={handleValuesChange}>
         {errors.length > 0 && (
@@ -112,9 +125,19 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
         <Form.Item 
           name="name" 
           label="Material Name" 
-          rules={[{ required: true, message: 'Please enter material name' }]}
+          rules={[
+            { required: true, message: 'Please enter material name' },
+            { min: 3, message: 'Material name must be at least 3 characters' },
+            { max: 200, message: 'Material name must not exceed 200 characters' },
+            { whitespace: true, message: 'Material name cannot be only whitespace' }
+          ]}
         >
-          <Input size="large" placeholder="Enter material name..." />
+          <Input 
+            size="large" 
+            placeholder="Enter material name..." 
+            maxLength={200}
+            showCount
+          />
         </Form.Item>
         <Form.Item 
           name="subject" 
@@ -142,12 +165,19 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
         <Form.Item 
           name="description" 
           label="Description"
-          rules={[{ required: true, message: 'Please enter description' }]}
+          rules={[
+            { required: true, message: 'Please enter description' },
+            { min: 10, message: 'Description must be at least 10 characters' },
+            { max: 1000, message: 'Description must not exceed 1000 characters' },
+            { whitespace: true, message: 'Description cannot be only whitespace' }
+          ]}
         >
           <Input.TextArea 
             rows={6} 
             placeholder="Enter detailed description about material..."
             style={{ resize: 'vertical' }}
+            maxLength={1000}
+            showCount
           />
         </Form.Item>
         <Form.Item 
@@ -156,12 +186,15 @@ export default function CreateMaterialModal({ visible, onCancel, onCreate }) {
           rules={[
             { required: true, message: 'Please enter material link' },
             { type: 'url', message: 'Please enter valid URL' },
-            { pattern: /^https?:\/\//i, message: 'URL must start with http:// or https://' }
+            { pattern: /^https?:\/\//i, message: 'URL must start with http:// or https://' },
+            { max: 500, message: 'URL must not exceed 500 characters' }
           ]}
         >
           <Input 
             size="large" 
             placeholder="https://drive.google.com/drive/folders/..."
+            maxLength={500}
+            showCount
           />
         </Form.Item>
       </Form>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Menu } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOutlined, ReadOutlined, EditOutlined, HomeOutlined, ScheduleOutlined, MessageOutlined } from '@ant-design/icons';
+import { BookOutlined, ReadOutlined, HomeOutlined, MessageOutlined, ScheduleOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../vn.fpt.edu.pages/login/AuthContext';
 
 const { Item, SubMenu } = Menu;
@@ -73,9 +73,11 @@ const StaffAcademicSidebar = () => {
           flex: 1,
         }}
       >
-        {roleId === 5 && ( <Item key="/staffAcademic/dashboard" icon={<HomeOutlined />}>
-          <Link to="/staffAcademic/dashboard">Dashboard</Link>
-        </Item> )}
+        {roleId === 7 && (
+          <Item key="/staffAcademic/dashboard" icon={<HomeOutlined />}>
+            <Link to="/staffAcademic/dashboard">Dashboard</Link>
+          </Item>
+        )}
 
         <Item key="/staffAcademic/materials" icon={<BookOutlined />}>
           <Link to="/staffAcademic/materials">Materials</Link>
@@ -96,14 +98,14 @@ const StaffAcademicSidebar = () => {
           <Item key="/staffAcademic/feedback/analytics">
             <Link to="/staffAcademic/feedback/analytics">Feedback Analytics</Link>
           </Item>
-          {(roleId === 5 || roleId === 7) && (
+          {roleId === 7 && (
             <Item key="/staffAcademic/feedback/questions">
               <Link to="/staffAcademic/feedback/questions">Feedback Questions</Link>
             </Item>
           )}
         </SubMenu>
 
-        {roleId === 5 && (
+        {roleId === 7 && (
           <SubMenu key="/staffAcademic/createSchedule" icon={<ScheduleOutlined />} title="Schedule">
             <Item key="/staffAcademic/createSchedule/edit">
               <Link to="/staffAcademic/createSchedule/edit">Create Schedule</Link>
