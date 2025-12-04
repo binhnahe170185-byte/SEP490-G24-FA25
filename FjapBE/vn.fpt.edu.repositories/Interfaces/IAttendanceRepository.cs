@@ -5,6 +5,7 @@ namespace FJAP.Repositories.Interfaces;
 
 public interface IAttendanceRepository : IGenericRepository<Attendance>
 {
+    Task<int?> GetLecturerIdByUserIdAsync(int userId);
     Task<Lesson?> GetLessonWithDetailsAsync(int lessonId, int lecturerId);
     Task<List<AttendanceClassDto>> GetClassesByLecturerAsync(int lecturerId);
     Task<List<AttendanceLessonDto>> GetLessonsByClassAsync(int classId, int lecturerId);
