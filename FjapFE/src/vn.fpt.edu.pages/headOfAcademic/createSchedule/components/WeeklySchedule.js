@@ -144,14 +144,12 @@ const WeeklySchedules = ({
     // Check all dates in semester for this weekday+slot+room combination
     let currentDate = findNextDateForWeekday(semesterStart, weekday);
     const endDate = semesterEnd;
-    const conflicts = [];
 
-    // Track unique conflicts by type and entity (to avoid duplicates)
-    const roomConflictMap = new Map(); // key: roomName-className, value: count
-    const classConflictMap = new Map(); // key: className, value: count
-    const lecturerConflictMap = new Map(); // key: lecturerDisplay-className, value: count
-    const studentConflictSet = new Set(); // track unique student conflicts
-    let studentConflictCount = 0;
+    // Track unique conflicts by type (just existence, not counts)
+    const roomConflictSet = new Set(); // unique room-class combinations
+    const classConflictSet = new Set(); // unique class names
+    const lecturerConflictSet = new Set(); // unique lecturer-class combinations
+    let hasStudentConflict = false;
 
     while (currentDate && currentDate <= endDate) {
       const dateStr = toYMD(currentDate);
@@ -167,11 +165,11 @@ const WeeklySchedules = ({
             // Room conflict: room is occupied
             if (conflict.roomId === parseInt(roomId, 10)) {
               const roomKey = `${conflict.roomName}-${conflict.className}`;
-              roomConflictMap.set(roomKey, (roomConflictMap.get(roomKey) || 0) + 1);
+              roomConflictSet.add(roomKey);
             }
             // Class conflict: same class already has lesson
             if (classId && conflict.classId === parseInt(classId, 10)) {
-              classConflictMap.set(conflict.className, (classConflictMap.get(conflict.className) || 0) + 1);
+              classConflictSet.add(conflict.className);
             }
             // Lecturer conflict: same lecturer already has lesson
             if (lecturerId && conflict.lecturerId === parseInt(lecturerId, 10)) {
@@ -179,10 +177,9 @@ const WeeklySchedules = ({
                 ? (conflict.lecturerCode.includes('@') ? getEmailUsername(conflict.lecturerCode) : conflict.lecturerCode)
                 : 'Unknown';
               const lecturerKey = `${lecturerDisplay}-${conflict.className}`;
-              lecturerConflictMap.set(lecturerKey, (lecturerConflictMap.get(lecturerKey) || 0) + 1);
+              lecturerConflictSet.add(lecturerKey);
             }
           });
-          conflicts.push(dateStr);
         }
 
         // Check student conflicts: students in this class already have lessons at this date/time
@@ -196,13 +193,7 @@ const WeeklySchedules = ({
           });
 
           if (conflictedStudents.length > 0) {
-            // Track unique student conflict (same students, different dates)
-            const studentKey = conflictedStudents.sort().join(',');
-            if (!studentConflictSet.has(studentKey)) {
-              studentConflictSet.add(studentKey);
-            }
-            studentConflictCount++;
-            conflicts.push(dateStr);
+            hasStudentConflict = true;
           }
         }
       }
@@ -210,56 +201,52 @@ const WeeklySchedules = ({
       currentDate = addDays(currentDate, 7);
     }
 
-    if (conflicts.length > 0) {
-      // Build unique conflict details (one per conflict type/entity)
+    const hasAnyConflict = roomConflictSet.size > 0 || classConflictSet.size > 0 || lecturerConflictSet.size > 0 || hasStudentConflict;
+
+    if (hasAnyConflict) {
+      // Build simple conflict messages (one per conflict type only)
       const conflictDetails = [];
 
-      // Room conflicts
-      roomConflictMap.forEach((count, key) => {
-        const [roomName, className] = key.split('-');
-        conflictDetails.push(`Room ${roomName} is occupied by ${className} (${count} occurrence(s))`);
-      });
-
-      // Class conflicts
-      classConflictMap.forEach((count, className) => {
-        conflictDetails.push(`Class ${className} already has a lesson (${count} occurrence(s))`);
-      });
-
-      // Lecturer conflicts
-      lecturerConflictMap.forEach((count, key) => {
-        const [lecturerDisplay, className] = key.split('-');
-        conflictDetails.push(`Lecturer ${lecturerDisplay} is already teaching ${className} (${count} occurrence(s))`);
-      });
-
-      // Student conflicts
-      if (studentConflictSet.size > 0) {
-        conflictDetails.push(`Student conflict: ${studentConflictCount} occurrence(s) detected`);
+      // Room conflicts - just one message
+      if (roomConflictSet.size > 0) {
+        conflictDetails.push(`Room conflict detected`);
       }
 
-      // Build summary messages
+      // Class conflicts - just one message
+      if (classConflictSet.size > 0) {
+        conflictDetails.push(`Class already has a lesson at this time`);
+      }
+
+      // Lecturer conflicts - just one message
+      if (lecturerConflictSet.size > 0) {
+        conflictDetails.push(`Lecturer is already teaching at this time`);
+      }
+
+      // Student conflicts - just one message
+      if (hasStudentConflict) {
+        conflictDetails.push(`Student schedule conflict detected`);
+      }
+
+      // Build summary message (single line, no counts)
       const messages = [];
-      if (roomConflictMap.size > 0) {
-        const totalRoomConflicts = Array.from(roomConflictMap.values()).reduce((sum, count) => sum + count, 0);
-        messages.push(`Room conflict: ${totalRoomConflicts} occurrence(s)`);
+      if (roomConflictSet.size > 0) {
+        messages.push(`Room conflict`);
       }
-      if (classConflictMap.size > 0) {
-        const totalClassConflicts = Array.from(classConflictMap.values()).reduce((sum, count) => sum + count, 0);
-        messages.push(`Class conflict: ${totalClassConflicts} occurrence(s)`);
+      if (classConflictSet.size > 0) {
+        messages.push(`Class conflict`);
       }
-      if (lecturerConflictMap.size > 0) {
-        const totalLecturerConflicts = Array.from(lecturerConflictMap.values()).reduce((sum, count) => sum + count, 0);
-        messages.push(`Lecturer conflict: ${totalLecturerConflicts} occurrence(s)`);
+      if (lecturerConflictSet.size > 0) {
+        messages.push(`Lecturer conflict`);
       }
-      if (studentConflictSet.size > 0) {
-        messages.push(`Student conflict: ${studentConflictCount} occurrence(s)`);
+      if (hasStudentConflict) {
+        messages.push(`Student conflict`);
       }
 
       setConflictStatus({
         hasConflict: true,
         message: messages.join(' | '),
         checking: false,
-        details: conflictDetails, // Show unique conflicts only
-        totalConflicts: conflicts.length
+        details: conflictDetails // One simple message per conflict type
       });
     } else {
       setConflictStatus({

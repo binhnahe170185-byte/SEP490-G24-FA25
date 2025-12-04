@@ -14,6 +14,7 @@ import {
   Col,
   notification,
   Avatar,
+  Alert,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -51,6 +52,7 @@ export default function Attendance() {
   const [prefillLessonId, setPrefillLessonId] = useState(location.state?.lessonId || null);
   const [prefillClassApplied, setPrefillClassApplied] = useState(false);
   const [prefillLessonApplied, setPrefillLessonApplied] = useState(false);
+  const [isOutside24Hours, setIsOutside24Hours] = useState(false);
   useEffect(() => {
     const state = location.state;
     if (state && (state.classId || state.lessonId)) {
@@ -120,6 +122,20 @@ export default function Attendance() {
           timeSlot: data.timeSlot,
           subjectName: data.subjectName,
         });
+
+        // Check if lesson is on the same date
+        const lessonDate = new Date(data.date);
+        const currentDate = new Date();
+
+        // Reset time parts to compare only dates
+        lessonDate.setHours(0, 0, 0, 0);
+        currentDate.setHours(0, 0, 0, 0);
+
+        const daysDifference = (currentDate - lessonDate) / (1000 * 60 * 60 * 24);
+
+        // Only allow attendance on the lesson date itself (same day)
+        const outside24Hours = daysDifference !== 0;
+        setIsOutside24Hours(outside24Hours);
 
         // Initialize attendance map
         const map = {};
@@ -287,7 +303,7 @@ export default function Attendance() {
               src={avatarSrc}
               alt={`${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Avatar'}
               style={{
-                  width: '170px',
+                width: '170px',
                 height: '240px',
                 objectFit: 'cover',
                 borderRadius: '4px',
@@ -301,8 +317,8 @@ export default function Attendance() {
         return (
           <div
             style={{
-                width: '170px',
-                height: '240px',
+              width: '170px',
+              height: '240px',
               backgroundColor: '#87d068',
               borderRadius: '4px',
               display: 'flex',
@@ -351,6 +367,7 @@ export default function Attendance() {
                 type={currentStatus === opt.value ? "primary" : "default"}
                 icon={opt.icon}
                 onClick={() => handleStatusChange(record.studentId, opt.value)}
+                disabled={isOutside24Hours}
               >
                 {opt.label}
               </Button>
@@ -416,6 +433,17 @@ export default function Attendance() {
           </Card>
         )}
 
+        {/* attendance warning */}
+        {lessonInfo && isOutside24Hours && (
+          <Alert
+            message="Attendance Closed"
+            description={`You can only take attendance on the lesson date. This lesson was on ${lessonInfo.date}. Attendance cannot be taken after 23:59 of ${lessonInfo.date}.`}
+            type="warning"
+            showIcon
+            style={{ marginBottom: 24 }}
+          />
+        )}
+
         {/* Students Table */}
         {loading && students.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px" }}>
@@ -446,7 +474,7 @@ export default function Attendance() {
                 size="large"
                 onClick={handleSave}
                 loading={saving}
-                disabled={!selectedLessonId || students.length === 0}
+                disabled={!selectedLessonId || students.length === 0 || isOutside24Hours}
               >
                 Save Attendance
               </Button>

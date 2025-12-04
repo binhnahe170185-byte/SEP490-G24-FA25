@@ -5,6 +5,7 @@ namespace FJAP.Services.Interfaces;
 
 public interface IAttendanceService
 {
+    Task<int?> GetLecturerIdByUserIdAsync(int userId);
     Task<List<AttendanceClassDto>> GetClassesAsync(int lecturerId);
     Task<List<AttendanceLessonDto>> GetLessonsByClassAsync(int classId, int lecturerId);
     Task<AttendanceLessonStudentsResponseDto?> GetStudentsByLessonAsync(int lessonId, int lecturerId);

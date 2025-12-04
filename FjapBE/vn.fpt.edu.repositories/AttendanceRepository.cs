@@ -11,6 +11,15 @@ public class AttendanceRepository : GenericRepository<Attendance>, IAttendanceRe
     {
     }
 
+    public async Task<int?> GetLecturerIdByUserIdAsync(int userId)
+    {
+        return await _context.Lectures
+            .AsNoTracking()
+            .Where(l => l.UserId == userId)
+            .Select(l => (int?)l.LectureId)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<Lesson?> GetLessonWithDetailsAsync(int lessonId, int lecturerId)
     {
         return await _context.Lessons

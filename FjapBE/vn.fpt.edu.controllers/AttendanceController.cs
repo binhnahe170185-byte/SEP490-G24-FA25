@@ -1,10 +1,8 @@
 using System.Security.Claims;
 using FJAP.DTOs;
 using FJAP.Services.Interfaces;
-using FJAP.vn.fpt.edu.models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FJAP.Controllers;
 
@@ -14,16 +12,13 @@ namespace FJAP.Controllers;
 public class AttendanceController : ControllerBase
 {
     private readonly IAttendanceService _attendanceService;
-    private readonly FjapDbContext _db;
     private readonly ILogger<AttendanceController> _logger;
 
     public AttendanceController(
         IAttendanceService attendanceService,
-        FjapDbContext db,
         ILogger<AttendanceController> logger)
     {
         _attendanceService = attendanceService;
-        _db = db;
         _logger = logger;
     }
 
@@ -45,11 +40,7 @@ public class AttendanceController : ControllerBase
     private async Task<int> GetCurrentLecturerIdAsync()
     {
         var userId = GetCurrentUserId();
-        var lecturerId = await _db.Lectures
-            .AsNoTracking()
-            .Where(l => l.UserId == userId)
-            .Select(l => (int?)l.LectureId)
-            .FirstOrDefaultAsync();
+        var lecturerId = await _attendanceService.GetLecturerIdByUserIdAsync(userId);
 
         if (lecturerId is null)
         {
@@ -206,6 +197,10 @@ public class AttendanceController : ControllerBase
                 }
             });
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Attendance can only be taken on the lesson date"))
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return StatusCode(403, new { code = 403, message = ex.Message });
@@ -322,6 +317,10 @@ public class AttendanceController : ControllerBase
                 message = $"Updated {results.Count} attendance records",
                 data = results
             });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Attendance can only be taken on the lesson date"))
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
