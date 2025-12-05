@@ -437,7 +437,7 @@ export default function Attendance() {
         {lessonInfo && isOutside24Hours && (
           <Alert
             message="Attendance Closed"
-            description={`You can only take attendance on the lesson date. This lesson was on ${lessonInfo.date}. Attendance cannot be taken after 23:59 of ${lessonInfo.date}.`}
+            description={`You can only take attendance on the lesson date. This lesson was on ${lessonInfo.date}. Attendance cannot be changes after 23:59 of ${lessonInfo.date}.`}
             type="warning"
             showIcon
             style={{ marginBottom: 24 }}

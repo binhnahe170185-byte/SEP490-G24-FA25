@@ -68,7 +68,7 @@ public class AttendanceService : IAttendanceService
         if (daysDifference != 0)
         {
             throw new InvalidOperationException(
-                $"Attendance can only be taken on the lesson date. Lesson date: {lessonDate:yyyy-MM-dd}. Attendance cannot be taken after 23:59 of {lessonDate:yyyy-MM-dd}.");
+                $"Attendance can only be taken on the lesson date. Lesson date: {lessonDate:yyyy-MM-dd}. Attendance cannot be changes after 23:59 of {lessonDate:yyyy-MM-dd}.");
         }
 
         var isStudentInClass = await _attendanceRepository.IsStudentInClassAsync(lesson.ClassId, studentId);
@@ -155,7 +155,7 @@ public class AttendanceService : IAttendanceService
         if (daysDifference != 0)
         {
             throw new InvalidOperationException(
-                $"Attendance can only be taken on the lesson date. Lesson date: {lessonDate:yyyy-MM-dd}. Attendance cannot be taken after 23:59 of {lessonDate:yyyy-MM-dd}.");
+                $"Attendance can only be taken on the lesson date. Lesson date: {lessonDate:yyyy-MM-dd}. Attendance cannot be changes after 23:59 of {lessonDate:yyyy-MM-dd}.");
         }
 
         var validStudentIds = (await _attendanceRepository.GetStudentsByClassAsync(lesson.ClassId))

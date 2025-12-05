@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import './EditSchedule.css';
 import CalendarTable from '../createSchedule/components/CalendarTable';
 import PickSemesterAndClass from '../createSchedule/components/PickSemesterAndClass';
-import LecturerSelector from '../createSchedule/components/LecturerSelector';
 import LessonEditModal from './components/LessonEditModal';
 import SemesterApi from '../../../vn.fpt.edu.api/Semester';
 import RoomApi from '../../../vn.fpt.edu.api/Room';
@@ -60,7 +59,7 @@ const EditSchedule = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [classStudents, setClassStudents] = useState([]);
-
+  const [lecturers, setLecturers] = useState([]);
   const toYMD = (date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -143,6 +142,14 @@ const EditSchedule = () => {
 
         const timeslotsList = await TimeslotApi.getTimeslots();
         setTimeslots(timeslotsList);
+        const LecturerApi = (await import('../../../vn.fpt.edu.api/Lecturer')).default;
+        const lecturersResponse = await LecturerApi.getLecturers({ pageSize: 200 });
+        const lecturersList = lecturersResponse.items || [];
+        const formattedLecturers = lecturersList.map((lec) => ({
+          value: String(lec.lecturerId),
+          label: lec.email ? lec.email.split('@')[0] : lec.lecturerCode || `Lecturer ${lec.lecturerId}`,
+        }));
+        setLecturers(formattedLecturers);
       } catch (error) {
         console.error('Error fetching data:', error);
         setRooms([]);
@@ -906,49 +913,17 @@ const EditSchedule = () => {
             </Space>
           </div>
 
-          <Row
-            gutter={[16, 16]}
-            style={{ display: 'flex', alignItems: 'stretch' }}
-          >
-            <Col xs={24} xl={16} style={{ display: 'flex' }}>
-              <div
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <PickSemesterAndClass
-                  semesterId={semesterId}
-                  classId={classId}
-                  onSemesterChange={setSemesterId}
-                  onClassChange={setClassId}
-                  onLoadClass={handleLoadClass}
-                />
-              </div>
-            </Col>
-            <Col xs={24} xl={8} style={{ display: 'flex' }}>
-              <div
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <LecturerSelector
-                  lecturerId={lecturerId}
-                  lecturerCode={lecturerCode}
-                  onLecturerChange={(id, code) => {
-                    setLecturerId(id);
-                    setLecturerCode(code || '');
-                  }}
-                  subjectCode={subjectCode}
-                  subjectName={subjectName}
-                />
-              </div>
+          <Row gutter={[16, 16]}>
+            <Col xs={24}>
+              <PickSemesterAndClass
+                semesterId={semesterId}
+                classId={classId}
+                onSemesterChange={setSemesterId}
+                onClassChange={setClassId}
+                onLoadClass={handleLoadClass}
+              />
             </Col>
           </Row>
-
           <CalendarTable
             title="Class Timetable"
             weekStart={currentWeekStart}
@@ -962,21 +937,21 @@ const EditSchedule = () => {
         </Space>
       </Layout.Content>
 
-      <LessonEditModal
-        visible={editModalVisible}
-        lesson={selectedLesson}
-        rooms={rooms}
-        timeslots={timeslots}
-        semester={semester}
-        onUpdate={handleUpdateLesson}
-        onDelete={handleDeleteLesson}   // dùng hàm mới
-        onCancel={() => {
-          setEditModalVisible(false);
-          setSelectedLesson(null);
-        }}
-        saving={saving}
-      />
-
+    <LessonEditModal
+  visible={editModalVisible}
+  lesson={selectedLesson}
+  rooms={rooms}
+  timeslots={timeslots}
+  lecturers={lecturers}  
+  semester={semester}
+  onUpdate={handleUpdateLesson}
+  onDelete={handleDeleteLesson}
+  onCancel={() => {
+    setEditModalVisible(false);
+    setSelectedLesson(null);
+  }}
+  saving={saving}
+/>
     </Layout>
   );
 };

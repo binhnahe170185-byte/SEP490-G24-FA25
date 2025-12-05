@@ -430,7 +430,7 @@ const WeeklySchedules = ({
       </Form>
 
       <List
-        header="Pending patterns"
+        header="Pending Schedule"
         dataSource={patterns}
         locale={{ emptyText: <Empty description="No patterns yet" /> }}
         renderItem={(pattern, idx) => (
