@@ -19,6 +19,7 @@ const LessonEditModal = ({
   lesson,
   rooms = [],
   timeslots = [],
+  lecturers = [],
   semester,
   onUpdate,
   onDelete,
@@ -38,6 +39,7 @@ const LessonEditModal = ({
             ? String(lesson.slot)
             : undefined,
         roomId: lesson.roomId ? String(lesson.roomId) : undefined,
+        lecturerId: lesson.lecturerId ? String(lesson.lecturerId) : undefined,
       });
     } else {
       form.resetFields();
@@ -54,6 +56,7 @@ const LessonEditModal = ({
           : lesson.date,
         timeId: Number(values.timeId),
         roomId: Number(values.roomId),
+        lecturerId: Number(values.lecturerId),
       };
 
       console.log('handleSubmit - lesson:', lesson);
@@ -115,6 +118,11 @@ const LessonEditModal = ({
     label: room.label,
   }));
 
+  const lecturerOptions = lecturers.map((lec) => ({
+    value: String(lec.value),
+    label: lec.label,
+  }));
+
   return (
     <Modal
       title="Edit Lesson"
@@ -139,10 +147,6 @@ const LessonEditModal = ({
           <div>
             <Text strong>Class: </Text>
             <Text>{lesson.className || ''}</Text>
-          </div>
-          <div>
-            <Text strong>Lecturer: </Text>
-            <Text>{lesson.lecturer || ''}</Text>
           </div>
 
           <Divider style={{ margin: '12px 0' }} />
@@ -197,6 +201,19 @@ const LessonEditModal = ({
             <Select
               placeholder="Select room"
               options={roomOptions}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Lecturer"
+            name="lecturerId"
+            rules={[{ required: true, message: 'Please select a lecturer' }]}
+          >
+            <Select
+              placeholder="Select lecturer"
+              options={lecturerOptions}
               showSearch
               optionFilterProp="label"
             />

@@ -87,24 +87,21 @@ const PickSemesterAndClass = ({
 
           // Store classes grouped by semester
           if (data.classesBySemester) {
-            // Convert keys to numbers for easier lookup
             const grouped = {};
             Object.keys(data.classesBySemester).forEach(semId => {
               const classes = data.classesBySemester[semId];
               grouped[parseInt(semId)] = classes.map(cls => {
                 const className = cls.class_name || cls.className || '';
-                const subjectCode = cls.subject_code || cls.subjectCode || '';
-                const label = subjectCode
-                  ? `${className} - ${subjectCode}`
-                  : className;
+
                 return {
                   value: cls.class_id || cls.classId,
-                  label: label
+                  label: className
                 };
               });
             });
             setAllClassesBySemester(grouped);
           }
+
         }
       } catch (error) {
         console.error('Failed to load schedule options:', error);
@@ -187,74 +184,69 @@ const PickSemesterAndClass = ({
       {contextHolder}
       <Form layout="vertical">
         <Space
-          direction="vertical"
-          size="middle"
-          style={{ width: '100%' }}
-          className="create-schedule-space-vertical"
+          direction="horizontal"
+          size="large"
+          className="create-schedule-space-responsive"
         >
-          <Space direction="horizontal" size="large" className="create-schedule-space-responsive">
-            <Form.Item
-              label="Semester"
-              style={{ minWidth: 220 }}
-              className="create-schedule-form-item"
-            >
-              <Select
-                showSearch
-                placeholder="Select semester"
-                value={semesterId || undefined}
-                onChange={(value) => {
-                  onSemesterChange(value);
-                  onClassChange('');
-                }}
-                options={semesterOptions}
-                optionFilterProp="label"
-                loading={loadingOptions}
-                allowClear
-              />
-            </Form.Item>
+          {/* Semester */}
+          <Form.Item
+            label="Semester"
+            style={{ flex: 1, minWidth: 220 }}  
+            className="create-schedule-form-item"
+          >
+            <Select
+              showSearch
+              placeholder="Select semester"
+              value={semesterId || undefined}
+              onChange={(value) => {
+                onSemesterChange(value);
+                onClassChange('');
+              }}
+              options={semesterOptions}
+              optionFilterProp="label"
+              loading={loadingOptions}
+              allowClear
+            />
+          </Form.Item>
 
-            <Form.Item
-              label="Class"
-              style={{ minWidth: 220 }}
-              className="create-schedule-form-item"
-            >
-              <Select
-                placeholder={semesterId ? 'Select class' : 'Choose semester first'}
-                value={classId || undefined}
-                onChange={onClassChange}
-                options={displayClasses}
-                disabled={!semesterId || displayClasses.length === 0}
-                allowClear
-                showSearch
-                optionFilterProp="label"
-              />
-            </Form.Item>
+          {/* Class */}
+          <Form.Item
+            label="Class"
+            style={{ flex: 1, minWidth: 220 }} 
+            className="create-schedule-form-item"
+          >
+            <Select
+              placeholder={semesterId ? 'Select class' : 'Choose semester first'}
+              value={classId || undefined}
+              onChange={onClassChange}
+              options={displayClasses}
+              disabled={!semesterId || displayClasses.length === 0}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
 
-            <Form.Item
-              label=" "
-              colon={false}
-              style={{ minWidth: 220 }}
-              className="create-schedule-form-item"
+          {/* Button */}
+          <Form.Item
+            label=" "
+            colon={false}
+            style={{ flex: '0 0 auto' }}        
+            className="create-schedule-form-item"
+          >
+            <Button
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={handleLoadClass}
+              disabled={!semesterId || !classId}
+              loading={loadingSchedule}
+              style={{ width: 110, height: 32 }}
             >
-              <Button
-                type="primary"
-                icon={<ReloadOutlined />}
-                onClick={handleLoadClass}
-                disabled={!semesterId || !classId}
-                loading={loadingSchedule}
-                style={{ width: '100%', height: '32px' }}
-              >
-                Load Class
-              </Button>
-            </Form.Item>
-          </Space>
-          {loadingOptions && (
-            <Space size="small" align="center">
-              <Spin size="small" />
-              <Typography.Text type="secondary">Loading semester & class data...</Typography.Text>
-            </Space>
-          )}
+              Load Class
+            </Button>
+          </Form.Item>
         </Space>
+
       </Form>
     </Card>
   );
