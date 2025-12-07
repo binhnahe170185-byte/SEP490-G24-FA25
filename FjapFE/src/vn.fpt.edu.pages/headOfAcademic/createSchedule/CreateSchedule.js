@@ -825,7 +825,7 @@ const CreateSchedule = () => {
     }
   };
   const handleLoadClass = async (data) => {
-    // Clear pending patterns to avoid duplicates when loading a new class
+    // Clear Pending Schedule to avoid duplicates when loading a new class
     setPatterns([]);
 
     // Nếu nhận được data từ PickSemesterAndClass (API call)

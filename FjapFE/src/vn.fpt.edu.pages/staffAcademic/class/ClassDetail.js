@@ -127,13 +127,20 @@ export default function ClassDetail() {
     });
   }, [subjects, searchTerm]);
 
+  // Get base path based on current route
+  const getBasePath = () => {
+    const path = location.pathname;
+    return path.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+  };
+
   const handleViewStudents = (record) => {
     const destinationId = record?.classId ?? record?.class_id ?? classId;
     if (!destinationId) {
       return;
     }
 
-    navigate(`/staffAcademic/class/${destinationId}/students`, {
+    const basePath = getBasePath();
+    navigate(`${basePath}/class/${destinationId}/students`, {
       state: {
         className: record.class_name ?? record.className ?? className,
         subjectName: record.subject_name ?? record.subjectName ?? "-",
@@ -148,7 +155,8 @@ export default function ClassDetail() {
       return;
     }
 
-    navigate(`/staffAcademic/class/${destinationId}/add-students`, {
+    const basePath = getBasePath();
+    navigate(`${basePath}/class/${destinationId}/add-students`, {
       state: {
         className: record.class_name ?? record.className ?? className,
         subjectName: record.subject_name ?? record.subjectName ?? "-",

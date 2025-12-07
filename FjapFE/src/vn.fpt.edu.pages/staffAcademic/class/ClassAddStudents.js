@@ -222,7 +222,8 @@ const ClassAddStudents = () => {
 
       await ClassListApi.addStudents(classId, studentIds);
       notifySuccess(key, "Students added", "Selected students were added to the class.");
-      navigate(`/staffAcademic/class/${classId}/students`, {
+      const basePath = location.pathname.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+      navigate(`${basePath}/class/${classId}/students`, {
         replace: true,
         state: {
           className: classInfo?.className ?? location.state?.className,

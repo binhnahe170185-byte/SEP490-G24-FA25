@@ -304,15 +304,16 @@ const ClassStudents = () => {
             <Button
               type="primary"
               icon={<UserAddOutlined />}
-              onClick={() =>
-                navigate(`/staffAcademic/class/${classInfo.classId}/add-students`, {
+              onClick={() => {
+                const basePath = location.pathname.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+                navigate(`${basePath}/class/${classInfo.classId}/add-students`, {
                   state: {
                     className: classInfo.className,
                     subjectName: classInfo.subjectName,
                     subjectCode: classInfo.subjectCode,
                   },
-                })
-              }
+                });
+              }}
             >
               Add students
             </Button>

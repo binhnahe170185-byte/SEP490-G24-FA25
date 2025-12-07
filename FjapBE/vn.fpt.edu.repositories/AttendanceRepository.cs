@@ -11,6 +11,15 @@ public class AttendanceRepository : GenericRepository<Attendance>, IAttendanceRe
     {
     }
 
+    public async Task<int?> GetLecturerIdByUserIdAsync(int userId)
+    {
+        return await _context.Lectures
+            .AsNoTracking()
+            .Where(l => l.UserId == userId)
+            .Select(l => (int?)l.LectureId)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<Lesson?> GetLessonWithDetailsAsync(int lessonId, int lecturerId)
     {
         return await _context.Lessons
@@ -186,27 +195,15 @@ public class AttendanceRepository : GenericRepository<Attendance>, IAttendanceRe
             .ToListAsync();
     }
 
-    public async Task<List<AttendanceReportDetailItemDto>> GetAttendanceReportDetailBySubjectAndSemesterAsync(int subjectId, int semesterId, int lecturerId)
+    public async Task<List<AttendanceReportDetailItemDto>> GetAttendanceReportDetailByClassAsync(int classId, int lecturerId)
     {
-        // Lấy tất cả classes có cùng subjectId và semesterId
-        var classIds = await _context.Classes
-            .AsNoTracking()
-            .Where(c => c.SubjectId == subjectId && c.SemesterId == semesterId)
-            .Select(c => c.ClassId)
-            .ToListAsync();
-
-        if (!classIds.Any())
-        {
-            return new List<AttendanceReportDetailItemDto>();
-        }
-
-        // Lấy tất cả lessons của các classes đó mà giảng viên dạy
+        // Lấy tất cả lessons của class này mà giảng viên dạy
         var lessons = await _context.Lessons
             .AsNoTracking()
             .Include(l => l.Class)
             .Include(l => l.Room)
             .Include(l => l.Time)
-            .Where(l => classIds.Contains(l.ClassId) && l.LectureId == lecturerId)
+            .Where(l => l.ClassId == classId && l.LectureId == lecturerId)
             .OrderBy(l => l.Date)
             .ThenBy(l => l.Time.StartTime)
             .Select(l => new
@@ -227,41 +224,26 @@ public class AttendanceRepository : GenericRepository<Attendance>, IAttendanceRe
 
         var lessonIds = lessons.Select(l => l.LessonId).ToList();
 
-        // Lấy tất cả students trong các classes đó (loại bỏ duplicate)
-        // Load dữ liệu trước, sau đó group và distinct trong memory
-        var studentsData = await _context.Classes
+        // Lấy tất cả students của class này
+        var students = await _context.Classes
             .AsNoTracking()
-            .Include(c => c.Students)
-                .ThenInclude(s => s.User)
-            .Where(c => classIds.Contains(c.ClassId))
+            .Where(c => c.ClassId == classId)
             .SelectMany(c => c.Students)
-            .Select(s => new
-            {
-                s.StudentId,
-                s.StudentCode,
-                FirstName = s.User.FirstName,
-                LastName = s.User.LastName
-            })
-            .ToListAsync();
-
-        // Loại bỏ duplicate trong memory
-        var students = studentsData
-            .GroupBy(s => s.StudentId)
-            .Select(g => g.First())
+            .Include(s => s.User)
             .Select(s => new AttendanceStudentInfoDto
             {
                 StudentId = s.StudentId,
                 StudentCode = s.StudentCode,
                 User = new AttendanceUserInfoDto
                 {
-                    FirstName = s.FirstName,
-                    LastName = s.LastName
+                    FirstName = s.User.FirstName,
+                    LastName = s.User.LastName
                 }
             })
             .OrderBy(s => s.StudentCode)
-            .ToList();
+            .ToListAsync();
 
-        // Lấy tất cả attendances của các lessons đó
+        // Lấy tất cả attendances của các lessons này
         var attendances = await _context.Attendances
             .AsNoTracking()
             .Where(a => lessonIds.Contains(a.LessonId))

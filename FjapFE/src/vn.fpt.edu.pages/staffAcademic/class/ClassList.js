@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input, Select, Space, Table, Tooltip, Switch } from "antd";
 import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import ClassFormModal from "./ClassFormModel";
 import DeleteClassFormModal from "./DeleteClassFormModal";
@@ -270,13 +270,15 @@ const buildClassRows = (data = []) => {
   return normalized;
 };
 
-export default function ClassList() {
+export default function ClassList({ readOnly = false }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: "",
     semester: "all",
-    status: "all",
+    status: readOnly ? "active" : "all", // Default to active for readOnly
     level: "all",
   });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 8 });
@@ -288,7 +290,6 @@ export default function ClassList() {
     classId: null,
     initialValues: null,
   });
-  const navigate = useNavigate();
   const { pending: notifyPending, success: notifySuccess, error: notifyError } =
     useNotify();
 
@@ -585,10 +586,11 @@ export default function ClassList() {
       return;
     }
 
-    navigate(`/staffAcademic/class/${destinationId}`,
-      {
-        state: { className: record.class_name ?? destinationId }
-      });
+    // Get base path based on current route
+    const basePath = location.pathname.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+    navigate(`${basePath}/class/${destinationId}`, {
+      state: { className: record.class_name ?? destinationId }
+    });
   };
 
   const columns = [
@@ -644,30 +646,35 @@ export default function ClassList() {
       title: "Status",
       key: "status",
       align: "center",
-      render: (_value, record) => (
-        <Switch
-          checkedChildren="Active"
-          unCheckedChildren="Inactive"
-          checked={record.status}
-          onChange={(checked) => handleStatusToggle(record, checked)}
-          loading={
-            updatingStatusId === (record.classId ?? record.class_id)?.toString()
-          }
-        />
-      ),
+      render: (_value, record) => 
+        readOnly ? (
+          <span>{record.status ? "Active" : "Inactive"}</span>
+        ) : (
+          <Switch
+            checkedChildren="Active"
+            unCheckedChildren="Inactive"
+            checked={record.status}
+            onChange={(checked) => handleStatusToggle(record, checked)}
+            loading={
+              updatingStatusId === (record.classId ?? record.class_id)?.toString()
+            }
+          />
+        ),
     },
     {
       title: "Actions",
       key: "actions",
       render: (_, record) => (
         <Space size="middle">
-          <Tooltip title="Edit">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => handleEditClass(record)}
-            />
-          </Tooltip>
+          {!readOnly && (
+            <Tooltip title="Edit">
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => handleEditClass(record)}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="View">
             <Button
               type="text"
@@ -675,11 +682,13 @@ export default function ClassList() {
               onClick={() => handleView(record)}
             />
           </Tooltip>
-          <DeleteClassFormModal
-            classId={record.classId ?? record.class_id}
-            className={record.class_name}
-            onDeleted={loadClasses}
-          />
+          {!readOnly && (
+            <DeleteClassFormModal
+              classId={record.classId ?? record.class_id}
+              className={record.class_name}
+              onDeleted={loadClasses}
+            />
+          )}
         </Space>
       ),
     },
@@ -734,17 +743,19 @@ export default function ClassList() {
           />
         </div>
 
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreateClass}
-          style={{ minWidth: 160 }}
-        >
-          Create New Class
-        </Button>
+        {!readOnly && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleCreateClass}
+            style={{ minWidth: 160 }}
+          >
+            Create New Class
+          </Button>
+        )}
       </div>
 
-      <h2 style={{ marginBottom: 16 }}>Manage Class</h2>
+      <h2 style={{ marginBottom: 16 }}>{readOnly ? "Active Classes" : "Manage Class"}</h2>
       <Table
         columns={columns}
         dataSource={filteredClasses}
@@ -759,19 +770,19 @@ export default function ClassList() {
         }}
         bordered
       />
-      <ClassFormModal
-        open={formModalConfig.open}
-        mode={formModalConfig.mode}
-        classId={formModalConfig.classId}
-        initialValues={formModalConfig.initialValues ?? {}}
-        onCancel={handleCloseFormModal}
-        onSuccess={handleFormModalSuccess}
-        fallbackLevels={filterOptions.levels}
-        fallbackSemesters={filterOptions.semesters}
-      />
+      {!readOnly && (
+        <ClassFormModal
+          open={formModalConfig.open}
+          mode={formModalConfig.mode}
+          classId={formModalConfig.classId}
+          initialValues={formModalConfig.initialValues ?? {}}
+          onCancel={handleCloseFormModal}
+          onSuccess={handleFormModalSuccess}
+          fallbackLevels={filterOptions.levels}
+          fallbackSemesters={filterOptions.semesters}
+        />
+      )}
     </>
-
-
   );
 }
 

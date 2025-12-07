@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   Table,
@@ -83,6 +83,13 @@ function FeedbackText({ text }) {
 
 export default function FeedbackList() {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get base path based on current route
+  const getBasePath = () => {
+    const path = location.pathname;
+    return path.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+  };
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [reAnalyzing, setReAnalyzing] = useState(false);
@@ -386,7 +393,7 @@ export default function FeedbackList() {
       render: (_, record) => (
         <Button
           icon={<EyeOutlined />}
-          onClick={() => navigate(`/staffAcademic/feedback/${record.id}`)}
+          onClick={() => navigate(`${getBasePath()}/feedback/${record.id}`)}
         >
           View
         </Button>

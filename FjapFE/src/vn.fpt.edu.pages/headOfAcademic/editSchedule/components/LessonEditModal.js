@@ -19,6 +19,7 @@ const LessonEditModal = ({
   lesson,
   rooms = [],
   timeslots = [],
+  lecturers = [],
   semester,
   onUpdate,
   onDelete,
@@ -27,9 +28,27 @@ const LessonEditModal = ({
 }) => {
   const [form] = Form.useForm();
 
+  // Debug: Log props immediately on render
+  console.log('🔍 LessonEditModal RENDER');
+  console.log('  visible:', visible);
+  console.log('  lesson:', lesson);
+  console.log('  rooms.length:', rooms?.length);
+  console.log('  timeslots.length:', timeslots?.length);
+  console.log('  lecturers.length:', lecturers?.length);
+  console.log('  rooms:', rooms);
+  console.log('  timeslots:', timeslots);
+  console.log('  lecturers:', lecturers);
+
   // Khi mở modal hoặc đổi lesson → fill form
   useEffect(() => {
     if (visible && lesson) {
+      console.log('📝 Setting form values:', {
+        date: lesson.date,
+        timeId: lesson.timeId,
+        roomId: lesson.roomId,
+        lecturerId: lesson.lecturerId,
+      });
+
       form.setFieldsValue({
         date: lesson.date ? dayjs(lesson.date) : null,
         timeId: lesson.timeId
@@ -38,6 +57,7 @@ const LessonEditModal = ({
             ? String(lesson.slot)
             : undefined,
         roomId: lesson.roomId ? String(lesson.roomId) : undefined,
+        lecturerId: lesson.lecturerId ? String(lesson.lecturerId) : undefined,
       });
     } else {
       form.resetFields();
@@ -54,6 +74,7 @@ const LessonEditModal = ({
           : lesson.date,
         timeId: Number(values.timeId),
         roomId: Number(values.roomId),
+        lecturerId: Number(values.lecturerId),
       };
 
       console.log('handleSubmit - lesson:', lesson);
@@ -105,15 +126,36 @@ const LessonEditModal = ({
 
   if (!lesson) return null;
 
-  const slotOptions = timeslots.map((ts) => ({
+  // Safeguard: ensure arrays are defined
+  const safeRooms = Array.isArray(rooms) ? rooms : [];
+  const safeTimeslots = Array.isArray(timeslots) ? timeslots : [];
+  const safeLecturers = Array.isArray(lecturers) ? lecturers : [];
+
+  const slotOptions = safeTimeslots.map((ts) => ({
     value: String(ts.timeId),
     label: `Slot ${ts.timeId} (${ts.startTime || ''} - ${ts.endTime || ''})`,
   }));
 
-  const roomOptions = rooms.map((room) => ({
+  const roomOptions = safeRooms.map((room) => ({
     value: room.value,
     label: room.label,
   }));
+
+  const lecturerOptions = safeLecturers.map((lec) => ({
+    value: String(lec.value),
+    label: lec.label,
+  }));
+
+  // Debug logging
+  console.log('=== LessonEditModal Debug ===');
+  console.log('lesson:', lesson);
+  console.log('rooms prop:', rooms);
+  console.log('timeslots prop:', timeslots);
+  console.log('lecturers prop:', lecturers);
+  console.log('roomOptions:', roomOptions);
+  console.log('slotOptions:', slotOptions);
+  console.log('lecturerOptions:', lecturerOptions);
+
 
   return (
     <Modal
@@ -139,10 +181,6 @@ const LessonEditModal = ({
           <div>
             <Text strong>Class: </Text>
             <Text>{lesson.className || ''}</Text>
-          </div>
-          <div>
-            <Text strong>Lecturer: </Text>
-            <Text>{lesson.lecturer || ''}</Text>
           </div>
 
           <Divider style={{ margin: '12px 0' }} />
@@ -202,9 +240,31 @@ const LessonEditModal = ({
             />
           </Form.Item>
 
+          <Form.Item
+            label="Lecturer"
+            name="lecturerId"
+            rules={[{ required: true, message: 'Please select a lecturer' }]}
+          >
+            <Select
+              placeholder="Select lecturer"
+              options={lecturerOptions}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+
           <Divider style={{ margin: '12px 0' }} />
 
-          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Button
+              danger
+              type="default"
+              icon={<DeleteOutlined />}
+              onClick={handleDelete}
+              disabled={saving || !lesson?.lessonId}
+            >
+              Delete Lesson
+            </Button>
             <Button
               type="primary"
               htmlType="submit"
@@ -216,20 +276,6 @@ const LessonEditModal = ({
           </Space>
         </Space>
       </Form>
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      <Space style={{ width: '100%', justifyContent: 'flex-start' }}>
-        <Button
-          danger
-          type="default"
-          icon={<DeleteOutlined />}
-          onClick={handleDelete}
-          disabled={saving || !lesson?.lessonId}
-        >
-          Delete Lesson
-        </Button>
-      </Space>
     </Modal>
   );
 };

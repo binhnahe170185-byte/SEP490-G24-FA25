@@ -13,7 +13,7 @@ export default function AttendanceReport() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [classInfo, setClassInfo] = useState(null);
-    const [attendanceData, setAttendanceData] = useState({ students: [], dates: [] });
+    const [attendanceData, setAttendanceData] = useState({ students: [], lessons: [] });
     const [error, setError] = useState(null);
 
     useEffect(() => {
@@ -41,10 +41,12 @@ export default function AttendanceReport() {
                 }
 
                 const subject = classData.subject ?? classData.Subject ?? {};
-                setClassInfo({
+                const totalLesson = subject.totalLesson ?? subject.TotalLesson ?? 0;
 
+                setClassInfo({
                     className: classData.className ?? classData.class_name ?? classData.ClassName ?? "-",
-                    subjectCode: subject.subjectCode ?? subject.SubjectCode ?? classData.subjectCode ?? "-"
+                    subjectCode: subject.subjectCode ?? subject.SubjectCode ?? classData.subjectCode ?? "-",
+                    totalLesson: totalLesson
                 });
 
                 // Fetch attendance report
@@ -64,34 +66,36 @@ export default function AttendanceReport() {
                     // Lấy lessons array từ item
                     const lessons = item.lessons ?? item.Lessons ?? [];
 
-                    // Tạo object với key là date để dễ truy cập
-                    const lessonsByDate = {};
+                    // Tạo object với key là date_timeSlot để support multiple lessons per day
+                    const lessonsByKey = {};
                     let absentCount = 0;
-                    let totalWithStatus = 0;
 
                     lessons.forEach(lesson => {
                         const date = lesson.date ?? lesson.Date ?? "";
+                        const timeSlot = lesson.timeSlot ?? lesson.TimeSlot ?? "";
                         const status = lesson.status ?? lesson.Status ?? null;
 
-                        if (date) {
-                            lessonsByDate[date] = {
+                        if (date && timeSlot) {
+                            // Use composite key: date_timeSlot
+                            const lessonKey = `${date}_${timeSlot}`;
+                            lessonsByKey[lessonKey] = {
                                 status: status,
                                 lessonId: lesson.lessonId ?? lesson.LessonId,
+                                date: date,
+                                timeSlot: timeSlot,
                             };
                         }
 
-                        // Tính toán percent absent
-                        if (status != null) {
-                            totalWithStatus++;
-                            if (status === "Absent" || status === "absent") {
-                                absentCount++;
-                            }
+                        // Đếm số buổi vắng (chỉ đếm những buổi đã điểm danh là Absent)
+                        if (status === "Absent" || status === "absent") {
+                            absentCount++;
                         }
                     });
 
-                    // Tính percent absent
-                    const percentAbsent = totalWithStatus > 0
-                        ? Math.round((absentCount / totalWithStatus) * 100)
+                    // Tính percent absent dựa trên totalLesson của subject
+                    // Công thức: (số buổi vắng / tổng số buổi học của môn) * 100
+                    const percentAbsent = totalLesson > 0
+                        ? Math.round((absentCount / totalLesson) * 100)
                         : 0;
 
                     return {
@@ -101,26 +105,39 @@ export default function AttendanceReport() {
                         studentName: fullName || "-",
                         percentAbsent: percentAbsent,
                         absentCount: absentCount,
-                        totalWithStatus: totalWithStatus,
-                        lessonsByDate: lessonsByDate,
+                        totalLesson: totalLesson,
+                        lessonsByKey: lessonsByKey,
                         lessons: lessons,
                     };
                 });
 
-                // Lấy tất cả các dates duy nhất từ tất cả students
-                const allDates = new Set();
+                // Lấy tất cả các lessons duy nhất (date + timeSlot) từ tất cả students
+                const allLessons = new Map(); // lessonKey -> { date, timeSlot }
                 normalizedData.forEach(item => {
-                    Object.keys(item.lessonsByDate).forEach(date => {
-                        allDates.add(date);
+                    Object.entries(item.lessonsByKey).forEach(([key, lesson]) => {
+                        if (!allLessons.has(key)) {
+                            allLessons.set(key, {
+                                date: lesson.date,
+                                timeSlot: lesson.timeSlot,
+                                key: key
+                            });
+                        }
                     });
                 });
 
-                // Sắp xếp dates
-                const sortedDates = Array.from(allDates).sort();
+                // Sắp xếp lessons theo date, rồi theo timeSlot
+                const sortedLessons = Array.from(allLessons.values()).sort((a, b) => {
+                    // Sort by date first
+                    if (a.date !== b.date) {
+                        return a.date.localeCompare(b.date);
+                    }
+                    // Then by time slot
+                    return a.timeSlot.localeCompare(b.timeSlot);
+                });
 
                 setAttendanceData({
                     students: normalizedData,
-                    dates: sortedDates,
+                    lessons: sortedLessons,
                 });
             } catch (err) {
                 console.error("Error fetching attendance report:", err);
@@ -145,7 +162,7 @@ export default function AttendanceReport() {
         navigate('/lecturer/schedule');
     };
 
-    // Tạo columns động dựa trên dates
+    // Tạo columns động dựa trên lessons
     const buildColumns = () => {
         const baseColumns = [
             {
@@ -172,7 +189,7 @@ export default function AttendanceReport() {
                 width: 120,
                 align: "center",
                 render: (percent, record) => {
-                    if (record.totalWithStatus === 0) {
+                    if (record.totalLesson === 0) {
                         return <Text style={{ color: "#666" }}>-</Text>;
                     }
                     // Màu xanh nếu <= 20%, đỏ nếu > 20%
@@ -188,41 +205,49 @@ export default function AttendanceReport() {
         ];
 
         // Kiểm tra nếu attendanceData chưa có structure đúng
-        if (!attendanceData || !attendanceData.dates) {
+        if (!attendanceData || !attendanceData.lessons) {
             return baseColumns;
         }
 
-        // Thêm columns cho mỗi date
-        const dateColumns = attendanceData.dates.map((date) => {
-            // Format date để hiển thị: DD/MM/YYYY
-            const dateObj = new Date(date);
+        // Thêm columns cho mỗi lesson (date + timeSlot)
+        const lessonColumns = attendanceData.lessons.map((lesson) => {
+            // Parse date string "YYYY-MM-DD" without timezone conversion
+            const [year, month, day] = lesson.date.split('-').map(Number);
+            const dateObj = new Date(year, month - 1, day);
+
             const formattedDate = dateObj.toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
-                year: 'numeric'
             });
 
             return {
-                title: formattedDate,
-                key: `date_${date}`,
+                title: (
+                    <div style={{ textAlign: 'center', lineHeight: '1.3' }}>
+                        <div style={{ fontWeight: 'bold' }}>{formattedDate}</div>
+                        <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+                            {lesson.timeSlot}
+                        </div>
+                    </div>
+                ),
+                key: `lesson_${lesson.key}`,
                 align: "center",
                 width: 100,
                 render: (_value, record) => {
-                    const lesson = record.lessonsByDate?.[date];
-                    const status = lesson?.status;
+                    const lessonData = record.lessonsByKey?.[lesson.key];
+                    const status = lessonData?.status;
 
                     if (status === "Present" || status === "present") {
                         return <Text strong style={{ color: "#52c41a", fontSize: "16px" }}>P</Text>;
                     } else if (status === "Absent" || status === "absent") {
                         return <Text strong style={{ color: "#ff4d4f", fontSize: "16px" }}>A</Text>;
                     } else {
-                        return <Text style={{ color: "#000", fontSize: "16px" }}>-</Text>;
+                        return <Text style={{ color: "#999", fontSize: "16px" }}>-</Text>;
                     }
                 },
             };
         });
 
-        return [...baseColumns, ...dateColumns];
+        return [...baseColumns, ...lessonColumns];
     };
 
     const columns = buildColumns();
@@ -298,4 +323,3 @@ export default function AttendanceReport() {
         </div>
     );
 }
-

@@ -1,10 +1,8 @@
 using System.Security.Claims;
 using FJAP.DTOs;
 using FJAP.Services.Interfaces;
-using FJAP.vn.fpt.edu.models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FJAP.Controllers;
 
@@ -14,16 +12,13 @@ namespace FJAP.Controllers;
 public class AttendanceController : ControllerBase
 {
     private readonly IAttendanceService _attendanceService;
-    private readonly FjapDbContext _db;
     private readonly ILogger<AttendanceController> _logger;
 
     public AttendanceController(
         IAttendanceService attendanceService,
-        FjapDbContext db,
         ILogger<AttendanceController> logger)
     {
         _attendanceService = attendanceService;
-        _db = db;
         _logger = logger;
     }
 
@@ -45,11 +40,7 @@ public class AttendanceController : ControllerBase
     private async Task<int> GetCurrentLecturerIdAsync()
     {
         var userId = GetCurrentUserId();
-        var lecturerId = await _db.Lectures
-            .AsNoTracking()
-            .Where(l => l.UserId == userId)
-            .Select(l => (int?)l.LectureId)
-            .FirstOrDefaultAsync();
+        var lecturerId = await _attendanceService.GetLecturerIdByUserIdAsync(userId);
 
         if (lecturerId is null)
         {
@@ -206,6 +197,10 @@ public class AttendanceController : ControllerBase
                 }
             });
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Attendance can only be taken on the lesson date"))
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return StatusCode(403, new { code = 403, message = ex.Message });
@@ -219,8 +214,7 @@ public class AttendanceController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy attendance report chi tiết cho một class (tất cả bản ghi điểm danh của từng lessonId cho mỗi student)
-    /// Lấy tất cả lessons của subjectId trong semester
+    /// Lấy attendance report chi tiết cho một class
     /// GET: api/attendance/classes/{classId}/report
     /// </summary>
     [HttpGet("classes/{classId}/report")]
@@ -230,27 +224,14 @@ public class AttendanceController : ControllerBase
         {
             var lecturerId = await GetCurrentLecturerIdAsync();
             
-            // Lấy thông tin class để lấy subjectId và semesterId
-            var classInfo = await _db.Classes
-                .AsNoTracking()
-                .Where(c => c.ClassId == classId)
-                .Select(c => new { c.SubjectId, c.SemesterId })
-                .FirstOrDefaultAsync();
-
-            if (classInfo == null)
-            {
-                return NotFound(new { code = 404, message = "Class not found" });
-            }
-
-            // Lấy report detail theo subjectId và semesterId
-            var reportData = await _attendanceService.GetAttendanceReportDetailBySubjectAndSemesterAsync(
-                classInfo.SubjectId, 
-                classInfo.SemesterId, 
+            // Gọi service method với classId
+            var reportData = await _attendanceService.GetAttendanceReportDetailByClassAsync(
+                classId, 
                 lecturerId);
 
             if (reportData == null || !reportData.Any())
             {
-                return NotFound(new { code = 404, message = "No attendance data found for this subject and semester" });
+                return NotFound(new { code = 404, message = "No attendance data found for this class" });
             }
 
             return Ok(new
@@ -336,6 +317,10 @@ public class AttendanceController : ControllerBase
                 message = $"Updated {results.Count} attendance records",
                 data = results
             });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Attendance can only be taken on the lesson date"))
+        {
+            return BadRequest(new { code = 400, message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
