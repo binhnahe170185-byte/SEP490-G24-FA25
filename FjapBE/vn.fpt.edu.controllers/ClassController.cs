@@ -288,7 +288,10 @@ public class ClassController : ControllerBase
                         avatar = user?.Avatar
                     };
                 })
-                .ToList()
+                .ToList(),
+            maxStudents = item.MaxStudents,
+            minStudents = item.MinStudents,
+            totalStudents = item.Students?.Count ?? 0
         };
 
         return Ok(new { code = 200, data = response });
@@ -857,7 +860,9 @@ public class ClassController : ControllerBase
             lectureEmail = lectureEmailString,
             totalStudents = enrollmentCounts.TryGetValue(subject.SubjectId, out var count) && count > 0
                 ? count
-                : totalStudentsInClass > 0 ? totalStudentsInClass : studentCount
+                : totalStudentsInClass > 0 ? totalStudentsInClass : studentCount,
+            maxStudents = cls.MaxStudents,
+            minStudents = cls.MinStudents
         };
 
         return Ok(new { code = 200, message = "Success", data = new[] { subjectPayload } });
