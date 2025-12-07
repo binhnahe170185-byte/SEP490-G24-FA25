@@ -34,6 +34,7 @@ const normalizeSubjects = (rows = [], fallbackClassId, fallbackClassName) =>
       lecture_email: item.lecture_email ?? item.lectureEmail ?? null,
       lecture_mail: item.lecture_email ?? item.lectureEmail ?? null,
       total_students: item.total_students ?? item.totalStudents ?? 0,
+      max_students: item.max_students ?? item.maxStudents ?? null,
     };
   });
 
@@ -209,6 +210,14 @@ export default function ClassDetail() {
       title: "Students",
       dataIndex: "total_students",
       key: "total_students",
+      render: (value, record) => {
+        const current = value ?? 0;
+        const max = record.max_students;
+        if (max !== null && max !== undefined) {
+          return `${current}/${max}`;
+        }
+        return current;
+      },
     },
     {
       title: "Actions",

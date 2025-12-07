@@ -40,6 +40,9 @@ const ClassAddStudents = () => {
   const [candidates, setCandidates] = useState([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [maxStudents, setMaxStudents] = useState(null);
+  const [currentStudents, setCurrentStudents] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!classId) {
@@ -83,6 +86,12 @@ const ClassAddStudents = () => {
           subjectCode: subjectCode,
         };
         setClassInfo(info);
+        
+        // Store max students limit and current count
+        const max = data?.maxStudents ?? data?.MaxStudents ?? null;
+        const current = (data?.students ?? data?.Students ?? []).length || 0;
+        setMaxStudents(max);
+        setCurrentStudents(current);
       } catch (error) {
         console.error("Failed to load class info", error);
       }
@@ -238,7 +247,7 @@ const ClassAddStudents = () => {
       key: "index",
       width: 70,
       align: "center",
-      render: (_value, _record, index) => index + 1,
+      render: (_value, _record, index) => (currentPage - 1) * 8 + index + 1,
     },
     {
       title: "Student ID",
@@ -295,14 +304,42 @@ const ClassAddStudents = () => {
       </div>
 
       <Card>
-        <Space direction="vertical" size={4}>
-          <Typography.Text type="secondary">Class Name</Typography.Text>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            {classInfo?.className ?? "-"}
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            Subject: {classInfo?.subjectName ?? "-"} ({classInfo?.subjectCode ?? "-"})
-          </Typography.Text>
+        <Space direction="vertical" size={12}>
+          <div>
+            <Space direction="vertical" size={4}>
+              <Typography.Text type="secondary">Class Name</Typography.Text>
+              <Typography.Title level={4} style={{ margin: 0 }}>
+                {classInfo?.className ?? "-"}
+              </Typography.Title>
+              <Typography.Text type="secondary">
+                Subject: {classInfo?.subjectName ?? "-"} ({classInfo?.subjectCode ?? "-"})
+              </Typography.Text>
+            </Space>
+          </div>
+          <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: 12 }}>
+            <Space size={24}>
+              <div>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Current Students</Typography.Text>
+                <Typography.Title level={5} style={{ margin: "4px 0 0 0", color: "#1890ff" }}>
+                  {currentStudents}
+                </Typography.Title>
+              </div>
+              <div>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Max Students</Typography.Text>
+                <Typography.Title level={5} style={{ margin: "4px 0 0 0", color: "#1890ff" }}>
+                  {maxStudents ?? "No limit"}
+                </Typography.Title>
+              </div>
+              {maxStudents !== null && (
+                <div>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>Remaining Capacity</Typography.Text>
+                  <Typography.Title level={5} style={{ margin: "4px 0 0 0", color: "#52c41a" }}>
+                    {maxStudents - currentStudents}
+                  </Typography.Title>
+                </div>
+              )}
+            </Space>
+          </div>
         </Space>
       </Card>
 
@@ -310,6 +347,12 @@ const ClassAddStudents = () => {
         title="Eligible Students"
         extra={
           <Space>
+            <div style={{ padding: "4px 12px", backgroundColor: "#f0f0f0", borderRadius: "4px" }}>
+              <Typography.Text strong>
+                Selected: {selectedRowKeys.length}
+                {maxStudents !== null ? ` / ${maxStudents - currentStudents}` : ""}
+              </Typography.Text>
+            </div>
             <Input.Search
               allowClear
               placeholder="Search by name or ID"
@@ -334,7 +377,7 @@ const ClassAddStudents = () => {
           columns={columns}
           dataSource={filteredCandidates}
           loading={loadingCandidates}
-          pagination={{ pageSize: 8 }}
+          pagination={{ pageSize: 8, onChange: (page) => setCurrentPage(page) }}
           rowKey="key"
           locale={{
             emptyText: loadingCandidates ? "Loading..." : "No eligible students found.",
