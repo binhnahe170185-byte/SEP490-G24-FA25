@@ -8,6 +8,7 @@ import RoomApi from '../../../vn.fpt.edu.api/Room';
 import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
 import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
 import ClassList from '../../../vn.fpt.edu.api/ClassList';
+import { api } from '../../../vn.fpt.edu.api/http';
 import {
   Layout,
   Space,
@@ -142,19 +143,22 @@ const EditSchedule = () => {
 
         const timeslotsList = await TimeslotApi.getTimeslots();
         setTimeslots(timeslotsList);
-        const LecturerApi = (await import('../../../vn.fpt.edu.api/Lecturer')).default;
-        const lecturersResponse = await LecturerApi.getLecturers({ pageSize: 200 });
-        const lecturersList = lecturersResponse.items || [];
+
+        // Fetch lecturers - gọi trực tiếp Backend API
+        const lecturersResponse = await api.get('/api/Lecturers');
+        const lecturersList = lecturersResponse.data?.data || [];
         const formattedLecturers = lecturersList.map((lec) => ({
           value: String(lec.lecturerId),
           label: lec.email ? lec.email.split('@')[0] : lec.lecturerCode || `Lecturer ${lec.lecturerId}`,
         }));
         setLecturers(formattedLecturers);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('❌ Error fetching data:', error);
+        console.error('Error details:', error.response?.data);
         setRooms([]);
         setTimeslots([]);
         setSemesterData([]);
+        setLecturers([]);
       } finally {
         setLoading(false);
       }
@@ -359,7 +363,7 @@ const EditSchedule = () => {
         startTime: lesson.startTime || '',
         endTime: lesson.endTime || '',
         timeId: lesson.timeId,
-        lectureId: lesson.lectureId || lesson.lecturerId,
+        lecturerId: lesson.lecturerId || lesson.lectureId,
         isLoaded: true,
       };
     });
@@ -659,7 +663,8 @@ const EditSchedule = () => {
               startTime: lesson.startTime || '',
               endTime: lesson.endTime || '',
               timeId: lesson.timeId,
-              subjectId: lesson.subjectId, // giữ lại nếu backend có
+              lecturerId: lesson.lecturerId || lesson.lectureId,
+              subjectId: lesson.subjectId,
               isLoaded: true,
             };
           });
@@ -937,21 +942,21 @@ const EditSchedule = () => {
         </Space>
       </Layout.Content>
 
-    <LessonEditModal
-  visible={editModalVisible}
-  lesson={selectedLesson}
-  rooms={rooms}
-  timeslots={timeslots}
-  lecturers={lecturers}  
-  semester={semester}
-  onUpdate={handleUpdateLesson}
-  onDelete={handleDeleteLesson}
-  onCancel={() => {
-    setEditModalVisible(false);
-    setSelectedLesson(null);
-  }}
-  saving={saving}
-/>
+      <LessonEditModal
+        visible={editModalVisible}
+        lesson={selectedLesson}
+        rooms={rooms}
+        timeslots={timeslots}
+        lecturers={lecturers}
+        semester={semester}
+        onUpdate={handleUpdateLesson}
+        onDelete={handleDeleteLesson}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setSelectedLesson(null);
+        }}
+        saving={saving}
+      />
     </Layout>
   );
 };
