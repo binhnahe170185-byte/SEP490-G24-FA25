@@ -303,8 +303,8 @@ export default function Attendance() {
               src={avatarSrc}
               alt={`${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Avatar'}
               style={{
-                width: '170px',
-                height: '240px',
+                width: '120px',
+                height: '190px',
                 objectFit: 'cover',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -317,8 +317,8 @@ export default function Attendance() {
         return (
           <div
             style={{
-              width: '170px',
-              height: '240px',
+              width: '120px',
+              height: '190px',
               backgroundColor: '#87d068',
               borderRadius: '4px',
               display: 'flex',

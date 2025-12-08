@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   Form,
@@ -8,9 +8,11 @@ import {
   Button,
   Typography,
   Divider,
+  Spin,
 } from 'antd';
 import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { api } from '../../../../vn.fpt.edu.api/http';
 
 const { Text } = Typography;
 
@@ -27,17 +29,117 @@ const LessonEditModal = ({
   saving = false,
 }) => {
   const [form] = Form.useForm();
+  const [allLecturers, setAllLecturers] = useState([]);
+  const [loadingLecturers, setLoadingLecturers] = useState(false);
+  const [allRooms, setAllRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [allTimeslots, setAllTimeslots] = useState([]);
+  const [loadingTimeslots, setLoadingTimeslots] = useState(false);
+
+  // Fetch all lecturers when modal opens
+  useEffect(() => {
+    const fetchLecturers = async () => {
+      if (!visible) return;
+
+      try {
+        setLoadingLecturers(true);
+        console.log('🔄 Fetching lecturers...');
+        const response = await api.get('/api/Lecturers');
+        const lecturersList = response.data?.data || [];
+        
+        const formattedLecturers = lecturersList.map((lec) => ({
+          value: String(lec.lecturerId),
+          label: lec.email ? lec.email.split('@')[0] : lec.lecturerCode || `Lecturer ${lec.lecturerId}`,
+        }));
+        
+        setAllLecturers(formattedLecturers);
+        console.log('✅ Lecturers loaded:', formattedLecturers.length);
+      } catch (error) {
+        console.error('❌ Error fetching lecturers:', error);
+        setAllLecturers([]);
+      } finally {
+        setLoadingLecturers(false);
+      }
+    };
+
+    fetchLecturers();
+  }, [visible]);
+
+  // Fetch all rooms when modal opens
+  useEffect(() => {
+    const fetchRooms = async () => {
+      if (!visible) return;
+
+      try {
+        setLoadingRooms(true);
+        console.log('🔄 Fetching all rooms...');
+        const response = await api.get('/api/StaffOfAdmin/rooms');
+        const roomsList = response.data?.data || response.data?.items || [];
+        
+        console.log('📋 All rooms:', roomsList);
+        
+        const formattedRooms = roomsList.map((room) => ({
+          value: String(room.roomId),
+          label: room.roomName,
+        }));
+        
+        setAllRooms(formattedRooms);
+        console.log('✅ Rooms loaded:', formattedRooms.length);
+      } catch (error) {
+        console.error('❌ Error fetching rooms:', error);
+        setAllRooms([]);
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+
+    fetchRooms();
+  }, [visible]);
+
+  // Fetch all timeslots when modal opens
+  useEffect(() => {
+    const fetchTimeslots = async () => {
+      if (!visible) return;
+
+      try {
+        setLoadingTimeslots(true);
+        console.log('🔄 Fetching all timeslots...');
+        const response = await api.get('/api/Timeslot');
+        const timeslotsList = response.data?.data || response.data?.items || response.data || [];
+        
+        console.log('📋 All timeslots:', timeslotsList);
+        
+        // Ensure timeslotsList is an array
+        const safeTimeslotsList = Array.isArray(timeslotsList) ? timeslotsList : [];
+        
+        const formattedTimeslots = safeTimeslotsList.map((ts) => ({
+          value: String(ts.timeId),
+          label: `Slot ${ts.timeId} (${ts.startTime || ''} - ${ts.endTime || ''})`,
+          timeId: ts.timeId,
+          startTime: ts.startTime,
+          endTime: ts.endTime,
+        }));
+        
+        setAllTimeslots(formattedTimeslots);
+        console.log('✅ Timeslots loaded:', formattedTimeslots.length);
+      } catch (error) {
+        console.error('❌ Error fetching timeslots:', error);
+        setAllTimeslots([]);
+      } finally {
+        setLoadingTimeslots(false);
+      }
+    };
+
+    fetchTimeslots();
+  }, [visible]);
 
   // Debug: Log props immediately on render
   console.log('🔍 LessonEditModal RENDER');
   console.log('  visible:', visible);
   console.log('  lesson:', lesson);
-  console.log('  rooms.length:', rooms?.length);
-  console.log('  timeslots.length:', timeslots?.length);
-  console.log('  lecturers.length:', lecturers?.length);
-  console.log('  rooms:', rooms);
-  console.log('  timeslots:', timeslots);
-  console.log('  lecturers:', lecturers);
+  console.log('  allLecturers.length:', allLecturers?.length);
+  console.log('  allRooms.length:', allRooms?.length);
+  console.log('  allTimeslots.length:', allTimeslots?.length);
 
   // Khi mở modal hoặc đổi lesson → fill form
   useEffect(() => {
@@ -127,17 +229,18 @@ const LessonEditModal = ({
   if (!lesson) return null;
 
   // Safeguard: ensure arrays are defined
-  const safeRooms = Array.isArray(rooms) ? rooms : [];
-  const safeTimeslots = Array.isArray(timeslots) ? timeslots : [];
-  const safeLecturers = Array.isArray(lecturers) ? lecturers : [];
+  // Use fetched data if available, otherwise fallback to props
+  const safeRooms = allRooms.length > 0 ? allRooms : (Array.isArray(rooms) ? rooms : []);
+  const safeTimeslots = allTimeslots.length > 0 ? allTimeslots : (Array.isArray(timeslots) ? timeslots : []);
+  const safeLecturers = allLecturers.length > 0 ? allLecturers : (Array.isArray(lecturers) ? lecturers : []);
 
   const slotOptions = safeTimeslots.map((ts) => ({
-    value: String(ts.timeId),
-    label: `Slot ${ts.timeId} (${ts.startTime || ''} - ${ts.endTime || ''})`,
+    value: String(ts.value || ts.timeId),
+    label: ts.label || `Slot ${ts.timeId} (${ts.startTime || ''} - ${ts.endTime || ''})`,
   }));
 
   const roomOptions = safeRooms.map((room) => ({
-    value: room.value,
+    value: String(room.value),
     label: room.label,
   }));
 
@@ -149,9 +252,6 @@ const LessonEditModal = ({
   // Debug logging
   console.log('=== LessonEditModal Debug ===');
   console.log('lesson:', lesson);
-  console.log('rooms prop:', rooms);
-  console.log('timeslots prop:', timeslots);
-  console.log('lecturers prop:', lecturers);
   console.log('roomOptions:', roomOptions);
   console.log('slotOptions:', slotOptions);
   console.log('lecturerOptions:', lecturerOptions);
@@ -224,6 +324,8 @@ const LessonEditModal = ({
               options={slotOptions}
               showSearch
               optionFilterProp="label"
+              loading={loadingTimeslots}
+              notFoundContent={loadingTimeslots ? <Spin size="small" /> : 'No timeslots found'}
             />
           </Form.Item>
 
@@ -237,6 +339,8 @@ const LessonEditModal = ({
               options={roomOptions}
               showSearch
               optionFilterProp="label"
+              loading={loadingRooms}
+              notFoundContent={loadingRooms ? <Spin size="small" /> : 'No rooms found'}
             />
           </Form.Item>
 
@@ -250,6 +354,8 @@ const LessonEditModal = ({
               options={lecturerOptions}
               showSearch
               optionFilterProp="label"
+              loading={loadingLecturers}
+              notFoundContent={loadingLecturers ? <Spin size="small" /> : 'No lecturers found'}
             />
           </Form.Item>
 
