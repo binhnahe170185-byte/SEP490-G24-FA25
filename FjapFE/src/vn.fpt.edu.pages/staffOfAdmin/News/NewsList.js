@@ -203,6 +203,7 @@ export default function NewsList({ title = "News Management" }) {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [submitConfirmVisible, setSubmitConfirmVisible] = useState(false);
   const [approveConfirmVisible, setApproveConfirmVisible] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false);
   const [confirmingRecord, setConfirmingRecord] = useState(null);
 
   useEffect(() => {
@@ -469,20 +470,85 @@ export default function NewsList({ title = "News Management" }) {
 
   const openApproveConfirm = (record) => {
     setConfirmingRecord(record);
+    setApproveLoading(false); // Reset loading state khi mở modal
     setApproveConfirmVisible(true);
   };
 
   const handleApprove = async () => {
-    if (!confirmingRecord) return;
-    try {
-      await NewsApi.approveNews(confirmingRecord.id);
-      message.success("News approved and published successfully");
+    // Prevent multiple calls nếu đang loading
+    if (!confirmingRecord || approveLoading) {
+      console.log("Approve blocked:", { confirmingRecord: !!confirmingRecord, approveLoading });
+      return;
+    }
+    
+    const newsId = confirmingRecord.id;
+    console.log("Starting approve for news:", newsId);
+    setApproveLoading(true);
+    
+    // Set timeout để đảm bảo loading không bị stuck mãi
+    const timeoutId = setTimeout(() => {
+      console.warn("Approve request timeout - resetting loading state");
+      setApproveLoading(false);
       setApproveConfirmVisible(false);
       setConfirmingRecord(null);
-      fetchNews();
+      message.error("Request timeout. Please try again.");
+    }, 30000); // 30 seconds timeout
+    
+    try {
+      const response = await NewsApi.approveNews(newsId);
+      clearTimeout(timeoutId);
+      console.log("Approve success:", response);
+      
+      // Reset loading TRƯỚC khi đóng modal để đảm bảo button không bị stuck
+      setApproveLoading(false);
+      
+      // Hiển thị thông báo thành công
+      message.success("News approved and published successfully");
+      
+      // Đóng modal sau khi đã reset loading
+      setApproveConfirmVisible(false);
+      setEditModalVisible(false);
+      setViewModalVisible(false);
+      setConfirmingRecord(null);
+      setSelectedNews(null);
+      
+      // Load lại danh sách news ở background (không block UI)
+      fetchNews().catch(err => {
+        console.error("Error refreshing news list:", err);
+      });
     } catch (e) {
+      clearTimeout(timeoutId);
       console.error("Error approving news:", e);
-      message.error(`Failed to approve news: ${e.response?.data?.message ?? e.message}`);
+      console.error("Error details:", {
+        message: e.message,
+        response: e.response,
+        status: e.response?.status,
+        data: e.response?.data,
+        code: e.code
+      });
+      
+      // Reset loading TRƯỚC khi đóng modal và hiển thị lỗi
+      setApproveLoading(false);
+      
+      // Hiển thị thông báo lỗi chi tiết hơn
+      let errorMessage = "Failed to approve news. Please try again.";
+      if (e.response?.data?.message) {
+        errorMessage = e.response.data.message;
+      } else if (e.response?.data?.error) {
+        errorMessage = e.response.data.error;
+      } else if (e.message) {
+        errorMessage = e.message;
+      } else if (e.code === "ECONNABORTED" || e.code === "ETIMEDOUT") {
+        errorMessage = "Request timeout. Please check your connection and try again.";
+      } else if (e.code === "ERR_NETWORK") {
+        errorMessage = "Network error. Please check your connection.";
+      }
+      
+      message.error(`Failed to approve news: ${errorMessage}`);
+      
+      // Đóng modal ngay cả khi có lỗi
+      setApproveConfirmVisible(false);
+      setConfirmingRecord(null);
     }
   };
 
@@ -1352,12 +1418,14 @@ export default function NewsList({ title = "News Management" }) {
         icon={<CheckCircleOutlined style={{ color: "#52c41a", fontSize: 48 }} />}
         onConfirm={handleApprove}
         onCancel={() => {
-          setApproveConfirmVisible(false);
-          setConfirmingRecord(null);
+          if (!approveLoading) {
+            setApproveConfirmVisible(false);
+            setConfirmingRecord(null);
+          }
         }}
         okText="Approve"
         cancelText="Cancel"
-        okButtonProps={{ type: "primary" }}
+        okButtonProps={{ type: "primary", loading: approveLoading, disabled: approveLoading }}
       />
     </>
   );

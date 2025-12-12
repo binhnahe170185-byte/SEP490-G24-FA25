@@ -45,6 +45,7 @@ import FeedbackAnalyticsPage from "../vn.fpt.edu.pages/staffAcademic/feedback/Fe
 import EndOfCourseFeedbackPage from "../vn.fpt.edu.pages/student/feedback/EndOfCourseFeedbackPage";
 import DailyFeedbackList from "../vn.fpt.edu.pages/student/feedback/DailyFeedbackList";
 import LecturerHomepage from "../vn.fpt.edu.pages/layouts/lecturer-layout/LecturerHomepage";
+import LecturerEndOfCourseFeedbackPage from "../vn.fpt.edu.pages/lecturer/feedback/LecturerEndOfCourseFeedbackPage";
 import HomeworkManage from "../vn.fpt.edu.pages/lecturer/HomeworkManage";
 import HomeworkSubmissionPage from "../vn.fpt.edu.pages/lecturer/HomeworkManage/HomeworkSubmissionPage";
 import HomeworkDetail from "../vn.fpt.edu.pages/lecturer/HomeworkManage/HomeworkDetail";
@@ -63,6 +64,8 @@ import LecturerNewsDetail from "../vn.fpt.edu.pages/lecturer/LecturerNewsDetail"
 import LecturerCurriculumSubjects from "../vn.fpt.edu.pages/lecturer/LecturerCurriculumSubjects";
 import HeadOfAdminDashboard from "../vn.fpt.edu.pages/headOfAdmin/Dashboard";
 import NewsList from "../vn.fpt.edu.pages/staffOfAdmin/News/NewsList";
+import FeedbackListViewOnly from "../vn.fpt.edu.pages/staffOfAdmin/feedback/FeedbackListViewOnly";
+import FeedbackDetailViewOnly from "../vn.fpt.edu.pages/staffOfAdmin/feedback/FeedbackDetailViewOnly";
 import SemesterList from "../vn.fpt.edu.pages/staffOfAdmin/Semester/SemesterList";
 import AddSemesterWithHolidays from "../vn.fpt.edu.pages/staffOfAdmin/Semester/AddSemesterWithHolidays";
 import EditSemester from "../vn.fpt.edu.pages/staffOfAdmin/Semester/EditSemester";
@@ -255,6 +258,9 @@ export default function App() {
                 <Route path="semesters/edit/:id" element={<EditSemester />} />
                 {/* News Management Routes */}
                 <Route path="news" element={<NewsList title="List News - Staff of Administration Department" />} />
+                {/* Feedback Routes - View Only */}
+                <Route path="feedback" element={<FeedbackListViewOnly />} />
+                <Route path="feedback/:id" element={<FeedbackDetailViewOnly />} />
                 <Route path="profile" element={<ProfilePage />} />
               </Route>
 
@@ -420,6 +426,7 @@ export default function App() {
                   <Route path="grades/enter/:courseId" element={<GradeEntry />} />
                   <Route path="news" element={<LecturerNewsList />} />
                   <Route path="news/:id" element={<LecturerNewsDetail />} />
+                  <Route path="feedback/end-course" element={<LecturerEndOfCourseFeedbackPage />} />
                   <Route
                     path="class/:classId/students"
                     element={
@@ -445,6 +452,9 @@ export default function App() {
                   <Route path="semesters/edit/:id" element={<EditSemester />} />
                   <Route path="rooms" element={<RoomList title="Room Management" hideActions={true} />} />
                   <Route path="staff" element={<AdministrationStaffList />} />
+                  {/* Feedback Routes - View Only */}
+                  <Route path="feedback" element={<FeedbackListViewOnly />} />
+                  <Route path="feedback/:id" element={<FeedbackDetailViewOnly />} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>

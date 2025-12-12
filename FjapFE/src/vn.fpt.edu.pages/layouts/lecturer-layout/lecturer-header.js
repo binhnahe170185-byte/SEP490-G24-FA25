@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { Dropdown, Badge, Avatar, Spin, Empty, Typography, Button, Tooltip } from 'antd';
-import { BellOutlined, UserOutlined, LogoutOutlined, HomeOutlined, CalendarOutlined, FileTextOutlined, BookOutlined, NotificationOutlined, ReadOutlined, WifiOutlined } from '@ant-design/icons';
+import { BellOutlined, UserOutlined, LogoutOutlined, HomeOutlined, CalendarOutlined, FileTextOutlined, BookOutlined, NotificationOutlined, ReadOutlined, WifiOutlined, MessageOutlined } from '@ant-design/icons';
 import { useAuth } from '../../login/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -55,7 +55,8 @@ const LecturerHeader = () => {
     { key: '/lecturer/homework', label: 'Homework', icon: <FileTextOutlined />, path: '/lecturer/homework' },
     { key: '/lecturer/grades', label: 'Grades', icon: <BookOutlined />, path: '/lecturer/grades' },
     { key: '/lecturer/subjects', label: 'Curriculum Subjects', icon: <ReadOutlined />, path: '/lecturer/subjects' },
-    { key: '/lecturer/news', label: 'News', icon: <NotificationOutlined />, path: '/lecturer/news' }
+    { key: '/lecturer/news', label: 'News', icon: <NotificationOutlined />, path: '/lecturer/news' },
+    { key: '/lecturer/feedback/end-course', label: 'Student Feedback', icon: <MessageOutlined />, path: '/lecturer/feedback/end-course' }
   ];
 
   const handleMenuClick = (path) => {

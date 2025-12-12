@@ -10,6 +10,25 @@ const DailyFeedbackApi = {
   createDailyFeedback: (payload) =>
     api.post("/api/daily-feedback", payload).then(unwrap),
 
+  // GET /api/daily-feedback
+  getAllDailyFeedbacks: (params = {}) =>
+    api.get("/api/daily-feedback", { params }).then((res) => {
+      const body = res?.data ?? res;
+      if (body?.total !== undefined && Array.isArray(body?.items)) {
+        return { total: body.total, items: body.items };
+      }
+      if (body?.data?.total !== undefined && Array.isArray(body?.data?.items)) {
+        return { total: body.data.total, items: body.data.items };
+      }
+      if (Array.isArray(body?.items)) {
+        return { total: body.items.length, items: body.items };
+      }
+      if (Array.isArray(body)) {
+        return { total: body.length, items: body };
+      }
+      return { total: 0, items: [] };
+    }),
+
   // GET /api/daily-feedback/student
   getStudentDailyFeedbacks: (params = {}) =>
     api.get("/api/daily-feedback/student", { params }).then((res) => {

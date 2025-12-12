@@ -14,5 +14,9 @@ public interface IFeedbackService
     Task<FeedbackTextSummaryDto> GetTextSummaryAsync(int? classId, int? semesterId, DateTime? from, DateTime? to);
     Task<(int Total, int Processed, int Succeeded, int Failed)> ReAnalyzeAllWithoutCategoryAsync(int? limit = null);
     Task<(int Total, int Processed, int Succeeded, int Failed)> ReAnalyzeAllFeedbacksAsync(int? limit = null, bool force = false);
+
+    // Lecturer view helpers
+    Task<IEnumerable<LecturerFeedbackClassDto>> GetLecturerClassesWithFeedbackAsync(List<int> lecturerClassIds);
+    Task<IEnumerable<LecturerClassFeedbackItemDto>> GetClassFeedbacksForLecturerAsync(int classId, List<int> lecturerClassIds);
 }
 

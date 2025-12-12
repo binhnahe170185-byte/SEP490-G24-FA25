@@ -161,6 +161,8 @@ const StudentLayout = ({ children }) => {
   const checkPendingFeedbacks = async () => {
     try {
       setCheckingPending(true);
+      // Optimistically clear list to avoid immediate redirect right after submit
+      setPendingFeedbacks([]);
       const classes = await FeedbackApi.getPendingFeedbackClasses();
       setPendingFeedbacks(Array.isArray(classes) ? classes : []);
     } catch (error) {
@@ -173,7 +175,8 @@ const StudentLayout = ({ children }) => {
 
   // Navigation guard: Block navigation to homepage if there are pending feedbacks
   useEffect(() => {
-    if (pendingFeedbacks.length > 0) {
+    // Chỉ redirect khi đã check xong pending (tránh dùng dữ liệu cũ ngay sau khi submit)
+    if (!checkingPending && pendingFeedbacks.length > 0) {
       // If user tries to navigate to homepage, redirect to first pending feedback
       if (location.pathname === '/student/homepage' || location.pathname === '/') {
         const firstPending = pendingFeedbacks[0];

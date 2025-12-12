@@ -121,6 +121,27 @@ public class DailyFeedbackController : ControllerBase
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetAllDailyFeedbacks([FromQuery] DailyFeedbackFilterRequest filter)
+    {
+        try
+        {
+            var roleId = GetCurrentRoleId();
+            // Allow Lecturer (3), Head of Academic (5), Academic Staff (7)
+            if (roleId != 3 && roleId != 5 && roleId != 7)
+            {
+                return Forbid("Only lecturers and staff can view daily feedbacks");
+            }
+
+            var result = await _dailyFeedbackService.GetAllDailyFeedbacksAsync(filter);
+            return Ok(new { items = result.Items, total = result.Total });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "An error occurred while fetching daily feedbacks", error = ex.Message });
+        }
+    }
+
     [HttpGet("class/{classId}")]
     public async Task<IActionResult> GetClassDailyFeedbacks(int classId, [FromQuery] DailyFeedbackFilterRequest filter)
     {

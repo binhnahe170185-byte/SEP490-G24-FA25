@@ -4,6 +4,7 @@ using FJAP.Services.Interfaces;
 using FJAP.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FJAP.Services;
 
@@ -13,13 +14,15 @@ public class NewsService : INewsService
     private readonly FjapDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly INotificationService _notificationService;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
-    public NewsService(INewsRepository newsRepository, FjapDbContext context, IHttpClientFactory httpClientFactory, INotificationService notificationService)
+    public NewsService(INewsRepository newsRepository, FjapDbContext context, IHttpClientFactory httpClientFactory, INotificationService notificationService, IServiceScopeFactory serviceScopeFactory)
     {
         _newsRepository = newsRepository;
         _context = context;
         _httpClientFactory = httpClientFactory;
         _notificationService = notificationService;
+        _serviceScopeFactory = serviceScopeFactory;
     }
 
 
@@ -132,18 +135,45 @@ public class NewsService : INewsService
         _newsRepository.Update(news);
         await _newsRepository.SaveChangesAsync();
 
-        // Gửi notification cho tất cả students và lecturers khi news được publish
-        await SendNewsPublishedNotificationsAsync(news);
+        // Gửi notification ở background (fire-and-forget) để không block response
+        // Sử dụng service scope factory để tạo scope mới cho background task
+        var newsId = news.Id;
+        var newsTitle = news.Title;
+        var newsContent = news.Content;
+        var approvedBy = news.ApprovedBy;
+        
+        _ = Task.Run(async () =>
+        {
+            await using var scope = _serviceScopeFactory.CreateAsyncScope();
+            try
+            {
+                var scopedNotificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                var scopedContext = scope.ServiceProvider.GetRequiredService<FjapDbContext>();
+                
+                // Reload news trong scope mới để đảm bảo có đầy đủ thông tin
+                var scopedNews = await scopedContext.News.FirstOrDefaultAsync(n => n.Id == newsId);
+                if (scopedNews != null)
+                {
+                    await SendNewsPublishedNotificationsAsync(scopedNews, scopedNotificationService, scopedContext);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error nhưng không throw để không ảnh hưởng đến flow chính
+                Console.WriteLine($"Error sending notifications: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
+        });
 
         return true;
     }
 
-    private async Task SendNewsPublishedNotificationsAsync(News news)
+    private async Task SendNewsPublishedNotificationsAsync(News news, INotificationService notificationService, FjapDbContext context)
     {
         try
         {
             // Lấy tất cả users có role là Student (roleId = 4) hoặc Lecturer (roleId = 3)
-            var targetUsers = await _context.Users
+            var targetUsers = await context.Users
                 .Where(u => u.RoleId == 3 || u.RoleId == 4) // Lecturer hoặc Student
                 .Select(u => u.UserId)
                 .ToListAsync();
@@ -163,17 +193,18 @@ public class NewsService : INewsService
             var createdNotifications = new List<NotificationDto>();
             foreach (var notificationRequest in notifications)
             {
-                var notification = await _notificationService.CreateAsync(notificationRequest, broadcast: false);
+                var notification = await notificationService.CreateAsync(notificationRequest, broadcast: false);
                 createdNotifications.Add(notification);
             }
 
             // Broadcast tất cả notifications cùng lúc
-            await _notificationService.BroadcastAsync(createdNotifications);
+            await notificationService.BroadcastAsync(createdNotifications);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Log error nhưng không throw để không ảnh hưởng đến flow chính
-            // Có thể thêm logger ở đây nếu cần
+            Console.WriteLine($"Error sending notifications: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
     }
 

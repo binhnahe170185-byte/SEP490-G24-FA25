@@ -7,6 +7,7 @@ import {
   AppstoreOutlined, CalendarOutlined,
   BellOutlined, UserOutlined, LogoutOutlined, FileTextOutlined,
   IdcardOutlined, BookOutlined, PlusCircleOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../login/AuthContext";
 import "./staffOfAdmin.css";
@@ -42,6 +43,7 @@ const keyToPath = (key) => {
     "sem:list": "/staffOfAdmin/semesters",
     "sem:add": "/staffOfAdmin/semesters/add",
     "news:list": "/staffOfAdmin/news",
+    "feedback:list": "/staffOfAdmin/feedback",
   };
   return pathMap[key] || null;
 };
@@ -58,11 +60,12 @@ const pathToKey = (pathname) => {
   if (pathname.includes("/rooms/edit")) return "rooms:list"; // Edit route should highlight list
   if (pathname.includes("/rooms/add")) return "rooms:add";
   if (pathname.includes("/rooms")) return "rooms:list";
-  if (pathname.includes("/semesters/edit")) return "sem:list"; // Edit route should highlight list
-  if (pathname.includes("/semesters/add")) return "sem:add";
-  if (pathname.includes("/semesters")) return "sem:list";
-  if (pathname.includes("/news")) return "news:list";
-  return "users:list:head"; // default
+    if (pathname.includes("/semesters/edit")) return "sem:list"; // Edit route should highlight list
+    if (pathname.includes("/semesters/add")) return "sem:add";
+    if (pathname.includes("/semesters")) return "sem:list";
+    if (pathname.includes("/news")) return "news:list";
+    if (pathname.includes("/feedback")) return "feedback:list";
+    return "users:list:head"; // default
 };
 
 const ADMIN_MENU = [
@@ -100,6 +103,11 @@ const ADMIN_MENU = [
   {
     type: "group", label: "NEWS MANAGEMENT", children: [
       { key: "news:list", icon: <FileTextOutlined />, label: "List News" },
+    ]
+  },
+  {
+    type: "group", label: "FEEDBACK", children: [
+      { key: "feedback:list", icon: <MessageOutlined />, label: "Student Feedback" },
     ]
   },
 ];

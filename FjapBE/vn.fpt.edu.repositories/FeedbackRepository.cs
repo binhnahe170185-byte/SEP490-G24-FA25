@@ -220,16 +220,16 @@ public class FeedbackRepository : GenericRepository<Feedback>, IFeedbackReposito
         {
             try
             {
-                // TODO: GetAnswersDict - extension method not implemented
-                var answersDict = new Dictionary<int, int>(); // feedback.GetAnswersDict();
-                if (answersDict == null) continue;
+                // Đọc map câu trả lời đã lưu (questionId -> value 1-4)
+                var answersDict = feedback.GetAnswersDict();
+                if (answersDict == null || answersDict.Count == 0) continue;
 
                 foreach (var kvp in answersDict)
                 {
                     var questionId = kvp.Key;
                     var answerValue = kvp.Value; // 1-4 scale
 
-                    // Normalize to 0-10 scale: (value - 1) * 10 / 3
+                    // Chuẩn hoá sang thang 0-10: (value - 1) * 10 / 3
                     var normalizedScore = (decimal)(answerValue - 1) * 10m / 3m;
 
                     if (!questionScores.ContainsKey(questionId))
@@ -241,7 +241,7 @@ public class FeedbackRepository : GenericRepository<Feedback>, IFeedbackReposito
             }
             catch
             {
-                // Skip invalid answers
+                // Bỏ qua các bản ghi answers lỗi
                 continue;
             }
         }

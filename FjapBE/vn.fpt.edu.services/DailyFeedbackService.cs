@@ -194,6 +194,30 @@ public class DailyFeedbackService : IDailyFeedbackService
         return (items, total);
     }
 
+    public async Task<(IEnumerable<DailyFeedbackDto> Items, int Total)> GetAllDailyFeedbacksAsync(DailyFeedbackFilterRequest filter)
+    {
+        var feedbacks = await _repository.GetAllAsync(
+            filter.ClassId,
+            filter.LessonId,
+            filter.DateFrom,
+            filter.DateTo,
+            filter.Sentiment,
+            filter.Urgency,
+            filter.Status
+        );
+
+        var feedbackList = feedbacks.ToList();
+
+        // Pagination
+        var total = feedbackList.Count;
+        var items = feedbackList
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .Select(MapToDto);
+
+        return (items, total);
+    }
+
     public async Task<DailyFeedbackDto?> GetDailyFeedbackByIdAsync(int id)
     {
         var feedback = await _repository.GetByIdWithDetailsAsync(id);

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace FJAP.vn.fpt.edu.models;
 
@@ -79,9 +80,28 @@ public partial class Feedback
     public DateTime UpdatedAt { get; set; }
 
     /// <summary>
-    /// Map of questionId to answer value (1-4)
+    /// Map of questionId to answer value (1-4), lưu dạng JSON
     /// </summary>
     public string? Answers { get; set; }
+
+    public Dictionary<int, int>? GetAnswersDict()
+    {
+        if (string.IsNullOrWhiteSpace(Answers))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<int, int>>(Answers);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public void SetAnswersDict(Dictionary<int, int>? answers)
+    {
+        Answers = answers == null ? null : JsonSerializer.Serialize(answers);
+    }
 
     /// <summary>
     /// Category code for feedback issue (e.g., ASSESSMENT_LOAD, FACILITY_ISSUES)
