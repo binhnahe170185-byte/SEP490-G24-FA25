@@ -9,8 +9,16 @@ import {
   Typography,
   Divider,
   Spin,
+  message,
+  List,
+  Tag,
 } from 'antd';
-import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  SaveOutlined,
+  SwapOutlined,
+  ExclamationCircleOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { api } from '../../../../vn.fpt.edu.api/http';
 
@@ -23,12 +31,25 @@ const LessonEditModal = ({
   timeslots = [],
   lecturers = [],
   semester,
+  // callbacks
   onUpdate,
   onDelete,
+  onDeleteAllLessons,
+  onBatchTransfer,
   onCancel,
   saving = false,
 }) => {
   const [form] = Form.useForm();
+  // mode
+  const [mode, setMode] = useState('edit'); // 'edit' | 'batch'
+
+  // batch transfer state
+  const [weekday, setWeekday] = useState('');
+  const [slotId, setSlotId] = useState('');
+  const [roomId, setRoomId] = useState('');
+  const [patterns, setPatterns] = useState([]);
+  const [batchLecturerId, setBatchLecturerId] = useState('');
+
   const [allLecturers, setAllLecturers] = useState([]);
   const [loadingLecturers, setLoadingLecturers] = useState(false);
   const [allRooms, setAllRooms] = useState([]);
@@ -46,12 +67,12 @@ const LessonEditModal = ({
         console.log('🔄 Fetching lecturers...');
         const response = await api.get('/api/Lecturers');
         const lecturersList = response.data?.data || [];
-        
+
         const formattedLecturers = lecturersList.map((lec) => ({
           value: String(lec.lecturerId),
           label: lec.email ? lec.email.split('@')[0] : lec.lecturerCode || `Lecturer ${lec.lecturerId}`,
         }));
-        
+
         setAllLecturers(formattedLecturers);
         console.log('✅ Lecturers loaded:', formattedLecturers.length);
       } catch (error) {
@@ -75,14 +96,14 @@ const LessonEditModal = ({
         console.log('🔄 Fetching all rooms...');
         const response = await api.get('/api/StaffOfAdmin/rooms');
         const roomsList = response.data?.data || response.data?.items || [];
-        
+
         console.log('📋 All rooms:', roomsList);
-        
+
         const formattedRooms = roomsList.map((room) => ({
           value: String(room.roomId),
           label: room.roomName,
         }));
-        
+
         setAllRooms(formattedRooms);
         console.log('✅ Rooms loaded:', formattedRooms.length);
       } catch (error) {
@@ -106,12 +127,12 @@ const LessonEditModal = ({
         console.log('🔄 Fetching all timeslots...');
         const response = await api.get('/api/Timeslot');
         const timeslotsList = response.data?.data || response.data?.items || response.data || [];
-        
+
         console.log('📋 All timeslots:', timeslotsList);
-        
+
         // Ensure timeslotsList is an array
         const safeTimeslotsList = Array.isArray(timeslotsList) ? timeslotsList : [];
-        
+
         const formattedTimeslots = safeTimeslotsList.map((ts) => ({
           value: String(ts.timeId),
           label: `Slot ${ts.timeId} (${ts.startTime || ''} - ${ts.endTime || ''})`,
@@ -119,7 +140,7 @@ const LessonEditModal = ({
           startTime: ts.startTime,
           endTime: ts.endTime,
         }));
-        
+
         setAllTimeslots(formattedTimeslots);
         console.log('✅ Timeslots loaded:', formattedTimeslots.length);
       } catch (error) {
@@ -140,6 +161,7 @@ const LessonEditModal = ({
   console.log('  allLecturers.length:', allLecturers?.length);
   console.log('  allRooms.length:', allRooms?.length);
   console.log('  allTimeslots.length:', allTimeslots?.length);
+  console.log('  mode:', mode);
 
   // Khi mở modal hoặc đổi lesson → fill form
   useEffect(() => {
@@ -151,6 +173,17 @@ const LessonEditModal = ({
         lecturerId: lesson.lecturerId,
       });
 
+      // Tìm roomId từ roomName nếu roomId không có hoặc không khớp
+      let finalRoomId = lesson.roomId ? String(lesson.roomId) : undefined;
+      if (!finalRoomId && lesson.room) {
+        // Tìm room trong allRooms hoặc rooms prop
+        const safeRooms = allRooms.length > 0 ? allRooms : (Array.isArray(rooms) ? rooms : []);
+        const foundRoom = safeRooms.find((r) => r.label === lesson.room);
+        if (foundRoom) {
+          finalRoomId = String(foundRoom.value);
+        }
+      }
+
       form.setFieldsValue({
         date: lesson.date ? dayjs(lesson.date) : null,
         timeId: lesson.timeId
@@ -158,13 +191,36 @@ const LessonEditModal = ({
           : lesson.slot
             ? String(lesson.slot)
             : undefined,
-        roomId: lesson.roomId ? String(lesson.roomId) : undefined,
+        roomId: finalRoomId,
         lecturerId: lesson.lecturerId ? String(lesson.lecturerId) : undefined,
       });
+      if (lesson.lecturerId) {
+        setBatchLecturerId(String(lesson.lecturerId));
+      }
     } else {
       form.resetFields();
+      setWeekday('');
+      setSlotId('');
+      setRoomId('');
+      setPatterns([]);
+      setMode('edit');
+      setBatchLecturerId('');
     }
-  }, [visible, lesson, form]);
+  }, [visible, lesson, form, allRooms, rooms]);
+
+  // Cập nhật roomId khi allRooms được load xong
+  useEffect(() => {
+    if (visible && lesson && allRooms.length > 0) {
+      const currentRoomId = form.getFieldValue('roomId');
+      // Nếu chưa có roomId hoặc roomId không khớp với options, tìm lại từ roomName
+      if (!currentRoomId && lesson.room) {
+        const foundRoom = allRooms.find((r) => r.label === lesson.room);
+        if (foundRoom) {
+          form.setFieldValue('roomId', String(foundRoom.value));
+        }
+      }
+    }
+  }, [visible, lesson, allRooms, form]);
 
   const handleSubmit = async () => {
     try {
@@ -205,25 +261,99 @@ const LessonEditModal = ({
       e.stopPropagation();
     }
 
-    console.log('handleDelete called - lesson:', lesson);
-    console.log('handleDelete - lessonId:', lesson?.lessonId);
-    console.log('handleDelete - onDelete callback:', onDelete);
-
     if (!lesson?.lessonId) {
+      message.error('Lesson ID is missing for delete!');
       console.error('Lesson ID is missing for delete!', lesson);
       return;
     }
 
+    const id = Number(lesson.lessonId);
+
+    console.log('Starting delete API call with id:', id);
     if (typeof onDelete === 'function') {
-      const id = Number(lesson.lessonId);
-      console.log('Calling onDelete with lessonId:', id);
-      onDelete(id);   // gọi thẳng lên cha, không confirm ở đây
+      onDelete(id);
     } else {
-      console.error(
-        'onDelete callback is not provided or not a function',
-        onDelete
-      );
+      message.error('Delete callback is not configured');
+      console.error('onDelete callback is not provided or not a function', onDelete);
     }
+  };
+
+
+  const handleDeleteAll = () => {
+    if (!lesson?.subjectCode) {
+      message.error('Subject code not found for this lesson');
+      console.error('Subject code not found for this lesson', lesson);
+      return;
+    }
+
+    console.log('Delete all lessons for subject:', lesson.subjectCode);
+    if (typeof onDeleteAllLessons === 'function') {
+      onDeleteAllLessons(lesson.subjectCode);
+    } else {
+      message.error('Delete-all callback is not configured');
+      console.error('onDeleteAllLessons callback is not provided or not a function', onDeleteAllLessons);
+    }
+  };
+
+
+  const handleAddPattern = () => {
+    if (!weekday || !slotId || !roomId) {
+      message.error('Please choose weekday, slot and room');
+      return;
+    }
+    const exists = patterns.some(
+      (p) => p.weekday === Number(weekday) && p.slot === Number(slotId)
+    );
+    if (exists) {
+      message.error('This pattern already exists');
+      return;
+    }
+    const newPattern = {
+      weekday: Number(weekday),
+      slot: Number(slotId),
+      room: roomId,
+    };
+    setPatterns((prev) => [...prev, newPattern]);
+    setWeekday('');
+    setSlotId('');
+    setRoomId('');
+  };
+
+  const handleRemovePattern = (idx) => {
+    setPatterns((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleBatchTransfer = async () => {
+    if (!lesson?.subjectCode) {
+      message.error('Subject code not found');
+      return;
+    }
+    if (patterns.length === 0) {
+      message.error('Please add at least one pattern');
+      return;
+    }
+    if (typeof onBatchTransfer !== 'function') {
+      message.error('Batch transfer callback not configured');
+      return;
+    }
+    const payload = {
+      subjectCode: lesson.subjectCode,
+      patterns: patterns.map((p) => ({
+        weekday: p.weekday,
+        timeId: Number(p.slot),
+        roomId: Number(p.room),
+      })),
+      lecturerId: batchLecturerId
+        ? Number(batchLecturerId)
+        : lesson?.lecturerId
+          ? Number(lesson.lecturerId)
+          : undefined,
+    };
+    await onBatchTransfer(payload);
+  };
+
+  const handleSwitchMode = () => {
+    setMode((m) => (m === 'edit' ? 'batch' : 'edit'));
   };
 
   if (!lesson) return null;
@@ -249,6 +379,16 @@ const LessonEditModal = ({
     label: lec.label,
   }));
 
+  const weekdayOptions = [
+    { value: '2', label: 'Mon' },
+    { value: '3', label: 'Tue' },
+    { value: '4', label: 'Wed' },
+    { value: '5', label: 'Thu' },
+    { value: '6', label: 'Fri' },
+    { value: '7', label: 'Sat' },
+    { value: '8', label: 'Sun' },
+  ];
+
   // Debug logging
   console.log('=== LessonEditModal Debug ===');
   console.log('lesson:', lesson);
@@ -259,129 +399,249 @@ const LessonEditModal = ({
 
   return (
     <Modal
-      title="Edit Lesson"
+      title={mode === 'edit' ? 'Edit Lesson' : 'Transfer all lessons'}
       open={visible}
       onCancel={onCancel}
       footer={null}
-      width={600}
+      width={mode === 'edit' ? 600 : 820}
       destroyOnClose
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-      >
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div>
-            <Text strong>Subject: </Text>
-            <Text>
-              {lesson.subjectCode || ''} - {lesson.subjectName || ''}
-            </Text>
-          </div>
-          <div>
-            <Text strong>Class: </Text>
-            <Text>{lesson.className || ''}</Text>
-          </div>
+      {mode === 'edit' ? (
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+        >
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <Text strong>Subject: </Text>
+                <Text>
+                  {lesson.subjectCode || ''} - {lesson.subjectName || ''}
+                </Text>
+              </div>
+              <Button icon={<SwapOutlined />} onClick={handleSwitchMode}>
+                Transfer all
+              </Button>
+            </div>
+            <div>
+              <Text strong>Class: </Text>
+              <Text>{lesson.className || ''}</Text>
+            </div>
 
-          <Divider style={{ margin: '12px 0' }} />
+            <Divider style={{ margin: '12px 0' }} />
 
-          <Form.Item
-            label="Date"
-            name="date"
-            rules={[{ required: true, message: 'Please select a date' }]}
-          >
-            <DatePicker
-              style={{ width: '100%' }}
-              format="YYYY-MM-DD"
-              disabledDate={(current) => {
-                if (!current) return false;
+            <Form.Item
+              label="Date"
+              name="date"
+              rules={[{ required: true, message: 'Please select a date' }]}
+            >
+              <DatePicker
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD"
+                disabledDate={(current) => {
+                  if (!current) return false;
 
-                // Disable past dates
-                if (current < dayjs().startOf('day')) {
-                  return true;
-                }
-
-                // Disable dates after semester end date
-                if (semester?.end) {
-                  const semesterEndDate = dayjs(semester.end);
-                  if (current > semesterEndDate.endOf('day')) {
+                  // Disable past dates
+                  if (current < dayjs().startOf('day')) {
                     return true;
                   }
-                }
 
-                return false;
-              }}
-            />
-          </Form.Item>
+                  // Disable dates after semester end date
+                  if (semester?.end) {
+                    const semesterEndDate = dayjs(semester.end);
+                    if (current > semesterEndDate.endOf('day')) {
+                      return true;
+                    }
+                  }
 
-          <Form.Item
-            label="Time Slot"
-            name="timeId"
-            rules={[{ required: true, message: 'Please select a time slot' }]}
-          >
+                  return false;
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Time Slot"
+              name="timeId"
+              rules={[{ required: true, message: 'Please select a time slot' }]}
+            >
+              <Select
+                placeholder="Select time slot"
+                options={slotOptions}
+                showSearch
+                optionFilterProp="label"
+                loading={loadingTimeslots}
+                notFoundContent={loadingTimeslots ? <Spin size="small" /> : 'No timeslots found'}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Room"
+              name="roomId"
+              rules={[{ required: true, message: 'Please select a room' }]}
+            >
+              <Select
+                placeholder="Select room"
+                options={roomOptions}
+                showSearch
+                optionFilterProp="label"
+                loading={loadingRooms}
+                notFoundContent={loadingRooms ? <Spin size="small" /> : 'No rooms found'}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Lecturer"
+              name="lecturerId"
+              rules={[{ required: true, message: 'Please select a lecturer' }]}
+            >
+              <Select
+                placeholder="Select lecturer"
+                options={lecturerOptions}
+                showSearch
+                optionFilterProp="label"
+                loading={loadingLecturers}
+                notFoundContent={loadingLecturers ? <Spin size="small" /> : 'No lecturers found'}
+              />
+            </Form.Item>
+
+            <Divider style={{ margin: '12px 0' }} />
+
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Button
+                type="default"
+                danger
+                icon={<DeleteOutlined />}
+                htmlType="button"
+                onClick={handleDelete}
+                disabled={!lesson?.lessonId || saving}
+              >
+                Delete Lesson
+              </Button>
+
+              <Space>
+                <Button
+                  type="default"
+                  danger
+                  icon={<ExclamationCircleOutlined />}
+                  htmlType="button"
+                  onClick={handleDeleteAll}
+                  disabled={!lesson?.subjectCode || saving}
+                >
+                  Delete all (subject)
+                </Button>
+
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<SaveOutlined />}
+                  loading={saving}
+                  disabled={saving}
+                >
+                  Save Changes
+                </Button>
+              </Space>
+            </Space>
+
+          </Space>
+        </Form>
+      ) : (
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <Text strong>Subject: </Text>
+              <Text>
+                {lesson.subjectCode || ''} - {lesson.subjectName || ''}
+              </Text>
+            </div>
+            <Button onClick={handleSwitchMode}>Back to edit</Button>
+          </div>
+
+          <Divider style={{ margin: '8px 0' }} />
+
+          <Select
+            style={{ minWidth: 240 }}
+            placeholder="Select lecturer"
+            value={
+              batchLecturerId
+                ? batchLecturerId
+                : lesson?.lecturerId
+                  ? String(lesson.lecturerId)
+                  : undefined
+            }
+            onChange={setBatchLecturerId}
+            options={lecturerOptions}
+            showSearch
+            optionFilterProp="label"
+          />
+
+          <Space wrap size="small">
             <Select
-              placeholder="Select time slot"
+              style={{ minWidth: 160 }}
+              placeholder="Weekday"
+              value={weekday || undefined}
+              onChange={setWeekday}
+              options={weekdayOptions}
+            />
+            <Select
+              style={{ minWidth: 160 }}
+              placeholder="Slot"
+              value={slotId || undefined}
+              onChange={setSlotId}
               options={slotOptions}
               showSearch
               optionFilterProp="label"
-              loading={loadingTimeslots}
-              notFoundContent={loadingTimeslots ? <Spin size="small" /> : 'No timeslots found'}
             />
-          </Form.Item>
-
-          <Form.Item
-            label="Room"
-            name="roomId"
-            rules={[{ required: true, message: 'Please select a room' }]}
-          >
             <Select
-              placeholder="Select room"
+              style={{ minWidth: 180 }}
+              placeholder="Room"
+              value={roomId || undefined}
+              onChange={setRoomId}
               options={roomOptions}
               showSearch
               optionFilterProp="label"
-              loading={loadingRooms}
-              notFoundContent={loadingRooms ? <Spin size="small" /> : 'No rooms found'}
             />
-          </Form.Item>
-
-          <Form.Item
-            label="Lecturer"
-            name="lecturerId"
-            rules={[{ required: true, message: 'Please select a lecturer' }]}
-          >
-            <Select
-              placeholder="Select lecturer"
-              options={lecturerOptions}
-              showSearch
-              optionFilterProp="label"
-              loading={loadingLecturers}
-              notFoundContent={loadingLecturers ? <Spin size="small" /> : 'No lecturers found'}
-            />
-          </Form.Item>
-
-          <Divider style={{ margin: '12px 0' }} />
-
-          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-            <Button
-              danger
-              type="default"
-              icon={<DeleteOutlined />}
-              onClick={handleDelete}
-              disabled={saving || !lesson?.lessonId}
-            >
-              Delete Lesson
+            <Button type="primary" onClick={handleAddPattern} icon={<SaveOutlined />}>
+              Add pattern
             </Button>
+          </Space>
+
+          <List
+            header="Selected patterns"
+            dataSource={patterns}
+            locale={{ emptyText: 'No pattern yet' }}
+            renderItem={(item, idx) => (
+              <List.Item
+                actions={[
+                  <Button type="link" danger onClick={() => handleRemovePattern(idx)}>
+                    Remove
+                  </Button>,
+                ]}
+              >
+                <Space size="small">
+                  <Tag color="blue">Weekday {item.weekday}</Tag>
+                  <Tag color="green">Slot {item.slot}</Tag>
+                  <Tag color="purple">Room {roomOptions.find((r) => r.value === String(item.room))?.label || item.room}</Tag>
+                </Space>
+              </List.Item>
+            )}
+          />
+
+          <Divider style={{ margin: '8px 0' }} />
+
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Button
               type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
+              icon={<SwapOutlined />}
+              onClick={handleBatchTransfer}
               loading={saving}
+              disabled={patterns.length === 0}
             >
-              Save Changes
+              Transfer all by subject
             </Button>
           </Space>
         </Space>
-      </Form>
+      )}
     </Modal>
   );
 };

@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import './CreateSchedule.css';
-import CalendarTable from './components/CalendarTable';
-import PickSemesterAndClass from './components/PickSemesterAndClass';
-import LecturerSelector from './components/LecturerSelector';
-import WeeklySchedules from './components/WeeklySchedule';
-import SaveButton from './components/SaveButton';
-import SemesterApi from '../../../vn.fpt.edu.api/Semester';
-import RoomApi from '../../../vn.fpt.edu.api/Room';
-import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
-import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
-import ClassList from '../../../vn.fpt.edu.api/ClassList';
+import dayjsLib from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import {
   Layout,
   Space,
@@ -26,6 +17,20 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { notification } from 'antd';
+import './CreateSchedule.css';
+import CalendarTable from './components/CalendarTable';
+import PickSemesterAndClass from './components/PickSemesterAndClass';
+import LecturerSelector from './components/LecturerSelector';
+import WeeklySchedules from './components/WeeklySchedule';
+import SaveButton from './components/SaveButton';
+import SemesterApi from '../../../vn.fpt.edu.api/Semester';
+import RoomApi from '../../../vn.fpt.edu.api/Room';
+import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
+import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
+import ClassList from '../../../vn.fpt.edu.api/ClassList';
+
+dayjsLib.extend(isoWeek);
+const dayjs = (d) => dayjsLib(d);
 
 // Helper function to get email username (part before @)
 const getEmailUsername = (email) => {
@@ -53,6 +58,9 @@ const CreateSchedule = () => {
   const [loadedLessons, setLoadedLessons] = useState([]); // Lessons từ API (tất cả lịch học của class)
   const [previewLessons, setPreviewLessons] = useState([]); // Lessons từ patterns (preview)
   const [currentWeekStart, setCurrentWeekStart] = useState(null);
+  // Year and week state for FilterBar
+  const [year, setYear] = useState(() => dayjs().year());
+  const [weekNumber, setWeekNumber] = useState(() => dayjs().isoWeek());
 
   const [semester, setSemester] = useState({ id: null, start: null, end: null });
 
@@ -63,6 +71,7 @@ const CreateSchedule = () => {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [classStudents, setClassStudents] = useState([]);
   const [totalLesson, setTotalLesson] = useState(null); // Total lesson count from subject
   const [scheduleComplete, setScheduleComplete] = useState(false); // Flag to indicate if schedule is complete
@@ -501,20 +510,33 @@ const CreateSchedule = () => {
     const today = new Date();
     const initWeek = mondayOf(today);
     setCurrentWeekStart(initWeek);
+    setYear(dayjs(today).year());
+    setWeekNumber(dayjs(today).isoWeek());
   }, []);
+
+  // Sync currentWeekStart with year and weekNumber
+  useEffect(() => {
+    if (year && weekNumber) {
+      const weekStart = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1).toDate();
+      setCurrentWeekStart(weekStart);
+    }
+  }, [year, weekNumber]);
 
   // Regenerate preview lessons when lecturer, patterns, semester, holidays, rooms, or totalLesson change
   useEffect(() => {
-    if (patterns.length > 0 && semester.start && semester.end && rooms.length > 0) {
+    // Preview should show whenever we have patterns and semester dates, even if lecturer/subject not selected yet
+    if (patterns.length > 0 && semester.start && semester.end) {
+      // Use empty strings if lecturer/subject not selected yet, so preview still shows
       const newPreviewLessons = generateLessonsFromPatterns(
         patterns,
         semester.start,
         semester.end,
-        lecturerEmail, // Use lecturerEmail instead of lecturerCode
-        subjectCode,
-        subjectName,
-        totalLesson
+        lecturerEmail || '', // Use lecturerEmail or empty string
+        subjectCode || '', // Use subjectCode or empty string
+        subjectName || '', // Use subjectName or empty string
+        totalLesson // Pass totalLesson to limit preview lessons
       );
+      console.log('Preview lessons generated:', newPreviewLessons.length, 'from', patterns.length, 'patterns');
       setPreviewLessons(newPreviewLessons);
     } else {
       setPreviewLessons([]);
@@ -1037,18 +1059,56 @@ const CreateSchedule = () => {
   };
 
   const handlePrevWeek = () => {
-    if (!currentWeekStart) return;
-    const newWeek = clampWeekStartWithinSemester(addDays(currentWeekStart, -7));
-    setCurrentWeekStart(newWeek);
+    if (!year || !weekNumber) return;
+    const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
+    const prevDate = currentDate.subtract(1, 'week');
+    const newWeekNum = prevDate.isoWeek();
+    const newYear = prevDate.year();
+    setWeekNumber(newWeekNum);
+    if (newYear !== year) {
+      setYear(newYear);
+    }
   };
 
   const handleNextWeek = () => {
-    if (!currentWeekStart) return;
-    const newWeek = clampWeekStartWithinSemester(addDays(currentWeekStart, 7));
-    setCurrentWeekStart(newWeek);
+    if (!year || !weekNumber) return;
+    const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
+    const nextDate = currentDate.add(1, 'week');
+    const newWeekNum = nextDate.isoWeek();
+    const newYear = nextDate.year();
+    setWeekNumber(newWeekNum);
+    if (newYear !== year) {
+      setYear(newYear);
+    }
+  };
+
+  const handleYearChange = (newYear) => {
+    setYear(newYear);
+    // Keep same week number if possible, otherwise use first week of year
+    setWeekNumber((prev) => {
+      const testDate = dayjs().year(newYear).isoWeek(prev);
+      if (!testDate.isValid()) return 1;
+      return prev;
+    });
+  };
+
+  const handleWeekChange = (newWeekNumber) => {
+    setWeekNumber(newWeekNumber);
   };
 
   const handleSave = async () => {
+    // ====== LOCK SAVE - CHECK VÀ SET NGAY ĐẦU HÀM ĐỂ CHẶN SPAM ======
+    // Check ref TRƯỚC (sync) để tránh race condition khi spam click
+    if (savingRef.current) {
+      console.log('Save is already in progress (ref check), ignore this click.');
+      return;
+    }
+
+    // Set lock NGAY LẬP TỨC (sync) để chặn các clicks tiếp theo
+    savingRef.current = true;
+    // Set state để update UI (async nhưng không quan trọng vì đã có ref lock)
+    setSaving(true);
+
     console.log('=== handleSave called ===');
     console.log('Current state:', {
       semesterId: semester.id,
@@ -1058,14 +1118,19 @@ const CreateSchedule = () => {
       patterns: patterns
     });
 
-    // Use semester.id or fallback to semesterId
+    // Dùng semester.id hoặc fallback semesterId
     const effectiveSemesterId = semester.id || semesterId;
+
+    // ====== VALIDATION ======
     if (!effectiveSemesterId || !classId) {
       console.warn('Validation failed: Missing semester or class', {
         semesterId: effectiveSemesterId,
         classId: classId,
         semester: semester
       });
+      // Unlock khi validation fail
+      savingRef.current = false;
+      setSaving(false);
       api.error({
         message: 'Error',
         description: 'Please select semester and class',
@@ -1074,8 +1139,12 @@ const CreateSchedule = () => {
       });
       return;
     }
+
     if (patterns.length === 0) {
       console.warn('Validation failed: No patterns');
+      // Unlock khi validation fail
+      savingRef.current = false;
+      setSaving(false);
       api.error({
         message: 'Error',
         description: 'Please select pattern',
@@ -1084,8 +1153,12 @@ const CreateSchedule = () => {
       });
       return;
     }
+
     if (!lecturerId) {
       console.warn('Validation failed: Missing lecturer');
+      // Unlock khi validation fail
+      savingRef.current = false;
+      setSaving(false);
       api.error({
         message: 'Error',
         description: 'Please select lecturer',
@@ -1097,30 +1170,37 @@ const CreateSchedule = () => {
 
     // Validate totalLesson: check if patterns will generate enough lessons
     if (totalLesson && totalLesson > 0 && semester.start && semester.end) {
-      const totalLessonsToBeGenerated = calculateTotalLessonsFromPatterns(patterns, semester.start, semester.end);
+      const totalLessonsToBeGenerated = calculateTotalLessonsFromPatterns(
+        patterns,
+        semester.start,
+        semester.end
+      );
       if (totalLessonsToBeGenerated < totalLesson) {
         console.warn('Validation failed: Insufficient lessons', {
           totalLesson: totalLesson,
           lessonsToBeGenerated: totalLessonsToBeGenerated
         });
+        // Unlock khi validation fail
+        savingRef.current = false;
+        setSaving(false);
         api.error({
           message: 'Insufficient Lessons',
-          description: `Subject requires ${totalLesson} lessons, please add more patterns or adjust the schedule.`,
+          description: `Subject requires ${totalLesson} lessons, but patterns will only generate ${totalLessonsToBeGenerated} lessons. Please add more patterns or adjust the schedule.`,
           placement: 'bottomRight',
           duration: 6,
         });
         return;
       }
+      // Note: If totalLessonsToBeGenerated > totalLesson, backend will limit to totalLesson
+      // This is acceptable - backend will create exactly totalLesson lessons
+      if (totalLessonsToBeGenerated > totalLesson) {
+        console.log('Patterns will generate more lessons than required. Backend will limit to', totalLesson);
+      }
     }
 
-    // Conflict checking is now handled in WeeklySchedule component
-    // If we reach here, all patterns should be valid (no conflicts)
-
     try {
-      setSaving(true);
       console.log('Starting save process...');
 
-      // Format patterns for API
       const formattedPatterns = patterns.map(pattern => {
         const formatted = {
           weekday: pattern.weekday, // 2=Mon, 3=Tue, etc.
@@ -1131,8 +1211,6 @@ const CreateSchedule = () => {
         return formatted;
       });
 
-      // Use semester.id or fallback to semesterId
-      const effectiveSemesterId = semester.id || semesterId;
       const payload = {
         semesterId: parseInt(effectiveSemesterId),
         classId: parseInt(classId),
@@ -1150,8 +1228,6 @@ const CreateSchedule = () => {
       console.log('Response keys:', response ? Object.keys(response) : 'null');
       console.log('Full response structure:', JSON.stringify(response, null, 2));
 
-      // Extract lessonsCreated from response
-      // Backend returns: { code: 200, message: "...", data: { lessonsCreated: ... } }
       let lessonsCreated = 0;
       if (response?.data?.lessonsCreated !== undefined) {
         lessonsCreated = response.data.lessonsCreated;
@@ -1170,18 +1246,14 @@ const CreateSchedule = () => {
         });
       }
 
-      // Optionally reload the schedule to show the saved data
-      // You can trigger a reload here if needed
+      // TODO: reload lại schedule nếu cần
     } catch (error) {
       console.error('=== Error saving schedule ===');
       console.error('Error response status:', error?.response?.status);
       console.error('Error response data:', error?.response?.data);
 
-      // Handle 409 conflicts (should not happen if frontend validation works correctly, but keep as fallback)
       if (error?.response?.status === 409) {
         const serverMsg = (error?.response?.data?.message || '').toString();
-
-        // This should not happen if frontend validation is working, but show error anyway
         api.error({
           message: 'Schedule Conflict Detected (Backend)',
           description: 'Phát hiện conflict từ server. Vui lòng kiểm tra lại patterns và thử lại. ' + serverMsg,
@@ -1201,12 +1273,13 @@ const CreateSchedule = () => {
           duration: 6,
         });
       }
-
     } finally {
+      savingRef.current = false;
       setSaving(false);
       console.log('Save process completed');
     }
   };
+
 
 
   // Helper function to check if two lessons conflict (same date & slot regardless of room)
@@ -1515,6 +1588,11 @@ const CreateSchedule = () => {
             onPrevWeek={handlePrevWeek}
             onNextWeek={handleNextWeek}
             renderCalendar={() => renderCalendar(currentWeekStart)}
+            year={year}
+            onYearChange={handleYearChange}
+            weekNumber={weekNumber}
+            onWeekChange={handleWeekChange}
+            weekLabel={currentWeekStart ? `${dayjs(currentWeekStart).format('DD/MM')} - ${dayjs(addDays(currentWeekStart, 6)).format('DD/MM')}` : ''}
           />
 
           <SaveButton

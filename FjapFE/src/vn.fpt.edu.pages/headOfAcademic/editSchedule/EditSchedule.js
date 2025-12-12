@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import './EditSchedule.css';
-import CalendarTable from '../createSchedule/components/CalendarTable';
-import PickSemesterAndClass from '../createSchedule/components/PickSemesterAndClass';
-import LessonEditModal from './components/LessonEditModal';
-import SemesterApi from '../../../vn.fpt.edu.api/Semester';
-import RoomApi from '../../../vn.fpt.edu.api/Room';
-import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
-import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
-import ClassList from '../../../vn.fpt.edu.api/ClassList';
-import { api } from '../../../vn.fpt.edu.api/http';
+import dayjsLib from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import {
   Layout,
   Space,
@@ -25,6 +17,19 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { notification } from 'antd';
+import './EditSchedule.css';
+import CalendarTable from '../createSchedule/components/CalendarTable';
+import PickSemesterAndClass from '../createSchedule/components/PickSemesterAndClass';
+import LessonEditModal from './components/LessonEditModal';
+import SemesterApi from '../../../vn.fpt.edu.api/Semester';
+import RoomApi from '../../../vn.fpt.edu.api/Room';
+import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
+import HolidayApi from '../../../vn.fpt.edu.api/Holiday';
+import ClassList from '../../../vn.fpt.edu.api/ClassList';
+import { api } from '../../../vn.fpt.edu.api/http';
+
+dayjsLib.extend(isoWeek);
+const dayjs = (d) => dayjsLib(d);
 
 const { confirm } = Modal;
 
@@ -50,6 +55,9 @@ const EditSchedule = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  // Year and week state for FilterBar
+  const [year, setYear] = useState(() => dayjs().year());
+  const [weekNumber, setWeekNumber] = useState(() => dayjs().isoWeek());
 
   const [semester, setSemester] = useState({ id: null, start: null, end: null });
 
@@ -61,6 +69,12 @@ const EditSchedule = () => {
   const [saving, setSaving] = useState(false);
   const [classStudents, setClassStudents] = useState([]);
   const [lecturers, setLecturers] = useState([]);
+  // Conflict checking / cache (placeholder to avoid undefined)
+  const [conflictMap, setConflictMap] = useState({});
+  const [studentScheduleCache, setStudentScheduleCache] = useState({
+    studentIds: [],
+    studentTimeMap: {},
+  });
   const toYMD = (date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -223,8 +237,19 @@ const EditSchedule = () => {
   // Init week
   useEffect(() => {
     const today = new Date();
-    setCurrentWeekStart(mondayOf(today));
+    const initWeek = mondayOf(today);
+    setCurrentWeekStart(initWeek);
+    setYear(dayjs(today).year());
+    setWeekNumber(dayjs(today).isoWeek());
   }, []);
+
+  // Sync currentWeekStart with year and weekNumber
+  useEffect(() => {
+    if (year && weekNumber) {
+      const weekStart = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1).toDate();
+      setCurrentWeekStart(weekStart);
+    }
+  }, [year, weekNumber]);
 
   const fetchClassStudents = async (clsId) => {
     if (!clsId) {
@@ -452,6 +477,64 @@ const EditSchedule = () => {
   };
 
 
+  // DELETE ALL LESSONS BY SUBJECT CODE
+  const handleDeleteAll = async (subjectCode) => {
+    if (!subjectCode) {
+      api.error({
+        message: 'Error',
+        description: 'Missing subject code',
+        placement: 'bottomRight',
+        duration: 4,
+      });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const toDelete = loadedLessons.filter(
+        (l) => (l.subjectCode || '').toString() === subjectCode.toString()
+      );
+
+      for (const lesson of toDelete) {
+        if (lesson.lessonId) {
+          try {
+            await ClassList.deleteLesson(Number(lesson.lessonId));
+          } catch (err) {
+            console.error('Error deleting lesson', lesson.lessonId, err);
+          }
+        }
+      }
+
+      setLoadedLessons((prev) =>
+        prev.filter(
+          (l) => (l.subjectCode || '').toString() !== subjectCode.toString()
+        )
+      );
+
+      api.success({
+        message: 'Success',
+        description: `Deleted ${toDelete.length} lessons of ${subjectCode}`,
+        placement: 'bottomRight',
+        duration: 4,
+      });
+
+      setEditModalVisible(false);
+      setSelectedLesson(null);
+    } catch (error) {
+      api.error({
+        message: 'Error',
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          'Failed to delete all lessons',
+        placement: 'bottomRight',
+        duration: 5,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleUpdateLesson = async (lessonId, updatedData) => {
     const id = Number(lessonId);
     try {
@@ -577,7 +660,7 @@ const EditSchedule = () => {
       if (deleteOnly) {
         api.success({
           message: 'Success',
-          description: `Đã xóa ${lessonsToDelete.length} lessons thành công`,
+          description: `Deleted ${lessonsToDelete.length} lesson(s) successfully`,
           placement: 'bottomRight',
           duration: 5,
         });
@@ -698,15 +781,41 @@ const EditSchedule = () => {
 
 
   const handlePrevWeek = () => {
-    if (!currentWeekStart) return;
-    const newWeek = clampWeekStartWithinSemester(addDays(currentWeekStart, -7));
-    setCurrentWeekStart(newWeek);
+    if (!year || !weekNumber) return;
+    const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
+    const prevDate = currentDate.subtract(1, 'week');
+    const newWeekNum = prevDate.isoWeek();
+    const newYear = prevDate.year();
+    setWeekNumber(newWeekNum);
+    if (newYear !== year) {
+      setYear(newYear);
+    }
   };
 
   const handleNextWeek = () => {
-    if (!currentWeekStart) return;
-    const newWeek = clampWeekStartWithinSemester(addDays(currentWeekStart, 7));
-    setCurrentWeekStart(newWeek);
+    if (!year || !weekNumber) return;
+    const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
+    const nextDate = currentDate.add(1, 'week');
+    const newWeekNum = nextDate.isoWeek();
+    const newYear = nextDate.year();
+    setWeekNumber(newWeekNum);
+    if (newYear !== year) {
+      setYear(newYear);
+    }
+  };
+
+  const handleYearChange = (newYear) => {
+    setYear(newYear);
+    // Keep same week number if possible, otherwise use first week of year
+    setWeekNumber((prev) => {
+      const testDate = dayjs().year(newYear).isoWeek(prev);
+      if (!testDate.isValid()) return 1;
+      return prev;
+    });
+  };
+
+  const handleWeekChange = (newWeekNumber) => {
+    setWeekNumber(newWeekNumber);
   };
 
   const renderCalendar = (weekStart) => {
@@ -938,6 +1047,11 @@ const EditSchedule = () => {
             onPrevWeek={handlePrevWeek}
             onNextWeek={handleNextWeek}
             renderCalendar={() => renderCalendar(currentWeekStart)}
+            year={year}
+            onYearChange={handleYearChange}
+            weekNumber={weekNumber}
+            onWeekChange={handleWeekChange}
+            weekLabel={currentWeekStart ? `${dayjs(currentWeekStart).format('DD/MM')} - ${dayjs(addDays(currentWeekStart, 6)).format('DD/MM')}` : ''}
           />
         </Space>
       </Layout.Content>
@@ -947,15 +1061,22 @@ const EditSchedule = () => {
         lesson={selectedLesson}
         rooms={rooms}
         timeslots={timeslots}
-        lecturers={lecturers}
+        lecturers={[]}
         semester={semester}
         onUpdate={handleUpdateLesson}
         onDelete={handleDeleteLesson}
+        onDeleteAllLessons={handleDeleteAll}
+        onBatchTransfer={handleBatchTransfer}
         onCancel={() => {
           setEditModalVisible(false);
           setSelectedLesson(null);
         }}
         saving={saving}
+        conflictMap={conflictMap}
+        holidays={holidays}
+        studentScheduleCache={studentScheduleCache}
+        classId={classId}
+        lecturerId={lecturerId}
       />
     </Layout>
   );
