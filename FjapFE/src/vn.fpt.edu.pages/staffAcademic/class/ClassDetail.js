@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
-import { Button, Input, Space, Table, Tooltip, Typography } from "antd";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
+import { Button, Space, Table, Tooltip, Typography } from "antd";
 import {
   ArrowLeftOutlined,
   TeamOutlined,
   UserAddOutlined,
-  SearchOutlined,
 } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 
@@ -48,11 +47,6 @@ const wrapperStyle = {
   boxShadow: "0 4px 20px rgba(15, 23, 42, 0.08)",
 };
 
-const headingStyle = {
-  margin: 0,
-  fontSize: 24,
-  fontWeight: 700,
-};
 
 const tableCardStyle = {
   border: "1px solid #e2e8f0",
