@@ -297,11 +297,9 @@ export default function ClassList({ readOnly = false }) {
     setLoading(true);
     ClassListApi.getAll()
       .then((data) => {
-        console.log("✅ Data backend:", data);
         setClasses(buildClassRows(data ?? []));
       })
       .catch((error) => {
-        console.error("❌ Error fetching classes:", error);
         notifyError(
           "class-list-load",
           "Load failed",
