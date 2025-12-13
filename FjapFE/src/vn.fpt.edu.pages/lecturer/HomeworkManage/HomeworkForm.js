@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal, Form, Input, DatePicker, Upload, message, Button } from "antd";
+import { Modal, Form, Input, DatePicker, Upload, Button } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { useAuth } from "../../login/AuthContext";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
 import dayjs from "dayjs";
 
@@ -16,6 +17,7 @@ export default function HomeworkForm({
 }) {
   const [form] = Form.useForm();
   const { user } = useAuth();
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } = useNotify();
   const [fileList, setFileList] = useState([]);
   const [removedExistingFile, setRemovedExistingFile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -59,14 +61,69 @@ export default function HomeworkForm({
   };
 
   const handleSubmit = async () => {
+    let notifyKey = null;
+    const actionType = homework ? "update" : "create";
+
     try {
       const values = await form.validateFields();
+
+      // Validate required fields
+      const trimmedTitle = values.title?.trim();
+      if (!trimmedTitle) {
+        form.setFields([
+          {
+            name: "title",
+            errors: ["Homework title cannot be empty"],
+          },
+        ]);
+        notifyError(
+          "homework-validation-title",
+          "Validation failed",
+          "Please enter a homework title."
+        );
+        return;
+      }
+
+      const trimmedContent = values.content?.trim();
+      if (!trimmedContent) {
+        form.setFields([
+          {
+            name: "content",
+            errors: ["Homework description cannot be empty"],
+          },
+        ]);
+        notifyError(
+          "homework-validation-content",
+          "Validation failed",
+          "Please enter a homework description."
+        );
+        return;
+      }
+
+      // Validate deadline is not in the past
+      if (values.deadline && values.deadline.isBefore(dayjs())) {
+        notifyError(
+          "homework-validation-deadline",
+          "Invalid deadline",
+          "Deadline must be in the present or future."
+        );
+        return;
+      }
+
+      notifyKey = `homework-${actionType}-${homework?.homeworkId || Date.now()}`;
+      notifyPending(
+        notifyKey,
+        homework ? "Updating homework" : "Creating homework",
+        `Processing "${trimmedTitle}"...`
+      );
+
       setSubmitting(true);
       const data = new FormData();
       data.append("lessonId", slot.lessonId);
-      data.append("title", values.title);
-      data.append("content", values.content);
+      data.append("title", trimmedTitle);
+      data.append("content", trimmedContent);
       data.append("createdBy", user?.id || user?.lecturerId || 1);
+
       if (values.deadline) {
         data.append("deadline", values.deadline.toISOString());
       }
@@ -85,10 +142,18 @@ export default function HomeworkForm({
 
       if (homework) {
         await LecturerHomework.updateHomework(homework.homeworkId, data, true);
-        message.success("Homework updated successfully");
+        notifySuccess(
+          notifyKey,
+          "Homework updated",
+          `"${trimmedTitle}" has been updated successfully.`
+        );
       } else {
         await LecturerHomework.createHomework(data, true);
-        message.success("Homework created successfully");
+        notifySuccess(
+          notifyKey,
+          "Homework created",
+          `"${trimmedTitle}" has been created successfully.`
+        );
       }
 
       form.resetFields();
@@ -96,8 +161,57 @@ export default function HomeworkForm({
       setRemovedExistingFile(false);
       onSuccess();
     } catch (error) {
+      // If validation error from form, don't show notification
+      if (error?.errorFields) {
+        return;
+      }
+
       console.error("Failed to save homework:", error);
-      message.error(homework ? "Unable to update homework" : "Unable to create homework");
+      console.error("Error response:", error?.response);
+
+      // Extract detailed error message from various response formats
+      let errorMessage = homework ? "Unable to update homework" : "Unable to create homework";
+
+      if (error?.response?.data) {
+        const data = error.response.data;
+
+        // Format 1: { message: "error message" }
+        if (data.message) {
+          errorMessage = data.message;
+        }
+        // Format 2: { errors: { field: ["error1", "error2"] } }
+        else if (data.errors) {
+          const errorsList = [];
+          for (const field in data.errors) {
+            if (Array.isArray(data.errors[field])) {
+              errorsList.push(...data.errors[field]);
+            } else {
+              errorsList.push(data.errors[field]);
+            }
+          }
+          if (errorsList.length > 0) {
+            errorMessage = errorsList.join(". ");
+          }
+        }
+        // Format 3: { error: "error message" }
+        else if (data.error) {
+          errorMessage = data.error;
+        }
+        // Format 4: String response
+        else if (typeof data === 'string') {
+          errorMessage = data;
+        }
+      }
+      // Fallback to error.message
+      else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      notifyError(
+        notifyKey || `homework-${actionType}-error`,
+        homework ? "Update failed" : "Create failed",
+        errorMessage
+      );
     } finally {
       setSubmitting(false);
     }
@@ -143,12 +257,62 @@ export default function HomeworkForm({
           <TextArea rows={6} placeholder="Add homework instructions and details..." />
         </Form.Item>
 
-        <Form.Item name="deadline" label="Deadline">
+        <Form.Item
+          name="deadline"
+          label="Deadline"
+          rules={[
+            {
+              validator: (_, value) => {
+                if (!value) {
+                  return Promise.resolve();
+                }
+                if (value.isBefore(dayjs())) {
+                  return Promise.reject(new Error("Deadline must be in the present or future"));
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
           <DatePicker
             showTime
             format="DD/MM/YYYY HH:mm"
             style={{ width: "100%" }}
             placeholder="Select the due date"
+            disabledDate={(current) => {
+              // Disable dates before today
+              return current && current.isBefore(dayjs().startOf('day'));
+            }}
+            disabledTime={(current) => {
+              // If selected date is today, disable past hours and minutes
+              if (!current || !current.isSame(dayjs(), 'day')) {
+                return {};
+              }
+
+              const now = dayjs();
+              const currentHour = now.hour();
+              const currentMinute = now.minute();
+
+              return {
+                disabledHours: () => {
+                  const hours = [];
+                  for (let i = 0; i < currentHour; i++) {
+                    hours.push(i);
+                  }
+                  return hours;
+                },
+                disabledMinutes: (selectedHour) => {
+                  if (selectedHour === currentHour) {
+                    const minutes = [];
+                    for (let i = 0; i <= currentMinute; i++) {
+                      minutes.push(i);
+                    }
+                    return minutes;
+                  }
+                  return [];
+                },
+              };
+            }}
           />
         </Form.Item>
 

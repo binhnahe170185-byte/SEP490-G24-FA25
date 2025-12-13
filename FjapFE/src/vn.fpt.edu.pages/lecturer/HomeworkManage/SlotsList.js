@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Card, Table, Tag, Spin, message, Empty, Button, Badge } from "antd";
+import { Card, Table, Tag, Spin, Empty, Button, Badge } from "antd";
 import { CalendarOutlined, ClockCircleOutlined, FileTextOutlined } from "@ant-design/icons";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
 import dayjs from "dayjs";
 
@@ -12,6 +13,7 @@ export default function SlotsList({ course, lecturerId }) {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const navigate = useNavigate();
   const location = useLocation();
+  const { error: notifyError } = useNotify();
 
   const buildHomeworkMap = (homeworks) => {
     const map = {};
@@ -40,12 +42,25 @@ export default function SlotsList({ course, lecturerId }) {
       setHomeworksMap(buildHomeworkMap(courseHomeworks || []));
     } catch (error) {
       console.error("Failed to load slots:", error);
-      message.error("Unable to load slots");
+      console.error("Error response:", error?.response);
+
+      let errorMessage = "Unable to load slots. Please try again.";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      notifyError(
+        "homework-slots-load-error",
+        "Load failed",
+        errorMessage
+      );
       setHomeworksMap({});
     } finally {
       setLoading(false);
     }
-  }, [course]);
+  }, [course, notifyError]);
 
   useEffect(() => {
     if (course && course.classId) {
@@ -273,12 +288,12 @@ export default function SlotsList({ course, lecturerId }) {
     <Card
       title={
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Slot list</div>
-              <div style={{ fontSize: 14, color: "#595959", fontWeight: 400 }}>
-                {course.className} {course.subjectCode && course.subjectName && `- ${course.subjectName} (${course.subjectCode})`}
-              </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>Slot list</div>
+            <div style={{ fontSize: 14, color: "#595959", fontWeight: 400 }}>
+              {course.className} {course.subjectCode && course.subjectName && `- ${course.subjectName} (${course.subjectCode})`}
             </div>
+          </div>
           <Tag color="green" style={{ fontSize: 14, padding: "4px 12px" }}>
             {slots.length} {slots.length === 1 ? "slot" : "slots"}
           </Tag>
