@@ -2,14 +2,10 @@ import React from 'react';
 import {
   Card,
   Space,
-  Button,
-  Tag,
-  Tooltip,
   Typography,
-  Table,
   Empty,
 } from 'antd';
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
+import FilterBar from './FilterBar';
 import '../CreateSchedule.css';
 
 const CalendarTable = ({
@@ -18,49 +14,69 @@ const CalendarTable = ({
   weekRange,
   onPrevWeek,
   onNextWeek,
-  renderCalendar
+  renderCalendar,
+  // New props for FilterBar
+  year,
+  onYearChange,
+  weekNumber,
+  onWeekChange,
+  weekLabel,
 }) => {
-  const isNavigationDisabled = !weekStart;
   const { columns = [], dataSource = [] } = (renderCalendar && renderCalendar()) || {};
 
   return (
     <Card
       className="create-schedule-card"
       title={
-        <Space size="small">
+        <Space size="middle" style={{ width: '100%', justifyContent: 'flex-start' }}>
           <Typography.Text strong>{title}</Typography.Text>
-          <Tag color="geekblue">{weekRange || 'Week'}</Tag>
-        </Space>
-      }
-      extra={
-        <Space>
-          <Tooltip title="Previous week">
-            <Button
-              icon={<LeftOutlined />}
-              onClick={onPrevWeek}
-              disabled={isNavigationDisabled}
-            />
-          </Tooltip>
-          <Tooltip title="Next week">
-            <Button
-              icon={<RightOutlined />}
-              onClick={onNextWeek}
-              disabled={isNavigationDisabled}
-            />
-          </Tooltip>
+          <FilterBar
+            year={year}
+            onYearChange={onYearChange}
+            weekNumber={weekNumber}
+            onWeekChange={onWeekChange}
+            onPrev={onPrevWeek}
+            onNext={onNextWeek}
+            weekLabel={weekLabel}
+          />
         </Space>
       }
     >
-      <Table
-        className="create-schedule-table"
-        columns={columns}
-        dataSource={dataSource}
-        pagination={false}
-        bordered
-        size="middle"
-        scroll={{ x: 'max-content' }}
-        locale={{ emptyText: <Empty description="No timetable data" /> }}
-      />
+      {(!columns || columns.length === 0 || !dataSource || dataSource.length === 0) ? (
+        <Empty description="No timetable data" />
+      ) : (
+        <div className="calendar-grid-wrapper">
+          <div className="calendar-grid">
+            <div className="calendar-grid-header">
+              <div className="calendar-grid-slot-head">Slot / Day</div>
+              {columns
+                .filter((col) => col.dataIndex && col.dataIndex !== 'slotLabel')
+                .map((col) => (
+                  <div key={col.key || col.dataIndex} className="calendar-grid-day-head">
+                    {col.title}
+                  </div>
+                ))}
+            </div>
+            <div className="calendar-grid-body">
+              {dataSource.map((row) => (
+                <div key={row.key} className="calendar-grid-row">
+                  <div className="calendar-grid-slot-cell">{row.slotLabel}</div>
+                  {columns
+                    .filter((col) => col.dataIndex && col.dataIndex !== 'slotLabel')
+                    .map((col) => (
+                      <div
+                        key={`${row.key}-${col.dataIndex}`}
+                        className="calendar-grid-day-cell"
+                      >
+                        {row[col.dataIndex]}
+                      </div>
+                    ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };
