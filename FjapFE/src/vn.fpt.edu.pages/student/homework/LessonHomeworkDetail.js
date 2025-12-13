@@ -757,7 +757,7 @@ const LessonHomeworkDetail = () => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            Lesson homework
+            Homework
           </Title>
           <Text type="secondary">
             {subjectName} {subjectCode ? `(${subjectCode})` : ""} · {classLabel}
