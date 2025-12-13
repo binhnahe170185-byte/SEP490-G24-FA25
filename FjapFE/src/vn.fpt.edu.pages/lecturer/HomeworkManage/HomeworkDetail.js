@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Empty,
-  message,
   Popconfirm,
   Space,
   Spin,
@@ -22,6 +21,7 @@ import {
   PlusOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
 import HomeworkForm from "./HomeworkForm";
 
@@ -29,6 +29,7 @@ const HomeworkDetail = () => {
   const { classId, lessonId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } = useNotify();
 
   const [slot, setSlot] = useState(location.state?.slot || null);
   const [homeworks, setHomeworks] = useState([]);
@@ -91,11 +92,25 @@ const HomeworkDetail = () => {
       setHomeworks(data);
     } catch (error) {
       console.error("Failed to load homeworks:", error);
-      message.error("Unable to load homework list");
+      console.error("Error response:", error?.response);
+
+      let errorMessage = "Unable to load homework list. Please try again.";
+
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      notifyError(
+        "homework-load-error",
+        "Load failed",
+        errorMessage
+      );
     } finally {
       setTableLoading(false);
     }
-  }, [classId, lessonId]);
+  }, [classId, lessonId, notifyError]);
 
   useEffect(() => {
     loadSlotInfo();
@@ -116,14 +131,42 @@ const HomeworkDetail = () => {
   };
 
   const handleDelete = async (homeworkId) => {
+    const notifyKey = `homework-delete-${homeworkId}`;
     try {
       setTableLoading(true);
+      notifyPending(
+        notifyKey,
+        "Deleting homework",
+        "Please wait..."
+      );
+
       await LecturerHomework.deleteHomework(homeworkId);
-      message.success("Homework deleted successfully");
+
+      notifySuccess(
+        notifyKey,
+        "Homework deleted",
+        "The homework has been deleted successfully."
+      );
+
       await loadHomeworks();
     } catch (error) {
       console.error("Failed to delete homework:", error);
-      message.error("Unable to delete homework");
+      console.error("Error response:", error?.response);
+
+      let errorMessage = "Unable to delete homework. Please try again.";
+
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      notifyError(
+        notifyKey,
+        "Delete failed",
+        errorMessage
+      );
+
       setTableLoading(false);
     }
   };

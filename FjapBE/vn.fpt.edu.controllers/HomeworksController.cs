@@ -22,6 +22,19 @@ public class HomeworksController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly INotificationService _notificationService;
 
+    // File upload validation constants
+    private const long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    private static readonly string[] ALLOWED_EXTENSIONS = { 
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+        ".txt", ".zip", ".rar", ".7z",
+        ".jpg", ".jpeg", ".png", ".gif", ".bmp",
+        ".mp4", ".avi", ".mov", ".wmv"
+    };
+
+    // Input validation constants
+    private const int MAX_TITLE_LENGTH = 255;
+    private const int MAX_CONTENT_LENGTH = 10000;
+
     public HomeworksController(
         FjapDbContext db,
         ILogger<HomeworksController> logger,
@@ -64,6 +77,41 @@ public class HomeworksController : ControllerBase
             return BadRequest(new { code = 400, message = "Invalid payload", errors = ModelState });
         }
 
+        // Validate and sanitize title
+        var titleValidation = ValidateInputLength(request.Title, MAX_TITLE_LENGTH, "Title");
+        if (!titleValidation.isValid)
+        {
+            return BadRequest(new { code = 400, message = titleValidation.errorMessage });
+        }
+
+        var sanitizedTitle = SanitizeInput(request.Title);
+        if (string.IsNullOrWhiteSpace(sanitizedTitle))
+        {
+            return BadRequest(new { code = 400, message = "Title cannot be empty or contain only invalid characters." });
+        }
+
+        // Validate and sanitize content
+        var contentValidation = ValidateInputLength(request.Content, MAX_CONTENT_LENGTH, "Content");
+        if (!contentValidation.isValid)
+        {
+            return BadRequest(new { code = 400, message = contentValidation.errorMessage });
+        }
+
+        var sanitizedContent = SanitizeInput(request.Content);
+
+        // Validate file if provided
+        var fileValidation = ValidateFile(request.File);
+        if (!fileValidation.isValid)
+        {
+            return BadRequest(new { code = 400, message = fileValidation.errorMessage });
+        }
+
+        // Validate deadline is not in the past
+        if (request.Deadline.HasValue && request.Deadline.Value < DateTime.UtcNow)
+        {
+            return BadRequest(new { code = 400, message = "Deadline cannot be in the past." });
+        }
+
         var lesson = await _db.Lessons
             .Include(l => l.Class)
                 .ThenInclude(c => c.Students)
@@ -77,8 +125,8 @@ public class HomeworksController : ControllerBase
         var homework = new Homework
         {
             LessonId = request.LessonId,
-            Title = request.Title.Trim(),
-            Content = request.Content?.Trim(),
+            Title = sanitizedTitle,
+            Content = sanitizedContent,
             Deadline = request.Deadline?.ToUniversalTime(),
             CreatedBy = request.CreatedBy ?? 0,
             CreatedAt = DateTime.UtcNow,
@@ -117,9 +165,47 @@ public class HomeworksController : ControllerBase
             return NotFound(new { code = 404, message = "Homework not found" });
         }
 
-        homework.Title = request.Title?.Trim() ?? homework.Title;
-        homework.Content = request.Content?.Trim();
+        // Validate and sanitize title if provided
+        if (!string.IsNullOrWhiteSpace(request.Title))
+        {
+            var titleValidation = ValidateInputLength(request.Title, MAX_TITLE_LENGTH, "Title");
+            if (!titleValidation.isValid)
+            {
+                return BadRequest(new { code = 400, message = titleValidation.errorMessage });
+            }
+
+            var sanitizedTitle = SanitizeInput(request.Title);
+            if (string.IsNullOrWhiteSpace(sanitizedTitle))
+            {
+                return BadRequest(new { code = 400, message = "Title cannot be empty or contain only invalid characters." });
+            }
+            homework.Title = sanitizedTitle;
+        }
+
+        // Validate and sanitize content if provided
+        if (request.Content != null)
+        {
+            var contentValidation = ValidateInputLength(request.Content, MAX_CONTENT_LENGTH, "Content");
+            if (!contentValidation.isValid)
+            {
+                return BadRequest(new { code = 400, message = contentValidation.errorMessage });
+            }
+            homework.Content = SanitizeInput(request.Content);
+        }
+
+        // Validate deadline is not in the past
+        if (request.Deadline.HasValue && request.Deadline.Value < DateTime.UtcNow)
+        {
+            return BadRequest(new { code = 400, message = "Deadline cannot be in the past." });
+        }
         homework.Deadline = request.Deadline?.ToUniversalTime();
+
+        // Validate file if provided
+        var fileValidation = ValidateFile(request.File);
+        if (!fileValidation.isValid)
+        {
+            return BadRequest(new { code = 400, message = fileValidation.errorMessage });
+        }
 
         if (request.RemoveFile && !string.IsNullOrEmpty(homework.FilePath))
         {
@@ -647,6 +733,126 @@ public class HomeworksController : ControllerBase
             fileName = fileName.Replace(invalid, '_');
         }
         return fileName;
+    }
+
+    /// <summary>
+    /// Validate file upload (size and extension)
+    /// </summary>
+    private (bool isValid, string? errorMessage) ValidateFile(IFormFile file)
+    {
+        if (file == null)
+        {
+            return (true, null); // File is optional
+        }
+
+        // Check file size
+        if (file.Length > MAX_FILE_SIZE)
+        {
+            var sizeMB = MAX_FILE_SIZE / (1024.0 * 1024.0);
+            return (false, $"File size exceeds the maximum allowed size of {sizeMB:F1}MB. Your file is {file.Length / (1024.0 * 1024.0):F2}MB.");
+        }
+
+        if (file.Length == 0)
+        {
+            return (false, "File is empty. Please upload a valid file.");
+        }
+
+        // Check file extension
+        var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+        if (string.IsNullOrEmpty(extension))
+        {
+            return (false, "File must have a valid extension.");
+        }
+
+        if (!ALLOWED_EXTENSIONS.Contains(extension))
+        {
+            var allowedList = string.Join(", ", ALLOWED_EXTENSIONS);
+            return (false, $"File type '{extension}' is not allowed. Allowed types: {allowedList}");
+        }
+
+        // Check for potentially dangerous file names
+        var fileName = Path.GetFileNameWithoutExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return (false, "File name is invalid.");
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Sanitize input to prevent XSS and SQL injection
+    /// </summary>
+    private string SanitizeInput(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        var sanitized = input.Trim();
+
+        // Remove potentially dangerous HTML/script tags
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized,
+            @"<script[^>]*>.*?</script>",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline
+        );
+
+        // Remove other potentially dangerous tags
+        var dangerousTags = new[] { "iframe", "object", "embed", "applet", "meta", "link", "style" };
+        foreach (var tag in dangerousTags)
+        {
+            sanitized = System.Text.RegularExpressions.Regex.Replace(
+                sanitized,
+                $@"<{tag}[^>]*>.*?</{tag}>",
+                string.Empty,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline
+            );
+            sanitized = System.Text.RegularExpressions.Regex.Replace(
+                sanitized,
+                $@"<{tag}[^>]*/>",
+                string.Empty,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+        }
+
+        // Remove event handlers (onclick, onerror, etc.)
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized,
+            @"\s*on\w+\s*=\s*[""'][^""']*[""']",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+
+        // Remove javascript: protocol
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized,
+            @"javascript\s*:",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+
+        return sanitized;
+    }
+
+    /// <summary>
+    /// Validate input length
+    /// </summary>
+    private (bool isValid, string? errorMessage) ValidateInputLength(string? input, int maxLength, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return (true, null); // Empty is OK for optional fields
+        }
+
+        if (input.Length > maxLength)
+        {
+            return (false, $"{fieldName} exceeds maximum length of {maxLength} characters. Current length: {input.Length} characters.");
+        }
+
+        return (true, null);
     }
 
     private async Task SendHomeworkCreatedNotificationsAsync(Homework homework, Lesson lesson)

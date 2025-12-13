@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
+import {
   Breadcrumb,
-  message,
   Spin
 } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../login/AuthContext';
+import { useNotify } from '../../../vn.fpt.edu.common/notifications';
 import SemesterTabs from '../../student/MarkReport/SemesterTabs';
 import LecturerClassList from './LecturerClassList';
 import SlotsList from './SlotsList';
@@ -15,6 +15,7 @@ const HomeworkList = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { error: notifyError } = useNotify();
   const [semesters, setSemesters] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedSemester, setSelectedSemester] = useState(null);
@@ -37,23 +38,36 @@ const HomeworkList = () => {
       }
     } catch (error) {
       console.error("Failed to load semesters:", error);
-      message.error("Unable to load semesters");
+      console.error("Error response:", error?.response);
+
+      let errorMessage = "Unable to load semesters. Please try again.";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      notifyError(
+        "homework-semesters-load-error",
+        "Load failed",
+        errorMessage
+      );
     } finally {
       setLoading(false);
     }
-  }, [lecturerId]);
+  }, [lecturerId, notifyError]);
 
   // Load classes
   const loadClasses = useCallback(async () => {
     if (!selectedSemester) return;
-    
+
     try {
       setClassesLoading(true);
       const data = await LecturerHomework.getClasses(
         lecturerId,
         selectedSemester.semesterId
       );
-      
+
       setClasses(data);
       if (data.length > 0) {
         setSelectedClass(data[0]);
@@ -62,11 +76,24 @@ const HomeworkList = () => {
       }
     } catch (error) {
       console.error("Failed to load classes:", error);
-      message.error("Unable to load classes");
+      console.error("Error response:", error?.response);
+
+      let errorMessage = "Unable to load classes. Please try again.";
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      notifyError(
+        "homework-classes-load-error",
+        "Load failed",
+        errorMessage
+      );
     } finally {
       setClassesLoading(false);
     }
-  }, [lecturerId, selectedSemester]);
+  }, [lecturerId, selectedSemester, notifyError]);
 
   // Load semesters when the component mounts
   useEffect(() => {
@@ -173,14 +200,14 @@ const HomeworkList = () => {
         />
 
         {selectedClass ? (
-          <SlotsList 
-            course={selectedClass} 
+          <SlotsList
+            course={selectedClass}
             lecturerId={lecturerId}
           />
         ) : (
-          <div style={{ 
-            backgroundColor: "white", 
-            padding: 40, 
+          <div style={{
+            backgroundColor: "white",
+            padding: 40,
             borderRadius: 8,
             textAlign: "center",
             color: "#8c8c8c"
