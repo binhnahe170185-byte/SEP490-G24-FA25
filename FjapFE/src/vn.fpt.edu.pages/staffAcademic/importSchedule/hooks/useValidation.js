@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { normalizeString } from '../utils/helpers';
+import { normalizeString, getEmailPrefix } from '../utils/helpers';
 
 export function useValidation({
 	selectedSemesterId,
@@ -37,9 +37,14 @@ export function useValidation({
 		return map;
 	}, [timeslots]);
 
-	const lecturerCodeToId = useMemo(() => {
+	const lecturerEmailPrefixToId = useMemo(() => {
 		const map = {};
 		lecturers.forEach((l) => {
+			// Map from email prefix (part before @) to lecturerId
+			if (l.emailPrefix) {
+				map[normalizeString(l.emailPrefix)] = l.lecturerId;
+			}
+			// Also support mapping from lecturerCode for backward compatibility
 			if (l.lecturerCode) {
 				map[normalizeString(l.lecturerCode)] = l.lecturerId;
 			}
@@ -55,10 +60,10 @@ export function useValidation({
 				classesCount: Object.keys(classNameToId).length,
 				roomsCount: Object.keys(roomNameToId).length,
 				timeslotsCount: Object.keys(slotNumberToTimeId).length,
-				lecturersCount: Object.keys(lecturerCodeToId).length,
+				lecturersCount: Object.keys(lecturerEmailPrefixToId).length,
 				slotNumberToTimeIdMap: slotNumberToTimeId,
 			});
-			
+
 			// Detect duplicates
 			const keyCount = {};
 			rows.forEach((r) => {
@@ -75,23 +80,27 @@ export function useValidation({
 			return rows.map((r) => {
 				const normalizedClassName = normalizeString(r.className);
 				const normalizedRoomName = normalizeString(r.roomName);
-				const normalizedLecturer = normalizeString(r.lecturer);
-				
+				// Normalize lecturer: if it contains @, extract prefix; otherwise use as is
+				const lecturerInput = normalizeString(r.lecturer);
+				const normalizedLecturer = lecturerInput.includes('@')
+					? getEmailPrefix(lecturerInput)
+					: lecturerInput;
+
 				const classId = classNameToId[normalizedClassName];
 				const roomId = roomNameToId[normalizedRoomName];
 				const timeId = r.slot != null ? slotNumberToTimeId[r.slot] : undefined;
-				const lecturerId = lecturerCodeToId[normalizedLecturer];
-				
+				const lecturerId = lecturerEmailPrefixToId[normalizedLecturer];
+
 				const duplicateInFile =
 					keyCount[
-						[
-							normalizedClassName,
-							r.dayOfWeek,
-							r.slot,
-							normalizedRoomName,
-						].join('|')
+					[
+						normalizedClassName,
+						r.dayOfWeek,
+						r.slot,
+						normalizedRoomName,
+					].join('|')
 					] > 1;
-				
+
 				// Debug missing mappings
 				const missingFields = [];
 				if (!classId) missingFields.push(`Class: "${normalizedClassName}"`);
@@ -99,11 +108,11 @@ export function useValidation({
 				if (!timeId && r.slot != null) missingFields.push(`Slot: ${r.slot}`);
 				if (!r.dayOfWeek) missingFields.push(`DayOfWeek: ${r.dayOfWeek}`);
 				if (!lecturerId) missingFields.push(`Lecturer: "${normalizedLecturer}"`);
-				
+
 				if (missingFields.length > 0) {
 					console.log(`Row missing mappings: ${missingFields.join(', ')}`);
 				}
-				
+
 				return {
 					...r,
 					classId,
@@ -120,13 +129,13 @@ export function useValidation({
 				};
 			});
 		};
-	}, [classNameToId, roomNameToId, slotNumberToTimeId, lecturerCodeToId]);
+	}, [classNameToId, roomNameToId, slotNumberToTimeId, lecturerEmailPrefixToId]);
 
 	return {
 		classNameToId,
 		roomNameToId,
 		slotNumberToTimeId,
-		lecturerCodeToId,
+		lecturerEmailPrefixToId,
 		revalidateRows,
 	};
 }

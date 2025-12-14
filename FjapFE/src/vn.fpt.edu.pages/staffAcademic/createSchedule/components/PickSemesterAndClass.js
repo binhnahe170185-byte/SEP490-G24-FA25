@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
+import { filterSemestersForCreate } from '../utils/semesterFilter';
 
 const PickSemesterAndClass = ({
   semesterId,
@@ -37,52 +38,27 @@ const PickSemesterAndClass = ({
         if (data) {
           // Format semesters
           if (data.semesters && Array.isArray(data.semesters)) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+            const allSemesters = data.semesters.map(sem => {
+              const id = sem.id || sem.semesterId;
+              const name = sem.name || '';
+              const startDate = sem.startDate || '';
+              const endDate = sem.endDate || '';
 
-            const formattedSemesters = data.semesters
-              .map(sem => {
-                const id = sem.id || sem.semesterId;
-                const name = sem.name || '';
-                const startDate = sem.startDate || '';
-                const endDate = sem.endDate || '';
+              const label = startDate && endDate
+                ? `${name} (${startDate} → ${endDate})`
+                : name || 'Unknown Semester';
 
-                const label = startDate && endDate
-                  ? `${name} (${startDate} → ${endDate})`
-                  : name || 'Unknown Semester';
+              return {
+                value: id,
+                label: label,
+                startDate: startDate,
+                endDate: endDate
+              };
+            });
 
-                return {
-                  value: id,
-                  label: label,
-                  startDate: startDate,
-                  endDate: endDate
-                };
-              })
-              .filter(sem => {
-                // Only show semesters that are current or future (endDate >= today)
-                if (!sem.endDate) return false; // Exclude semesters without endDate
-                const endDateObj = new Date(sem.endDate);
-                endDateObj.setHours(0, 0, 0, 0);
-                return endDateObj >= today;
-              });
+            // Apply filter for CREATE mode: only show future semesters
+            const formattedSemesters = filterSemestersForCreate(allSemesters);
             setSemesterOptions(formattedSemesters);
-
-            // Auto-select current semester (today is between startDate and endDate)
-            if (!semesterId && formattedSemesters.length > 0) {
-              const currentSemester = formattedSemesters.find(sem => {
-                if (!sem.startDate || !sem.endDate) return false;
-                const startDateObj = new Date(sem.startDate);
-                startDateObj.setHours(0, 0, 0, 0);
-                const endDateObj = new Date(sem.endDate);
-                endDateObj.setHours(23, 59, 59, 999); // Include end date
-                return today >= startDateObj && today <= endDateObj;
-              });
-
-              if (currentSemester) {
-                console.log('Auto-selecting current semester:', currentSemester);
-                onSemesterChange(currentSemester.value);
-              }
-            }
           }
 
           // Store classes grouped by semester
@@ -191,7 +167,7 @@ const PickSemesterAndClass = ({
           {/* Semester */}
           <Form.Item
             label="Semester"
-            style={{ flex: 1, minWidth: 220 }}  
+            style={{ flex: 1, minWidth: 220 }}
             className="create-schedule-form-item"
           >
             <Select
@@ -212,7 +188,7 @@ const PickSemesterAndClass = ({
           {/* Class */}
           <Form.Item
             label="Class"
-            style={{ flex: 1, minWidth: 220 }} 
+            style={{ flex: 1, minWidth: 220 }}
             className="create-schedule-form-item"
           >
             <Select
@@ -231,7 +207,7 @@ const PickSemesterAndClass = ({
           <Form.Item
             label=" "
             colon={false}
-            style={{ flex: '0 0 auto' }}        
+            style={{ flex: '0 0 auto' }}
             className="create-schedule-form-item"
           >
             <Button

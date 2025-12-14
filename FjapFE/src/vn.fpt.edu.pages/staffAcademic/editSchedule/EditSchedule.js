@@ -20,7 +20,7 @@ import { notification } from 'antd';
 import './EditSchedule.css';
 
 import CalendarTable from '../createSchedule/components/CalendarTable';
-import PickSemesterAndClass from '../createSchedule/components/PickSemesterAndClass';
+import PickSemesterAndClass from './components/PickSemesterAndClass';
 import LessonEditModal from './components/LessonEditModal';
 
 import SemesterApi from '../../../vn.fpt.edu.api/Semester';
