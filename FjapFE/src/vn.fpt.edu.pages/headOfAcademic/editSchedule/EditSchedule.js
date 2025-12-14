@@ -18,9 +18,11 @@ import {
 } from '@ant-design/icons';
 import { notification } from 'antd';
 import './EditSchedule.css';
+
 import CalendarTable from '../createSchedule/components/CalendarTable';
 import PickSemesterAndClass from '../createSchedule/components/PickSemesterAndClass';
 import LessonEditModal from './components/LessonEditModal';
+
 import SemesterApi from '../../../vn.fpt.edu.api/Semester';
 import RoomApi from '../../../vn.fpt.edu.api/Room';
 import TimeslotApi from '../../../vn.fpt.edu.api/Timeslot';
@@ -33,15 +35,25 @@ const dayjs = (d) => dayjsLib(d);
 
 const { confirm } = Modal;
 
-// Helper function to get email username (part before @)
+// Helper: get username part before @
 const getEmailUsername = (email) => {
   if (!email) return '';
   const atIndex = email.indexOf('@');
   return atIndex > 0 ? email.substring(0, atIndex) : email;
 };
 
+// Helper: normalize api response -> array
+const unwrapToArray = (res) => {
+  // Supports:
+  // 1) axios response: res.data.data = []
+  // 2) unwrapped object: res.data = []
+  // 3) already array: res = []
+  const raw = res?.data?.data ?? res?.data ?? res;
+  return Array.isArray(raw) ? raw : [];
+};
+
 const EditSchedule = () => {
-  const [api, contextHolder] = notification.useNotification();
+  const [notiApi, contextHolder] = notification.useNotification();
 
   const [semesterId, setSemesterId] = useState('');
   const [classId, setClassId] = useState('');
@@ -55,7 +67,7 @@ const EditSchedule = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  // Year and week state for FilterBar
+
   const [year, setYear] = useState(() => dayjs().year());
   const [weekNumber, setWeekNumber] = useState(() => dayjs().isoWeek());
 
@@ -63,18 +75,20 @@ const EditSchedule = () => {
 
   const [semesterData, setSemesterData] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [timeslots, setTimeslots] = useState([]);
+  const [timeslots, setTimeslots] = useState([]); // ALWAYS array
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [classStudents, setClassStudents] = useState([]);
   const [lecturers, setLecturers] = useState([]);
-  // Conflict checking / cache (placeholder to avoid undefined)
+
   const [conflictMap, setConflictMap] = useState({});
   const [studentScheduleCache, setStudentScheduleCache] = useState({
     studentIds: [],
     studentTimeMap: {},
   });
+
   const toYMD = (date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -101,38 +115,25 @@ const EditSchedule = () => {
     return d;
   };
 
-  const clampWeekStartWithinSemester = (weekStart, semStart = null, semEnd = null) => {
-    const startDate = semStart || semester.start;
-    const endDate = semEnd || semester.end;
-    if (!startDate || !endDate) return weekStart;
-    const s = mondayOf(startDate);
-    const e = mondayOf(endDate);
-    if (weekStart < s) return s;
-    if (weekStart > e) return e;
-    return weekStart;
-  };
-
   const getWeekRange = (weekStart) =>
     `Week ${toYMD(weekStart)} → ${toYMD(addDays(weekStart, 6))}`;
 
   const normalizeDateString = (rawDate) => {
     if (!rawDate) return '';
-    if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-      return rawDate;
-    }
+    if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return rawDate;
     try {
       const parsed = new Date(rawDate);
-      if (!isNaN(parsed.getTime())) {
-        return toYMD(parsed);
-      }
+      if (!isNaN(parsed.getTime())) return toYMD(parsed);
     } catch {
       // ignore
     }
     return String(rawDate);
   };
 
-  // Fetch static data
+  // Fetch static data (Semesters, Rooms, Timeslots, Lecturers)
   useEffect(() => {
+    let alive = true;
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -145,7 +146,7 @@ const EditSchedule = () => {
           end: sem.endDate,
           status: new Date(sem.endDate) >= new Date() ? 'Active' : 'Archived',
         }));
-        setSemesterData(formattedSemesters);
+        if (alive) setSemesterData(formattedSemesters);
 
         const roomsResponse = await RoomApi.getRooms({ pageSize: 100 });
         const roomsList = roomsResponse.items || [];
@@ -153,32 +154,47 @@ const EditSchedule = () => {
           value: String(room.roomId),
           label: room.roomName,
         }));
-        setRooms(formattedRooms);
+        if (alive) setRooms(formattedRooms);
 
-        const timeslotsList = await TimeslotApi.getTimeslots();
-        setTimeslots(timeslotsList);
+        // ✅ FIX TIMESLOTS: unwrap correctly
+        const timeslotsRes = await TimeslotApi.getTimeslots();
+        const list = unwrapToArray(timeslotsRes);
 
-        // Fetch lecturers - gọi trực tiếp Backend API
+        // Debug once
+        console.log('[Timeslots] raw response:', timeslotsRes);
+        console.log('[Timeslots] parsed list:', list, 'length=', list.length);
+
+        if (alive) setTimeslots(list);
+
+        // Lecturers
         const lecturersResponse = await api.get('/api/Lecturers');
         const lecturersList = lecturersResponse.data?.data || [];
         const formattedLecturers = lecturersList.map((lec) => ({
           value: String(lec.lecturerId),
-          label: lec.email ? lec.email.split('@')[0] : lec.lecturerCode || `Lecturer ${lec.lecturerId}`,
+          label: lec.email
+            ? lec.email.split('@')[0]
+            : (lec.lecturerCode || `Lecturer ${lec.lecturerId}`),
         }));
-        setLecturers(formattedLecturers);
+        if (alive) setLecturers(formattedLecturers);
       } catch (error) {
         console.error('❌ Error fetching data:', error);
         console.error('Error details:', error.response?.data);
+
+        if (!alive) return;
         setRooms([]);
-        setTimeslots([]);
+        setTimeslots([]); // still array
         setSemesterData([]);
         setLecturers([]);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Sync semester when semesterId change
@@ -194,10 +210,7 @@ const EditSchedule = () => {
           end: fromYMD(semData.end),
         });
       } else if (semesterId) {
-        setSemester((prev) => ({
-          ...prev,
-          id: semesterId,
-        }));
+        setSemester((prev) => ({ ...prev, id: semesterId }));
       }
     }
   }, [semesterId, semesterData, semester.id]);
@@ -210,10 +223,9 @@ const EditSchedule = () => {
         setHolidays([]);
         return;
       }
-
       try {
         const holidaysList = await HolidayApi.getHolidaysBySemester(semId);
-        const formattedHolidays = holidaysList.map((holiday) => ({
+        const formatted = (holidaysList || []).map((holiday) => ({
           date: normalizeDateString(holiday.date),
           name:
             holiday.name ||
@@ -224,13 +236,12 @@ const EditSchedule = () => {
           description: holiday.description || '',
           holidayId: holiday.holidayId,
         }));
-        setHolidays(formattedHolidays);
+        setHolidays(formatted);
       } catch (error) {
         console.error('Error fetching holidays:', error);
         setHolidays([]);
       }
     };
-
     fetchHolidays();
   }, [semester.id, semesterId]);
 
@@ -243,7 +254,7 @@ const EditSchedule = () => {
     setWeekNumber(dayjs(today).isoWeek());
   }, []);
 
-  // Sync currentWeekStart with year and weekNumber
+  // Sync currentWeekStart with year/weekNumber
   useEffect(() => {
     if (year && weekNumber) {
       const weekStart = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1).toDate();
@@ -272,7 +283,7 @@ const EditSchedule = () => {
             fullName: fullName || student.name || '',
           };
         })
-        .filter((student) => student.studentId);
+        .filter((s) => s.studentId);
       setClassStudents(formatted);
     } catch (error) {
       console.error('Failed to fetch class students:', error);
@@ -297,6 +308,7 @@ const EditSchedule = () => {
 
     let semStart;
     let semEnd;
+
     if (semOpt && semOpt.startDate && semOpt.endDate) {
       semStart = fromYMD(semOpt.startDate);
       semEnd = fromYMD(semOpt.endDate);
@@ -309,11 +321,7 @@ const EditSchedule = () => {
       return;
     }
 
-    setSemester({
-      id: semId,
-      start: semStart,
-      end: semEnd,
-    });
+    setSemester({ id: semId, start: semStart, end: semEnd });
 
     let firstLessonDate = semStart;
     if (schedule.length > 0) {
@@ -323,19 +331,19 @@ const EditSchedule = () => {
           firstLessonDate = fromYMD(firstDate);
         } else {
           const parsedDate = new Date(firstDate);
-          if (!isNaN(parsedDate.getTime())) {
-            firstLessonDate = parsedDate;
-          }
+          if (!isNaN(parsedDate.getTime())) firstLessonDate = parsedDate;
         }
       } catch (e) {
         console.error('Error parsing first lesson date:', e);
       }
     }
+
     const weekStartMonday = mondayOf(firstLessonDate);
     setCurrentWeekStart(weekStartMonday);
 
     const convertedLessons = schedule.map((lesson) => {
       let dateStr = lesson.date;
+
       try {
         if (typeof lesson.date === 'string') {
           if (/^\d{4}-\d{2}-\d{2}$/.test(lesson.date)) {
@@ -348,9 +356,7 @@ const EditSchedule = () => {
           dateStr = toYMD(lesson.date);
         } else {
           const parsedDate = new Date(lesson.date);
-          if (!isNaN(parsedDate.getTime())) {
-            dateStr = toYMD(parsedDate);
-          }
+          if (!isNaN(parsedDate.getTime())) dateStr = toYMD(parsedDate);
         }
       } catch (e) {
         console.error('Error parsing date:', lesson.date, e);
@@ -360,16 +366,11 @@ const EditSchedule = () => {
         }
       }
 
-      const lessonDate = fromYMD(dateStr);
-      const dayOfWeek = lessonDate.getDay();
-      const weekday = dayOfWeek === 0 ? 8 : dayOfWeek + 1;
-
       const slot = lesson.timeId || 1;
       const roomName = lesson.roomName || '';
       const room = rooms.find((r) => r.label === roomName);
       const roomId = room ? room.value : null;
 
-      // Get lecturer display (prioritize email if available, then substring before @)
       const lecturerDisplay = lesson.lecturerEmail
         ? getEmailUsername(lesson.lecturerEmail)
         : (lesson.lecturerCode || '');
@@ -377,7 +378,6 @@ const EditSchedule = () => {
       return {
         lessonId: Number(lesson.lessonId || lesson.id),
         date: dateStr,
-        weekday,
         slot,
         room: roomName,
         roomId,
@@ -415,57 +415,32 @@ const EditSchedule = () => {
     }
   };
 
-  // === DELETE LESSON ===
+  // DELETE lesson
   const handleDeleteLesson = async (lessonId) => {
     const id = Number(lessonId);
-    console.log('handleDeleteLesson called with lessonId:', id);
-
-    if (!id) {
-      console.error('handleDeleteLesson: lessonId is invalid', lessonId);
-      return;
-    }
+    if (!id) return;
 
     try {
       setSaving(true);
-      console.log('Calling ClassList.deleteLesson with lessonId:', id);
+      await ClassList.deleteLesson(id);
 
-      const response = await ClassList.deleteLesson(id);
-      console.log('Delete API call successful, response:', response);
-
-      // Xóa khỏi loadedLessons
-      setLoadedLessons((prev) => {
-        const filtered = prev.filter((l) => Number(l.lessonId) !== id);
-        console.log(
-          'Updated loadedLessons, removed lesson:',
-          id,
-          'remaining:',
-          filtered.length
-        );
-        return filtered;
-      });
-
-      // Đóng modal edit
+      setLoadedLessons((prev) => prev.filter((l) => Number(l.lessonId) !== id));
       setEditModalVisible(false);
       setSelectedLesson(null);
 
-      api.success({
+      notiApi.success({
         message: 'Success',
         description: 'Lesson deleted successfully',
         placement: 'bottomRight',
         duration: 3,
       });
     } catch (error) {
-      console.error('Error deleting lesson:', error);
-      console.error('Error response:', error?.response);
-      console.error('Error data:', error?.response?.data);
-      console.error('Error message:', error?.message);
-
       const errorMessage =
         error?.response?.data?.message ||
         error?.message ||
         'Failed to delete lesson. Please try again.';
 
-      api.error({
+      notiApi.error({
         message: 'Error',
         description: errorMessage,
         placement: 'bottomRight',
@@ -476,11 +451,10 @@ const EditSchedule = () => {
     }
   };
 
-
-  // DELETE ALL LESSONS BY SUBJECT CODE
-  const handleDeleteAll = async (subjectCode) => {
-    if (!subjectCode) {
-      api.error({
+  // DELETE ALL by subjectCode
+  const handleDeleteAll = async (subCode) => {
+    if (!subCode) {
+      notiApi.error({
         message: 'Error',
         description: 'Missing subject code',
         placement: 'bottomRight',
@@ -492,7 +466,7 @@ const EditSchedule = () => {
     try {
       setSaving(true);
       const toDelete = loadedLessons.filter(
-        (l) => (l.subjectCode || '').toString() === subjectCode.toString()
+        (l) => (l.subjectCode || '').toString() === subCode.toString()
       );
 
       for (const lesson of toDelete) {
@@ -506,14 +480,12 @@ const EditSchedule = () => {
       }
 
       setLoadedLessons((prev) =>
-        prev.filter(
-          (l) => (l.subjectCode || '').toString() !== subjectCode.toString()
-        )
+        prev.filter((l) => (l.subjectCode || '').toString() !== subCode.toString())
       );
 
-      api.success({
+      notiApi.success({
         message: 'Success',
-        description: `Deleted ${toDelete.length} lessons of ${subjectCode}`,
+        description: `Deleted ${toDelete.length} lessons of ${subCode}`,
         placement: 'bottomRight',
         duration: 4,
       });
@@ -521,7 +493,7 @@ const EditSchedule = () => {
       setEditModalVisible(false);
       setSelectedLesson(null);
     } catch (error) {
-      api.error({
+      notiApi.error({
         message: 'Error',
         description:
           error?.response?.data?.message ||
@@ -544,9 +516,7 @@ const EditSchedule = () => {
       setLoadedLessons((prev) =>
         prev.map((l) => {
           if (Number(l.lessonId) === id) {
-            const room = rooms.find(
-              (r) => r.value === String(updatedData.roomId)
-            );
+            const room = rooms.find((r) => r.value === String(updatedData.roomId));
             return {
               ...l,
               ...updatedData,
@@ -558,7 +528,7 @@ const EditSchedule = () => {
         })
       );
 
-      api.success({
+      notiApi.success({
         message: 'Success',
         description: 'Lesson updated successfully',
         placement: 'bottomRight',
@@ -568,11 +538,9 @@ const EditSchedule = () => {
       setEditModalVisible(false);
       setSelectedLesson(null);
     } catch (error) {
-      console.error('Error updating lesson:', error);
-      api.error({
+      notiApi.error({
         message: 'Error',
-        description:
-          error?.response?.data?.message || 'Failed to update lesson',
+        description: error?.response?.data?.message || 'Failed to update lesson',
         placement: 'bottomRight',
         duration: 5,
       });
@@ -580,6 +548,8 @@ const EditSchedule = () => {
       setSaving(false);
     }
   };
+
+  // Batch transfer giữ nguyên logic của bạn (không đổi)
   const handleBatchTransfer = async (transferData) => {
     console.log('=== handleBatchTransfer in EditSchedule ===');
     console.log('transferData:', transferData);
@@ -587,8 +557,7 @@ const EditSchedule = () => {
     const { subjectCode, patterns, lecturerId: transferLecturerId, deleteOnly } = transferData;
 
     if (!subjectCode) {
-      console.error('Invalid transfer data: missing subjectCode');
-      api.error({
+      notiApi.error({
         message: 'Error',
         description: 'Subject code is required',
         placement: 'bottomRight',
@@ -597,11 +566,9 @@ const EditSchedule = () => {
       return;
     }
 
-    // Validation for transfer mode (not delete-only)
     if (!deleteOnly) {
       if (!patterns || patterns.length === 0) {
-        console.error('Invalid transfer data:', { subjectCode, patterns });
-        api.error({
+        notiApi.error({
           message: 'Error',
           description: 'Invalid transfer data',
           placement: 'bottomRight',
@@ -609,10 +576,8 @@ const EditSchedule = () => {
         });
         return;
       }
-
       if (!transferLecturerId) {
-        console.error('Lecturer ID is missing in transfer data');
-        api.error({
+        notiApi.error({
           message: 'Error',
           description: 'Lecturer information is required',
           placement: 'bottomRight',
@@ -624,41 +589,27 @@ const EditSchedule = () => {
 
     try {
       setSaving(true);
-      console.log(deleteOnly ? 'Starting batch delete...' : 'Starting batch transfer...');
 
-      // Tìm tất cả lessons có cùng subjectCode
       const lessonsToDelete = loadedLessons.filter(
-        (l) =>
-          (l.subjectCode || '').toString() === subjectCode.toString()
+        (l) => (l.subjectCode || '').toString() === subjectCode.toString()
       );
 
-      console.log(
-        `Found ${lessonsToDelete.length} lessons to delete with subjectCode: ${subjectCode}`
-      );
-
-      // Xóa tất cả lessons có cùng subjectCode
       for (const lesson of lessonsToDelete) {
         if (lesson.lessonId) {
           try {
-            console.log(`Deleting lesson ${lesson.lessonId}...`);
             await ClassList.deleteLesson(Number(lesson.lessonId));
-            console.log(`Deleted lesson ${lesson.lessonId} successfully`);
           } catch (error) {
             console.error(`Error deleting lesson ${lesson.lessonId}:`, error);
           }
         }
       }
 
-      console.log('Finished deleting lessons');
-
-      // Update loaded lessons - remove deleted lessons
       setLoadedLessons((prev) =>
         prev.filter((l) => (l.subjectCode || '').toString() !== subjectCode.toString())
       );
 
-      // If deleteOnly, stop here
       if (deleteOnly) {
-        api.success({
+        notiApi.success({
           message: 'Success',
           description: `Deleted ${lessonsToDelete.length} lesson(s) successfully`,
           placement: 'bottomRight',
@@ -670,14 +621,7 @@ const EditSchedule = () => {
         return;
       }
 
-      // Tạo schedule mới với patterns (giống create schedule)
       const effectiveSemesterId = semester.id || semesterId;
-      console.log('Creating new schedule with:', {
-        semesterId: effectiveSemesterId,
-        classId,
-        lecturerId: transferLecturerId,
-        patternsCount: patterns.length,
-      });
 
       if (!effectiveSemesterId || !classId || !transferLecturerId) {
         throw new Error('Missing semester, class, or lecturer information');
@@ -690,25 +634,15 @@ const EditSchedule = () => {
         patterns,
       };
 
-      console.log('Calling createSchedule with payload:', payload);
-      const createResponse = await ClassList.createSchedule(payload);
-      console.log('createSchedule response:', createResponse);
+      await ClassList.createSchedule(payload);
 
-      // Reload lessons sau khi tạo lại schedule
       if (effectiveSemesterId && classId) {
-        const scheduleData = await ClassList.getSchedule(
-          effectiveSemesterId,
-          classId
-        );
-
+        const scheduleData = await ClassList.getSchedule(effectiveSemesterId, classId);
         if (scheduleData && scheduleData.schedule) {
           const convertedLessons = scheduleData.schedule.map((lesson) => {
             let dateStr = lesson.date;
             try {
-              if (
-                typeof lesson.date === 'string' &&
-                /^\d{4}-\d{2}-\d{2}$/.test(lesson.date)
-              ) {
+              if (typeof lesson.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(lesson.date)) {
                 dateStr = lesson.date;
               } else {
                 const parsedDate = new Date(lesson.date);
@@ -718,16 +652,11 @@ const EditSchedule = () => {
               console.error('Error parsing date:', lesson.date, e);
             }
 
-            const lessonDate = fromYMD(dateStr);
-            const dayOfWeek = lessonDate.getDay();
-            const weekday = dayOfWeek === 0 ? 8 : dayOfWeek + 1;
-
             const slot = lesson.timeId || 1;
             const roomName = lesson.roomName || '';
             const room = rooms.find((r) => r.label === roomName);
             const roomId = room ? room.value : null;
 
-            // Get lecturer display (prioritize email if available, then substring before @)
             const lecturerDisplay = lesson.lecturerEmail
               ? getEmailUsername(lesson.lecturerEmail)
               : (lesson.lecturerCode || '');
@@ -735,7 +664,6 @@ const EditSchedule = () => {
             return {
               lessonId: Number(lesson.lessonId || lesson.id),
               date: dateStr,
-              weekday,
               slot,
               room: roomName,
               roomId,
@@ -756,7 +684,7 @@ const EditSchedule = () => {
         }
       }
 
-      api.success({
+      notiApi.success({
         message: 'Success',
         description: 'Batch transfer completed successfully',
         placement: 'bottomRight',
@@ -766,11 +694,9 @@ const EditSchedule = () => {
       setEditModalVisible(false);
       setSelectedLesson(null);
     } catch (error) {
-      console.error('Error in batch transfer:', error);
-      api.error({
+      notiApi.error({
         message: 'Error',
-        description:
-          error?.response?.data?.message || 'Failed to transfer lessons',
+        description: error?.response?.data?.message || 'Failed to transfer lessons',
         placement: 'bottomRight',
         duration: 5,
       });
@@ -779,38 +705,27 @@ const EditSchedule = () => {
     }
   };
 
-
   const handlePrevWeek = () => {
     if (!year || !weekNumber) return;
     const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
     const prevDate = currentDate.subtract(1, 'week');
-    const newWeekNum = prevDate.isoWeek();
-    const newYear = prevDate.year();
-    setWeekNumber(newWeekNum);
-    if (newYear !== year) {
-      setYear(newYear);
-    }
+    setWeekNumber(prevDate.isoWeek());
+    if (prevDate.year() !== year) setYear(prevDate.year());
   };
 
   const handleNextWeek = () => {
     if (!year || !weekNumber) return;
     const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
     const nextDate = currentDate.add(1, 'week');
-    const newWeekNum = nextDate.isoWeek();
-    const newYear = nextDate.year();
-    setWeekNumber(newWeekNum);
-    if (newYear !== year) {
-      setYear(newYear);
-    }
+    setWeekNumber(nextDate.isoWeek());
+    if (nextDate.year() !== year) setYear(nextDate.year());
   };
 
   const handleYearChange = (newYear) => {
     setYear(newYear);
-    // Keep same week number if possible, otherwise use first week of year
     setWeekNumber((prev) => {
       const testDate = dayjs().year(newYear).isoWeek(prev);
-      if (!testDate.isValid()) return 1;
-      return prev;
+      return testDate.isValid() ? prev : 1;
     });
   };
 
@@ -821,9 +736,12 @@ const EditSchedule = () => {
   const renderCalendar = (weekStart) => {
     if (!weekStart) return { columns: [], dataSource: [] };
 
+    // ✅ timeslots is always array, but still guard for safety
+    const timeslotsArr = Array.isArray(timeslots) ? timeslots : [];
+
     const slotsToRender =
-      timeslots.length > 0
-        ? timeslots.map((ts) => ({
+      timeslotsArr.length > 0
+        ? timeslotsArr.map((ts) => ({
           timeId: ts.timeId,
           label: `Slot ${ts.timeId}`,
         }))
@@ -852,43 +770,32 @@ const EditSchedule = () => {
         fixed: 'left',
         width: 140,
       },
-      ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(
-        (dayLabel, idx) => {
-          const dayDate = addDays(weekStart, idx);
-          const dateStr = toYMD(dayDate);
-          const [year, month, day] = dateStr.split('-');
-          const formattedDate = `${day}/${month}`;
+      ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayLabel, idx) => {
+        const dayDate = addDays(weekStart, idx);
+        const dateStr = toYMD(dayDate);
+        const [, month, day] = dateStr.split('-');
+        const formattedDate = `${day}/${month}`;
 
-          return {
-            title: (
-              <div style={{ textAlign: 'center' }}>
-                <div>{dayLabel}</div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 'normal',
-                    color: '#666',
-                  }}
-                >
-                  {formattedDate}
-                </div>
+        return {
+          title: (
+            <div style={{ textAlign: 'center' }}>
+              <div>{dayLabel}</div>
+              <div style={{ fontSize: 12, fontWeight: 'normal', color: '#666' }}>
+                {formattedDate}
               </div>
-            ),
-            dataIndex: `day${idx}`,
-            key: `day${idx}`,
-            align: 'left',
-            render: (content) => content || '',
-          };
-        }
-      ),
+            </div>
+          ),
+          dataIndex: `day${idx}`,
+          key: `day${idx}`,
+          align: 'left',
+          render: (content) => content || '',
+        };
+      }),
     ];
 
     const dataSource = slotsToRender.map((slotInfo) => {
       const slot = slotInfo.timeId;
-      const row = {
-        key: `slot-${slot}`,
-        slotLabel: slotInfo.label,
-      };
+      const row = { key: `slot-${slot}`, slotLabel: slotInfo.label };
 
       Array.from({ length: 7 }).forEach((_, dayIdx) => {
         const dayDate = addDays(weekStart, dayIdx);
@@ -898,9 +805,7 @@ const EditSchedule = () => {
         const loadedLesson = loadedLessons.find((l) => {
           if (!l.date) return false;
           const lessonTimeId = l.timeId || l.slot;
-          return (
-            l.date === dateStr && Number(lessonTimeId) === Number(slot)
-          );
+          return l.date === dateStr && Number(lessonTimeId) === Number(slot);
         });
 
         const cellContents = [];
@@ -910,14 +815,10 @@ const EditSchedule = () => {
         if (holidayName) classNames.push('holiday-cell');
 
         if (loadedLesson) {
-          const loadedSubjectCode = loadedLesson.subjectCode || '';
-          const loadedRoomName = loadedLesson.room || '';
-          const loadedLecturerCode = loadedLesson.lecturer || '';
-
           const parts = [];
-          if (loadedSubjectCode) parts.push(loadedSubjectCode);
-          if (loadedRoomName) parts.push(loadedRoomName);
-          if (loadedLecturerCode) parts.push(loadedLecturerCode);
+          if (loadedLesson.subjectCode) parts.push(loadedLesson.subjectCode);
+          if (loadedLesson.room) parts.push(loadedLesson.room);
+          if (loadedLesson.lecturer) parts.push(loadedLesson.lecturer);
 
           cellContents.push(parts.length > 0 ? parts.join(' | ') : '');
           cellStyle = {
@@ -931,21 +832,16 @@ const EditSchedule = () => {
         }
 
         if (holidayName) {
-          if (cellContents.length === 0) {
-            cellContents.push(
-              <Tag key="holiday" color="gold">
-                {holidayName}
-              </Tag>
-            );
-          } else {
-            cellContents.unshift(
-              <Tag key="holiday" color="gold" style={{ marginBottom: 4 }}>
-                {holidayName}
-              </Tag>
-            );
-          }
+          const holidayTag = (
+            <Tag key="holiday" color="gold" style={{ marginBottom: 4 }}>
+              {holidayName}
+            </Tag>
+          );
+          if (cellContents.length === 0) cellContents.push(holidayTag);
+          else cellContents.unshift(holidayTag);
+
           cellStyle = {
-            ...(cellStyle || {}),
+            ...cellStyle,
             backgroundColor: cellStyle.backgroundColor || '#fffde7',
             border: '2px dashed #fbc02d',
             color: cellStyle.color || '#f57f17',
@@ -961,10 +857,10 @@ const EditSchedule = () => {
             title={loadedLesson ? 'Click to edit or delete' : ''}
           >
             {cellContents.length > 0
-              ? cellContents.map((content, idx) =>
+              ? cellContents.map((content, idx2) =>
                 typeof content === 'string'
-                  ? <div key={idx}>{content}</div>
-                  : React.cloneElement(content, { key: idx })
+                  ? <div key={idx2}>{content}</div>
+                  : React.cloneElement(content, { key: idx2 })
               )
               : ''}
           </div>
@@ -980,15 +876,10 @@ const EditSchedule = () => {
   if (loading) {
     return (
       <Layout className="edit-schedule-app">
-        <Layout.Content
-          className="edit-schedule-main"
-          style={{ padding: '40px', textAlign: 'center' }}
-        >
+        <Layout.Content className="edit-schedule-main" style={{ padding: 40, textAlign: 'center' }}>
           <Space direction="vertical" size="large">
             <Spin size="large" />
-            <Typography.Text type="secondary">
-              Loading data...
-            </Typography.Text>
+            <Typography.Text type="secondary">Loading data...</Typography.Text>
           </Space>
         </Layout.Content>
       </Layout>
@@ -1005,9 +896,9 @@ const EditSchedule = () => {
               Edit Class Timetable
             </Typography.Title>
             <Typography.Text type="secondary">
-              Select semester & class, then click on a lesson to edit or delete
-              it.
+              Select semester & class, then click on a lesson to edit or delete it.
             </Typography.Text>
+
             <Space size="small" wrap style={{ marginTop: 8 }}>
               {subjectCode && subjectName && (
                 <Tag icon={<BookOutlined />} color="processing">
@@ -1038,12 +929,11 @@ const EditSchedule = () => {
               />
             </Col>
           </Row>
+
           <CalendarTable
             title="Class Timetable"
             weekStart={currentWeekStart}
-            weekRange={
-              currentWeekStart ? getWeekRange(currentWeekStart) : 'Week'
-            }
+            weekRange={currentWeekStart ? getWeekRange(currentWeekStart) : 'Week'}
             onPrevWeek={handlePrevWeek}
             onNextWeek={handleNextWeek}
             renderCalendar={() => renderCalendar(currentWeekStart)}
@@ -1051,7 +941,11 @@ const EditSchedule = () => {
             onYearChange={handleYearChange}
             weekNumber={weekNumber}
             onWeekChange={handleWeekChange}
-            weekLabel={currentWeekStart ? `${dayjs(currentWeekStart).format('DD/MM')} - ${dayjs(addDays(currentWeekStart, 6)).format('DD/MM')}` : ''}
+            weekLabel={
+              currentWeekStart
+                ? `${dayjs(currentWeekStart).format('DD/MM')} - ${dayjs(addDays(currentWeekStart, 6)).format('DD/MM')}`
+                : ''
+            }
           />
         </Space>
       </Layout.Content>

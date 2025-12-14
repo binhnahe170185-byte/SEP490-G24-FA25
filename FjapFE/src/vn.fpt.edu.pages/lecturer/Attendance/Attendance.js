@@ -270,7 +270,12 @@ export default function Attendance() {
       (prefillClassId || prefillLessonId) &&
       location.state
     ) {
-      navigate(location.pathname, { replace: true });
+      // Preserve scheduleState when replacing navigation
+      const scheduleState = location.state?.scheduleState;
+      navigate(location.pathname, { 
+        replace: true,
+        state: scheduleState ? { scheduleState } : undefined
+      });
     }
   }, [
     prefillClassApplied,
@@ -379,8 +384,13 @@ export default function Attendance() {
 
   ];
 
+  const scheduleState = location.state?.scheduleState;
   const handleBackToSchedule = () => {
-    navigate('/lecturer/schedule');
+    navigate('/lecturer/schedule', {
+      state: {
+        scheduleState: scheduleState,
+      },
+    });
   };
 
   return (

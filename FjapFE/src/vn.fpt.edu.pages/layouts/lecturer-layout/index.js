@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import LecturerHeader from './lecturer-header';
+import Footer from '../../../vn.fpt.edu.common/footer';
 
 const layoutStyles = {
   minHeight: "100vh",
@@ -18,13 +19,14 @@ const mainStyles = {
 const LecturerLayout = () => {
   const location = useLocation();
   const isDashboard = location.pathname === '/lecturer/homepage' || location.pathname === '/lecturer';
-  
+
   return (
     <div style={layoutStyles}>
       <LecturerHeader />
       <main style={mainStyles}>
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 };

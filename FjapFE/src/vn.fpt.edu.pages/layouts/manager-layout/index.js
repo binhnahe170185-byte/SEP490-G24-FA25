@@ -3,6 +3,7 @@ import React from "react";
 import { Outlet } from "react-router-dom";
 import Header from "./manager-header";
 import ManagerSidebar from "./manager-sidebar";
+import Footer from "../../../vn.fpt.edu.common/footer";
 
 const layoutStyles = {
   minHeight: "100vh",
@@ -45,6 +46,7 @@ const ManagerLayout = ({ children }) => {
 
         <main style={mainStyles}>{bodyContent}</main>
       </div>
+      <Footer />
     </div>
   );
 };
