@@ -164,36 +164,58 @@ const CreateSchedule = () => {
 
   // Check if a date-slot-room combination has conflict using conflict map
   const checkConflictFromMap = (date, timeId, roomId, currentClassId, currentLecturerId) => {
-    const key = `${date}|${timeId}|${roomId}`;
-    const conflicts = conflictMap[key];
-
-    if (!conflicts || conflicts.length === 0) {
-      return { hasConflict: false, reasons: [] };
-    }
-
     const reasons = [];
     let hasConflict = false;
 
-    conflicts.forEach(conflict => {
-      // Room conflict: room is occupied by any class (always conflict)
+    // Check all conflicts for this date+timeId combination (not just specific room)
+    // This ensures we catch class conflicts even if room is different
+    const timeKey = `${date}|${timeId}`;
+    const roomKey = `${date}|${timeId}|${roomId}`;
+
+    // Check room-specific conflicts
+    const roomConflicts = conflictMap[roomKey] || [];
+    roomConflicts.forEach(conflict => {
+      // Room conflict: room is occupied by any OTHER class (exclude current class)
       if (conflict.roomId === parseInt(roomId, 10)) {
-        reasons.push(`Room ${conflict.roomName} is occupied by ${conflict.className}`);
-        hasConflict = true;
+        // Exclude if it's the same class - room conflict only for other classes
+        if (!currentClassId || conflict.classId !== parseInt(currentClassId, 10)) {
+          reasons.push(`Room ${conflict.roomName} is occupied by ${conflict.className}`);
+          hasConflict = true;
+        }
       }
+    });
 
-      // Class conflict: same class already has lesson (shouldn't happen if we exclude current class)
-      if (currentClassId && conflict.classId === parseInt(currentClassId, 10)) {
-        reasons.push(`Class ${conflict.className} already has a lesson`);
-        hasConflict = true;
-      }
+    // Check all conflicts for this date+timeId (to catch class and lecturer conflicts regardless of room)
+    Object.keys(conflictMap).forEach(key => {
+      if (key.startsWith(timeKey + '|')) {
+        const conflicts = conflictMap[key] || [];
+        conflicts.forEach(conflict => {
+          // Class conflict: same class already has lesson at this date/time (even different room)
+          // This prevents same class from having 2 lessons at same time
+          if (currentClassId && conflict.classId === parseInt(currentClassId, 10)) {
+            // Only add once
+            if (!reasons.some(r => r.includes('Class') && r.includes('already has a lesson'))) {
+              reasons.push(`Class ${conflict.className} already has a lesson at this time`);
+              hasConflict = true;
+            }
+          }
 
-      // Lecturer conflict: same lecturer already has lesson
-      if (currentLecturerId && conflict.lecturerId === parseInt(currentLecturerId, 10)) {
-        const lecturerDisplay = conflict.lecturerCode
-          ? (conflict.lecturerCode.includes('@') ? getEmailUsername(conflict.lecturerCode) : conflict.lecturerCode)
-          : 'Unknown';
-        reasons.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className}`);
-        hasConflict = true;
+          // Lecturer conflict: same lecturer already has lesson (exclude if same class)
+          if (currentLecturerId && conflict.lecturerId === parseInt(currentLecturerId, 10)) {
+            // If same lecturer teaching same class, it's not a conflict (they can teach same class)
+            // But if teaching different class at same time, it's a conflict
+            if (!currentClassId || conflict.classId !== parseInt(currentClassId, 10)) {
+              const lecturerDisplay = conflict.lecturerCode
+                ? (conflict.lecturerCode.includes('@') ? getEmailUsername(conflict.lecturerCode) : conflict.lecturerCode)
+                : 'Unknown';
+              // Only add once per lecturer
+              if (!reasons.some(r => r.includes('Lecturer') && r.includes(lecturerDisplay))) {
+                reasons.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className} at this time`);
+                hasConflict = true;
+              }
+            }
+          }
+        });
       }
     });
 
@@ -289,7 +311,7 @@ const CreateSchedule = () => {
         }));
         setSemesterData(formattedSemesters);
 
-        // Fetch rooms
+        // Fetch rooms - only Active rooms
         console.log('Fetching rooms...');
         const roomsResponse = await RoomApi.getRooms({ pageSize: 100 });
         console.log('Rooms response:', roomsResponse);
@@ -300,11 +322,16 @@ const CreateSchedule = () => {
           console.warn('No rooms found in response');
         }
 
-        const formattedRooms = roomsList.map(room => ({
+        // Filter only Active rooms
+        const activeRooms = roomsList.filter(room => room.status === 'Active' || room.status === 'active');
+        console.log('Active rooms:', activeRooms.length, 'out of', roomsList.length);
+
+        const formattedRooms = activeRooms.map(room => ({
           value: String(room.roomId),
-          label: room.roomName
+          label: room.roomName,
+          status: room.status || 'Active'
         }));
-        console.log('Formatted rooms:', formattedRooms);
+        console.log('Formatted rooms (Active only):', formattedRooms);
         setRooms(formattedRooms);
 
         // Fetch timeslots
@@ -548,8 +575,8 @@ const CreateSchedule = () => {
   // Filter options to show only valid selections using conflict map
   // This runs whenever prerequisites change to filter out unavailable options
   useEffect(() => {
-    // Skip if prerequisites not met
-    if (!classId || !semester.start || !semester.end || !lecturerId) {
+    // Skip if prerequisites not met (classId and semester are required, lecturerId is optional for filtering)
+    if (!classId || !semester.start || !semester.end) {
       setFilteringOptions(false);
       setFilteredWeekdays(weekdays);
       setFilteredSlots(slots);
@@ -573,52 +600,58 @@ const CreateSchedule = () => {
     console.log('Filtering options with conflict map size:', conflictMapSize);
     setFilteringOptions(true);
 
-    // Filter based on current selections
-    // If user has selected some options, filter the remaining ones
-    // If user hasn't selected anything, show all options (they will be filtered as they select)
+    // Use lecturerId if available, otherwise use null (will check room/class conflicts only)
+    const effectiveLecturerId = lecturerId || null;
 
-    // Case 1: User has selected slot and room -> filter weekdays
-    if (slotId && roomId) {
-      const validWeekdays = [];
-      for (const wd of weekdays) {
-        if (hasAvailableDateInSemester(wd.value, slotId, roomId, classId, lecturerId)) {
-          validWeekdays.push(wd);
-        }
-      }
-      console.log(`Filtered weekdays for slot ${slotId} + room ${roomId}:`, validWeekdays.length, 'out of', weekdays.length);
-      setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : []);
-    }
-    // Case 2: User has selected weekday and room -> filter slots
-    else if (weekday && roomId) {
-      const validSlots = [];
-      for (const slot of slots) {
-        if (hasAvailableDateInSemester(weekday, slot.value, roomId, classId, lecturerId)) {
-          validSlots.push(slot);
-        }
-      }
-      setFilteredSlots(validSlots.length > 0 ? validSlots : []);
-    }
-    // Case 3: User has selected weekday and slot -> filter rooms
-    else if (weekday && slotId) {
+    // Filter based on current selections
+    // NEW LOGIC: When weekday is selected -> filter slots (only show slots with at least 1 available room)
+    // When slot is selected -> filter rooms (only show rooms that are available for that slot)
+
+    // Case 1: User has selected weekday and slot -> filter rooms (only available rooms for this weekday+slot)
+    // But still show all available slots for this weekday (so user can change slot)
+    if (weekday && slotId) {
+      // Filter rooms for the selected weekday+slot
       const validRooms = [];
       for (const room of rooms) {
-        if (hasAvailableDateInSemester(weekday, slotId, room.value, classId, lecturerId)) {
+        // Check if room is available (not occupied) for this weekday+slot combination
+        // Room must be Active (already filtered in fetchData) and available in semester
+        if (hasAvailableDateInSemester(weekday, slotId, room.value, classId, effectiveLecturerId)) {
           validRooms.push(room);
         }
       }
+      console.log(`Filtered rooms for weekday ${weekday} + slot ${slotId}:`, validRooms.length, 'out of', rooms.length);
       setFilteredRooms(validRooms.length > 0 ? validRooms : []);
+
+      // Still show all available slots for this weekday (so user can change slot selection)
+      const validSlots = [];
+      for (const slot of slots) {
+        // Check if this slot has at least one available room for this weekday
+        let slotHasAvailableRoom = false;
+        for (const room of rooms) {
+          if (hasAvailableDateInSemester(weekday, slot.value, room.value, classId, effectiveLecturerId)) {
+            slotHasAvailableRoom = true;
+            break;
+          }
+        }
+        if (slotHasAvailableRoom) {
+          validSlots.push(slot);
+        }
+      }
+      console.log(`Filtered slots for weekday ${weekday}:`, validSlots.length, 'out of', slots.length);
+      setFilteredSlots(validSlots.length > 0 ? validSlots : []);
     }
-    // Case 4: User has selected only weekday -> filter slots and rooms (check all combinations)
+    // Case 2: User has selected only weekday -> filter slots (only show slots with at least 1 available room)
     else if (weekday) {
       const validSlots = [];
       const validRooms = [];
 
-      // Check each slot: must have at least one room available
+      // Check each slot: must have at least one room available for this weekday
       for (const slot of slots) {
         let slotHasAvailableRoom = false;
         for (const room of rooms) {
-          if (hasAvailableDateInSemester(weekday, slot.value, room.value, classId, lecturerId)) {
+          if (hasAvailableDateInSemester(weekday, slot.value, room.value, classId, effectiveLecturerId)) {
             slotHasAvailableRoom = true;
+            // Collect all available rooms for this weekday (will be filtered when slot is selected)
             if (!validRooms.find(r => r.value === room.value)) {
               validRooms.push(room);
             }
@@ -629,19 +662,21 @@ const CreateSchedule = () => {
         }
       }
 
+      console.log(`Filtered slots for weekday ${weekday}:`, validSlots.length, 'out of', slots.length);
       setFilteredSlots(validSlots.length > 0 ? validSlots : []);
-      setFilteredRooms(validRooms.length > 0 ? validRooms : []);
+      // Don't filter rooms yet (wait for slot selection)
+      setFilteredRooms(rooms);
     }
-    // Case 5: User has selected only slot -> filter weekdays and rooms
+    // Case 3: User has selected only slot -> filter weekdays and rooms
     else if (slotId) {
       const validWeekdays = [];
       const validRooms = [];
 
-      // Check each weekday: must have at least one room available
+      // Check each weekday: must have at least one room available for this slot
       for (const wd of weekdays) {
         let weekdayHasAvailableRoom = false;
         for (const room of rooms) {
-          if (hasAvailableDateInSemester(wd.value, slotId, room.value, classId, lecturerId)) {
+          if (hasAvailableDateInSemester(wd.value, slotId, room.value, classId, effectiveLecturerId)) {
             weekdayHasAvailableRoom = true;
             if (!validRooms.find(r => r.value === room.value)) {
               validRooms.push(room);
@@ -656,16 +691,37 @@ const CreateSchedule = () => {
       setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : []);
       setFilteredRooms(validRooms.length > 0 ? validRooms : []);
     }
+    // Case 4: User has selected slot and room -> filter weekdays
+    else if (slotId && roomId) {
+      const validWeekdays = [];
+      for (const wd of weekdays) {
+        if (hasAvailableDateInSemester(wd.value, slotId, roomId, classId, effectiveLecturerId)) {
+          validWeekdays.push(wd);
+        }
+      }
+      console.log(`Filtered weekdays for slot ${slotId} + room ${roomId}:`, validWeekdays.length, 'out of', weekdays.length);
+      setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : []);
+    }
+    // Case 5: User has selected weekday and room -> filter slots
+    else if (weekday && roomId) {
+      const validSlots = [];
+      for (const slot of slots) {
+        if (hasAvailableDateInSemester(weekday, slot.value, roomId, classId, effectiveLecturerId)) {
+          validSlots.push(slot);
+        }
+      }
+      setFilteredSlots(validSlots.length > 0 ? validSlots : []);
+    }
     // Case 6: User has selected only room -> filter weekdays and slots
     else if (roomId) {
       const validWeekdays = [];
       const validSlots = [];
 
-      // Check each weekday: must have at least one slot available
+      // Check each weekday: must have at least one slot available for this room
       for (const wd of weekdays) {
         let weekdayHasAvailableSlot = false;
         for (const slot of slots) {
-          if (hasAvailableDateInSemester(wd.value, slot.value, roomId, classId, lecturerId)) {
+          if (hasAvailableDateInSemester(wd.value, slot.value, roomId, classId, effectiveLecturerId)) {
             weekdayHasAvailableSlot = true;
             if (!validSlots.find(s => s.value === slot.value)) {
               validSlots.push(slot);
@@ -680,7 +736,7 @@ const CreateSchedule = () => {
       setFilteredWeekdays(validWeekdays.length > 0 ? validWeekdays : []);
       setFilteredSlots(validSlots.length > 0 ? validSlots : []);
     }
-    // Case 7: User hasn't selected anything -> show all options
+    // Case 7: User hasn't selected anything -> show all options (will be filtered when weekday is selected)
     else {
       setFilteredWeekdays(weekdays);
       setFilteredSlots(slots);
@@ -1606,3 +1662,5 @@ const CreateSchedule = () => {
 };
 
 export default CreateSchedule;
+
+

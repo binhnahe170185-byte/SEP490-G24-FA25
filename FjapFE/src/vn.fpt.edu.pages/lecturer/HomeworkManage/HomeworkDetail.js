@@ -37,7 +37,18 @@ const HomeworkDetail = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [editingHomework, setEditingHomework] = useState(null);
   const backOrigin = location.state?.from;
+  const scheduleState = location.state?.scheduleState;
   const handleBackNavigation = useCallback(() => {
+    // Check if coming from schedule
+    if (backOrigin && typeof backOrigin === "object" && backOrigin.page === "lecturer-schedule") {
+      navigate("/lecturer/schedule", {
+        replace: true,
+        state: {
+          scheduleState: scheduleState,
+        },
+      });
+      return;
+    }
     if (backOrigin && typeof backOrigin === "object" && backOrigin.page === "lecturer-homework") {
       navigate(backOrigin.pathname || "/lecturer/homework", {
         state: {
@@ -56,7 +67,7 @@ const HomeworkDetail = () => {
       return;
     }
     navigate("/lecturer/homework");
-  }, [backOrigin, navigate]);
+  }, [backOrigin, navigate, scheduleState]);
 
   const loadSlotInfo = useCallback(async () => {
     if (slot) return;

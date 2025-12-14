@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, Table, Typography, Spin, Alert, Button } from "antd";
 import { UserOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
@@ -34,21 +34,34 @@ const splitName = (fullName) => {
 export default function ClassStudentsList() {
     const { classId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [classInfo, setClassInfo] = useState(null);
     const [students, setStudents] = useState([]);
     const [error, setError] = useState(null);
+    
+    // Get state from location if available
+    const weeklyTimetableState = location.state?.weeklyTimetableState;
+    const scheduleState = location.state?.scheduleState;
 
     // Determine back navigation based on user role
     const handleBack = () => {
         const roleId = user ? Number(user.roleId) : null;
         if (roleId === 3) {
-            // Lecturer
-            navigate("/lecturer/schedule");
+            // Lecturer - navigate back to schedule with state
+            navigate("/lecturer/schedule", {
+                state: {
+                    scheduleState: scheduleState,
+                },
+            });
         } else if (roleId === 4) {
-            // Student
-            navigate("/student/weeklyTimetable");
+            // Student - navigate back to weekly timetable with state
+            navigate("/student/weeklyTimetable", {
+                state: {
+                    weeklyTimetableState: weeklyTimetableState,
+                },
+            });
         } else {
             // Default fallback
             navigate(-1);

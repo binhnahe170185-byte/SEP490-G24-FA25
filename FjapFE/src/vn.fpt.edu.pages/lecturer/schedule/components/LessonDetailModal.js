@@ -23,7 +23,7 @@ const STATUS = {
     absent: { color: "#ef4444", text: "Absent" },
 };
 
-export default function LessonDetailModal({ visible, lesson, onClose }) {
+export default function LessonDetailModal({ visible, lesson, onClose, scheduleState }) {
     const navigate = useNavigate();
 
     if (!lesson) return null;
@@ -48,14 +48,22 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
 
     const handleViewStudents = () => {
         if (classId) {
-            navigate(`/lecturer/class/${classId}/students`);
+            navigate(`/lecturer/class/${classId}/students`, {
+                state: {
+                    scheduleState: scheduleState,
+                },
+            });
             onClose();
         }
     };
 
     const handleViewAttendanceReport = () => {
         if (classId) {
-            navigate(`/lecturer/attendanceReport/${classId}`);
+            navigate(`/lecturer/attendanceReport/${classId}`, {
+                state: {
+                    scheduleState: scheduleState,
+                },
+            });
             onClose();
         }
     };
@@ -68,7 +76,8 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
         navigate("/lecturer/attendance", {
             state: {
                 classId,
-                lessonId
+                lessonId,
+                scheduleState: scheduleState,
             }
         });
         onClose();
@@ -82,6 +91,7 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                 from: {
                     page: "lecturer-schedule",
                 },
+                scheduleState: scheduleState,
             },
         });
         onClose();

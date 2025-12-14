@@ -151,9 +151,6 @@ function RoleBasedRedirect() {
   }
   const roleId = Number(user.roleId);
 
-  /*comment vào vì hiện tại chưa biết màn hình riêng của Admin url là gì 
-  Author: HuyLQ */
-
   if (roleId === 1) {
     return <Navigate to="/admin/dashboard" replace />;
   }

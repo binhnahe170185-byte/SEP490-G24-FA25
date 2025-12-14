@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Dropdown, Avatar, Badge, Spin, Empty, Typography, Button, Tooltip, message } from 'antd';
 import { useAuth } from '../../login/AuthContext';
-import { 
+import {
   CalendarOutlined,
   FileTextOutlined,
   BookOutlined,
@@ -26,6 +26,7 @@ import {
 } from '../../../vn.fpt.edu.common/hooks/useRealtimeNotifications';
 import MandatoryFeedbackModal from '../../../vn.fpt.edu.common/components/MandatoryFeedbackModal';
 import FeedbackApi from '../../../vn.fpt.edu.api/Feedback';
+import Footer from '../../../vn.fpt.edu.common/footer';
 
 const { Text } = Typography;
 
@@ -38,7 +39,7 @@ const StudentLayout = ({ children }) => {
 
   const getNotificationLink = (notification) => {
     if (!notification.link) return null;
-    
+
     // Nếu là lecturer (roleId = 3), thay đổi link
     const roleId = user?.roleId ? Number(user.roleId) : null;
     if (roleId === 3) {
@@ -53,7 +54,7 @@ const StudentLayout = ({ children }) => {
         return `/lecturer/grades`;
       }
     }
-    
+
     // Student routes (default)
     return notification.link;
   };
@@ -181,7 +182,7 @@ const StudentLayout = ({ children }) => {
         navigate(`/student/feedback/${firstPending.classId}`, { replace: true });
         return;
       }
-      
+
       // If user is on a page other than feedback page, allow but show modal
       // The MandatoryFeedbackModal will handle showing the modal
     }
@@ -297,9 +298,8 @@ const StudentLayout = ({ children }) => {
                           {notifications.map((notification) => (
                             <div
                               key={notification.id}
-                              className={`notification-dropdown-item ${
-                                notification.read ? 'read' : 'unread'
-                              }`}
+                              className={`notification-dropdown-item ${notification.read ? 'read' : 'unread'
+                                }`}
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -344,8 +344,8 @@ const StudentLayout = ({ children }) => {
             </div>
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <div className="user-menu-trigger">
-                <Avatar 
-                  src={user?.picture} 
+                <Avatar
+                  src={user?.picture}
                   icon={!user?.picture && <UserOutlined />}
                   size="default"
                   style={{ cursor: 'pointer' }}
@@ -362,9 +362,12 @@ const StudentLayout = ({ children }) => {
         {children || <Outlet />}
       </div>
 
+      {/* Footer */}
+      <Footer />
+
       {/* Mandatory Feedback Modal - blocks UI until feedback is submitted */}
       <MandatoryFeedbackModal />
-      
+
       {/* Floating AI Chat Widget - Available on all student pages */}
       <FloatingAIChatWidget />
     </div>

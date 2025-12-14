@@ -272,7 +272,18 @@ const LessonHomeworkDetail = () => {
   }, []);
 
   const courseInfo = location.state?.course || null;
+  const weeklyTimetableState = location.state?.weeklyTimetableState;
   const handleBackNavigation = useCallback(() => {
+    // Check if coming from weekly timetable
+    if (backOrigin && typeof backOrigin === "object" && backOrigin.page === "student-weekly-timetable") {
+      navigate("/student/weeklyTimetable", {
+        replace: true,
+        state: {
+          weeklyTimetableState: weeklyTimetableState,
+        },
+      });
+      return;
+    }
     if (backOrigin && typeof backOrigin === "object" && backOrigin.page === "student-homework") {
       const destination =
         (backOrigin.pathname || "/student/homework") +
@@ -296,7 +307,7 @@ const LessonHomeworkDetail = () => {
       return;
     }
     navigate("/student/homework");
-  }, [backOrigin, navigate]);
+  }, [backOrigin, navigate, weeklyTimetableState]);
 
   const loadStudentSubmissions = useCallback(
     (homeworkList) => {

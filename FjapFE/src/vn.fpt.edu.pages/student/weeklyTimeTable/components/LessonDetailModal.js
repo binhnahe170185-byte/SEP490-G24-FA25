@@ -24,7 +24,7 @@ const STATUS = {
     absent: { color: "#ef4444", text: "Absent" },
 };
 
-export default function LessonDetailModal({ visible, lesson, onClose }) {
+export default function LessonDetailModal({ visible, lesson, onClose, weeklyTimetableState }) {
     const navigate = useNavigate();
     const [lecturerModalVisible, setLecturerModalVisible] = useState(false);
     const [materialsModalVisible, setMaterialsModalVisible] = useState(false);
@@ -51,7 +51,11 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
 
     const handleViewStudents = () => {
         if (classId) {
-            navigate(`/student/class/${classId}/students`);
+            navigate(`/student/class/${classId}/students`, {
+                state: {
+                    weeklyTimetableState: weeklyTimetableState,
+                },
+            });
             onClose();
         }
     };
@@ -64,6 +68,7 @@ export default function LessonDetailModal({ visible, lesson, onClose }) {
                 from: {
                     page: "student-weekly-timetable",
                 },
+                weeklyTimetableState: weeklyTimetableState,
             },
         });
         onClose();

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, Table, Typography, Spin, Button, Space } from "antd";
 import { ArrowLeftOutlined, BarChartOutlined } from "@ant-design/icons";
 import AttendanceApi from "../../../vn.fpt.edu.api/Attendance";
@@ -11,6 +11,7 @@ const { Title, Text } = Typography;
 export default function AttendanceReport() {
     const { classId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [classInfo, setClassInfo] = useState(null);
     const [attendanceData, setAttendanceData] = useState({ students: [], lessons: [] });
@@ -158,8 +159,13 @@ export default function AttendanceReport() {
         };
     }, [classId]);
 
+    const scheduleState = location.state?.scheduleState;
     const handleBack = () => {
-        navigate('/lecturer/schedule');
+        navigate('/lecturer/schedule', {
+            state: {
+                scheduleState: scheduleState,
+            },
+        });
     };
 
     // Tạo columns động dựa trên lessons

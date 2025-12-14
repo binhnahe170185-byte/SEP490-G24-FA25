@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import dayjsLib from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import { Alert, Divider, Typography } from "antd";
@@ -9,6 +10,7 @@ import LessonDetailModal from "./components/LessonDetailModal";
 import "./WeeklyTimetable.css";
 import { api } from "../../../vn.fpt.edu.api/http";
 import { useAuth } from "../../login/AuthContext";
+import TimeslotApi from "../../../vn.fpt.edu.api/Timeslot";
 dayjsLib.extend(isoWeek);
 const dayjs = (d) => dayjsLib(d);
 
@@ -18,10 +20,7 @@ const STATUS = {
   absent: { color: "#ef4444", text: "Absent" },
 };
 
-const DEFAULT_SLOTS = Array.from({ length: 8 }, (_, idx) => ({
-  id: idx + 1,
-  label: `Slot ${idx + 1}`,
-}));
+// DEFAULT_SLOTS will be replaced by timeslots from API
 
 const WEEKDAY_HEADERS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
@@ -162,13 +161,36 @@ function normalizeLesson(raw, fallbackId) {
 
 export default function WeeklyTimetable({ items }) {
   const { user } = useAuth();
+  const location = useLocation();
   const [remoteItems, setRemoteItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [anchorDate, setAnchorDate] = useState(dayjs().isoWeekday(1));
-  const [year, setYear] = useState(anchorDate.year());
-  const [weekNumber, setWeekNumber] = useState(anchorDate.isoWeek());
+  
+  // Restore state from location.state if available (return link)
+  const restoredState = location.state?.weeklyTimetableState;
+  const initialAnchorDate = restoredState?.anchorDate 
+    ? dayjs(restoredState.anchorDate) 
+    : dayjs().isoWeekday(1);
+  const initialYear = restoredState?.year ?? initialAnchorDate.year();
+  const initialWeekNumber = restoredState?.weekNumber ?? initialAnchorDate.isoWeek();
+  
+  const [anchorDate, setAnchorDate] = useState(initialAnchorDate);
+  const [year, setYear] = useState(initialYear);
+  const [weekNumber, setWeekNumber] = useState(initialWeekNumber);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [timeslots, setTimeslots] = useState([]);
+  
+  // Restore state when location.state changes (when returning from other pages)
+  useEffect(() => {
+    if (restoredState) {
+      if (restoredState.anchorDate) {
+        const restoredDate = dayjs(restoredState.anchorDate);
+        setAnchorDate(restoredDate);
+        setYear(restoredState.year ?? restoredDate.year());
+        setWeekNumber(restoredState.weekNumber ?? restoredDate.isoWeek());
+      }
+    }
+  }, [restoredState]);
 
   const sourceItems = useMemo(() => {
     return items ?? remoteItems;
@@ -234,13 +256,46 @@ export default function WeeklyTimetable({ items }) {
     });
   }, [normalizedItems, week.start, week.end]);
 
+  // Fetch timeslots from API
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchTimeslots() {
+      try {
+        const timeslotsList = await TimeslotApi.getTimeslots();
+        if (!cancelled) {
+          // Sort by timeId to ensure correct order
+          const sorted = Array.isArray(timeslotsList) 
+            ? timeslotsList.sort((a, b) => (a.timeId || 0) - (b.timeId || 0))
+            : [];
+          setTimeslots(sorted);
+        }
+      } catch (error) {
+        console.error("Failed to load timeslots:", error);
+        if (!cancelled) {
+          setTimeslots([]);
+        }
+      }
+    }
+    fetchTimeslots();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const slots = useMemo(() => {
-    // keep DEFAULT_SLOTS length/order but always use the simple label "Slot N"
-    return DEFAULT_SLOTS.map((s, idx) => ({
-      id: s.id,
-      label: `Slot ${s.id}`, // always default label
+    // Use timeslots from API if available, otherwise fallback to default
+    if (timeslots.length > 0) {
+      return timeslots.map((ts) => ({
+        id: ts.timeId,
+        label: `Slot ${ts.timeId}`,
+      }));
+    }
+    // Fallback to default 8 slots if API fails
+    return Array.from({ length: 8 }, (_, idx) => ({
+      id: idx + 1,
+      label: `Slot ${idx + 1}`,
     }));
-  }, [weekItems]);
+  }, [timeslots]);
 
   // build cellMap: sử dụng weekday từ date
   const cellMap = useMemo(() => {
@@ -316,6 +371,11 @@ export default function WeeklyTimetable({ items }) {
         visible={modalVisible}
         lesson={selectedLesson}
         onClose={handleCloseModal}
+        weeklyTimetableState={{
+          anchorDate: anchorDate.format("YYYY-MM-DD"),
+          year,
+          weekNumber,
+        }}
       />
     </div>
   );
