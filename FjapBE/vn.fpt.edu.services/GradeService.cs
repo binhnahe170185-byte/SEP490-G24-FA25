@@ -47,7 +47,7 @@ namespace FJAP.Services
         public async Task<bool> UpdateGradeStatusAsync(int gradeId, string status)
         {
             // Validate status
-            var validStatuses = new[] { "In Progress", "Completed", "Failed" };
+            var validStatuses = new[] { "In Progress", "Passed", "Failed" };
             if (!validStatuses.Contains(status))
             {
                 throw new ArgumentException($"Invalid status. Must be one of: {string.Join(", ", validStatuses)}");
@@ -125,7 +125,7 @@ namespace FJAP.Services
                     if (allGraded)
                     {
                         var passMark = grade.Subject.PassMark ?? 5.0m;
-                        grade.Status = finalScore >= passMark ? "Completed" : "Failed";
+                        grade.Status = finalScore >= passMark ? " Passed" : "Failed";
                     }
                     else
                     {
@@ -227,8 +227,10 @@ namespace FJAP.Services
                 try
                 {
                     // Get the grade with its components
+                    // IMPORTANT: Explicitly query ALL GradeTypes for this grade from database
                     var grade = await _context.Grades
                         .Include(g => g.GradeTypes)
+                            .ThenInclude(gt => gt.SubjectGradeType)
                         .Include(g => g.Student)
                             .ThenInclude(s => s.User)
                         .Include(g => g.Subject)
@@ -237,9 +239,19 @@ namespace FJAP.Services
                     if (grade == null)
                         return false;
 
+                    // Query database explicitly for ALL existing GradeType records to avoid duplicates
+                    var existingGradeTypeIds = await _context.Set<GradeType>()
+                        .Where(gt => gt.GradeId == request.GradeId)
+                        .Select(gt => gt.SubjectGradeTypeId)
+                        .ToListAsync();
+
                     // Update each grade component
                     foreach (var componentUpdate in request.GradeComponents)
                     {
+                        // Check if this SubjectGradeTypeId already exists in the database
+                        var existsInDb = existingGradeTypeIds.Contains(componentUpdate.SubjectGradeTypeId);
+                        
+                        // Find in the loaded collection
                         var gradeType = grade.GradeTypes
                             .FirstOrDefault(gt => gt.SubjectGradeTypeId == componentUpdate.SubjectGradeTypeId);
 
@@ -252,9 +264,10 @@ namespace FJAP.Services
                             gradeType.GradedAt = DateTime.UtcNow;
                             // Note: GradedBy should be set from the authenticated user context
                         }
-                        else
+                        else if (!existsInDb)
                         {
-                            // Create new grade type if it doesn't exist
+                            // Only create new grade type if it doesn't exist in database
+                            // This prevents unique constraint violations
                             var newGradeType = new GradeType
                             {
                                 GradeId = request.GradeId,
@@ -264,18 +277,67 @@ namespace FJAP.Services
                                 Status = "Graded",
                                 GradedAt = DateTime.UtcNow
                             };
+                            _context.Set<GradeType>().Add(newGradeType);
                             grade.GradeTypes.Add(newGradeType);
+                        }
+                        else
+                        {
+                            // Record exists in DB but not loaded in context - load it and update
+                            var existingGradeType = await _context.Set<GradeType>()
+                                .Include(gt => gt.SubjectGradeType)
+                                .FirstOrDefaultAsync(gt => gt.GradeId == request.GradeId 
+                                    && gt.SubjectGradeTypeId == componentUpdate.SubjectGradeTypeId);
+                            
+                            if (existingGradeType != null)
+                            {
+                                existingGradeType.Score = componentUpdate.Score;
+                                existingGradeType.Comment = componentUpdate.Comment;
+                                existingGradeType.Status = "Graded";
+                                existingGradeType.GradedAt = DateTime.UtcNow;
+                                
+                                if (!grade.GradeTypes.Contains(existingGradeType))
+                                {
+                                    grade.GradeTypes.Add(existingGradeType);
+                                }
+                            }
                         }
                     }
 
-                    // Update grade timestamp
+                    // INLINE: Calculate final score (instead of calling RecalculateFinalScoreAsync)
+                    decimal finalScore = 0;
+                    bool allGraded = true;
+
+                    foreach (var gradeType in grade.GradeTypes)
+                    {
+                        if (gradeType.Score.HasValue && gradeType.SubjectGradeType != null)
+                        {
+                            // Formula: (score × weight) / 100
+                            finalScore += (gradeType.Score.Value * gradeType.SubjectGradeType.Weight) / 100;
+                        }
+                        else
+                        {
+                            allGraded = false;
+                        }
+                    }
+
+                    // Update grade with calculated values
+                    grade.FinalScore = finalScore;
                     grade.UpdatedAt = DateTime.UtcNow;
 
+                    // Auto-update status based on score and completion
+                    if (allGraded)
+                    {
+                        var passMark = grade.Subject.PassMark ?? 5.0m;
+                        grade.Status = finalScore >= passMark ? " Passed" : "Failed";
+                    }
+                    else
+                    {
+                        grade.Status = "In Progress";
+                    }
+
+                    // Save all changes in single transaction
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
-
-                    // Recalculate final score
-                    await RecalculateFinalScoreAsync(request.GradeId);
 
                     if (grade.Student?.User != null && grade.Subject != null)
                     {

@@ -10,8 +10,8 @@ import SemesterTabs from "../../student/MarkReport/SemesterTabs";
 function GradeManage() {
   const { user } = useAuth();
   const location = useLocation();
-  const userId = user?.id;
-  const isLecturer = location.pathname.startsWith('/lecturer');
+  const userId = user?.id || user?.accountId || user?.lecturerId;
+  const isLecturer = true;
 
   const [semesters, setSemesters] = useState([]);
   const [selectedSemester, setSelectedSemester] = useState(null);
@@ -41,16 +41,21 @@ function GradeManage() {
 
   const loadCourses = useCallback(async () => {
     if (!selectedSemester) return;
-    
+
+    if (!userId) {
+      console.error("UserId is undefined!");
+      message.error("User ID not found. Please re-login.");
+      return;
+    }
+
     try {
       setLoading(true);
-      // Pass filters to API, including userId if user is a lecturer
       // Backend will find LectureId from UserId to filter classes
-      const lecturerUserId = isLecturer ? userId : null;
       const filters = {
         semesterId: selectedSemester.semesterId
       };
-      const data = await ManagerGrades.getCourses(userId, filters, lecturerUserId, isLecturer);
+      console.log("Calling getCourses with userId:", userId);
+      const data = await ManagerGrades.getCourses(userId, filters, userId, true);
       setCourses(data);
       setFilteredCourses(data);
     } catch (error) {
@@ -59,7 +64,7 @@ function GradeManage() {
     } finally {
       setLoading(false);
     }
-  }, [userId, isLecturer, selectedSemester]);
+  }, [userId, selectedSemester]);
 
   // Load semesters when component mounts
   useEffect(() => {
@@ -79,7 +84,7 @@ function GradeManage() {
 
     if (searchText) {
       const searchLower = searchText.toLowerCase();
-      filtered = filtered.filter(c => 
+      filtered = filtered.filter(c =>
         c.courseCode?.toLowerCase().includes(searchLower) ||
         c.courseName?.toLowerCase().includes(searchLower) ||
         c.className?.toLowerCase().includes(searchLower)
@@ -121,16 +126,16 @@ function GradeManage() {
   }
 
   return (
-    <div style={{ 
-      padding: "24px", 
-      backgroundColor: "#f0f2f5", 
-      minHeight: "100vh" 
+    <div style={{
+      padding: "24px",
+      backgroundColor: "#f0f2f5",
+      minHeight: "100vh"
     }}>
       {/* Header Section */}
-      <div style={{ 
-        marginBottom: 24, 
-        display: "flex", 
-        justifyContent: "space-between", 
+      <div style={{
+        marginBottom: 24,
+        display: "flex",
+        justifyContent: "space-between",
         alignItems: "center",
         padding: "20px 24px",
         backgroundColor: "#fff",
@@ -140,38 +145,36 @@ function GradeManage() {
         <div>
           <Breadcrumb
             items={[
-              { title: isLecturer ? "Lecturer" : "Management" },
+              { title: "Lecturer" },
               { title: "Grade Management" },
             ]}
             style={{ marginBottom: 8 }}
           />
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: 24, 
-            fontWeight: 600, 
-            color: "#262626" 
+          <h1 style={{
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 600,
+            color: "#262626"
           }}>
-            {isLecturer ? "My Teaching Classes" : "Grade Management"}
+            My Teaching Classes
           </h1>
-          <p style={{ 
-            margin: "4px 0 0 0", 
-            color: "#8c8c8c", 
-            fontSize: 14 
+          <p style={{
+            margin: "4px 0 0 0",
+            color: "#8c8c8c",
+            fontSize: 14
           }}>
-            {isLecturer 
-              ? "Manage grades for classes you are teaching" 
-              : "View and manage grades for all classes"}
+            Manage grades for classes you are teaching
           </p>
         </div>
         <div>
-          <Button 
+          <Button
             icon={<ReloadOutlined />}
             onClick={loadCourses}
             style={{ marginRight: 8 }}
           >
             Refresh
           </Button>
-          <Button 
+          <Button
             type="primary"
             icon={<DownloadOutlined />}
             onClick={handleExportAll}
@@ -208,18 +211,16 @@ function GradeManage() {
         />
         <div style={{ color: "#8c8c8c", fontSize: 14 }}>
           Found <strong style={{ color: "#262626", fontSize: 16 }}>{filteredCourses.length}</strong> course{filteredCourses.length !== 1 ? 's' : ''}
-          {isLecturer && (
-            <span style={{ 
-              marginLeft: 12,
-              fontSize: 12, 
-              color: "#52c41a",
-              padding: "4px 12px",
-              backgroundColor: "#f6ffed",
-              borderRadius: 4
-            }}>
-              ✓ Showing only Active classes
-            </span>
-          )}
+          <span style={{
+            marginLeft: 12,
+            fontSize: 12,
+            color: "#52c41a",
+            padding: "4px 12px",
+            backgroundColor: "#f6ffed",
+            borderRadius: 4
+          }}>
+            ✓ Showing only Active classes
+          </span>
         </div>
       </div>
 
@@ -229,7 +230,7 @@ function GradeManage() {
           <p style={{ marginTop: 16 }}>Loading courses...</p>
         </div>
       ) : (
-        <CourseGrid 
+        <CourseGrid
           courses={filteredCourses}
           userId={userId}
           onRefresh={loadCourses}

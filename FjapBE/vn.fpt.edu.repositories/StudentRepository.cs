@@ -128,7 +128,35 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
                 targetClass.Students.Add(student);
             }
         }
-
+        
+        // IMPORTANT: Create Grade records for newly enrolled students
+        // This prevents "Grade ID is missing" error when entering grades
+        var subjectId = targetClass.SubjectId;
+        
+        // Get existing grades to avoid duplicates
+        var existingGradeStudentIds = await _context.Grades
+            .Where(g => g.SubjectId == subjectId && distinctIds.Contains(g.StudentId))
+            .Select(g => g.StudentId)
+            .ToListAsync();
+        
+        // Create Grade records for students that don't have one yet
+        foreach (var student in students)
+        {
+            if (!existingGradeStudentIds.Contains(student.StudentId))
+            {
+                var newGrade = new Grade
+                {
+                    StudentId = student.StudentId,
+                    SubjectId = subjectId,
+                    Status = "In Progress",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                
+                await _context.Grades.AddAsync(newGrade);
+            }
+        }
+        
         await _context.SaveChangesAsync();
     }
     /// Lấy danh sách semester mà sinh viên đã học
