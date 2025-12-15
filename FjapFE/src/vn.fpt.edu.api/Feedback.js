@@ -14,6 +14,14 @@ const FeedbackApi = {
   getFeedbacks: (params = {}) =>
     api.get("/api/feedback", { params }).then((res) => {
       const body = res?.data ?? res;
+      console.log("FeedbackApi.getFeedbacks response:", body);
+      
+      // Backend returns: { code: 200, message: "Success", total, page, pageSize, data: [...] }
+      if (body?.code === 200 && body?.total !== undefined && Array.isArray(body?.data)) {
+        return { total: body.total, items: body.data };
+      }
+      
+      // Fallback formats
       if (body?.total !== undefined && Array.isArray(body?.data)) {
         return { total: body.total, items: body.data };
       }
@@ -26,6 +34,8 @@ const FeedbackApi = {
       if (Array.isArray(body)) {
         return { total: body.length, items: body };
       }
+      
+      console.warn("Unexpected response format in getFeedbacks:", body);
       return { total: 0, items: [] };
     }),
 
@@ -43,6 +53,16 @@ const FeedbackApi = {
   // GET /api/feedback/pending
   getPendingFeedbackClasses: () =>
     api.get("/api/feedback/pending").then(unwrap),
+
+  // GET /api/feedback/lecturer/classes
+  getLecturerClassesWithFeedback: () =>
+    api.get("/api/feedback/lecturer/classes").then(unwrap),
+
+  // GET /api/feedback/lecturer/class/{classId}/feedbacks
+  getLecturerClassFeedbacks: (classId) =>
+    api
+      .get(`/api/feedback/lecturer/class/${classId}/feedbacks`)
+      .then(unwrap),
 
   // GET /api/feedback/analytics/pareto
   getIssuePareto: (params = {}) =>

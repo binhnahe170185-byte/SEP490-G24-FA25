@@ -134,9 +134,9 @@ public class FeedbackService : IFeedbackService
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        
-        // TODO: SetAnswersDict - extension method not implemented
-        // feedback.SetAnswersDict(request.Answers);
+
+        // Lưu map câu trả lời xuống cột JSON
+        feedback.SetAnswersDict(request.Answers);
 
         await _feedbackRepository.AddAsync(feedback);
         await _feedbackRepository.SaveChangesAsync();
@@ -1010,6 +1010,90 @@ public class FeedbackService : IFeedbackService
         return await _textAnalysisService.AnalyzeTextFeedbackAsync(classId, semesterId, from, to);
     }
 
+    /// <summary>
+    /// Lấy danh sách lớp mà giảng viên đang dạy (truyền vào danh sách classId)
+    /// kèm số lượng feedback cuối khóa của từng lớp. KHÔNG trả về thông tin sinh viên.
+    /// </summary>
+    public async Task<IEnumerable<LecturerFeedbackClassDto>> GetLecturerClassesWithFeedbackAsync(List<int> lecturerClassIds)
+    {
+        if (lecturerClassIds == null || lecturerClassIds.Count == 0)
+        {
+            return Enumerable.Empty<LecturerFeedbackClassDto>();
+        }
+
+        var classes = await _context.Classes
+            .AsNoTracking()
+            .Include(c => c.Subject)
+            .Include(c => c.Semester)
+            .Where(c => lecturerClassIds.Contains(c.ClassId))
+            .ToListAsync();
+
+        var feedbackCounts = await _context.Feedbacks
+            .AsNoTracking()
+            .Where(f => lecturerClassIds.Contains(f.ClassId))
+            .GroupBy(f => f.ClassId)
+            .Select(g => new
+            {
+                ClassId = g.Key,
+                Count = g.Count()
+            })
+            .ToListAsync();
+
+        var countDict = feedbackCounts.ToDictionary(x => x.ClassId, x => x.Count);
+
+        return classes.Select(c => new LecturerFeedbackClassDto(
+            c.ClassId,
+            c.ClassName,
+            c.Subject?.SubjectName ?? string.Empty,
+            c.Subject?.SubjectCode,
+            c.Semester != null ? (c.Semester.Name ?? c.Semester.SemesterCode) : string.Empty,
+            countDict.TryGetValue(c.ClassId, out var cnt) ? cnt : 0
+        ));
+    }
+
+    /// <summary>
+    /// Lấy danh sách feedback cuối khóa theo classId cho giảng viên.
+    /// Đầu vào gồm classId và danh sách class mà giảng viên này được phép xem.
+    /// Đảm bảo KHÔNG trả về bất kỳ thông tin định danh sinh viên nào.
+    /// </summary>
+    public async Task<IEnumerable<LecturerClassFeedbackItemDto>> GetClassFeedbacksForLecturerAsync(
+        int classId,
+        List<int> lecturerClassIds)
+    {
+        if (lecturerClassIds == null || !lecturerClassIds.Contains(classId))
+        {
+            throw new UnauthorizedAccessException("You can only view feedback for classes you teach.");
+        }
+
+        var feedbacks = await _context.Feedbacks
+            .AsNoTracking()
+            .Include(f => f.Class)
+            .Include(f => f.Subject)
+            .Where(f => f.ClassId == classId)
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync();
+
+        return feedbacks.Select(f => new LecturerClassFeedbackItemDto(
+            f.Id,
+            f.ClassId,
+            f.Class?.ClassName,
+            f.SubjectId,
+            f.Subject?.SubjectCode,
+            f.Subject?.SubjectName,
+            f.GetAnswersDict(),
+            f.WantsOneToOne,
+            f.FreeText,
+            f.FreeTextTranscript,
+            f.SatisfactionScore,
+            f.Sentiment,
+            f.SentimentScore,
+            f.Urgency,
+            f.MainIssue,
+            f.IssueCategory,
+            f.CreatedAt
+        ));
+    }
+
     public async Task<(int Total, int Processed, int Succeeded, int Failed)> ReAnalyzeAllWithoutCategoryAsync(int? limit = null)
     {
         return await ReAnalyzeAllFeedbacksAsync(limit, force: false);
@@ -1095,6 +1179,9 @@ public class FeedbackService : IFeedbackService
 
         // Load questions for DTO
         var questions = await _questionService.GetActiveQuestionsAsync(null);
+
+        // Đọc answers đã lưu (có thể null)
+        var answersDict = feedback.GetAnswersDict() ?? new Dictionary<int, int>();
         
         return new FeedbackDto(
             feedback.Id,
@@ -1106,7 +1193,7 @@ public class FeedbackService : IFeedbackService
             feedback.SubjectId,
             feedback.Subject?.SubjectCode,
             feedback.Subject?.SubjectName,
-            new Dictionary<int, int>(), // feedback.GetAnswersDict(),
+            answersDict,
             questions.ToList(),
             feedback.WantsOneToOne,
             feedback.FreeText,

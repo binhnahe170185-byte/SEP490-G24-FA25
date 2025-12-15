@@ -42,6 +42,14 @@ import ClassList from "../../../vn.fpt.edu.api/ClassList";
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+// Default fallback options when question.answerOptions is missing or empty
+const DEFAULT_ANSWER_OPTIONS = [
+  { value: 1, label: "Not Satisfied", icon: "FrownOutlined", color: "#ff4d4f" },
+  { value: 2, label: "Neutral", icon: "MehOutlined", color: "#faad14" },
+  { value: 3, label: "Satisfied", icon: "SmileOutlined", color: "#52c41a" },
+  { value: 4, label: "Very Satisfied", icon: "HeartOutlined", color: "#1890ff" },
+];
+
 const getIconComponent = (iconName) => {
   const iconMap = {
     FrownOutlined: <FrownOutlined />,
@@ -191,25 +199,23 @@ export default function EndOfCourseFeedbackPage() {
       
       await FeedbackApi.createFeedback(payload);
       message.success("Feedback submitted successfully!");
-      
-      // Check if there are more pending feedbacks
-      try {
-        const pendingFeedbacks = await FeedbackApi.getPendingFeedbackClasses();
-        if (pendingFeedbacks && pendingFeedbacks.length > 0) {
-          // Redirect to next pending feedback
-          const nextClass = pendingFeedbacks[0];
-          navigate(`/student/feedback/${nextClass.classId}`, { replace: true });
-        } else {
-          // No more pending feedbacks, go to homepage
-          navigate("/student/homepage", { replace: true });
-        }
-      } catch (err) {
-        // If check fails, just go to homepage
-        navigate("/student/homepage", { replace: true });
-      }
+
+      // Dùng hard redirect để chắc chắn thoát khỏi trang feedback (bỏ qua mọi guard trong SPA)
+      setTimeout(() => {
+        window.location.href = "/student/homepage";
+      }, 500);
     } catch (error) {
       console.error("Failed to submit feedback:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to submit feedback";
+      const apiMessage = error.response?.data?.message;
+
+      // Nếu backend báo đã feedback rồi, coi như user đã hoàn thành và quay về home
+      if (apiMessage === "Feedback already submitted for this class") {
+        message.warning("You have already submitted feedback for this class.");
+        navigate("/student/homepage", { replace: true });
+        return;
+      }
+
+      const errorMessage = apiMessage || error.message || "Failed to submit feedback";
       message.error(errorMessage);
     } finally {
       setSubmitting(false);
@@ -321,13 +327,13 @@ export default function EndOfCourseFeedbackPage() {
           ) : (
             <>
               {questions.map((question) => {
-                const options = question.answerOptions || [
-                  { value: 1, label: "Not Satisfied", icon: "FrownOutlined", color: "#ff4d4f" },
-                  { value: 2, label: "Neutral", icon: "MehOutlined", color: "#faad14" },
-                  { value: 3, label: "Satisfied", icon: "SmileOutlined", color: "#52c41a" },
-                  { value: 4, label: "Very Satisfied", icon: "HeartOutlined", color: "#1890ff" },
-                ];
-                
+                const rawOptions = question.answerOptions;
+                // Nếu backend không gửi hoặc gửi mảng rỗng, fallback về bộ mặc định
+                const options =
+                  Array.isArray(rawOptions) && rawOptions.length > 0
+                    ? rawOptions
+                    : DEFAULT_ANSWER_OPTIONS;
+
                 return (
                   <Form.Item
                     key={question.id}

@@ -97,6 +97,57 @@ public class DailyFeedbackRepository : GenericRepository<DailyFeedback>, IDailyF
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<DailyFeedback>> GetAllAsync(int? classId = null, int? lessonId = null, DateTime? dateFrom = null, DateTime? dateTo = null, string? sentiment = null, int? urgency = null, string? status = null)
+    {
+        var query = _dbSet
+            .AsNoTracking()
+            .Include(f => f.Student)
+                .ThenInclude(s => s.User)
+            .Include(f => f.Lesson)
+            .Include(f => f.Class)
+            .Include(f => f.Subject)
+            .AsQueryable();
+
+        if (classId.HasValue)
+        {
+            query = query.Where(f => f.ClassId == classId.Value);
+        }
+
+        if (lessonId.HasValue)
+        {
+            query = query.Where(f => f.LessonId == lessonId.Value);
+        }
+
+        if (dateFrom.HasValue)
+        {
+            query = query.Where(f => f.CreatedAt >= dateFrom.Value);
+        }
+
+        if (dateTo.HasValue)
+        {
+            query = query.Where(f => f.CreatedAt <= dateTo.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(sentiment))
+        {
+            query = query.Where(f => f.Sentiment == sentiment);
+        }
+
+        if (urgency.HasValue)
+        {
+            query = query.Where(f => f.Urgency >= urgency.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(f => f.Status == status);
+        }
+
+        return await query
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<DailyFeedback?> GetByIdWithDetailsAsync(int id)
     {
         return await _dbSet

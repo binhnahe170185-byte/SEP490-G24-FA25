@@ -182,63 +182,18 @@ export default function FeedbackList() {
         pageSize: dailyPageSize,
       };
 
+      if (dailyFilters.classId) {
+        params.classId = dailyFilters.classId;
+      }
+
       if (dailyFilters.status) {
         params.status = dailyFilters.status;
       }
 
-      let items = [];
-      let totalCount = 0;
-
-      if (dailyFilters.classId) {
-        // Load for specific class
-        const result = await DailyFeedbackApi.getClassDailyFeedbacks(
-          dailyFilters.classId,
-          params
-        );
-        items = result.items || [];
-        totalCount = result.total || 0;
-      } else {
-        // Load all daily feedbacks from all classes
-        // We need to aggregate from all classes
-        const allClasses = classes.length > 0 ? classes : await ClassList.getAll();
-        
-        if (allClasses.length === 0) {
-          setDailyFeedbacks([]);
-          setDailyTotal(0);
-          return;
-        }
-
-        // Load feedbacks from all classes and aggregate
-        const promises = allClasses.map((cls) =>
-          DailyFeedbackApi.getClassDailyFeedbacks(cls.classId, {
-            ...params,
-            page: 1,
-            pageSize: 1000, // Get all for aggregation
-          }).catch(() => ({ items: [], total: 0 }))
-        );
-
-        const results = await Promise.all(promises);
-        const allItems = results.flatMap((r) => r.items || []);
-        
-        // Apply status filter if needed
-        let filteredItems = allItems;
-        if (dailyFilters.status) {
-          filteredItems = allItems.filter(
-            (item) => item.status === dailyFilters.status
-          );
-        }
-
-        // Sort by createdAt descending
-        filteredItems.sort(
-          (a, b) =>
-            new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-        );
-
-        // Manual pagination
-        totalCount = filteredItems.length;
-        const startIndex = (dailyPage - 1) * dailyPageSize;
-        items = filteredItems.slice(startIndex, startIndex + dailyPageSize);
-      }
+      // Use new endpoint that supports both filtered and all feedbacks
+      const result = await DailyFeedbackApi.getAllDailyFeedbacks(params);
+      const items = result.items || [];
+      const totalCount = result.total || 0;
 
       setDailyFeedbacks(items || []);
       setDailyTotal(totalCount || 0);

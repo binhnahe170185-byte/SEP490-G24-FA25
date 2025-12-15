@@ -12,6 +12,7 @@ export default function ConfirmModal({
   onConfirm,
   onCancel,
   okButtonProps = {},
+  cancelButtonProps = {},
   centered = true,
 }) {
   const displayIcon = icon || (
@@ -72,11 +73,13 @@ export default function ConfirmModal({
         <Space size={12} style={{ justifyContent: "center", width: "100%" }}>
           <Button
             onClick={onCancel}
+            disabled={okButtonProps?.loading || okButtonProps?.disabled}
             style={{
               minWidth: 80,
               borderRadius: 6,
               borderColor: "#d9d9d9",
             }}
+            {...cancelButtonProps}
           >
             {cancelText}
           </Button>

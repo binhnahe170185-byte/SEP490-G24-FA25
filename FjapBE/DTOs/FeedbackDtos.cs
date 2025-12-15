@@ -130,6 +130,36 @@ public record FeedbackIssueParetoItemDto(
     string? Description = null
 );
 
+// Lecturer view DTOs (ẩn danh sinh viên)
+public record LecturerFeedbackClassDto(
+    int ClassId,
+    string ClassName,
+    string SubjectName,
+    string? SubjectCode,
+    string SemesterName,
+    int FeedbackCount
+);
+
+public record LecturerClassFeedbackItemDto(
+    int Id,
+    int ClassId,
+    string? ClassName,
+    int SubjectId,
+    string? SubjectCode,
+    string? SubjectName,
+    Dictionary<int, int>? Answers,
+    bool WantsOneToOne,
+    string? FreeText,
+    string? FreeTextTranscript,
+    decimal SatisfactionScore,
+    string Sentiment,
+    decimal? SentimentScore,
+    int Urgency,
+    string? MainIssue,
+    string? IssueCategory,
+    DateTime CreatedAt
+);
+
 public record PendingFeedbackClassDto(
     int ClassId,
     string ClassName,

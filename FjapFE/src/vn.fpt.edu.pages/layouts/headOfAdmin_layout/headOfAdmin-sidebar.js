@@ -6,7 +6,8 @@ import {
   FileTextOutlined, 
   CalendarOutlined, 
   TeamOutlined,
-  AppstoreOutlined
+  AppstoreOutlined,
+  MessageOutlined
 } from '@ant-design/icons';
 
 const { Item } = Menu;
@@ -83,6 +84,10 @@ const HeadOfAdminSidebar = () => {
 
         <Item key="/headOfAdmin/staff" icon={<TeamOutlined />}>
           <Link to="/headOfAdmin/staff">Staff Management</Link>
+        </Item>
+
+        <Item key="/headOfAdmin/feedback" icon={<MessageOutlined />}>
+          <Link to="/headOfAdmin/feedback">Student Feedback</Link>
         </Item>
       </Menu>
     </div>

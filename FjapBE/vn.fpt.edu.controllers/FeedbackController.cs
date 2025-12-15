@@ -48,7 +48,9 @@ public class FeedbackController : ControllerBase
 
     private int? GetCurrentRoleId()
     {
-        var roleIdClaim = User.FindFirstValue("role_id");
+        var roleIdClaim = User.FindFirstValue("role_id") 
+            ?? User.FindFirstValue(ClaimTypes.Role)
+            ?? User.FindFirstValue("role");
         if (int.TryParse(roleIdClaim, out var roleId))
             return roleId;
         return null;
@@ -132,6 +134,73 @@ public class FeedbackController : ControllerBase
         }
     }
 
+    // GET: api/feedback/lecturer/classes
+    // Danh sách lớp mà giảng viên đang dạy (kèm số lượng feedback), ẩn danh sinh viên
+    [HttpGet("lecturer/classes")]
+    public async Task<IActionResult> GetLecturerClassesWithFeedback()
+    {
+        try
+        {
+            _logger?.LogInformation("GetLecturerClassesWithFeedback endpoint called");
+            var roleId = GetCurrentRoleId();
+            _logger?.LogInformation("Current roleId: {RoleId}", roleId);
+            if (roleId != 3)
+            {
+                _logger?.LogWarning("Access denied: roleId {RoleId} is not Lecturer (3)", roleId);
+                return StatusCode(403, new { code = 403, message = "Only Lecturers can view their classes feedback list" });
+            }
+
+            var lecturerClassIds = await GetCurrentLecturerClassIdsAsync();
+            _logger?.LogInformation("Lecturer classIds: {ClassIds}", string.Join(", ", lecturerClassIds));
+            if (!lecturerClassIds.Any())
+            {
+                _logger?.LogInformation("No classes found for lecturer");
+                return Ok(new { code = 200, message = "Success", data = Array.Empty<LecturerFeedbackClassDto>() });
+            }
+
+            var classes = await _feedbackService.GetLecturerClassesWithFeedbackAsync(lecturerClassIds);
+            _logger?.LogInformation("Returning {Count} classes with feedback", classes.Count());
+            return Ok(new { code = 200, message = "Success", data = classes });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error in GetLecturerClassesWithFeedback");
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
+    // GET: api/feedback/lecturer/class/{classId}/feedbacks
+    // Danh sách feedback của một lớp cho giảng viên (ẩn danh sinh viên)
+    [HttpGet("lecturer/class/{classId:int}/feedbacks")]
+    public async Task<IActionResult> GetLecturerClassFeedbacks(int classId)
+    {
+        try
+        {
+            var roleId = GetCurrentRoleId();
+            if (roleId != 3)
+            {
+                return StatusCode(403, new { code = 403, message = "Only Lecturers can view class feedbacks" });
+            }
+
+            var lecturerClassIds = await GetCurrentLecturerClassIdsAsync();
+            if (!lecturerClassIds.Contains(classId))
+            {
+                return StatusCode(403, new { code = 403, message = "You can only view feedback for classes you teach" });
+            }
+
+            var items = await _feedbackService.GetClassFeedbacksForLecturerAsync(classId, lecturerClassIds);
+            return Ok(new { code = 200, message = "Success", data = items });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { code = 403, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { code = 500, message = "Internal server error", error = ex.Message });
+        }
+    }
+
     // GET: api/feedback
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int? classId, [FromQuery] int? subjectId,
@@ -141,9 +210,11 @@ public class FeedbackController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Staff (RoleId 5, 6, 7) and Lecturer (RoleId 3) can view feedback
-            if (roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
+            _logger?.LogInformation("GetAll feedback endpoint called. Current roleId: {RoleId}", roleId);
+            // Only Staff (RoleId 5, 6, 7), Lecturer (RoleId 3), and Head of Administration (RoleId 2) can view feedback
+            if (roleId != 2 && roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
             {
+                _logger?.LogWarning("Access denied for roleId {RoleId} in GetAll feedback endpoint", roleId);
                 return StatusCode(403, new { code = 403, message = "Only Staff or Lecturers can view feedbacks" });
             }
 
@@ -190,8 +261,8 @@ public class FeedbackController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Staff (RoleId 5, 6, 7) and Lecturer (RoleId 3) can view feedback
-            if (roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
+            // Only Staff (RoleId 5, 6, 7), Lecturer (RoleId 3), and Head of Administration (RoleId 2) can view feedback
+            if (roleId != 2 && roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
             {
                 return StatusCode(403, new { code = 403, message = "Only Staff or Lecturers can view feedback details" });
             }
@@ -332,8 +403,8 @@ public class FeedbackController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Staff (5,6,7) and Lecturer (3) can view analytics
-            if (roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
+            // Only Staff (5,6,7), Lecturer (3), and Head of Administration (2) can view analytics
+            if (roleId != 2 && roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
             {
                 return StatusCode(403, new { code = 403, message = "Only Staff or Lecturers can view analytics" });
             }
@@ -363,8 +434,8 @@ public class FeedbackController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Staff (5,6,7) and Lecturer (3) can view analytics
-            if (roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
+            // Only Staff (5,6,7), Lecturer (3), and Head of Administration (2) can view analytics
+            if (roleId != 2 && roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
             {
                 return StatusCode(403, new { code = 403, message = "Only Staff or Lecturers can view analytics" });
             }
@@ -394,8 +465,8 @@ public class FeedbackController : ControllerBase
         try
         {
             var roleId = GetCurrentRoleId();
-            // Only Staff (5,6,7) and Lecturer (3) can view analytics
-            if (roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
+            // Only Staff (5,6,7), Lecturer (3), and Head of Administration (2) can view analytics
+            if (roleId != 2 && roleId != 3 && roleId != 5 && roleId != 6 && roleId != 7)
             {
                 return StatusCode(403, new { code = 403, message = "Only Staff or Lecturers can view analytics" });
             }

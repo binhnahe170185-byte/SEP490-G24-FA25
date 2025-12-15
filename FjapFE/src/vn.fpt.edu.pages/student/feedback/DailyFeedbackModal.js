@@ -25,6 +25,7 @@ export default function DailyFeedbackModal({ visible, lesson, onClose, onSuccess
       setFeedbackText("");
       setFeedbackTextTranscript("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, lesson?.lessonId]);
 
   const checkExistingFeedback = async () => {
@@ -65,6 +66,7 @@ export default function DailyFeedbackModal({ visible, lesson, onClose, onSuccess
     if (!lesson) {
       console.error("Lesson is missing!");
       message.error("Lesson information is missing");
+      setSubmitting(false);
       return;
     }
 
@@ -73,6 +75,7 @@ export default function DailyFeedbackModal({ visible, lesson, onClose, onSuccess
     if (!studentId) {
       console.error("StudentId not found!");
       message.error("Unable to detect your student ID. Please sign in again.");
+      setSubmitting(false);
       return;
     }
 
@@ -107,6 +110,7 @@ export default function DailyFeedbackModal({ visible, lesson, onClose, onSuccess
     if (!classId || !lessonId || !subjectId) {
       console.error("Missing lesson information! classId:", classId, "lessonId:", lessonId, "subjectId:", subjectId);
       message.error("Missing lesson information. Please try again.");
+      setSubmitting(false);
       return;
     }
 
@@ -129,14 +133,19 @@ export default function DailyFeedbackModal({ visible, lesson, onClose, onSuccess
       await DailyFeedbackApi.createDailyFeedback(payload);
       message.success("Daily feedback submitted successfully!");
       
+      // Reset form and close modal
+      form.resetFields();
+      setFeedbackText("");
+      setFeedbackTextTranscript("");
+      
       if (onSuccess) {
         onSuccess();
       }
       
-      onClose();
-      form.resetFields();
-      setFeedbackText("");
-      setFeedbackTextTranscript("");
+      // Close modal after a short delay to show success message
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (error) {
       console.error("Failed to submit daily feedback:", error);
       console.error("Error details:", {
@@ -255,13 +264,11 @@ export default function DailyFeedbackModal({ visible, lesson, onClose, onSuccess
                 type="primary" 
                 htmlType="submit" 
                 loading={submitting}
-                onClick={() => {
-                  console.log("Submit button clicked!");
-                }}
+                disabled={submitting}
               >
                 Submit Feedback
               </Button>
-              <Button onClick={onClose}>
+              <Button onClick={onClose} disabled={submitting}>
                 Cancel
               </Button>
             </Space>

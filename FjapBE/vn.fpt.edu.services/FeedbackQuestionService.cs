@@ -72,9 +72,9 @@ public class FeedbackQuestionService : IFeedbackQuestionService
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        
-        // TODO: SetAnswerOptionsList - extension method not implemented
-        // question.SetAnswerOptionsList(answerOptions);
+
+        // Lưu answer options xuống cột JSON
+        question.SetAnswerOptionsList(answerOptions);
 
         await _questionRepository.AddAsync(question);
         await _questionRepository.SaveChangesAsync();
@@ -125,8 +125,7 @@ public class FeedbackQuestionService : IFeedbackQuestionService
         if (request.AnswerOptions != null)
         {
             ValidateAnswerOptions(request.AnswerOptions);
-            // TODO: SetAnswerOptionsList - extension method not implemented
-            // question.SetAnswerOptionsList(request.AnswerOptions);
+            question.SetAnswerOptionsList(request.AnswerOptions);
         }
 
         // Always keep SubjectId as null
@@ -167,8 +166,8 @@ public class FeedbackQuestionService : IFeedbackQuestionService
             question.SubjectId,
             question.Subject?.SubjectCode,
             question.Subject?.SubjectName,
-            // TODO: GetAnswerOptionsList - extension method not implemented
-            new List<AnswerOptionDto>(),
+            // Lấy list answer options đã lưu (có thể null => trả về list rỗng)
+            question.GetAnswerOptionsList() ?? new List<AnswerOptionDto>(),
             question.CreatedAt,
             question.UpdatedAt
         );

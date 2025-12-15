@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using FJAP.DTOs;
 
 namespace FJAP.vn.fpt.edu.models;
 
@@ -42,4 +44,31 @@ public partial class FeedbackQuestion
     public string? AnswerOptions { get; set; }
 
     public virtual Subject? Subject { get; set; }
+
+    /// <summary>
+    /// Helper: deserialize AnswerOptions JSON thành List&lt;AnswerOptionDto&gt;
+    /// </summary>
+    public List<AnswerOptionDto>? GetAnswerOptionsList()
+    {
+        if (string.IsNullOrWhiteSpace(AnswerOptions))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<AnswerOptionDto>>(AnswerOptions);
+        }
+        catch
+        {
+            // Nếu JSON lỗi, coi như không có options để tránh làm hỏng toàn bộ flow
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Helper: serialize List&lt;AnswerOptionDto&gt; vào cột AnswerOptions (JSON)
+    /// </summary>
+    public void SetAnswerOptionsList(List<AnswerOptionDto>? options)
+    {
+        AnswerOptions = options == null ? null : JsonSerializer.Serialize(options);
+    }
 }
