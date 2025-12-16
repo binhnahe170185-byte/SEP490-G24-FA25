@@ -54,15 +54,36 @@ public class HomeworksController : ControllerBase
         [FromQuery] int? studentId = null)
     {
         var query = BuildHomeworkQuery();
+        
+        _logger.LogInformation("GetHomeworks called with: lessonId={LessonId}, classId={ClassId}, studentId={StudentId}", 
+            lessonId, classId, studentId);
+
+        bool hasFilter = false;
 
         if (lessonId.HasValue)
         {
             query = query.Where(h => h.LessonId == lessonId);
+            hasFilter = true;
         }
 
         if (classId.HasValue)
         {
             query = query.Where(h => h.Lesson.ClassId == classId);
+            hasFilter = true;
+        }
+        
+        // Always filter by student if provided
+        if (studentId.HasValue)
+        {
+            // Chỉ lấy homework của các lớp mà student tham gia.
+            query = query.Where(h => h.Lesson.Class.Students.Any(s => s.StudentId == studentId));
+            hasFilter = true;
+        }
+
+        if (!hasFilter)
+        {
+            // Safety: Do not return all homeworks if no filter is provided
+            return Ok(new { code = 200, data = new List<object>() });
         }
 
         var data = await ProjectHomeworkList(query, studentId);
@@ -107,9 +128,13 @@ public class HomeworksController : ControllerBase
         }
 
         // Validate deadline is not in the past
-        if (request.Deadline.HasValue && request.Deadline.Value < DateTime.UtcNow)
+        if (request.Deadline.HasValue)
         {
-            return BadRequest(new { code = 400, message = "Deadline cannot be in the past." });
+            // Use UtcDateTime for absolute time comparison regardless of timezone
+            if (request.Deadline.Value.UtcDateTime < DateTime.UtcNow)
+            {
+                return BadRequest(new { code = 400, message = "Deadline cannot be in the past." });
+            }
         }
 
         var lesson = await _db.Lessons
@@ -127,7 +152,10 @@ public class HomeworksController : ControllerBase
             LessonId = request.LessonId,
             Title = sanitizedTitle,
             Content = sanitizedContent,
-            Deadline = request.Deadline?.ToUniversalTime(),
+            // Store the "Clock Time" (nominal time) that the user selected.
+            // .DateTime property of DateTimeOffset returns the local date time part without converting.
+            // E.g. 10:00+07:00 -> 10:00
+            Deadline = request.Deadline?.DateTime,
             CreatedBy = request.CreatedBy ?? 0,
             CreatedAt = DateTime.UtcNow,
         };
@@ -194,11 +222,15 @@ public class HomeworksController : ControllerBase
         }
 
         // Validate deadline is not in the past
-        if (request.Deadline.HasValue && request.Deadline.Value < DateTime.UtcNow)
+        if (request.Deadline.HasValue)
         {
-            return BadRequest(new { code = 400, message = "Deadline cannot be in the past." });
+            if (request.Deadline.Value.UtcDateTime < DateTime.UtcNow)
+            {
+                return BadRequest(new { code = 400, message = "Deadline cannot be in the past." });
+            }
         }
-        homework.Deadline = request.Deadline?.ToUniversalTime();
+        // Store the "Clock Time" (nominal time)
+        homework.Deadline = request.Deadline?.DateTime;
 
         // Validate file if provided
         var fileValidation = ValidateFile(request.File);
@@ -998,7 +1030,7 @@ public class HomeworkCreateRequest
 
     public string? FilePath { get; set; }
 
-    public DateTime? Deadline { get; set; }
+    public DateTimeOffset? Deadline { get; set; }
 
     public int? CreatedBy { get; set; }
 
@@ -1008,16 +1040,18 @@ public class HomeworkCreateRequest
 public class HomeworkUpdateRequest
 {
     [Required]
+    public int HomeworkId { get; set; }
+
     [StringLength(255)]
-    public string Title { get; set; } = string.Empty;
+    public string? Title { get; set; }
 
     public string? Content { get; set; }
 
-    public string? FilePath { get; set; }
-
-    public DateTime? Deadline { get; set; }
+    public DateTimeOffset? Deadline { get; set; }
 
     public IFormFile? File { get; set; }
+
+    public string? FilePath { get; set; }
 
     public bool RemoveFile { get; set; }
 }

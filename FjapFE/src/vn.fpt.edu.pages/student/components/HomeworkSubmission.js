@@ -1,156 +1,140 @@
-import React, { useState } from 'react';
-import { Card, Typography, Button, Upload, message, Modal, Input } from 'antd';
-import { UploadOutlined, RightOutlined, FileTextOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Typography, Button, Empty, Tag, Spin } from 'antd';
+import { UploadOutlined, RightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../login/AuthContext';
+import StudentHomework from '../../../vn.fpt.edu.api/StudentHomework';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 const HomeworkSubmission = () => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedHomework, setSelectedHomework] = useState(null);
-  
-  // Hardcoded homework data for submission
-  const [pendingHomeworks] = useState([
-    {
-      id: 1,
-      title: 'PRF192 Assignment 5',
-      subject: 'PRF192',
-      dueDate: '2024-12-25',
-      className: 'PRF192-AE1',
-      description: 'Complete exercises from chapter 5'
-    },
-    {
-      id: 3,
-      title: 'Project Proposal - SWP391',
-      subject: 'SWP391',
-      dueDate: '2024-12-30',
-      className: 'SWP391-AE1',
-      description: 'Submit final project proposal'
-    }
-  ]);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [pendingHomeworks, setPendingHomeworks] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (homework) => {
-    setSelectedHomework(homework);
-    setIsModalVisible(true);
-  };
+  useEffect(() => {
+    const fetchPendingHomeworks = async () => {
+      if (!user?.studentId) return;
 
-  const handleModalSubmit = async () => {
-    message.success('Homework submitted successfully!');
-    setIsModalVisible(false);
-    setSelectedHomework(null);
-  };
+      try {
+        setLoading(true);
+        const data = await StudentHomework.getStudentHomeworks(user.studentId);
 
-  const handleFileChange = (info) => {
-    if (info.file.status === 'done') {
-      message.success(`${info.file.name} uploaded successfully`);
-    } else if (info.file.status === 'error') {
-      message.error(`${info.file.name} upload failed.`);
-    }
+        // Transform and filter only pending/late homeworks that haven't been submitted
+        const pending = data
+          .map(hw => {
+            const deadline = hw.deadline ? dayjs(hw.deadline) : null;
+            const isOverdue = deadline && deadline.isBefore(dayjs());
+            // Check submission
+            // If submitted/graded -> ignore
+            if (hw.studentSubmission && hw.studentSubmission.status) {
+              return null;
+            }
+
+            let status = 'pending';
+            if (isOverdue) {
+              status = 'overdue';
+            }
+
+            return {
+              id: hw.homeworkId,
+              classId: hw.classId, // API response has classId
+              lessonId: hw.lessonId, // API response has lessonId
+              title: hw.title,
+              subject: hw.className ? hw.className : 'N/A',
+              className: hw.className,
+              dueDate: hw.deadline,
+              status: status,
+              description: hw.content
+            };
+          })
+          .filter(Boolean) // Remove nulls (submitted ones)
+          .sort((a, b) => {
+            // Sort by deadline: nearest first. 
+            // If overdue, they are technically "past" deadline, but should be shown.
+            // Let's sort purely by deadline ascending.
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return dayjs(a.dueDate).valueOf() - dayjs(b.dueDate).valueOf();
+          });
+
+        setPendingHomeworks(pending);
+      } catch (error) {
+        console.error("Failed to load pending homeworks:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPendingHomeworks();
+  }, [user]);
+
+  const handleNavigateToSubmit = (homework) => {
+    // Navigate to homework detail page to submit
+    navigate(`/student/homework/${homework.classId}/${homework.lessonId}`);
   };
 
   return (
-    <>
-      <Card 
-        className="function-card section-card"
-        title={
-          <div className="section-card-header">
-            <UploadOutlined className="function-icon homework-icon" />
-            <Title level={4} className="function-title">Submit Homework</Title>
-          </div>
-        }
-      >
-        <div className="section-card-content">
-          {pendingHomeworks.length > 0 ? (
-            pendingHomeworks.slice(0, 2).map((homework) => (
-              <div key={homework.id} className="homework-item">
-                <Text className="homework-title">{homework.title}</Text>
-                <div className="homework-meta">
-                  <span>{homework.subject} - {homework.className}</span>
-                  <span>Due: {dayjs(homework.dueDate).format('DD/MM/YYYY')}</span>
-                </div>
-                <Button 
-                  type="primary" 
-                  size="small" 
-                  style={{ marginTop: 8 }}
-                  onClick={() => handleSubmit(homework)}
-                >
-                  Submit
-                </Button>
-              </div>
-            ))
-          ) : (
-            <Text style={{ color: '#999' }}>No homework to submit</Text>
+    <Card
+      className="function-card section-card"
+      title={
+        <div className="section-card-header">
+          <UploadOutlined className="function-icon homework-icon" />
+          <Title level={4} className="function-title" style={{ marginRight: 8 }}>Submit Homework</Title>
+          {pendingHomeworks.length > 0 && (
+            <Tag color="red">{pendingHomeworks.length} Pending</Tag>
           )}
         </div>
-        <Button 
-          type="default" 
-          icon={<RightOutlined />}
-          className="function-button"
-          onClick={() => message.info('Feature under development')}
-          style={{ marginTop: 16 }}
-        >
-          View All Pending Homework
-        </Button>
-      </Card>
+      }
+    >
+      <div className="section-card-content">
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}><Spin /></div>
+        ) : pendingHomeworks.length > 0 ? (
+          pendingHomeworks.slice(0, 3).map((homework) => (
+            <div key={homework.id} className="homework-item">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text className="homework-title" style={{ maxWidth: '200px' }} ellipsis={{ tooltip: homework.title }}>
+                  {homework.title}
+                </Text>
+                {homework.status === 'overdue' && <Tag color="error">Overdue</Tag>}
+              </div>
 
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileTextOutlined />
-            <span>Submit Homework: {selectedHomework?.title}</span>
-          </div>
-        }
-        open={isModalVisible}
-        onOk={handleModalSubmit}
-        onCancel={() => {
-          setIsModalVisible(false);
-          setSelectedHomework(null);
-        }}
-        okText="Submit"
-        cancelText="Cancel"
-        width={600}
-      >
-        {selectedHomework && (
-          <div>
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Subject: </Text>
-              <Text>{selectedHomework.subject} - {selectedHomework.className}</Text>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Due Date: </Text>
-              <Text>{dayjs(selectedHomework.dueDate).format('DD/MM/YYYY')}</Text>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Description: </Text>
-              <Text>{selectedHomework.description}</Text>
-            </div>
-            
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>Upload File: </Text>
-              <Upload
-                action="https://www.mocky.io/v2/5cc8019d300000980a055e76"
-                onChange={handleFileChange}
-                multiple
+              <div className="homework-meta">
+                <span>{homework.className}</span>
+                <span>Due: {homework.dueDate ? dayjs(homework.dueDate).format('DD/MM/YYYY') : 'None'}</span>
+              </div>
+              <Button
+                type="primary"
+                size="small"
+                style={{ marginTop: 8, width: '100%' }}
+                onClick={() => handleNavigateToSubmit(homework)}
               >
-                <Button icon={<UploadOutlined />}>Select File</Button>
-              </Upload>
+                Submit Now
+              </Button>
             </div>
-
-            <div>
-              <Text strong>Notes (optional): </Text>
-              <TextArea 
-                rows={4} 
-                placeholder="Enter notes for lecturer..."
-                style={{ marginTop: 8 }}
-              />
-            </div>
-          </div>
+          ))
+        ) : (
+          <Empty
+            description="No pending homework"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            style={{ margin: '10px 0' }}
+          />
         )}
-      </Modal>
-    </>
+      </div>
+      <Button
+        type="default"
+        icon={<RightOutlined />}
+        className="function-button"
+        onClick={() => navigate('/student/homework')}
+        style={{ marginTop: 16 }}
+      >
+        View All
+      </Button>
+    </Card>
   );
 };
 
 export default HomeworkSubmission;
-

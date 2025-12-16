@@ -40,6 +40,8 @@ export default function HomeworkForm({
       form.setFieldsValue({
         title: homework.title,
         content: homework.content,
+        // Backend returns local time (e.g., "2025-12-17T10:00:00")
+        // dayjs will parse it as local time
         deadline: homework.deadline ? dayjs(homework.deadline) : null,
       });
       setFileList(existingFileEntry ? [existingFileEntry] : []);
@@ -125,7 +127,9 @@ export default function HomeworkForm({
       data.append("createdBy", user?.id || user?.lecturerId || 1);
 
       if (values.deadline) {
-        data.append("deadline", values.deadline.toISOString());
+        // Send with timezone offset to ensure backend parses correctly
+        // Format: YYYY-MM-DDTHH:mm:ss+07:00 (ISO 8601 with timezone)
+        data.append("deadline", values.deadline.format());
       }
 
       const currentFile = fileList[0];
