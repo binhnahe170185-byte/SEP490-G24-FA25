@@ -245,6 +245,12 @@ namespace FJAP.Services
                         .Select(gt => gt.SubjectGradeTypeId)
                         .ToListAsync();
 
+
+                    // Fetch all SubjectGradeTypes for this subject to ensure we have weights for calculation
+                    var subjectGradeTypes = await _context.SubjectGradeTypes
+                        .Where(sgt => sgt.SubjectId == grade.SubjectId)
+                        .ToDictionaryAsync(sgt => sgt.SubjectGradeTypeId);
+
                     // Update each grade component
                     foreach (var componentUpdate in request.GradeComponents)
                     {
@@ -277,7 +283,12 @@ namespace FJAP.Services
                                 Status = "Graded",
                                 GradedAt = DateTime.UtcNow
                             };
-                            _context.Set<GradeType>().Add(newGradeType);
+
+                            if (subjectGradeTypes.TryGetValue(componentUpdate.SubjectGradeTypeId, out var sgt))
+                            {
+                                newGradeType.SubjectGradeType = sgt;
+                            }
+
                             grade.GradeTypes.Add(newGradeType);
                         }
                         else
