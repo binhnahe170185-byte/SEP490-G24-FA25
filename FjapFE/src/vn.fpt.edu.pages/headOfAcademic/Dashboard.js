@@ -6,6 +6,7 @@ import {
   TrophyOutlined,
   UserOutlined,
   BarChartOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { Column, Pie, Line } from '@ant-design/charts';
 import ClassList from '../../vn.fpt.edu.api/ClassList';
@@ -241,7 +242,16 @@ const Dashboard = () => {
     xField: 'semester',
     yField: 'average',
     height: 280,
-    label: {},
+    label: {
+      position: 'top',
+      offsetY: -15,
+      style: {
+        fill: '#000',
+        fontWeight: 500,
+        fontSize: 12,
+        textBaseline: 'bottom',
+      },
+    },
     point: {
       size: 5,
       shape: 'diamond',
@@ -264,6 +274,16 @@ const Dashboard = () => {
     interactions: [{ type: 'marker-active' }],
     color: '#52c41a',
   };
+
+  // Calculate Submission Rate
+  const submissionRate = (() => {
+    if (homeworkData.length > 0) {
+      const total = homeworkData.reduce((sum, hw) => sum + (hw.totalStudents || 0), 0);
+      const submitted = homeworkData.reduce((sum, hw) => sum + (hw.submissions || 0), 0);
+      return total > 0 ? ((submitted / total) * 100).toFixed(1) : 0;
+    }
+    return 75.5; // Mock value
+  })();
 
   return (
     <div style={{ padding: '0' }}>
@@ -341,9 +361,9 @@ const Dashboard = () => {
                 }}
               >
                 <Statistic
-                  title="Total Enrollments"
-                  value={stats.totalStudents}
-                  prefix={<UserOutlined style={{ fontSize: '24px' }} />}
+                  title="Total Assignments"
+                  value={homeworkData.length > 0 ? homeworkData.length : (mockData.homeworkBySubject ? mockData.homeworkBySubject.length : 0)}
+                  prefix={<FileTextOutlined style={{ fontSize: '24px' }} />}
                   valueStyle={{ color: '#fa8c16', fontSize: '32px' }}
                 />
               </Card>
@@ -391,8 +411,9 @@ const Dashboard = () => {
                       style={{ marginBottom: 24 }}
                     />
                     <Statistic
-                      title="Graded Count"
-                      value={gradeStats.gradedCount || 1250}
+                      title="Submission Rate"
+                      value={submissionRate}
+                      suffix="%"
                       valueStyle={{ color: '#722ed1', fontSize: '24px' }}
                     />
                   </div>
@@ -414,8 +435,9 @@ const Dashboard = () => {
                       style={{ marginBottom: 24 }}
                     />
                     <Statistic
-                      title="Graded Count"
-                      value={1250}
+                      title="Submission Rate"
+                      value={submissionRate}
+                      suffix="%"
                       valueStyle={{ color: '#722ed1', fontSize: '24px' }}
                     />
                   </div>
@@ -425,7 +447,7 @@ const Dashboard = () => {
           </Row>
 
           {/* Charts Row 2 - Homework */}
-          <Row gutter={[24, 24]}>
+          {/* <Row gutter={[24, 24]}>
             <Col xs={24} lg={14}>
               <Card
                 title={
@@ -450,7 +472,7 @@ const Dashboard = () => {
                 <Pie {...pieConfig} />
               </Card>
             </Col>
-          </Row>
+          </Row> */}
         </>
       )}
     </div>

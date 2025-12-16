@@ -24,6 +24,7 @@ import {
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../login/AuthContext";
 import ManagerGrades from "../../../vn.fpt.edu.api/ManagerGrades";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
 export default function GradeEntry() {
   const { courseId } = useParams();
@@ -43,6 +44,8 @@ export default function GradeEntry() {
   const [editedDataAll, setEditedDataAll] = useState({}); // Track all changes in batch mode
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [form] = Form.useForm();
+
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } = useNotify();
 
   const userId = user?.id;
   const courseFromState = location.state?.course;
@@ -255,6 +258,9 @@ export default function GradeEntry() {
   };
 
   const save = async (key) => {
+    // Unique notification key for individual save
+    const notifyKey = `save-grade-${key}-${Date.now()}`;
+
     try {
       const row = await form.validateFields();
       const newData = [...students];
@@ -262,7 +268,14 @@ export default function GradeEntry() {
 
       if (index > -1) {
         const item = newData[index];
-        
+
+        // Notify pending
+        notifyPending(
+          notifyKey,
+          "Updating grade",
+          `Saving changes for ${item.studentName || item.studentId}...`
+        );
+
         // Calculate average using weights from API
         let average = 0;
         gradeComponentWeights.forEach(weight => {
@@ -362,13 +375,15 @@ export default function GradeEntry() {
 
         // Validate gradeId exists
         if (!item.gradeId) {
-          message.error("Grade ID is missing. Cannot save.");
+          const msg = "Grade ID is missing. Cannot save.";
+          notifyError(notifyKey, "Save Failed", msg);
           return;
         }
 
         // Validate that we have at least one grade component to save
         if (!gradeComponents || gradeComponents.length === 0) {
-          message.warning("No grade data to save. Please enter at least one score.");
+          const msg = "No grade data to save. Please enter at least one score.";
+          notifyError(notifyKey, "Save Warning", msg);
           return;
         }
 
@@ -386,8 +401,13 @@ export default function GradeEntry() {
         );
 
         setStudents(newData);
-        message.success("Grade updated successfully");
-        
+
+        notifySuccess(
+          notifyKey,
+          "Grade Updated",
+          `Successfully updated grade for ${item.studentName || item.studentId}`
+        );
+
         // Clear edit mode - return to view mode after successful save
         setEditingKey('');
         
@@ -397,7 +417,13 @@ export default function GradeEntry() {
     } catch (errInfo) {
       console.error("Error saving grade:", errInfo);
       const errorMessage = errInfo?.response?.data?.message || errInfo?.message || "Failed to update grade";
-      message.error(`Failed to update grade: ${errorMessage}`);
+
+      const errorKey = `save-error-${Date.now()}`;
+      notifyError(
+        errorKey,
+        "Save Failed",
+        `Failed to update grade: ${errorMessage}`
+      );
     } finally {
       setSaving(false);
     }
@@ -705,12 +731,22 @@ export default function GradeEntry() {
   };
 
   const executeSaveAll = async () => {
+    // Generates a unique notification key
+    const notifyKey = `save-grades-batch-${courseId}-${Date.now()}`;
+
     try {
       setSavingAll(true);
       setShowSaveModal(false);
     
       // Get all student IDs that have changes
       const studentIdsWithChanges = Object.keys(editedDataAll);
+
+      notifyPending(
+        notifyKey,
+        "Saving grades",
+        `Processing updates for ${studentIdsWithChanges.length} students...`
+      );
+
       let successCount = 0;
       let failCount = 0;
       const errors = [];
@@ -783,23 +819,39 @@ export default function GradeEntry() {
       }
 
       if (failCount === 0 && successCount > 0) {
-        message.success(`Successfully saved grades for ${successCount} student(s)`);
+        notifySuccess(
+          notifyKey,
+          "Grades saved",
+          `Successfully saved grades for ${successCount} student(s)`
+        );
         setEditedDataAll({});
         setBatchEditMode(false);
         // Reload data to get updated values from server
         await loadData();
       } else if (successCount > 0) {
-        message.warning(`Saved ${successCount} student(s), failed ${failCount} student(s). Check console for details.`);
+        notifySuccess(
+          notifyKey,
+          "Partial Success",
+          `Saved ${successCount} student(s), failed ${failCount} student(s). Check console.`
+        );
         console.error('Save errors:', errors);
         // Still reload to get what was saved
         await loadData();
       } else {
-        message.error(`Failed to save grades. Check console for details.`);
+        notifyError(
+          notifyKey,
+          "Save Failed",
+          "Failed to save grades. Check console for details."
+        );
         console.error('All saves failed. Errors:', errors);
       }
     } catch (error) {
-      console.error("Error saving all grades:", error);
-      message.error(`Failed to save all grades: ${error.message || 'Unknown error'}`);
+      console.error("Critical error in executeSaveAll:", error);
+      notifyError(
+        notifyKey,
+        "System Error",
+        error.message || "An unexpected error occurred"
+      );
     } finally {
       setSavingAll(false);
     }
