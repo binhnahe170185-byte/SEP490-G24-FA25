@@ -20,13 +20,15 @@ import {
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../login/AuthContext";
 import ManagerGrades from "../../../vn.fpt.edu.api/ManagerGrades";
+import { useNotify } from "../../vn.fpt.edu.common/notifications";
 
 export default function EnterGrades() {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  
+  const { pending: notifyPending, success: notifySuccess, error: notifyError } = useNotify();
+
   const [courseDetails, setCourseDetails] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,9 +39,9 @@ export default function EnterGrades() {
   const courseFromState = location.state?.course;
 
   // Load course details và danh sách sinh viên
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const data = await ManagerGrades.getCourseDetails(userId, courseId);
       setCourseDetails(data);
       setStudents(data.students);
@@ -47,7 +49,7 @@ export default function EnterGrades() {
       console.error("Failed to load course details:", error);
       message.error("Failed to load course details");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [userId, courseId]);
 
@@ -74,7 +76,51 @@ export default function EnterGrades() {
   };
 
   // Save all changes
-  const handleSaveAll = async () => {
+  // Perform the actual save operation
+  const performSave = async () => {
+    const notifyKey = `save-grades-${courseId}-${Date.now()}`;
+    try {
+      setSaving(true);
+
+      notifyPending(
+        notifyKey,
+        "Saving grades",
+        `Updating grades for ${Object.keys(editedData).length} students...`
+      );
+
+      // Save từng student
+      for (const studentId in editedData) {
+        await ManagerGrades.updateStudentGrade(
+          userId,
+          courseId,
+          studentId,
+          editedData[studentId]
+        );
+      }
+
+      setEditedData({});
+      await loadData(false); // Reload data silently
+
+      notifySuccess(
+        notifyKey,
+        "Grades saved",
+        "All grades have been saved successfully"
+      );
+
+    } catch (error) {
+      console.error("Failed to save grades:", error);
+      notifyError(
+        notifyKey,
+        "Save failed",
+        error.message || "Failed to save grades"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Save all changes
+  const handleSaveAll = () => {
     if (Object.keys(editedData).length === 0) {
       message.info("No changes to save");
       return;
@@ -85,29 +131,8 @@ export default function EnterGrades() {
       content: `You are about to update grades for ${Object.keys(editedData).length} student(s). Continue?`,
       okText: "Save",
       cancelText: "Cancel",
-      onOk: async () => {
-        try {
-          setSaving(true);
-          
-          // Save từng student
-          for (const studentId in editedData) {
-            await ManagerGrades.updateStudentGrade(
-              userId,
-              courseId,
-              studentId,
-              editedData[studentId]
-            );
-          }
-
-          message.success("Grades saved successfully");
-          setEditedData({});
-          loadData(); // Reload data
-        } catch (error) {
-          console.error("Failed to save grades:", error);
-          message.error("Failed to save grades");
-        } finally {
-          setSaving(false);
-        }
+      onOk: () => {
+        performSave();
       }
     });
   };
