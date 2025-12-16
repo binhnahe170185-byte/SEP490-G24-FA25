@@ -703,53 +703,15 @@ const LessonHomeworkDetail = () => {
               )}
             </div>
             {submission.comment && (
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary">Note:</Text> {submission.comment}
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed #d9d9d9" }}>
+                <Text strong>Note / Feedback:</Text>
+                <div style={{ marginTop: 4 }}>{submission.comment}</div>
               </div>
             )}
           </div>
         )}
 
-        <Divider style={{ margin: "16px 0" }} />
-        <div>
-          <Text strong>Private comments</Text>
-          {comments.length === 0 ? (
-            <div style={{ marginTop: 8, color: "#8c8c8c" }}>
-              No comments yet. Ask your lecturer something...
-            </div>
-          ) : (
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-              {comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  style={{
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 8,
-                    padding: 10,
-                  }}
-                >
-                  <div style={{ fontWeight: 600 }}>{comment.author}</div>
-                  <div style={{ fontSize: 12, color: "#8c8c8c" }}>{comment.createdAt}</div>
-                  <div style={{ marginTop: 4 }}>{comment.content}</div>
-                </div>
-              ))}
-            </div>
-          )}
 
-          <div style={{ marginTop: 12 }}>
-            <Input.TextArea
-              rows={3}
-              placeholder="Add private comment..."
-              value={commentInputs[homeworkId]}
-              onChange={(e) => handleCommentChange(homeworkId, e.target.value)}
-            />
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <Button type="primary" onClick={() => handleSubmitComment(homeworkId)}>
-                Post
-              </Button>
-            </div>
-          </div>
-        </div>
       </Card>
     );
   };
@@ -945,9 +907,7 @@ const LessonHomeworkDetail = () => {
             </Form.Item>
           )}
 
-          <Form.Item label="Notes (optional)" name="comment">
-            <Input.TextArea rows={4} placeholder="Anything you want to mention to the lecturer..." />
-          </Form.Item>
+
         </Form>
       </Modal>
     </div>
