@@ -29,6 +29,11 @@ const Dashboard = () => {
   const [subjectsData, setSubjectsData] = useState([]);
   const [gradeStats, setGradeStats] = useState(null);
   const [homeworkData, setHomeworkData] = useState([]);
+  const [chartData, setChartData] = useState({
+    passRateBySemester: [],
+    attendanceRateBySemester: [],
+    averageScoreBySemester: []
+  });
 
   // Hardcoded data fallback
   const mockData = {
@@ -93,12 +98,21 @@ const Dashboard = () => {
       }
 
       // Fetch grade statistics
+      let gradeData = null;
       try {
-        const gradeStatsData = await ManagerGrades.getStatistics();
-        setGradeStats(gradeStatsData);
+        gradeData = await ManagerGrades.getStatistics();
+        setGradeStats(gradeData);
       } catch (err) {
         console.warn('Grade statistics not available:', err);
         setGradeStats(null);
+      }
+
+      // Fetch dashboard charts (Pass Rate & Attendance Rate)
+      try {
+        const charts = await ManagerGrades.getDashboardCharts();
+        setChartData(charts);
+      } catch (err) {
+        console.warn('Dashboard charts not available:', err);
       }
 
       // Calculate stats from real data
@@ -110,7 +124,7 @@ const Dashboard = () => {
           totalClasses: classes.length,
           totalSubjects: Array.isArray(subjects) ? subjects.length : mockData.classesBySubject.length,
           activeClasses: activeClasses.length,
-          totalStudents: totalStudents || mockData.classesBySubject.reduce((sum, s) => sum + s.students, 0),
+          totalStudents: gradeData?.totalStudents || 0, // Prioritize unique count from GradeStats
         });
       } else {
         // Use mock data
@@ -118,7 +132,7 @@ const Dashboard = () => {
           totalClasses: mockData.classesBySubject.reduce((sum, s) => sum + s.count, 0),
           totalSubjects: mockData.classesBySubject.length,
           activeClasses: mockData.classesByStatus.find(s => s.type === 'Active')?.value || 0,
-          totalStudents: mockData.classesBySubject.reduce((sum, s) => sum + s.students, 0),
+          totalStudents: gradeData?.totalStudents || mockData.classesBySubject.reduce((sum, s) => sum + s.students, 0),
         });
       }
     } catch (error) {
@@ -238,9 +252,9 @@ const Dashboard = () => {
   };
 
   const lineConfig = {
-    data: mockData.gradeTrend,
-    xField: 'semester',
-    yField: 'average',
+    data: chartData.averageScoreBySemester.length > 0 ? chartData.averageScoreBySemester : [],
+    xField: 'name',
+    yField: 'value',
     height: 280,
     label: {
       position: 'top',
@@ -273,6 +287,68 @@ const Dashboard = () => {
     },
     interactions: [{ type: 'marker-active' }],
     color: '#52c41a',
+  };
+
+  // Pass Rate Chart Config (Column Chart)
+  const passRateConfig = {
+    data: chartData.passRateBySemester.length > 0 ? chartData.passRateBySemester : [], // Use real data or empty
+    xField: 'name',
+    yField: 'value',
+    label: {
+      position: 'top',
+      style: {
+        fill: '#FFFFFF',
+        opacity: 0.6,
+      },
+    },
+    xAxis: {
+      label: {
+        autoHide: false,
+        autoRotate: false,
+        style: {
+          rotate: Math.PI / 4, // Diagonal rotation
+          textAlign: 'start',
+          textBaseline: 'middle'
+        }
+      },
+      title: { text: 'Semester' }
+    },
+    yAxis: {
+      title: { text: 'Pass Rate (%)' },
+      max: 100
+    },
+    meta: {
+      name: { alias: 'Semester' },
+      value: { alias: 'Pass Rate' },
+    },
+    color: '#1890ff',
+    showTitle: false
+  };
+
+  // Attendance Rate Chart Config (Line Chart)
+  const attendanceRateConfig = {
+    data: chartData.attendanceRateBySemester.length > 0 ? chartData.attendanceRateBySemester : [],
+    xField: 'name',
+    yField: 'value',
+    point: {
+      size: 5,
+      shape: 'diamond',
+    },
+    label: {
+      style: {
+        fill: '#000',
+      },
+    },
+    yAxis: {
+      title: { text: 'Attendance Rate (%)' },
+      max: 100,
+      min: 0
+    },
+    xAxis: {
+      title: { text: 'Semester' }
+    },
+    color: '#722ed1',
+    showTitle: false
   };
 
   // Calculate Submission Rate
@@ -361,9 +437,9 @@ const Dashboard = () => {
                 }}
               >
                 <Statistic
-                  title="Total Assignments"
-                  value={homeworkData.length > 0 ? homeworkData.length : (mockData.homeworkBySubject ? mockData.homeworkBySubject.length : 0)}
-                  prefix={<FileTextOutlined style={{ fontSize: '24px' }} />}
+                  title="Total Students"
+                  value={stats.totalStudents}
+                  prefix={<UserOutlined style={{ fontSize: '24px' }} />}
                   valueStyle={{ color: '#fa8c16', fontSize: '32px' }}
                 />
               </Card>
@@ -441,6 +517,42 @@ const Dashboard = () => {
                       valueStyle={{ color: '#722ed1', fontSize: '24px' }}
                     />
                   </div>
+                )}
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Charts Row 2 - New Charts (Pass Rate & Attendance Rate) */}
+          <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#1890ff' }}>
+                    Pass Rate by Semester
+                  </span>
+                }
+                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+              >
+                {chartData.passRateBySemester.length > 0 ? (
+                  <Column {...passRateConfig} />
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '50px 0', color: '#999' }}>No data available</div>
+                )}
+              </Card>
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#722ed1' }}>
+                    Attendance Rate by Semester
+                  </span>
+                }
+                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+              >
+                {chartData.attendanceRateBySemester.length > 0 ? (
+                  <Line {...attendanceRateConfig} />
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '50px 0', color: '#999' }}>No data available</div>
                 )}
               </Card>
             </Col>

@@ -277,5 +277,27 @@ namespace FJAP.Controllers.Manager
                 });
             }
         }
+        [HttpGet("dashboard-charts")]
+        public async Task<IActionResult> GetDashboardCharts()
+        {
+            try
+            {
+                var charts = await _gradeService.GetDashboardChartsAsync();
+                return Ok(new
+                {
+                    code = 200,
+                    message = "Success",
+                    data = charts
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    code = 400,
+                    message = ex.Message
+                });
+            }
+        }
     }
 }
