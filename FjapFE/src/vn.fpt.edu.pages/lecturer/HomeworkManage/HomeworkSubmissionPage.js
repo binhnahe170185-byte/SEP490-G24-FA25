@@ -27,12 +27,15 @@ import {
 import dayjs from "dayjs";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
 
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
+
 const { TextArea } = Input;
 
 const HomeworkSubmissionPage = () => {
   const { classId, lessonId, homeworkId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const notify = useNotify();
 
   const slot = location.state?.slot || null;
   const homework = location.state?.homework || null;
@@ -43,6 +46,7 @@ const HomeworkSubmissionPage = () => {
   const [currentSubmission, setCurrentSubmission] = useState(null);
   const [savingEvaluation, setSavingEvaluation] = useState(false);
   const [evaluationForm] = Form.useForm();
+
   const appendCacheBuster = (url) => {
     if (!url) return url;
     try {
@@ -57,7 +61,7 @@ const HomeworkSubmissionPage = () => {
 
   const handleOpenInNewTab = (url) => {
     if (!url) {
-      message.warning("File path is missing.");
+      notify.error("open_file_error", "Error", "File path is missing.");
       return;
     }
     const targetUrl = appendCacheBuster(url);
@@ -76,7 +80,7 @@ const HomeworkSubmissionPage = () => {
         setSubmissions(data);
       } catch (error) {
         console.error("Failed to load homework submissions:", error);
-        message.error("Unable to load submissions");
+        notify.error("load_submission_error", "Load Failed", "Unable to load submissions");
       } finally {
         setLoading(false);
       }
@@ -122,10 +126,14 @@ const HomeworkSubmissionPage = () => {
     evaluationForm.resetFields();
   };
 
+  // handleEvaluationSubmit rewrite:
   const handleEvaluationSubmit = async () => {
+    const notifyKey = `evaluate_submission_${currentSubmission?.submissionId}`;
     try {
       const values = await evaluationForm.validateFields();
       setSavingEvaluation(true);
+      notify.pending(notifyKey, "Saving Evaluation", "Please wait...");
+
       const updated = await LecturerHomework.updateHomeworkSubmission(
         homeworkId,
         currentSubmission.submissionId,
@@ -135,19 +143,19 @@ const HomeworkSubmissionPage = () => {
         prev.map((item) =>
           item.submissionId === updated.submissionId
             ? {
-                ...item,
-                status: updated.status,
-                comment: updated.comment,
-                feedback: updated.feedback,
-              }
+              ...item,
+              status: updated.status,
+              comment: updated.comment,
+              feedback: updated.feedback,
+            }
             : item
         )
       );
-      message.success("Submission evaluated");
+      notify.success(notifyKey, "Evaluated", "Submission evaluated successfully");
       closeEvaluation();
     } catch (error) {
       console.error("Failed to evaluate submission:", error);
-      message.error("Unable to save evaluation");
+      notify.error(notifyKey, "Evaluation Failed", "Unable to save evaluation. Please try again.");
     } finally {
       setSavingEvaluation(false);
     }
@@ -189,10 +197,10 @@ const HomeworkSubmissionPage = () => {
           lowered === "graded"
             ? "green"
             : lowered === "rejected"
-            ? "red"
-            : lowered === "late"
-            ? "orange"
-            : "default";
+              ? "red"
+              : lowered === "late"
+                ? "orange"
+                : "default";
         return <Tag color={color}>{status}</Tag>;
       },
     },
