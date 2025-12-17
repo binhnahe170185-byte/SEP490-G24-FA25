@@ -203,8 +203,7 @@ public class FeedbackService : IFeedbackService
         {
             // Load questions and answers
             var questions = await questionService.GetActiveQuestionsAsync(null);
-            // TODO: GetAnswersDict - extension method not implemented
-            var answers = new Dictionary<int, int>(); // feedback.GetAnswersDict();
+            var answers = feedback.GetAnswersDict() ?? new Dictionary<int, int>();
             
             if (answers == null || !answers.Any())
             {
@@ -248,20 +247,7 @@ public class FeedbackService : IFeedbackService
             }
             feedback.Sentiment = sentiment;
             feedback.SentimentScore = analysisResult.SentimentScore;
-            
-            // TODO: SetKeywordsList - extension method not implemented
-            // Validate and set keywords
-            var keywords = analysisResult.Keywords ?? new List<string>();
-            logger?.LogInformation("Setting keywords (count: {Count}): {Keywords}", 
-                keywords.Count, keywords.Count > 0 ? string.Join(", ", keywords) : "none");
-            // feedback.SetKeywordsList(keywords);
-            
-            // TODO: SetAiSuggestionsList - extension method not implemented
-            // Validate and set suggestions
-            var suggestions = analysisResult.Suggestions ?? new List<string>();
-            logger?.LogInformation("Setting suggestions (count: {Count}): {Suggestions}", 
-                suggestions.Count, suggestions.Count > 0 ? string.Join(" | ", suggestions) : "none");
-            // feedback.SetAiSuggestionsList(suggestions);
+            feedback.AiReason = analysisResult.Reason;
             
             // Calculate and adjust urgency based on satisfaction score and sentiment
             var calculatedUrgency = CalculateUrgency(
@@ -279,13 +265,30 @@ public class FeedbackService : IFeedbackService
             {
                 mainIssue = analysisResult.Reason;
             }
-            // If still empty, generate from freeText
+            // If still empty, generate a summary instead of copying FreeText
             if (string.IsNullOrWhiteSpace(mainIssue))
             {
-                mainIssue = !string.IsNullOrWhiteSpace(feedback.FreeText) 
-                    ? $"Feedback about: {feedback.FreeText.Substring(0, Math.Min(100, feedback.FreeText.Length))}..."
-                    : "General feedback";
-                logger?.LogWarning("MainIssue was empty, generated from FreeText: {MainIssue}", mainIssue);
+                // Try to create a summary based on category if available
+                if (!string.IsNullOrWhiteSpace(feedback.CategoryCode) && feedback.CategoryCode != "UNK")
+                {
+                    var categoryName = feedback.CategoryName ?? FJAP.vn.fpt.edu.models.IssueCategoryInfo.GetDisplayName(feedback.CategoryCode);
+                    mainIssue = $"{categoryName} concerns reported";
+                }
+                else if (!string.IsNullOrWhiteSpace(feedback.FreeText))
+                {
+                    // Create a generic summary instead of copying text
+                    var feedbackSentiment = feedback.Sentiment ?? "general";
+                    mainIssue = feedbackSentiment == "Negative" 
+                        ? "Student reported concerns about the course"
+                        : feedbackSentiment == "Positive"
+                        ? "Student provided positive feedback"
+                        : "Student feedback received";
+                }
+                else
+                {
+                    mainIssue = "General feedback";
+                }
+                logger?.LogWarning("MainIssue was empty, generated summary: {MainIssue}", mainIssue);
             }
             feedback.MainIssue = mainIssue;
             logger?.LogInformation("MainIssue set to: {MainIssue}", mainIssue);
@@ -304,6 +307,10 @@ public class FeedbackService : IFeedbackService
             {
                 var code = fixedCategoryResult.CategoryCode;
                 feedback.IssueCategory = code; // Store C1..F1 in IssueCategory column
+                feedback.CategoryCode = code;
+                feedback.CategoryName = fixedCategoryResult.CategoryName;
+                feedback.CategoryConfidence = (decimal?)fixedCategoryResult.Confidence;
+                feedback.AiReason = fixedCategoryResult.Reason;
 
                 // Sync sentiment / urgency / main issue when useful
                 feedback.Sentiment = fixedCategoryResult.Sentiment;
@@ -332,6 +339,11 @@ public class FeedbackService : IFeedbackService
                 if (validCodes.Contains(categoryCode))
                 {
                     feedback.IssueCategory = categoryCode;
+                    feedback.CategoryCode = categoryCode;
+                    feedback.CategoryName = !string.IsNullOrWhiteSpace(analysisResult.CategoryName)
+                        ? analysisResult.CategoryName
+                        : FJAP.vn.fpt.edu.models.IssueCategoryInfo.GetDisplayName(categoryCode);
+                    feedback.CategoryConfidence = analysisResult.Confidence;
                     logger?.LogInformation("Using CategoryCode from AiAnalysisService: {Code}", categoryCode);
                     
                     // Use Reason as MainIssue if available
@@ -411,8 +423,12 @@ public class FeedbackService : IFeedbackService
                 }
                 
                 feedback.IssueCategory = finalCategoryCode;
+                feedback.CategoryCode = finalCategoryCode;
+                feedback.CategoryName = FJAP.vn.fpt.edu.models.IssueCategoryInfo.GetDisplayName(finalCategoryCode);
+                feedback.CategoryConfidence ??= analysisResult.Confidence;
                 logger?.LogInformation("Final category code for feedback {FeedbackId}: {Code}", feedback.Id, finalCategoryCode);
             }
+            feedback.AnalyzedAt = DateTime.UtcNow;
             feedback.UpdatedAt = DateTime.UtcNow;
 
             logger?.LogInformation("Updating feedback {FeedbackId} with category: {Category}", feedback.Id, feedback.IssueCategory);
@@ -422,8 +438,6 @@ public class FeedbackService : IFeedbackService
             logger?.LogInformation("Sentiment: {Sentiment}, SentimentScore: {SentimentScore}", feedback.Sentiment, feedback.SentimentScore);
             logger?.LogInformation("Urgency: {Urgency}, MainIssue: {MainIssue}", feedback.Urgency, feedback.MainIssue);
             logger?.LogInformation("IssueCategory: {Category}", feedback.IssueCategory);
-            logger?.LogInformation("Keywords JSON: {Keywords}", feedback.Keywords);
-            logger?.LogInformation("AiSuggestions JSON: {Suggestions}", feedback.AiSuggestions);
 
             repository.Update(feedback);
             var saved = await repository.SaveChangesAsync();
@@ -436,22 +450,6 @@ public class FeedbackService : IFeedbackService
             logger?.LogInformation("Sentiment: {Sentiment}, SentimentScore: {SentimentScore}", feedback.Sentiment, feedback.SentimentScore);
             logger?.LogInformation("Urgency: {Urgency}, MainIssue: {MainIssue}", feedback.Urgency, feedback.MainIssue);
             logger?.LogInformation("IssueCategory: {Category}", feedback.IssueCategory);
-            logger?.LogInformation("Keywords JSON: {Keywords}", feedback.Keywords);
-            logger?.LogInformation("AiSuggestions JSON: {Suggestions}", feedback.AiSuggestions);
-            
-            // Verify keywords and suggestions
-            var reloadedKeywords = new List<string>(); // feedback.GetKeywordsList();
-            var reloadedSuggestions = new List<string>(); // feedback.GetAiSuggestionsList();
-            logger?.LogInformation("Reloaded Keywords count: {Count}, Suggestions count: {Count}", 
-                reloadedKeywords?.Count ?? 0, reloadedSuggestions?.Count ?? 0);
-            if (reloadedKeywords != null && reloadedKeywords.Count > 0)
-            {
-                logger?.LogInformation("Reloaded Keywords: {Keywords}", string.Join(", ", reloadedKeywords));
-            }
-            if (reloadedSuggestions != null && reloadedSuggestions.Count > 0)
-            {
-                logger?.LogInformation("Reloaded Suggestions: {Suggestions}", string.Join(" | ", reloadedSuggestions));
-            }
 
             // Send notification if urgency >= 7
             if (analysisResult.Urgency >= 7)
@@ -1090,6 +1088,11 @@ public class FeedbackService : IFeedbackService
             f.Urgency,
             f.MainIssue,
             f.IssueCategory,
+            f.CategoryCode,
+            f.CategoryName,
+            f.CategoryConfidence,
+            f.AiReason,
+            f.AnalyzedAt,
             f.CreatedAt
         ));
     }
@@ -1201,11 +1204,14 @@ public class FeedbackService : IFeedbackService
             feedback.SatisfactionScore,
             feedback.Sentiment,
             feedback.SentimentScore,
-            new List<string>(), // feedback.GetKeywordsList(),
-            new List<string>(), // feedback.GetAiSuggestionsList(),
             feedback.Urgency,
             feedback.MainIssue,
             feedback.IssueCategory,
+            feedback.CategoryCode,
+            feedback.CategoryName,
+            feedback.CategoryConfidence,
+            feedback.AiReason,
+            feedback.AnalyzedAt,
             feedback.Status,
             feedback.CreatedAt,
             feedback.UpdatedAt

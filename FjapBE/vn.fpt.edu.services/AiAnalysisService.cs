@@ -181,8 +181,7 @@ public class AiAnalysisService : IAiAnalysisService
                 analysisResult = JsonSerializer.Deserialize<AiAnalysisResult>(normalizedJson, options);
                 if (analysisResult != null)
                 {
-                    _logger?.LogInformation("Successfully parsed JSON using normalized deserialization. Keywords count: {Count}, Suggestions count: {SuggestionsCount}", 
-                        analysisResult.Keywords?.Count ?? 0, analysisResult.Suggestions?.Count ?? 0);
+                    _logger?.LogInformation("Successfully parsed JSON using normalized deserialization.");
                 }
             }
             catch (JsonException jsonEx)
@@ -210,8 +209,7 @@ public class AiAnalysisService : IAiAnalysisService
                     analysisResult = JsonSerializer.Deserialize<AiAnalysisResult>(extractedJson, snakeCaseOptions);
                     if (analysisResult != null)
                     {
-                        _logger?.LogInformation("Successfully parsed JSON using snake_case deserialization. Keywords count: {Count}, Suggestions count: {SuggestionsCount}", 
-                            analysisResult.Keywords?.Count ?? 0, analysisResult.Suggestions?.Count ?? 0);
+                        _logger?.LogInformation("Successfully parsed JSON using snake_case deserialization.");
                     }
                 }
                 catch (Exception ex)
@@ -244,8 +242,7 @@ public class AiAnalysisService : IAiAnalysisService
                     analysisResult = JsonSerializer.Deserialize<AiAnalysisResult>(fixedJson, options2);
                     if (analysisResult != null)
                     {
-                        _logger?.LogInformation("Successfully parsed JSON after fixing common issues. Keywords count: {Count}, Suggestions count: {SuggestionsCount}", 
-                            analysisResult.Keywords?.Count ?? 0, analysisResult.Suggestions?.Count ?? 0);
+                        _logger?.LogInformation("Successfully parsed JSON after fixing common issues.");
                     }
                 }
                 catch (Exception ex)
@@ -317,57 +314,8 @@ public class AiAnalysisService : IAiAnalysisService
                         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                     var extractedCategory = categoryCode ?? (categoryMatch.Success ? categoryMatch.Groups[1].Value : null);
                     
-                    // Extract keywords array
-                    var keywordsMatch = System.Text.RegularExpressions.Regex.Match(
-                        messageContent, 
-                        @"""keywords""\s*:\s*\[(.*?)\]", 
-                        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
-                    var keywords = new List<string>();
-                    if (keywordsMatch.Success)
-                    {
-                        var keywordsStr = keywordsMatch.Groups[1].Value;
-                        var keywordMatches = System.Text.RegularExpressions.Regex.Matches(keywordsStr, @"""([^""]+)""");
-                        foreach (System.Text.RegularExpressions.Match km in keywordMatches)
-                        {
-                            keywords.Add(km.Groups[1].Value);
-                        }
-                    }
-                    
-                    // Extract suggestions array - improved regex to handle multiline and nested quotes
-                    var suggestionsMatch = System.Text.RegularExpressions.Regex.Match(
-                        messageContent, 
-                        @"""suggestions""\s*:\s*\[(.*?)\]", 
-                        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
-                    var suggestions = new List<string>();
-                    if (suggestionsMatch.Success)
-                    {
-                        var suggestionsStr = suggestionsMatch.Groups[1].Value;
-                        // Try to parse as JSON array first
-                        try
-                        {
-                            var suggestionsArray = JsonSerializer.Deserialize<List<string>>($"[{suggestionsStr}]");
-                            if (suggestionsArray != null)
-                            {
-                                suggestions = suggestionsArray;
-                            }
-                        }
-                        catch
-                        {
-                            // Fallback to regex extraction
-                            var suggestionMatches = System.Text.RegularExpressions.Regex.Matches(suggestionsStr, @"""([^""\\]*(?:\\.[^""\\]*)*)""");
-                            foreach (System.Text.RegularExpressions.Match sm in suggestionMatches)
-                            {
-                                var suggestion = sm.Groups[1].Value.Replace("\\\"", "\"").Replace("\\n", " ").Trim();
-                                if (!string.IsNullOrWhiteSpace(suggestion))
-                                {
-                                    suggestions.Add(suggestion);
-                                }
-                            }
-                        }
-                    }
-                    
-                    _logger?.LogInformation("Manually extracted fields - Sentiment: {Sentiment}, Score: {Score}, Urgency: {Urgency}, MainIssue: {MainIssue}, CategoryCode: {CategoryCode}, CategoryName: {CategoryName}, Keywords: {KeywordsCount}, Suggestions: {SuggestionsCount}", 
-                        sentiment, sentimentScore, urgency, mainIssue, categoryCode, categoryName, keywords.Count, suggestions.Count);
+                    _logger?.LogInformation("Manually extracted fields - Sentiment: {Sentiment}, Score: {Score}, Urgency: {Urgency}, MainIssue: {MainIssue}, CategoryCode: {CategoryCode}, CategoryName: {CategoryName}", 
+                        sentiment, sentimentScore, urgency, mainIssue, categoryCode, categoryName);
                     
                     // Create result even if mainIssue is "Unknown" - we can use reason or generate from text
                     var finalMainIssue = mainIssue;
@@ -379,8 +327,6 @@ public class AiAnalysisService : IAiAnalysisService
                     analysisResult = new AiAnalysisResult(
                         sentiment,
                         sentimentScore,
-                        keywords.Count > 0 ? keywords : new List<string>(),
-                        suggestions.Count > 0 ? suggestions : new List<string>(),
                         urgency,
                         finalMainIssue,
                         extractedCategory,
@@ -389,8 +335,7 @@ public class AiAnalysisService : IAiAnalysisService
                         confidence,
                         reason
                     );
-                    _logger?.LogInformation("Created analysis result from manually extracted fields - Keywords: {KeywordsCount}, Suggestions: {SuggestionsCount}, MainIssue: {MainIssue}", 
-                        analysisResult.Keywords?.Count ?? 0, analysisResult.Suggestions?.Count ?? 0, analysisResult.MainIssue);
+                    _logger?.LogInformation("Created analysis result from manually extracted fields - MainIssue: {MainIssue}", analysisResult.MainIssue);
                 }
                 catch (Exception ex)
                 {
@@ -420,16 +365,6 @@ public class AiAnalysisService : IAiAnalysisService
                 analysisResult.MainIssue, analysisResult.Reason);
             _logger?.LogInformation("Sentiment: {Sentiment}, SentimentScore: {SentimentScore}, Urgency: {Urgency}", 
                 analysisResult.Sentiment, analysisResult.SentimentScore, analysisResult.Urgency);
-            _logger?.LogInformation("Keywords count: {KeywordsCount}, Suggestions count: {SuggestionsCount}", 
-                analysisResult.Keywords?.Count ?? 0, analysisResult.Suggestions?.Count ?? 0);
-            if (analysisResult.Keywords != null && analysisResult.Keywords.Count > 0)
-            {
-                _logger?.LogInformation("Keywords: {Keywords}", string.Join(", ", analysisResult.Keywords));
-            }
-            if (analysisResult.Suggestions != null && analysisResult.Suggestions.Count > 0)
-            {
-                _logger?.LogInformation("Suggestions: {Suggestions}", string.Join(" | ", analysisResult.Suggestions));
-            }
 
             // Validate and sanitize result
             var sanitized = SanitizeResult(analysisResult);
@@ -438,8 +373,6 @@ public class AiAnalysisService : IAiAnalysisService
                 sanitized.IssueCategory, sanitized.CategoryCode);
             _logger?.LogInformation("MainIssue: {MainIssue}, Reason: {Reason}", 
                 sanitized.MainIssue, sanitized.Reason);
-            _logger?.LogInformation("Keywords count: {KeywordsCount}, Suggestions count: {SuggestionsCount}", 
-                sanitized.Keywords?.Count ?? 0, sanitized.Suggestions?.Count ?? 0);
             
             // If still no valid category after sanitization, try pattern-based classification
             var finalCategoryCode = sanitized.CategoryCode ?? sanitized.IssueCategory;
@@ -464,8 +397,6 @@ public class AiAnalysisService : IAiAnalysisService
                     return new AiAnalysisResult(
                         sanitized.Sentiment,
                         sanitized.SentimentScore,
-                        sanitized.Keywords,
-                        sanitized.Suggestions,
                         sanitized.Urgency,
                         sanitized.MainIssue,
                         patternCode,
@@ -501,9 +432,7 @@ public class AiAnalysisService : IAiAnalysisService
         sb.AppendLine("  \"urgency\": 0 to 10 (integer),");
         sb.AppendLine("  \"sentiment\": \"Positive\" | \"Neutral\" | \"Negative\",");
         sb.AppendLine("  \"sentiment_score\": -1.0 to 1.0 (decimal number),");
-        sb.AppendLine("  \"reason\": \"Short justification (max 2 sentences)\",");
-        sb.AppendLine("  \"keywords\": [\"keyword1\", \"keyword2\", \"keyword3\"],");
-        sb.AppendLine("  \"suggestions\": [\"suggestion1\", \"suggestion2\", \"suggestion3\"]");
+        sb.AppendLine("  \"reason\": \"Concise summary/analysis explaining why this category was chosen (max 2 sentences). MUST be a summary/analysis, NOT a copy of the original feedback text.\"");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("=== EXAMPLE JSON OUTPUT ===");
@@ -514,9 +443,7 @@ public class AiAnalysisService : IAiAnalysisService
         sb.AppendLine("  \"urgency\": 7,");
         sb.AppendLine("  \"sentiment\": \"Negative\",");
         sb.AppendLine("  \"sentiment_score\": -0.6,");
-        sb.AppendLine("  \"reason\": \"Student reports excessive homework causing stress and difficulty understanding assignments.\",");
-        sb.AppendLine("  \"keywords\": [\"homework\", \"difficult\", \"stress\", \"assignment\", \"workload\"],");
-        sb.AppendLine("  \"suggestions\": [\"Reduce homework frequency to allow more time for understanding\", \"Provide clearer instructions for assignments\", \"Consider breaking large assignments into smaller tasks\"]");
+        sb.AppendLine("  \"reason\": \"Student reports excessive homework causing stress and difficulty understanding assignments.\"");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("=== ISSUE CATEGORIES (8 FIXED CODES) ===");
@@ -600,15 +527,18 @@ public class AiAnalysisService : IAiAnalysisService
         sb.AppendLine("   - Choose the category that BEST matches the MAIN issue");
         sb.AppendLine("   - If multiple issues, pick the MOST PROMINENT one");
         sb.AppendLine("   - If satisfaction < 0.4, DO NOT classify as positive");
-        sb.AppendLine("5. Reason: Provide a short 1-2 sentence explanation for the category choice.");
-        sb.AppendLine("6. Keywords: Extract 3-7 key terms from the feedback.");
-        sb.AppendLine("7. Suggestions: Provide 1-3 actionable improvement suggestions.");
+        sb.AppendLine("5. Reason: Provide a concise 1-2 sentence SUMMARY/ANALYSIS explaining why this category was chosen.");
+        sb.AppendLine("   - MUST be a summary/analysis, NOT a copy of the original feedback text");
+        sb.AppendLine("   - Good: \"Student reports excessive homework causing stress and difficulty understanding assignments.\"");
+        sb.AppendLine("   - Bad: \"I don't understand, homework difficult for me\" (copying original text)");
         sb.AppendLine();
         sb.AppendLine("=== EXAMPLES ===");
         sb.AppendLine("Example 1:");
         sb.AppendLine("  Ratings: All 1/4 (Not Satisfied), Satisfaction: 0.20");
         sb.AppendLine("  Comment: \"I don't understand, homework difficult for me\"");
         sb.AppendLine("  Expected: category_code=\"A1\", sentiment=\"Negative\", urgency=7-8");
+        sb.AppendLine("  Good reason: \"Student reports excessive homework causing stress and difficulty understanding assignments.\"");
+        sb.AppendLine("  Bad reason: \"I don't understand, homework difficult for me\" (copying original text)");
         sb.AppendLine();
         sb.AppendLine("Example 2:");
         sb.AppendLine("  Ratings: Q1=1, Q2=2, Satisfaction: 0.30");
@@ -624,18 +554,14 @@ public class AiAnalysisService : IAiAnalysisService
         sb.AppendLine("1. Return ONLY valid JSON - no markdown, no code fences (```), no explanations, no additional text");
         sb.AppendLine("2. Use EXACT property names as shown in schema (snake_case: category_code, sentiment_score, main_issue, etc.)");
         sb.AppendLine("3. category_code MUST be exactly one of: C1, C2, C3, C4, M1, A1, T1, F1");
-        sb.AppendLine("4. keywords MUST be a non-empty array with 3-7 strings");
-        sb.AppendLine("5. suggestions MUST be a non-empty array with 1-3 actionable improvement suggestions");
-        sb.AppendLine("6. reason MUST be a non-empty string (1-2 sentences)");
-        sb.AppendLine("7. All numeric fields must be valid numbers (not strings)");
-        sb.AppendLine("8. All string fields must be properly escaped JSON strings");
+        sb.AppendLine("4. reason MUST be a non-empty string (1-2 sentences) that summarizes/analyzes, NOT copies the original feedback text");
+        sb.AppendLine("5. All numeric fields must be valid numbers (not strings)");
+        sb.AppendLine("6. All string fields must be properly escaped JSON strings");
         sb.AppendLine();
         sb.AppendLine("=== VALIDATION CHECKLIST ===");
         sb.AppendLine("Before returning, verify:");
         sb.AppendLine("- JSON is valid and parseable");
         sb.AppendLine("- All required fields are present");
-        sb.AppendLine("- keywords array has at least 3 items");
-        sb.AppendLine("- suggestions array has at least 1 item");
         sb.AppendLine("- reason is not empty");
         sb.AppendLine("- category_code is one of the 8 valid codes");
         sb.AppendLine();
@@ -660,26 +586,6 @@ public class AiAnalysisService : IAiAnalysisService
         var urgency = result.Urgency;
         if (urgency < 0) urgency = 0;
         if (urgency > 10) urgency = 10;
-
-        // Ensure keywords and suggestions are never null
-        var keywords = result.Keywords?.Where(k => !string.IsNullOrWhiteSpace(k)).Take(10).ToList() ?? new List<string>();
-        var suggestions = result.Suggestions?.Where(s => !string.IsNullOrWhiteSpace(s)).Take(3).ToList() ?? new List<string>();
-        
-        // Fallback: Generate keywords if empty
-        if (keywords.Count == 0 && !string.IsNullOrWhiteSpace(result.MainIssue))
-        {
-            _logger?.LogInformation("No keywords from AI, extracting from MainIssue/Reason");
-            keywords = ExtractKeywordsFromText(result.MainIssue, result.Reason);
-            _logger?.LogInformation("Extracted {Count} keywords from text", keywords.Count);
-        }
-        
-        // Fallback: Generate suggestions from keywords if AI didn't provide any
-        if (suggestions.Count == 0)
-        {
-            _logger?.LogInformation("No suggestions from AI, generating from keywords/text");
-            suggestions = GenerateSuggestionsFromKeywords(keywords, result.MainIssue, result.Reason);
-            _logger?.LogInformation("Generated {Count} fallback suggestions", suggestions.Count);
-        }
 
         var mainIssue = result.MainIssue;
         if (string.IsNullOrWhiteSpace(mainIssue))
@@ -769,8 +675,6 @@ public class AiAnalysisService : IAiAnalysisService
         return new AiAnalysisResult(
             sentiment,
             sentimentScore,
-            keywords,
-            suggestions,
             urgency,
             mainIssue,
             issueCategory ?? "UNK", // Default to UNK if still empty
@@ -807,8 +711,6 @@ public class AiAnalysisService : IAiAnalysisService
         return new AiAnalysisResult(
             "Neutral",
             0.0m,
-            new List<string>(),
-            new List<string>(),
             0,
             "Analysis unavailable",
             "UNK", // Use UNK for Unknown
@@ -855,39 +757,41 @@ public class AiAnalysisService : IAiAnalysisService
             urgency = 4;
         }
         
-        // Extract keywords and generate suggestions from freeText
-        var keywords = ExtractKeywordsFromText(null, freeText);
-        var suggestions = GenerateSuggestionsFromKeywords(keywords, null, freeText);
-        
-        // Generate mainIssue from freeText
-        string mainIssue;
-        string reason;
-        if (!string.IsNullOrWhiteSpace(freeText))
-        {
-            mainIssue = freeText.Length > 200 ? freeText.Substring(0, 200).Trim() + "..." : freeText.Trim();
-            reason = $"Analysis generated from feedback: {mainIssue}";
-        }
-        else
-        {
-            mainIssue = satisfactionScore < 0.4m ? "Low satisfaction reported" : "General feedback";
-            reason = "No specific feedback text provided";
-        }
-        
-        // Classify category from text
-        var categoryCode = ClassifyByPattern(mainIssue, freeText) ?? "UNK";
+        // Classify category from text first
+        var categoryCode = ClassifyByPattern(freeText, freeText) ?? "UNK";
         var categoryEnum = IssueCategoryInfo.FromCode(categoryCode);
         var categoryName = categoryEnum != IssueCategory.Unknown 
             ? IssueCategoryInfo.GetName(categoryEnum) 
             : "Unknown";
         
-        _logger?.LogInformation("Fallback analysis generated - Sentiment: {Sentiment}, Category: {Category}, Keywords: {KeywordsCount}, Suggestions: {SuggestionsCount}", 
-            sentiment, categoryCode, keywords.Count, suggestions.Count);
+        // Generate mainIssue and reason as summaries, not copies
+        string mainIssue;
+        string reason;
+        if (!string.IsNullOrWhiteSpace(freeText))
+        {
+            // Create a summary from category instead of copying text
+            mainIssue = categoryCode != "UNK"
+                ? $"{categoryName} concerns reported"
+                : "General feedback concerns reported";
+            
+            reason = categoryCode != "UNK"
+                ? $"Student reports issues related to {categoryName.ToLower()}."
+                : "Student feedback indicates concerns.";
+        }
+        else
+        {
+            mainIssue = satisfactionScore < 0.4m ? "Low satisfaction reported" : "General feedback";
+            reason = satisfactionScore < 0.4m 
+                ? "Student reported low satisfaction with the course."
+                : "General feedback provided without specific details.";
+        }
+        
+        _logger?.LogInformation("Fallback analysis generated - Sentiment: {Sentiment}, Category: {Category}", 
+            sentiment, categoryCode);
         
         return new AiAnalysisResult(
             sentiment,
             sentimentScore,
-            keywords,
-            suggestions,
             urgency,
             mainIssue,
             categoryCode,
@@ -898,99 +802,6 @@ public class AiAnalysisService : IAiAnalysisService
         );
     }
     
-    /// <summary>
-    /// Generates suggestions from keywords if AI didn't provide suggestions
-    /// </summary>
-    private List<string> GenerateSuggestionsFromKeywords(List<string>? keywords, string? mainIssue, string? freeText)
-    {
-        var suggestions = new List<string>();
-        
-        if (keywords == null || keywords.Count == 0)
-        {
-            // Try to extract keywords from text
-            keywords = ExtractKeywordsFromText(mainIssue, freeText);
-        }
-        
-        if (keywords != null && keywords.Count > 0)
-        {
-            var lowerKeywords = keywords.Select(k => k.ToLowerInvariant()).ToList();
-            
-            // Generate suggestions based on keywords
-            if (lowerKeywords.Any(k => k.Contains("homework") || k.Contains("assignment") || k.Contains("workload")))
-            {
-                suggestions.Add("Consider reducing assignment frequency or breaking large tasks into smaller parts");
-                suggestions.Add("Provide clearer instructions and expectations for assignments");
-            }
-            
-            if (lowerKeywords.Any(k => k.Contains("understand") || k.Contains("clear") || k.Contains("explain")))
-            {
-                suggestions.Add("Provide more examples and step-by-step explanations");
-                suggestions.Add("Use visual aids or diagrams to enhance understanding");
-            }
-            
-            if (lowerKeywords.Any(k => k.Contains("pace") || k.Contains("fast") || k.Contains("slow")))
-            {
-                suggestions.Add("Adjust teaching pace based on student feedback");
-                suggestions.Add("Provide review sessions for complex topics");
-            }
-            
-            if (lowerKeywords.Any(k => k.Contains("support") || k.Contains("help") || k.Contains("response")))
-            {
-                suggestions.Add("Improve response time to student questions");
-                suggestions.Add("Schedule regular office hours or Q&A sessions");
-            }
-            
-            if (lowerKeywords.Any(k => k.Contains("material") || k.Contains("slide") || k.Contains("resource")))
-            {
-                suggestions.Add("Enhance learning materials with more examples and practice exercises");
-                suggestions.Add("Ensure all materials are accessible and well-organized");
-            }
-        }
-        
-        // If still no suggestions, add generic ones
-        if (suggestions.Count == 0)
-        {
-            suggestions.Add("Review feedback and address the main concerns raised");
-            suggestions.Add("Consider implementing improvements based on student input");
-        }
-        
-        return suggestions.Take(3).ToList();
-    }
-    
-    /// <summary>
-    /// Extracts keywords from text for fallback suggestions
-    /// </summary>
-    private List<string> ExtractKeywordsFromText(string? mainIssue, string? freeText)
-    {
-        var keywords = new List<string>();
-        var combinedText = $"{mainIssue} {freeText}".ToLowerInvariant();
-        
-        if (string.IsNullOrWhiteSpace(combinedText))
-            return keywords;
-        
-        // Common keywords to look for
-        var keywordPatterns = new[]
-        {
-            "homework", "assignment", "workload", "stress", "difficult", "hard",
-            "understand", "clear", "explain", "confusing", "unclear",
-            "pace", "fast", "slow", "speed",
-            "support", "help", "response", "reply",
-            "material", "slide", "resource", "document",
-            "projector", "temperature", "facility", "equipment",
-            "lms", "platform", "system", "technical"
-        };
-        
-        foreach (var pattern in keywordPatterns)
-        {
-            if (combinedText.Contains(pattern) && !keywords.Contains(pattern))
-            {
-                keywords.Add(pattern);
-            }
-        }
-        
-        return keywords;
-    }
-
     private string? ClassifyByPattern(string? mainIssue, string? freeText)
     {
         if (string.IsNullOrWhiteSpace(mainIssue) && string.IsNullOrWhiteSpace(freeText))

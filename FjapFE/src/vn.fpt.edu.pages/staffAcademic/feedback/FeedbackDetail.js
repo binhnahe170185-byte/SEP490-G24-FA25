@@ -292,34 +292,6 @@ export default function FeedbackDetail() {
             </div>
           )}
 
-          {feedback.keywords && feedback.keywords.length > 0 && (
-            <div>
-              <Text strong>Keywords: </Text>
-              <Space wrap style={{ marginTop: 8 }}>
-                {feedback.keywords.map((keyword, idx) => (
-                  <Tag key={idx}>{keyword}</Tag>
-                ))}
-              </Space>
-            </div>
-          )}
-
-          {feedback.aiSuggestions && feedback.aiSuggestions.length > 0 && (
-            <div>
-              <Text strong>AI Suggestions:</Text>
-              <List
-                size="small"
-                style={{ marginTop: 8 }}
-                dataSource={feedback.aiSuggestions}
-                renderItem={(item, idx) => (
-                  <List.Item>
-                    <CheckCircleOutlined style={{ color: "#52c41a", marginRight: "8px" }} />
-                    {item}
-                  </List.Item>
-                )}
-              />
-            </div>
-          )}
-
           <Card size="small" style={{ borderRadius: 10 }}>
             <Text strong>Satisfaction Score</Text>
             <Progress

@@ -36,9 +36,8 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
             _logger?.LogInformation("Analyzing text feedbacks - ClassId: {ClassId}, SemesterId: {SemesterId}, From: {From}, To: {To}", 
                 classId, semesterId, from, to);
 
-            // Query feedbacks with filters
+            // Query feedbacks with filters (keep tracking to update AnalyzedAt for incremental flow)
             var query = _context.Feedbacks
-                .AsNoTracking()
                 .Include(f => f.Class)
                 .Where(f => (!string.IsNullOrWhiteSpace(f.FreeText) || !string.IsNullOrWhiteSpace(f.FreeTextTranscript)));
 
@@ -76,30 +75,27 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
                 );
             }
 
-            // Group by sentiment
+            // Mark newly processed feedbacks as analyzed (incremental guard to avoid re-processing)
+            var newlyMarked = feedbacks.Where(f => f.AnalyzedAt == null).ToList();
+            if (newlyMarked.Any())
+            {
+                var now = DateTime.UtcNow;
+                newlyMarked.ForEach(f => f.AnalyzedAt = now);
+                await _context.SaveChangesAsync();
+                _logger?.LogInformation("Marked {Count} feedbacks as analyzed (no AI re-run needed)", newlyMarked.Count);
+            }
+
+            // Group by sentiment (use stored AI results)
             var positiveFeedbacks = feedbacks.Where(f => f.Sentiment == "Positive").ToList();
             var negativeFeedbacks = feedbacks.Where(f => f.Sentiment == "Negative").ToList();
             var neutralFeedbacks = feedbacks.Where(f => f.Sentiment != "Positive" && f.Sentiment != "Negative").ToList();
 
-            // Analyze positive and negative separately
-            _logger?.LogInformation("Analyzing {PositiveCount} positive and {NegativeCount} negative feedbacks", 
+            // Build summaries from stored AI fields (no extra Gemini calls)
+            _logger?.LogInformation("Summarizing {PositiveCount} positive and {NegativeCount} negative feedbacks from cached data", 
                 positiveFeedbacks.Count, negativeFeedbacks.Count);
 
-            var positiveSummary = await SummarizeTextFeedbacksAsync(positiveFeedbacks, "Positive");
-            var negativeSummary = await SummarizeTextFeedbacksAsync(negativeFeedbacks, "Negative");
-
-            _logger?.LogInformation("Analysis complete - Positive topics: {PositiveTopics}, Negative topics: {NegativeTopics}", 
-                positiveSummary.Count, negativeSummary.Count);
-
-            // Fallback: If we have negative feedbacks but AI didn't return any analysis, create a simple summary
-            if (negativeFeedbacks.Any() && !negativeSummary.Any())
-            {
-                _logger?.LogWarning("AI didn't return negative analysis for {Count} negative feedbacks. Creating fallback summary.", negativeFeedbacks.Count);
-                negativeSummary = CreateFallbackNegativeSummary(negativeFeedbacks);
-            }
-
-            // Sort negative by MentionCount descending to highlight frequent issues
-            negativeSummary = negativeSummary.OrderByDescending(x => x.MentionCount).ToList();
+            var positiveSummary = BuildSummaryFromCachedData(positiveFeedbacks, "Positive");
+            var negativeSummary = BuildSummaryFromCachedData(negativeFeedbacks, "Negative");
 
             return new FeedbackTextSummaryDto(
                 positiveSummary,
@@ -130,6 +126,13 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
         }
 
         _logger?.LogInformation("Starting analysis for {Count} {Sentiment} feedbacks", feedbacks.Count, sentiment);
+
+        // New incremental path: build summary from cached AI fields, no Gemini call
+        var cachedSummary = BuildSummaryFromCachedData(feedbacks, sentiment);
+        if (cachedSummary.Any())
+        {
+            return cachedSummary;
+        }
 
         // Combine all text feedbacks - prioritize FreeText, fallback to FreeTextTranscript
         // Limit to 30 feedbacks and truncate each to 200 chars for faster processing
@@ -374,6 +377,59 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
             _logger?.LogError(ex, "Error summarizing {Sentiment} text feedbacks", sentiment);
             return new List<TextSummaryItemDto>();
         }
+    }
+
+    private List<TextSummaryItemDto> BuildSummaryFromCachedData(List<Feedback> feedbacks, string sentiment)
+    {
+        if (!feedbacks.Any())
+        {
+            _logger?.LogInformation("No {Sentiment} feedbacks to summarize from cache", sentiment);
+            return new List<TextSummaryItemDto>();
+        }
+
+        var groups = feedbacks.GroupBy(f =>
+            !string.IsNullOrWhiteSpace(f.CategoryCode) ? f.CategoryCode :
+            !string.IsNullOrWhiteSpace(f.IssueCategory) ? f.IssueCategory :
+            "UNK");
+
+        var summaries = new List<TextSummaryItemDto>();
+
+        foreach (var group in groups)
+        {
+            var code = group.Key ?? "UNK";
+            var display = IssueCategoryInfo.GetDisplayNameWithCode(code);
+            var nameOnly = IssueCategoryInfo.GetDisplayName(code);
+            var topic = !string.IsNullOrWhiteSpace(display) ? display : nameOnly ?? "Unknown";
+
+            var mainIssue = group.FirstOrDefault(g => !string.IsNullOrWhiteSpace(g.MainIssue))?.MainIssue
+                            ?? $"Feedback about {nameOnly ?? "Unknown"}";
+
+            var examples = group
+                .Select(g => g.FreeText ?? g.FreeTextTranscript ?? string.Empty)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Take(2)
+                .ToList();
+
+            if (!examples.Any())
+            {
+                examples.Add("No example available");
+            }
+
+            var mentionCount = group.Count();
+            var urgencyScore = group.Any() ? group.Max(g => g.Urgency) : 0;
+
+            summaries.Add(new TextSummaryItemDto(
+                topic,
+                mainIssue,
+                mentionCount,
+                examples,
+                urgencyScore
+            ));
+        }
+
+        return summaries
+            .OrderByDescending(s => s.MentionCount)
+            .ToList();
     }
 
     private string BuildSummaryPrompt(List<string> feedbackTexts, string sentiment)

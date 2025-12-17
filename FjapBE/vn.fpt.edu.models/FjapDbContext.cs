@@ -192,13 +192,13 @@ public partial class FjapDbContext : DbContext
 
             entity.HasIndex(e => e.IssueCategory, "idx_feedbacks_issue_category");
 
+            entity.HasIndex(e => e.CategoryCode, "idx_feedback_category_code");
+
+            entity.HasIndex(e => e.AnalyzedAt, "idx_feedback_analyzed_at");
+
             entity.HasIndex(e => new { e.StudentId, e.ClassId }, "uk_feedback_student_class").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.AiSuggestions)
-                .HasComment("Array các suggestions từ AI (1-3 items)")
-                .HasColumnType("json")
-                .HasColumnName("ai_suggestions");
             entity.Property(e => e.Answers)
                 .HasComment("Map of questionId to answer value (1-4)")
                 .HasColumnType("json")
@@ -206,6 +206,18 @@ public partial class FjapDbContext : DbContext
             entity.Property(e => e.ClassId)
                 .HasComment("ID của class được feedback")
                 .HasColumnName("class_id");
+            entity.Property(e => e.CategoryCode)
+                .HasMaxLength(20)
+                .HasComment("New 8-category code (C1..F1 or UNK)")
+                .HasColumnName("category_code");
+            entity.Property(e => e.CategoryConfidence)
+                .HasPrecision(4, 2)
+                .HasComment("Confidence returned by AI for category classification (0..1)")
+                .HasColumnName("category_confidence");
+            entity.Property(e => e.CategoryName)
+                .HasMaxLength(200)
+                .HasComment("Display name of the category (aligned with CategoryCode)")
+                .HasColumnName("category_name");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime")
@@ -218,14 +230,18 @@ public partial class FjapDbContext : DbContext
                 .HasComment("Transcript từ speech-to-text (nếu có)")
                 .HasColumnType("text")
                 .HasColumnName("free_text_transcript");
+            entity.Property(e => e.AiReason)
+                .HasColumnType("text")
+                .HasComment("Detailed reasoning/explanation returned by AI")
+                .HasColumnName("ai_reason");
+            entity.Property(e => e.AnalyzedAt)
+                .HasColumnType("datetime")
+                .HasComment("Timestamp when feedback was last analyzed by AI")
+                .HasColumnName("analyzed_at");
             entity.Property(e => e.IssueCategory)
                 .HasMaxLength(50)
                 .HasComment("Category code for feedback issue (e.g., ASSESSMENT_LOAD, FACILITY_ISSUES)")
                 .HasColumnName("issue_category");
-            entity.Property(e => e.Keywords)
-                .HasComment("Array các keywords từ AI")
-                .HasColumnType("json")
-                .HasColumnName("keywords");
             entity.Property(e => e.MainIssue)
                 .HasMaxLength(500)
                 .HasComment("Vấn đề chính được AI phát hiện")
@@ -377,10 +393,6 @@ public partial class FjapDbContext : DbContext
             entity.HasIndex(e => new { e.StudentId, e.ClassId }, "uk_feedback_student_class").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.AiSuggestions)
-                .HasComment("Array các suggestions từ AI (1-3 items)")
-                .HasColumnType("json")
-                .HasColumnName("ai_suggestions");
             entity.Property(e => e.Answers)
                 .HasComment("Map of questionId to answer value (1-4)")
                 .HasColumnType("json")
@@ -404,10 +416,6 @@ public partial class FjapDbContext : DbContext
                 .HasMaxLength(50)
                 .HasComment("Category code for feedback issue (e.g., ASSESSMENT_LOAD, FACILITY_ISSUES)")
                 .HasColumnName("issue_category");
-            entity.Property(e => e.Keywords)
-                .HasComment("Array các keywords từ AI")
-                .HasColumnType("json")
-                .HasColumnName("keywords");
             entity.Property(e => e.MainIssue)
                 .HasMaxLength(500)
                 .HasComment("Vấn đề chính được AI phát hiện")

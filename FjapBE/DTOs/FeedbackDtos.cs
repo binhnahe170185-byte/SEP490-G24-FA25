@@ -32,11 +32,14 @@ public record FeedbackDto(
     decimal SatisfactionScore,
     string Sentiment,
     decimal? SentimentScore,
-    List<string>? Keywords,
-    List<string>? AiSuggestions,
     int Urgency,
     string? MainIssue,
     string? IssueCategory,
+    string? CategoryCode,
+    string? CategoryName,
+    decimal? CategoryConfidence,
+    string? AiReason,
+    DateTime? AnalyzedAt,
     string Status,
     DateTime CreatedAt,
     DateTime UpdatedAt
@@ -98,8 +101,6 @@ public record FeedbackQuestionDto(
 public record AiAnalysisResult(
     [property: JsonPropertyName("sentiment")] string Sentiment,
     [property: JsonPropertyName("sentiment_score")] decimal SentimentScore,
-    [property: JsonPropertyName("keywords")] List<string>? Keywords,
-    [property: JsonPropertyName("suggestions")] List<string>? Suggestions,
     [property: JsonPropertyName("urgency")] int Urgency,
     [property: JsonPropertyName("main_issue")] string MainIssue,
     [property: JsonPropertyName("issue_category")] string? IssueCategory = null,
@@ -157,6 +158,11 @@ public record LecturerClassFeedbackItemDto(
     int Urgency,
     string? MainIssue,
     string? IssueCategory,
+    string? CategoryCode,
+    string? CategoryName,
+    decimal? CategoryConfidence,
+    string? AiReason,
+    DateTime? AnalyzedAt,
     DateTime CreatedAt
 );
 
