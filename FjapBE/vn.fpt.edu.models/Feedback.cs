@@ -54,16 +54,6 @@ public partial class Feedback
     public decimal? SentimentScore { get; set; }
 
     /// <summary>
-    /// Array các keywords từ AI
-    /// </summary>
-    public string? Keywords { get; set; }
-
-    /// <summary>
-    /// Array các suggestions từ AI (1-3 items)
-    /// </summary>
-    public string? AiSuggestions { get; set; }
-
-    /// <summary>
     /// 0-10, urgency &gt;= 7 sẽ gửi notification
     /// </summary>
     public int Urgency { get; set; }
@@ -107,6 +97,31 @@ public partial class Feedback
     /// Category code for feedback issue (e.g., ASSESSMENT_LOAD, FACILITY_ISSUES)
     /// </summary>
     public string? IssueCategory { get; set; }
+
+    /// <summary>
+    /// New 8-category code (C1..F1 or UNK) used for incremental text analysis summaries
+    /// </summary>
+    public string? CategoryCode { get; set; }
+
+    /// <summary>
+    /// Display name of the category (aligned with CategoryCode)
+    /// </summary>
+    public string? CategoryName { get; set; }
+
+    /// <summary>
+    /// Confidence returned by AI for the category classification (0..1)
+    /// </summary>
+    public decimal? CategoryConfidence { get; set; }
+
+    /// <summary>
+    /// Detailed reasoning/explanation returned by AI
+    /// </summary>
+    public string? AiReason { get; set; }
+
+    /// <summary>
+    /// Timestamp when this feedback was last analyzed by AI (used for incremental processing)
+    /// </summary>
+    public DateTime? AnalyzedAt { get; set; }
 
     public virtual Class Class { get; set; } = null!;
 

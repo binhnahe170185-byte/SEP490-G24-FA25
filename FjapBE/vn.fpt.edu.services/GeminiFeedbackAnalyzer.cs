@@ -152,8 +152,7 @@ public class GeminiFeedbackAnalyzer
 
     private string BuildPrompt(Feedback feedback)
     {
-        // TODO: GetAnswersDict - extension method not implemented
-        var answers = new Dictionary<int, int>(); // feedback.GetAnswersDict() ?? new Dictionary<int, int>();
+        var answers = feedback.GetAnswersDict() ?? new Dictionary<int, int>();
 
         // NOTE: Map your actual question IDs to Q1..Q5 here.
         int q1 = answers.GetValueOrDefault(2);   // Teaching Clarity
@@ -196,13 +195,17 @@ public class GeminiFeedbackAnalyzer
         sb.AppendLine($"satisfaction_score: {feedback.SatisfactionScore:0.00}");
         sb.AppendLine($"free_text: {feedback.FreeText ?? "(none)"}");
         sb.AppendLine();
+        sb.AppendLine("IMPORTANT: The 'reason' field MUST be a concise summary/analysis (1-2 sentences) explaining why this category was chosen.");
+        sb.AppendLine("DO NOT copy the original feedback text verbatim. Instead, analyze and summarize the main issue.");
+        sb.AppendLine("Example: If feedback says \"I don't understand, homework difficult\", good reason is \"Student reports difficulty understanding assignments and excessive homework causing stress.\"");
+        sb.AppendLine();
         sb.AppendLine("Return ONLY a valid JSON object with this schema:");
         sb.AppendLine("{");
         sb.AppendLine("  \"category_code\": \"C1|C2|C3|C4|M1|A1|T1|F1\",");
         sb.AppendLine("  \"category_name\": \"string\",");
         sb.AppendLine("  \"confidence\": 0.0-1.0,");
         sb.AppendLine("  \"urgency\": 0-10,");
-        sb.AppendLine("  \"reason\": \"string\",");
+        sb.AppendLine("  \"reason\": \"Concise summary/analysis explaining why this category was chosen (1-2 sentences). MUST be a summary/analysis, NOT a copy of the original feedback text.\",");
         sb.AppendLine("  \"sentiment\": \"Positive\"|\"Neutral\"|\"Negative\",");
         sb.AppendLine("  \"sentiment_score\": -1.0 to 1.0");
         sb.AppendLine("}");
