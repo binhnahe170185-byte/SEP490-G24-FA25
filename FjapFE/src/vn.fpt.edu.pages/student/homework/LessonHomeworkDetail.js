@@ -28,8 +28,10 @@ import {
   EyeOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import Link from "antd/es/typography/Link";
 import LecturerHomework from "../../../vn.fpt.edu.api/LecturerHomework";
 import StudentHomework from "../../../vn.fpt.edu.api/StudentHomework";
+import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
 const { Title, Text } = Typography;
 
@@ -147,6 +149,7 @@ const LessonHomeworkDetail = () => {
   const [studentSubmissions, setStudentSubmissions] = useState({});
   const previewObjectUrl = useRef(null);
   const backOrigin = location.state?.from;
+  const notify = useNotify();
 
   const normalizeUploadValue = (event) => {
     if (Array.isArray(event)) {
@@ -158,7 +161,7 @@ const LessonHomeworkDetail = () => {
   const handleCreateDoc = () => {
     const generatedLink = `https://docs.google.com/document/d/${Date.now()}`;
     setDocLink(generatedLink);
-    message.success("New Google Doc created. Link attached to submission.");
+    notify.success("create_doc", "Document Created", "New Google Doc created. Link attached to submission.");
   };
 
   const appendCacheBuster = (url) => {
@@ -243,7 +246,7 @@ const LessonHomeworkDetail = () => {
 
   const handleOpenPreview = (url) => {
     if (!url) {
-      message.warning("File path is missing.");
+      notify.error("preview_error", "Preview Failed", "File path is missing.");
       return;
     }
     handleOpenInNewTab(url);
@@ -258,7 +261,7 @@ const LessonHomeworkDetail = () => {
 
   const handleOpenInNewTab = (url) => {
     if (!url) {
-      message.warning("File path is missing.");
+      notify.error("open_error", "Error", "File path is missing.");
       return;
     }
     const target = appendCacheBuster(url);
@@ -373,7 +376,7 @@ const LessonHomeworkDetail = () => {
       } catch (error) {
         console.error("Failed to load homeworks:", error);
         if (!ignore) {
-          message.error("Unable to load homework list for this lesson");
+          notify.error("load_error", "Error", "Unable to load homework list for this lesson");
         }
       } finally {
         if (!ignore) {
@@ -481,27 +484,30 @@ const LessonHomeworkDetail = () => {
   };
 
   const handleSubmitHomework = async () => {
+    const key = "submit_homework";
     try {
       const values = await form.validateFields();
       if (!studentId) {
-        message.error("User information is missing. Please login again.");
+        notify.error(key, "Authentication Error", "User information is missing. Please login again.");
         return;
       }
 
       if (submissionMethod === "local" && (!values.files || values.files.length === 0)) {
-        message.warning("Please attach files from your device.");
+        notify.error(key, "Validation Error", "Please attach files from your device.");
         return;
       }
       if (submissionMethod === "drive" && !values.driveLink) {
-        message.warning("Please provide a Google Drive link.");
+        notify.error(key, "Validation Error", "Please provide a Google Drive link.");
         return;
       }
       if (submissionMethod === "doc" && !docLink) {
-        message.warning("Please create the Google Doc before submitting.");
+        notify.error(key, "Validation Error", "Please create the Google Doc before submitting.");
         return;
       }
 
       setSubmitting(true);
+      notify.pending(key, "Submitting Homework", "Process is in progress...");
+
       const homeworkKey = selectedHomework?.homeworkId || selectedHomework?.id;
       const savedSubmission = await StudentHomework.submitHomework({
         homeworkId: homeworkKey,
@@ -513,7 +519,8 @@ const LessonHomeworkDetail = () => {
         docLink,
       });
 
-      message.success("Homework submitted successfully");
+      notify.success(key, "Success", "Homework submitted successfully");
+
       if (homeworkKey && savedSubmission) {
         setStudentSubmissions((prev) => ({
           ...prev,
@@ -527,7 +534,8 @@ const LessonHomeworkDetail = () => {
       handleCloseSubmitModal();
     } catch (error) {
       if (error?.errorFields) return;
-      message.error("Failed to submit homework");
+      console.error(error);
+      notify.error(key, "Submission Failed", "Failed to submit homework. Please try again.");
     } finally {
       setSubmitting(false);
     }

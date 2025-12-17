@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Empty,
+  Modal,
   Popconfirm,
   Space,
   Spin,
@@ -182,6 +183,17 @@ const HomeworkDetail = () => {
     }
   };
 
+  const confirmDelete = (homeworkId) => {
+    Modal.confirm({
+      title: "Delete Homework",
+      content: "Are you sure you want to delete this homework? This action cannot be undone.",
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => handleDelete(homeworkId),
+    });
+  };
+
   const meta = useMemo(() => {
     if (!slot) return {};
     const dateLabel = slot.date ? dayjs(slot.date).format("DD/MM/YYYY") : "N/A";
@@ -309,19 +321,13 @@ const HomeworkDetail = () => {
             size="small"
             onClick={() => handleEdit(record)}
           />
-          <Popconfirm
-            title="Remove this homework?"
-            okText="Delete"
-            cancelText="Cancel"
-            onConfirm={() => handleDelete(record.homeworkId)}
-          >
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              size="small"
-            />
-          </Popconfirm>
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            size="small"
+            onClick={() => confirmDelete(record.homeworkId)}
+          />
         </Space>
       ),
     },
