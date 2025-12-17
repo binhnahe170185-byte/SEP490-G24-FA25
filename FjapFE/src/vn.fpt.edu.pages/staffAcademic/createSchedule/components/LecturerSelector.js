@@ -86,7 +86,7 @@ const LecturerSelector = ({
                 const selected = lecturers.find(l => l.value === value);
                 onLecturerChange(value, selected?.lecturerCode || '', selected?.email || '');
               }}
-              placeholder="Lecturer Email"
+              placeholder="Lecturer"
               loading={loadingLecturers}
               options={lecturers}
               showSearch

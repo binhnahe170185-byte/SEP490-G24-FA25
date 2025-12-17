@@ -238,22 +238,22 @@ export default function ClassDetail() {
   return (
     <section style={wrapperStyle}>
       <Space size={12}>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate(-1)}
-          >
-            Back
-          </Button>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Class Detail
-          </Typography.Title>
-        </Space>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+        >
+          Back
+        </Button>
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          Class Detail
+        </Typography.Title>
+      </Space>
       <header>
         <p style={{ marginTop: 4, color: "#64748b" }}>
           You are viewing information for class <strong>{className}</strong>.
         </p>
       </header>
-      
+
 
       <article style={tableCardStyle}>
         <Table

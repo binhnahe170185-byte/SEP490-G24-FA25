@@ -272,7 +272,7 @@ export default function Attendance() {
     ) {
       // Preserve scheduleState when replacing navigation
       const scheduleState = location.state?.scheduleState;
-      navigate(location.pathname, { 
+      navigate(location.pathname, {
         replace: true,
         state: scheduleState ? { scheduleState } : undefined
       });
@@ -386,11 +386,21 @@ export default function Attendance() {
 
   const scheduleState = location.state?.scheduleState;
   const handleBackToSchedule = () => {
-    navigate('/lecturer/schedule', {
-      state: {
-        scheduleState: scheduleState,
-      },
-    });
+    // Prefer going back in history (usually returns to Schedule)
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    // Fallback: go directly to schedule, preserving scheduleState if available
+    if (scheduleState) {
+      navigate("/lecturer/schedule", {
+        state: { scheduleState },
+        replace: true,
+      });
+    } else {
+      navigate("/lecturer/schedule", { replace: true });
+    }
   };
 
   return (

@@ -32,17 +32,17 @@ public class FeedbackCheckService : IFeedbackCheckService
         try
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var thresholdDate = today.AddDays(7);
 
-            // Get classes where student is enrolled, semester end date is within 7 days, and class is active
+            // Get classes where student is enrolled, semester end date is within 7 days from today (before or after),
+            // and class is active. Form will start showing from 7 days BEFORE EndDate and continue to show
+            // even AFTER EndDate until the student submits feedback.
             var classesNeedingFeedback = await _context.Classes
                 .AsNoTracking()
                 .Include(c => c.Semester)
                 .Include(c => c.Students)
                 .Include(c => c.Subject)
                 .Where(c => c.Students.Any(s => s.StudentId == studentId)
-                    && c.Semester.EndDate <= thresholdDate
-                    && c.Semester.EndDate >= today
+                    && c.Semester.EndDate.AddDays(-7) <= today
                     && c.Status == "Active")
                 .ToListAsync();
 

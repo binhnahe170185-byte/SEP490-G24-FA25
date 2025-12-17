@@ -130,13 +130,18 @@ const PickSemesterAndClass = ({
 
       const scheduleData = response.data?.data || response.data || [];
 
+      // Find className from selected class in dropdown
+      const selectedClass = displayClasses.find(c => String(c.value) === String(classId));
+      const className = selectedClass?.label || '';
+
       // Gọi callback onLoadClass với schedule data
       if (onLoadClass) {
         onLoadClass({
           semesterId: parseInt(semesterId),
           classId: parseInt(classId),
           schedule: scheduleData,
-          semesterOptions: semesterOptions.find(s => s.value === semesterId)
+          semesterOptions: semesterOptions.find(s => s.value === semesterId),
+          className: className
         });
       }
     } catch (error) {
