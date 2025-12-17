@@ -1,4 +1,3 @@
-import React from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../vn.fpt.edu.api/http";
@@ -6,11 +5,26 @@ import { useAuth } from "./AuthContext";
 import "./login.css";
 import { notification } from "antd";
 import "antd/dist/reset.css";
-
+import React, { useEffect, useState } from "react";
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [notiApi, contextHolder] = notification.useNotification();
+  const backgrounds = [
+    "/loginImage.jpg",
+    "/loginImage2.png",
+    "/loginImage3.jpg",
+  ];
+
+  const [bgIndex, setBgIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % backgrounds.length);
+    }, 5000); // đổi ảnh mỗi 5 giây
+
+    return () => clearInterval(interval);
+  }, []);
 
   async function onSuccess(credentialResponse) {
     try {
@@ -33,7 +47,7 @@ export default function LoginPage() {
       };
 
       login({ token, profile });
-      
+
       // Redirect based on role
       const roleId = Number(profile.roleId);
       if (roleId === 7) {
@@ -60,10 +74,10 @@ export default function LoginPage() {
 
       <section className="lp-left" aria-label="Login area">
         <div className="lp-card" role="group" aria-labelledby="lp-title">
-          <img 
-            id="lp-title" 
-            className="lp-hero-title" 
-            src="/FJAP.png" 
+          <img
+            id="lp-title"
+            className="lp-hero-title"
+            src="/FJAP.png"
             alt="FPT Japan Academy"
           />
 
@@ -90,14 +104,18 @@ export default function LoginPage() {
           </div>
         </div>
       </section>
-
-      <section
-        className="lp-right"
-        style={{ backgroundImage: `url('/loginImage.jpg')` }}
-        aria-hidden="true"
-      >
+      <section className="lp-right" aria-hidden="true">
+        {backgrounds.map((bg, index) => (
+          <div
+            key={bg}
+            className={`lp-bg ${index === bgIndex ? "active" : ""
+              }`}
+            style={{ backgroundImage: `url('${bg}')` }}
+          />
+        ))}
         <div className="lp-right-overlay" />
       </section>
+
     </div>
   );
 }

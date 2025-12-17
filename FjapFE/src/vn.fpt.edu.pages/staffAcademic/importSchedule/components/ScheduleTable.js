@@ -223,7 +223,7 @@ export default function ScheduleTable({
 				r.validMapping ? (
 					<Tag color="green">OK</Tag>
 				) : (
-					<Tooltip title="Have problem in Class/Room/Slot/DayOfWeek/Lecturer">
+					<Tooltip title="Have problem in Class/Room/Slot/DayOfWeek/Lecture">
 						<Tag color="red">Missing</Tag>
 					</Tooltip>
 				),
