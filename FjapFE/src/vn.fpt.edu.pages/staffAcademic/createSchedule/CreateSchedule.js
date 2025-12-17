@@ -908,9 +908,9 @@ const CreateSchedule = () => {
 
     // Nếu nhận được data từ PickSemesterAndClass (API call)
     if (data && data.schedule) {
-      const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt, subjectCode: subCode, subjectName: subName } = data;
+      const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt, subjectCode: subCode, subjectName: subName, className: clsName } = data;
 
-      console.log('Received schedule data:', { schedule, semOpt, semId, clsId, subCode, subName });
+      console.log('Received schedule data:', { schedule, semOpt, semId, clsId, subCode, subName, clsName });
 
       // Tính toán semester start/end từ schedule data nếu không có từ semOpt
       let semStart, semEnd;
@@ -1034,7 +1034,8 @@ const CreateSchedule = () => {
       const subjectNameFromApi = subName || '';
       const firstSubjectCode = subjectCodeFromApi || schedule[0]?.subjectCode || '';
       const firstSubjectName = subjectNameFromApi || schedule[0]?.subjectName || '';
-      const firstClassName = schedule[0]?.className || '';
+      // Priority: className from PickSemesterAndClass > className from schedule[0] > empty string
+      const firstClassName = clsName || schedule[0]?.className || '';
 
       if (firstSubjectCode) {
         setSubjectCode(firstSubjectCode);
@@ -1438,9 +1439,9 @@ const CreateSchedule = () => {
         }
 
         if (previewLesson) {
-          // Preview lesson exists - display SubjectCode, RoomName
+          // Preview lesson exists - display ClassName, RoomName
           // Conflict checking is handled in WeeklySchedule component
-          const previewSubjectCode = subjectCode || '';
+          const previewClassName = previewLesson.className || className || '';
           const previewRoomName = previewLesson.room || '';
           const previewLecturer = previewLesson.lecturer || '';
           // Ensure lecturer display is substring if it's an email (same as loaded lesson)
@@ -1448,7 +1449,7 @@ const CreateSchedule = () => {
             ? getEmailUsername(previewLecturer)
             : previewLecturer;
           const parts = [];
-          if (previewSubjectCode) parts.push(previewSubjectCode);
+          if (previewClassName) parts.push(previewClassName);
           if (previewRoomName) parts.push(previewRoomName);
           if (previewLecturerDisplay) parts.push(previewLecturerDisplay);
 
@@ -1462,8 +1463,8 @@ const CreateSchedule = () => {
           };
           classNames.push('lesson-preview');
         } else if (loadedLesson) {
-          // Only loaded lesson exists (no preview) - display SubjectCode, RoomName
-          const loadedSubjectCode = loadedLesson.subjectCode || '';
+          // Only loaded lesson exists (no preview) - display ClassName, RoomName
+          const loadedClassName = loadedLesson.className || className || '';
           const loadedRoomName = loadedLesson.room || '';
           const loadedLecturer = loadedLesson.lecturer || '';
           // Ensure lecturer display is substring if it's an email
@@ -1472,7 +1473,7 @@ const CreateSchedule = () => {
             : loadedLecturer;
 
           const parts = [];
-          if (loadedSubjectCode) parts.push(loadedSubjectCode);
+          if (loadedClassName) parts.push(loadedClassName);
           if (loadedRoomName) parts.push(loadedRoomName);
           if (loadedLecturerDisplay) parts.push(loadedLecturerDisplay);
 

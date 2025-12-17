@@ -10,7 +10,7 @@ const layoutStyles = {
   backgroundColor: "#f5f5f5",
 };
 
-const mainStyles = {
+const mainStylesBase = {
   flex: 1,
   overflowY: "auto",
   paddingTop: "64px", // Padding để tránh bị header fixed che
@@ -19,6 +19,12 @@ const mainStyles = {
 const LecturerLayout = () => {
   const location = useLocation();
   const isDashboard = location.pathname === '/lecturer/homepage' || location.pathname === '/lecturer';
+  const isSchedulePage = location.pathname.startsWith('/lecturer/schedule');
+
+  const mainStyles = {
+    ...mainStylesBase,
+    backgroundColor: isSchedulePage ? '#ffffff' : 'transparent',
+  };
 
   return (
     <div style={layoutStyles}>

@@ -130,6 +130,25 @@ const WeeklySchedules = ({
 
   // Check conflict when selections change
   useEffect(() => {
+    // First check: duplicate pattern with existing patterns (Pending Schedule)
+    // This check can run even without all prerequisites (weekday + slotId is enough)
+    if (weekday && slotId) {
+      const duplicatePattern = patterns.some(
+        p => p.weekday === parseInt(weekday, 10) && p.slot === parseInt(slotId, 10)
+      );
+
+      if (duplicatePattern) {
+        setConflictStatus({
+          hasConflict: true,
+          message: 'Duplicate pattern: This weekday and slot already exists',
+          checking: false,
+          details: ['This weekday and slot is already in Pending Schedule']
+        });
+        return;
+      }
+    }
+
+    // If no duplicate pattern, continue with other conflict checks
     if (!weekday || !slotId || !roomId || !semesterStart || !classId || !lecturerId) {
       setConflictStatus({ hasConflict: false, message: '', checking: false });
       return;
@@ -255,7 +274,7 @@ const WeeklySchedules = ({
         checking: false
       });
     }
-  }, [weekday, slotId, roomId, semesterStart, semesterEnd, classId, lecturerId, conflictMap, holidays, studentScheduleCache, findNextDateForWeekday, toYMD, addDays]);
+  }, [weekday, slotId, roomId, semesterStart, semesterEnd, classId, lecturerId, conflictMap, holidays, studentScheduleCache, findNextDateForWeekday, toYMD, addDays, patterns]);
 
   const hasValues = weekday && slotId && roomId;
   const isChecking = conflictStatus.checking;

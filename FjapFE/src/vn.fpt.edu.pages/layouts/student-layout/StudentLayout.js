@@ -202,8 +202,13 @@ const StudentLayout = ({ children }) => {
     navigate(path);
   };
 
+  const isWeeklyTimetable = location.pathname.startsWith('/student/weeklyTimetable');
+
   return (
-    <div className="student-homepage">
+    <div
+      className="student-homepage"
+      style={isWeeklyTimetable ? { background: '#ffffff' } : undefined}
+    >
       {/* Student Header */}
       <header className="student-header">
         <div className="student-header-content">
