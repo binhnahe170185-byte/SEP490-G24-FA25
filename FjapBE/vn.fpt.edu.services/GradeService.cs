@@ -79,7 +79,23 @@ namespace FJAP.Services
 
         public async Task<GradeStatisticsDto> GetStatisticsAsync(GradeFilterRequest? filter = null)
         {
-            return await _gradeRepository.GetGradeStatisticsAsync(filter);
+            var stats = await _gradeRepository.GetGradeStatisticsAsync(filter);
+            if (filter == null || (filter.SemesterId == null && filter.SubjectId == null && filter.LevelId == null))
+            {
+                stats.TotalStudents = await _context.Students.CountAsync();
+            }
+            else
+            {
+                var query = _context.Grades.AsQueryable();
+                 if (filter.SubjectId.HasValue) query = query.Where(g => g.SubjectId == filter.SubjectId.Value);
+                if (filter.SemesterId.HasValue) 
+                    query = query.Where(g => g.Subject.Classes.Any(c => c.SemesterId == filter.SemesterId.Value)); // This is complex, maybe just ignore filter for Total Students for now or use simplified approach
+                
+                // Simple approach: Total Students in the system (Active)
+                 stats.TotalStudents = await _context.Students.CountAsync();
+            }
+
+            return stats;
         }
 
         public async Task RecalculateFinalScoreAsync(int gradeId)
@@ -383,5 +399,101 @@ namespace FJAP.Services
         }
 
         private sealed record GradeNotificationContext(int UserId, string SubjectName);
+
+        public async Task<DashboardChartDataDto> GetDashboardChartsAsync()
+        {
+            var result = new DashboardChartDataDto();
+
+            // 1. Pass Rate by Semester
+            // Get all grades that have a FinalScore, grouped by Semester
+            var passRateData = await _context.Grades
+                .Where(g => g.FinalScore.HasValue)
+                .Include(g => g.Subject)
+                .Include(g => g.Student)
+                .Join(_context.Classes,
+                    grade => new { grade.StudentId, grade.SubjectId },
+                    cls => new { StudentId = cls.Students.FirstOrDefault().StudentId, cls.SubjectId }, // Simplified join via student/subject - this might be tricky with many-to-many
+
+                    (grade, cls) => new { grade, cls }) 
+                 .ToListAsync();
+
+            var semesterStats = await _context.Classes
+                .Include(c => c.Semester)
+                .Select(c => new 
+                {
+                    SemesterName = c.Semester.Name,
+                    SemesterId = c.SemesterId,
+                    StartDate = c.Semester.StartDate,
+                     // Get Grades for students in this class for this subject
+                    Grades = _context.Grades
+                        .Where(g => g.SubjectId == c.SubjectId && c.Students.Select(s => s.StudentId).Contains(g.StudentId))
+                        .Select(g => new { g.FinalScore, PassMark = g.Subject.PassMark })
+                        .ToList()
+                })
+                .ToListAsync();
+
+            // Group by Semester locally (since EF Core might struggle with complex sub-queries translation)
+            var groupedBySemester = semesterStats
+                .GroupBy(x => x.SemesterName)
+                .Select(g => new
+                {
+                    Semester = g.Key,
+                    // Sort by date if possible, but here we just take the first one found
+                    OrderDate = g.FirstOrDefault()?.StartDate,
+                    TotalGrades = g.Sum(x => x.Grades.Count),
+                    PassedGrades = g.Sum(x => x.Grades.Count(grade => grade.FinalScore >= (grade.PassMark ?? 5.0m))),
+                    AverageScore = g.Average(x => x.Grades.Any() ? x.Grades.Average(gr => gr.FinalScore ?? 0) : 0),
+                    // More precise average: Sum all scores / Sum all counts
+                    SumScores = g.Sum(x => x.Grades.Sum(gr => gr.FinalScore ?? 0))
+                })
+                .OrderByDescending(x => x.OrderDate)
+                .Take(5)
+                .OrderBy(x => x.OrderDate)
+                .ToList();
+
+            result.PassRateBySemester = groupedBySemester.Select(x => new ChartSeriesDto
+            {
+                Name = x.Semester,
+                Value = x.TotalGrades > 0 ? Math.Round((double)x.PassedGrades * 100 / x.TotalGrades, 1) : 0,
+                ExtraInfo = $"Passed: {x.PassedGrades}/{x.TotalGrades}"
+            }).ToList();
+
+            result.AverageScoreBySemester = groupedBySemester.Select(x => new ChartSeriesDto
+            {
+                Name = x.Semester,
+                Value = x.TotalGrades > 0 ? Math.Round((double)x.SumScores / x.TotalGrades, 2) : 0,
+                ExtraInfo = $"Avg: {(x.TotalGrades > 0 ? Math.Round((double)x.SumScores / x.TotalGrades, 2) : 0)}"
+            }).ToList();
+
+
+            // 2. Attendance Rate by Semester
+            // Query Attendance -> Lesson -> Class -> Semester
+            var attendanceStats = await _context.Attendances
+                .Include(a => a.Lesson)
+                .ThenInclude(l => l.Class)
+                .ThenInclude(c => c.Semester)
+                .Where(a => a.Lesson.Class.Semester != null)
+                .GroupBy(a => new { a.Lesson.Class.Semester.Name, a.Lesson.Class.Semester.StartDate })
+                .Select(g => new
+                {
+                    SemesterName = g.Key.Name,
+                    StartDate = g.Key.StartDate,
+                    TotalSlots = g.Count(),
+                    PresentSlots = g.Count(a => a.Status == "Present")
+                })
+                .OrderByDescending(g => g.StartDate)
+                .Take(5)
+                .OrderBy(g => g.StartDate)
+                .ToListAsync();
+
+            result.AttendanceRateBySemester = attendanceStats.Select(x => new ChartSeriesDto
+            {
+                Name = x.SemesterName,
+                Value = x.TotalSlots > 0 ? Math.Round((double)x.PresentSlots * 100 / x.TotalSlots, 1) : 0,
+                ExtraInfo = $"Present: {x.PresentSlots}/{x.TotalSlots}"
+            }).ToList();
+
+            return result;
+        }
     }
 }

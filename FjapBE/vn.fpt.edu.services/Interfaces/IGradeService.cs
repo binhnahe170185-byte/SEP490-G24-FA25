@@ -1,4 +1,5 @@
 using FJAP.vn.fpt.edu.models;
+using FJAP.DTOs;
 using System.Threading.Tasks;
 
 namespace FJAP.Services.Interfaces
@@ -44,6 +45,7 @@ namespace FJAP.Services.Interfaces
         /// Cập nhật điểm thành phần của grade
         /// </summary>
         Task<bool> UpdateGradeComponentsAsync(UpdateGradeComponentsRequest request);
+        Task<DashboardChartDataDto> GetDashboardChartsAsync();
         
     }
 }

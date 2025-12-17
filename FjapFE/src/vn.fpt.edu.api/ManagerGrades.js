@@ -416,6 +416,19 @@ class ManagerGrades {
   }
 
   /**
+   * Lấy dữ liệu biểu đồ dashboard (Pass Rate & Attendance Rate by Semester)
+   */
+  static async getDashboardCharts() {
+    try {
+      const response = await api.get("/api/manager/grades/dashboard-charts");
+      return response.data?.data || { passRateBySemester: [], attendanceRateBySemester: [] };
+    } catch (error) {
+      console.error("Error fetching dashboard charts:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Lấy filter options
    */
   static async getFilterOptions() {
