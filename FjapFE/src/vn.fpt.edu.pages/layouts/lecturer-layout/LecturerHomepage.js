@@ -9,6 +9,7 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import NewsSection from '../../student/components/NewsSection';
 import './LecturerHomepage.css';
 
 const { Title, Text } = Typography;
@@ -49,6 +50,10 @@ const LecturerHomepage = () => {
           {/* Left Column - Schedule & Attendance */}
           <Col xs={24} lg={8}>
             <Row gutter={[24, 24]}>
+              <Col xs={24}>
+                <NewsSection basePath="/lecturer" />
+              </Col>
+
               <Col xs={24}>
                 <Card className="dashboard-card">
                   <div className="card-header">
