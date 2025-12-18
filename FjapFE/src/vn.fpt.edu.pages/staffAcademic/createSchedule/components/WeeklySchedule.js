@@ -53,7 +53,8 @@ const WeeklySchedules = ({
   // Total lesson validation
   totalLesson = null,
   mondayOf = null,
-  scheduleComplete = false
+  scheduleComplete = false,
+  controlsDisabled = false
 }) => {
   const [conflictStatus, setConflictStatus] = useState({
     hasConflict: false,
@@ -281,16 +282,19 @@ const WeeklySchedules = ({
   const isUnavailable = conflictStatus.hasConflict;
   const availabilityMessage = conflictStatus.message;
 
-  const addButtonDisabled = !hasValues || isUnavailable || isChecking || scheduleComplete;
-  const addButtonTooltip = scheduleComplete
-    ? 'The class is full. No new schedule can be added.'
-    : !hasValues
-      ? 'Select weekday, slot & room'
-      : isChecking
-        ? 'Checking slot availability...'
-        : isUnavailable
-          ? availabilityMessage || 'This slot is not available'
-          : 'Add schedule';
+  // Nếu controlsDisabled = true (chưa Load Class), luôn disable nút và hiện tooltip phù hợp
+  const addButtonDisabled = controlsDisabled || !hasValues || isUnavailable || isChecking || scheduleComplete;
+  const addButtonTooltip = controlsDisabled
+    ? 'Please load class timetable before adding schedule.'
+    : scheduleComplete
+      ? 'The class is full. No new schedule can be added.'
+      : !hasValues
+        ? 'Select weekday, slot & room'
+        : isChecking
+          ? 'Checking slot availability...'
+          : isUnavailable
+            ? availabilityMessage || 'This slot is not available'
+            : 'Add schedule';
   const getRoomLabel = (roomValue) => {
     const room = rooms.find(r => String(r.value) === String(roomValue));
     return room?.label || roomValue;
@@ -419,7 +423,7 @@ const WeeklySchedules = ({
               allowClear
               loading={filteringOptions}
               notFoundContent={filteringOptions ? <Spin size="small" /> : null}
-              disabled={scheduleComplete}
+              disabled={scheduleComplete || controlsDisabled}
             />
           </Form.Item>
 
@@ -432,7 +436,7 @@ const WeeklySchedules = ({
               allowClear
               loading={filteringOptions}
               notFoundContent={filteringOptions ? <Spin size="small" /> : null}
-              disabled={scheduleComplete}
+              disabled={scheduleComplete || controlsDisabled}
             />
           </Form.Item>
 
@@ -447,7 +451,7 @@ const WeeklySchedules = ({
               optionFilterProp="label"
               loading={filteringOptions}
               notFoundContent={filteringOptions ? <Spin size="small" /> : null}
-              disabled={scheduleComplete}
+              disabled={scheduleComplete || controlsDisabled}
             />
           </Form.Item>
         </Space>

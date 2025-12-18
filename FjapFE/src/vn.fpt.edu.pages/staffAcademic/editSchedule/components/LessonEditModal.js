@@ -22,6 +22,13 @@ import {
 import dayjs from 'dayjs';
 import { api } from '../../../../vn.fpt.edu.api/http';
 
+// Helper function to get email username (part before @)
+const getEmailUsername = (email) => {
+  if (!email) return '';
+  const atIndex = email.indexOf('@');
+  return atIndex > 0 ? email.substring(0, atIndex) : email;
+};
+
 const { Text } = Typography;
 
 const LessonEditModal = ({
@@ -31,6 +38,11 @@ const LessonEditModal = ({
   timeslots = [],
   lecturers = [],
   semester,
+  holidays = [],
+  conflictMap = {},
+  studentScheduleCache = { studentIds: [], studentTimeMap: {} },
+  classId = null,
+  lecturerId = null,
   // callbacks
   onUpdate,
   onDelete,
@@ -222,17 +234,134 @@ const LessonEditModal = ({
     }
   }, [visible, lesson, allRooms, form]);
 
+  // Check conflicts for a given date, timeId, roomId, lecturerId
+  const checkConflicts = (date, timeId, roomId, lecturerId, currentLessonId) => {
+    const reasons = [];
+    let hasConflict = false;
+
+    // Check room/class/lecturer conflicts using conflictMap
+    const timeKey = `${date}|${timeId}`;
+    const roomKey = `${date}|${timeId}|${roomId}`;
+
+    // Check room-specific conflicts
+    const roomConflicts = conflictMap[roomKey] || [];
+    roomConflicts.forEach(conflict => {
+      // Exclude current lesson being edited
+      if (currentLessonId && conflict.lessonId === currentLessonId) {
+        return;
+      }
+      // Room conflict: room is occupied by any OTHER class
+      if (conflict.roomId === parseInt(roomId, 10)) {
+        if (!classId || conflict.classId !== parseInt(classId, 10)) {
+          reasons.push(`Room ${conflict.roomName} is occupied by ${conflict.className}`);
+          hasConflict = true;
+        }
+      }
+    });
+
+    // Check all conflicts for this date+timeId
+    Object.keys(conflictMap).forEach(key => {
+      if (key.startsWith(timeKey + '|')) {
+        const conflicts = conflictMap[key] || [];
+        conflicts.forEach(conflict => {
+          // Exclude current lesson being edited
+          if (currentLessonId && conflict.lessonId === currentLessonId) {
+            return;
+          }
+          // Class conflict: same class already has lesson at this date/time
+          if (classId && conflict.classId === parseInt(classId, 10)) {
+            if (!reasons.some(r => r.includes('Class') && r.includes('already has a lesson'))) {
+              reasons.push(`Class ${conflict.className} already has a lesson at this time`);
+              hasConflict = true;
+            }
+          }
+
+          // Lecturer conflict: same lecturer already has lesson (exclude if same class)
+          if (lecturerId && conflict.lecturerId === parseInt(lecturerId, 10)) {
+            if (!classId || conflict.classId !== parseInt(classId, 10)) {
+              const lecturerDisplay = conflict.lecturerCode || 'Unknown';
+              if (!reasons.some(r => r.includes('Lecturer') && r.includes(lecturerDisplay))) {
+                reasons.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className} at this time`);
+                hasConflict = true;
+              }
+            }
+          }
+        });
+      }
+    });
+
+    // Check student conflicts
+    if (studentScheduleCache.studentIds && studentScheduleCache.studentIds.length > 0) {
+      const classTimeKey = `${date}|${timeId}`;
+      const conflictedStudents = [];
+      studentScheduleCache.studentIds.forEach(studentId => {
+        const studentSlots = studentScheduleCache.studentTimeMap[studentId];
+        if (studentSlots && studentSlots.has(classTimeKey)) {
+          conflictedStudents.push(studentId);
+        }
+      });
+      if (conflictedStudents.length > 0) {
+        reasons.push(`${conflictedStudents.length} student(s) already have lessons at this time`);
+        hasConflict = true;
+      }
+    }
+
+    return { hasConflict, reasons };
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
 
+      const selectedDate = values.date
+        ? values.date.format('YYYY-MM-DD')
+        : lesson.date;
+
+      // Validate: Check if selected date is a holiday
+      if (holidays && holidays.length > 0) {
+        const isHoliday = holidays.some(h => {
+          const holidayDate = h.date || h;
+          return holidayDate === selectedDate;
+        });
+        if (isHoliday) {
+          const holiday = holidays.find(h => {
+            const holidayDate = h.date || h;
+            return holidayDate === selectedDate;
+          });
+          const holidayName = holiday?.name || holiday?.holidayName || 'Holiday';
+          message.error(`Cannot update lesson to ${selectedDate} - it is a holiday (${holidayName})`);
+          return;
+        }
+      }
+
+      const updatedTimeId = Number(values.timeId);
+      const updatedRoomId = Number(values.roomId);
+      const updatedLecturerId = Number(values.lecturerId);
+      const currentLessonId = lesson?.lessonId ? Number(lesson.lessonId) : null;
+
+      // Check conflicts before updating
+      const conflictCheck = checkConflicts(
+        selectedDate,
+        updatedTimeId,
+        updatedRoomId,
+        updatedLecturerId,
+        currentLessonId
+      );
+
+      if (conflictCheck.hasConflict) {
+        const conflictMessage = conflictCheck.reasons.join('; ');
+        message.error({
+          content: `Cannot update lesson due to conflicts: ${conflictMessage}`,
+          duration: 6,
+        });
+        return;
+      }
+
       const updatedData = {
-        date: values.date
-          ? values.date.format('YYYY-MM-DD')
-          : lesson.date,
-        timeId: Number(values.timeId),
-        roomId: Number(values.roomId),
-        lecturerId: Number(values.lecturerId),
+        date: selectedDate,
+        timeId: updatedTimeId,
+        roomId: updatedRoomId,
+        lecturerId: updatedLecturerId,
       };
 
       console.log('handleSubmit - lesson:', lesson);
@@ -442,15 +571,30 @@ const LessonEditModal = ({
                 disabledDate={(current) => {
                   if (!current) return false;
 
-                  // Disable past dates
-                  if (current < dayjs().startOf('day')) {
-                    return true;
+                  // Disable dates before semester start date
+                  if (semester?.start) {
+                    const semesterStartDate = dayjs(semester.start);
+                    if (current < semesterStartDate.startOf('day')) {
+                      return true;
+                    }
                   }
 
                   // Disable dates after semester end date
                   if (semester?.end) {
                     const semesterEndDate = dayjs(semester.end);
                     if (current > semesterEndDate.endOf('day')) {
+                      return true;
+                    }
+                  }
+
+                  // Disable holidays
+                  if (holidays && holidays.length > 0) {
+                    const currentDateStr = current.format('YYYY-MM-DD');
+                    const isHoliday = holidays.some(h => {
+                      const holidayDate = h.date || h;
+                      return holidayDate === currentDateStr;
+                    });
+                    if (isHoliday) {
                       return true;
                     }
                   }

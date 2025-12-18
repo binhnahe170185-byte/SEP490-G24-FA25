@@ -32,13 +32,14 @@ public class LessonService : ILessonService
         var date = DateOnly.FromDateTime(DateTime.Parse(request.Date));
 
         // Check for conflicts before updating
+        // Use the new lecturerId from request, not the old one from lesson
         var conflictingLesson = await _lessonRepository.FindConflictingLessonAsync(
             lessonId,
             date,
             request.TimeId,
             request.RoomId,
             lesson.ClassId,
-            lesson.LectureId
+            request.LecturerId
         );
 
         if (conflictingLesson != null)
@@ -51,7 +52,7 @@ public class LessonService : ILessonService
             {
                 throw new ArgumentException($"Class conflict: Class already has a lesson at {request.Date}, timeId {request.TimeId}");
             }
-            if (conflictingLesson.LectureId == lesson.LectureId)
+            if (conflictingLesson.LectureId == request.LecturerId)
             {
                 throw new ArgumentException($"Lecturer conflict: Lecturer is already teaching at {request.Date}, timeId {request.TimeId}");
             }
@@ -61,6 +62,7 @@ public class LessonService : ILessonService
         lesson.Date = date;
         lesson.TimeId = request.TimeId;
         lesson.RoomId = request.RoomId;
+        lesson.LectureId = request.LecturerId;
 
         _lessonRepository.Update(lesson);
         await _lessonRepository.SaveChangesAsync();
