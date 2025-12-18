@@ -49,7 +49,7 @@ const DeleteClassFormModal = ({ classId, className, onDeleted }) => {
 
   return (
     <>
-      <Tooltip title="Delete class" color="red">
+      <Tooltip>
         <Button
           danger
           type="text"

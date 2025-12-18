@@ -214,6 +214,7 @@ public class ClassController : ControllerBase
                 minStudents = cls.MinStudents,
                 maxStudents = cls.MaxStudents,
                 totalStudents = cls.Students?.Count ?? 0,
+                totalLessons = await _db.Lessons.CountAsync(l => l.ClassId == id),
                 students = cls.Students?.Select(s => new { s.StudentId, code = s.StudentCode, fullName = $"{s.User?.FirstName} {s.User?.LastName}".Trim() }) ?? (object)Enumerable.Empty<object>()
             }
         });
