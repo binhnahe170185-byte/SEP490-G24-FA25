@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Form, Input, Modal, Select, Spin, InputNumber } from "antd";
+import { Form, Input, Modal, Select, Spin, InputNumber, Alert } from "antd";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 import SemesterApi from "../../../vn.fpt.edu.api/Semester";
@@ -31,10 +31,10 @@ const normalizeLevels = (levels = []) =>
       typeof item === "string" || typeof item === "number"
         ? item
         : item?.id ??
-          item?.levelId ??
-          item?.level_id ??
-          item?.value ??
-          `level-${index}`;
+        item?.levelId ??
+        item?.level_id ??
+        item?.value ??
+        `level-${index}`;
     const name =
       typeof item === "string" || typeof item === "number"
         ? item.toString()
@@ -179,13 +179,13 @@ const extractSemesterCode = (raw) => {
     }
     return extractSemesterCode(
       raw.name ??
-        raw.Name ??
-        raw.semesterName ??
-        raw.semester_name ??
-        raw.label ??
-        raw.semesterLabel ??
-        raw.semester_label ??
-        ""
+      raw.Name ??
+      raw.semesterName ??
+      raw.semester_name ??
+      raw.label ??
+      raw.semesterLabel ??
+      raw.semester_label ??
+      ""
     );
   }
   return raw.toString().toUpperCase();
@@ -214,10 +214,10 @@ const normalizeSemesters = (semesters = []) =>
       typeof item === "string" || typeof item === "number"
         ? item.toString()
         : item?.name ??
-          item?.semesterName ??
-          item?.semester_name ??
-          item?.label ??
-          `Semester ${index + 1}`;
+        item?.semesterName ??
+        item?.semester_name ??
+        item?.label ??
+        `Semester ${index + 1}`;
     const code =
       extractSemesterCode(item) || extractSemesterCode(name) || "";
     return {
@@ -225,10 +225,10 @@ const normalizeSemesters = (semesters = []) =>
         typeof item === "string" || typeof item === "number"
           ? item
           : item?.id ??
-            item?.semesterId ??
-            item?.semester_id ??
-            item?.value ??
-            `semester-${index}`,
+          item?.semesterId ??
+          item?.semester_id ??
+          item?.value ??
+          `semester-${index}`,
       name,
       code,
       startDate: toDateInstance(startSource),
@@ -236,20 +236,19 @@ const normalizeSemesters = (semesters = []) =>
     };
   });
 
-const isSemesterCurrentOrUpcoming = (semester, referenceDate = new Date()) => {
-  const { startDate, endDate } = semester;
-  if (endDate instanceof Date && !Number.isNaN(endDate.getTime())) {
-    return endDate.getTime() >= referenceDate.getTime();
-  }
+const isSemesterFuture = (semester, referenceDate = new Date()) => {
+  const { startDate } = semester;
   if (startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
-    return startDate.getTime() >= referenceDate.getTime();
+    // Strict future check: Semester must start after the reference date
+    // This ensures creation time is NOT within start/end dates (not curren) AND not past.
+    return startDate.getTime() > referenceDate.getTime();
   }
-  return true;
+  return false;
 };
 
-const filterUpcomingSemesters = (semesters = [], referenceDate = new Date()) =>
+const filterFutureSemesters = (semesters = [], referenceDate = new Date()) =>
   semesters.filter((semester) =>
-    isSemesterCurrentOrUpcoming(semester, referenceDate)
+    isSemesterFuture(semester, referenceDate)
   );
 
 const ensureSemesterOptionVisible = (
@@ -497,10 +496,10 @@ const buildSemesterCodeMap = (list = []) => {
       codeSource ??
       deriveSeasonalCode(
         item?.name ??
-          item?.semesterName ??
-          item?.semester_name ??
-          item?.label ??
-          ""
+        item?.semesterName ??
+        item?.semester_name ??
+        item?.label ??
+        ""
       );
     if (semesterId && inferredCode) {
       map.set(toComparableId(semesterId), toUpperTrimmed(inferredCode));
@@ -640,6 +639,7 @@ export default function ClassFormModal({
   const [semesterCodeMap, setSemesterCodeMap] = useState(() => new Map());
   const [initialRecord, setInitialRecord] = useState(null);
   const [totalStudents, setTotalStudents] = useState(0);
+  const [hasLessons, setHasLessons] = useState(false);
   const watchedSemesterId = Form.useWatch("semesterId", form);
   const watchedLevelId = Form.useWatch("levelId", form);
   const watchedSubjectId = Form.useWatch("subjectId", form);
@@ -683,7 +683,7 @@ export default function ClassFormModal({
           data?.semesters ?? data?.semesterOptions ?? []
         );
         const filteredSemesters = ensureSemesterOptionVisible(
-          filterUpcomingSemesters(
+          filterFutureSemesters(
             applySemesterCodes(normalizedSemesters, codeMap)
           ),
           derivedInitialValues.semesterId,
@@ -702,15 +702,15 @@ export default function ClassFormModal({
             filteredSemesters.length > 0
               ? filteredSemesters
               : ensureSemesterOptionVisible(
-                  filterUpcomingSemesters(
-                    applySemesterCodes(
-                      normalizeSemesters(fallbackSemesters),
-                      codeMap
-                    )
-                  ),
-                  derivedInitialValues.semesterId,
-                  derivedInitialValues.semesterName
+                filterFutureSemesters(
+                  applySemesterCodes(
+                    normalizeSemesters(fallbackSemesters),
+                    codeMap
+                  )
                 ),
+                derivedInitialValues.semesterId,
+                derivedInitialValues.semesterName
+              ),
           subjects: normalizedSubjects,
         });
       })
@@ -719,7 +719,7 @@ export default function ClassFormModal({
         setOptions({
           levels: normalizeLevels(fallbackLevels),
           semesters: ensureSemesterOptionVisible(
-            filterUpcomingSemesters(normalizeSemesters(fallbackSemesters)),
+            filterFutureSemesters(normalizeSemesters(fallbackSemesters)),
             derivedInitialValues.semesterId,
             derivedInitialValues.semesterName
           ),
@@ -766,7 +766,9 @@ export default function ClassFormModal({
         form.setFieldsValue(normalized);
         setCurrentLevel(normalized.levelId);
         setInitialRecord(normalized);
+        setInitialRecord(normalized);
         setTotalStudents(normalized.totalStudents ?? 0);
+        setHasLessons((data?.totalLessons ?? 0) > 0);
       })
       .catch((error) => {
         console.error("Failed to load class detail:", error);
@@ -790,11 +792,13 @@ export default function ClassFormModal({
       setLoadingExistingClasses(false);
       setSemesterCodeMap(new Map());
       setInitialRecord(null);
+      setInitialRecord(null);
       setTotalStudents(0);
+      setHasLessons(false);
     }
   }, [open, form]);
 
-useEffect(() => {
+  useEffect(() => {
     if (!open) {
       return;
     }
@@ -897,10 +901,10 @@ useEffect(() => {
         semester?.semester_code ||
         extractSemesterCode(
           semester?.name ??
-            semester?.label ??
-            semester?.semesterName ??
-            semester?.semester_name ??
-            ""
+          semester?.label ??
+          semester?.semesterName ??
+          semester?.semester_name ??
+          ""
         );
       const levelCode = level?.code ?? extractLevelCode(level?.name);
       const subjectCode =
@@ -1168,154 +1172,176 @@ useEffect(() => {
       confirmLoading={submitting}
       destroyOnClose
       title={isEditMode ? "Edit Class" : "Create Class"}
-      okButtonProps={{ disabled: effectiveLoading }}
+      okButtonProps={{ disabled: effectiveLoading || hasLessons }}
     >
       {effectiveLoading ? (
         <div style={{ textAlign: "center", padding: "24px 0" }}>
           <Spin />
         </div>
       ) : (
-        <Form
-          form={form}
-          layout="vertical"
-          autoComplete="off"
-          initialValues={deriveInitialFormValues(initialValues)}
-        >
-          <Form.Item
-            label="Semester"
-            name="semesterId"
-            rules={[{ required: true, message: "Please select a semester" }]}
-          >
-            <Select
-              placeholder="Select semester"
-              options={options.semesters.map((item) => ({
-                value: item.id,
-                label: item.name,
-              }))}
+        <>
+          {hasLessons && (
+            <Alert
+              message="Cannot Edit Class"
+              description="This class already has scheduled lessons. Editing is disabled to preserve schedule integrity."
+              type="warning"
+              showIcon
+              style={{ marginBottom: 24 }}
             />
-          </Form.Item>
-
-          <Form.Item
-            label="Level"
-            name="levelId"
-            rules={[{ required: true, message: "Please select a level" }]}
+          )}
+          <Form
+            disabled={hasLessons}
+            form={form}
+            layout="vertical"
+            autoComplete="off"
+            initialValues={deriveInitialFormValues(initialValues)}
           >
-            <Select
-              placeholder="Select level"
-              options={options.levels.map((item) => ({
-                value: item.id,
-                label: item.name,
-              }))}
-              onChange={handleLevelChange}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Assign Subject"
-            name="subjectId"
-            rules={[
-              {
-                required: true,
-                message: "Please choose a subject",
-              },
-            ]}
-          >
-            <Select
-              placeholder={
-                currentLevel
-                  ? "Select a subject under the chosen level"
-                  : "Select a level before picking a subject"
-              }
-              disabled={!currentLevel}
-              options={filteredSubjects.map((item) => ({
-                value: item.id,
-                label: item.name,
-              }))}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Class Name"
-            name="name"
-            rules={[
-              { required: true, message: "Vui lòng nhập tên lớp" },
-              {
-                max: 120,
-                message: "Tên lớp không được vượt quá 120 ký tự",
-              },
-            ]}
-          >
-            <Input
-              placeholder="Class name will be generated automatically"
-              disabled
-            />
-          </Form.Item>
-
-          {totalStudents > 0 && (
             <Form.Item
-              label="Current Students"
+              label="Semester"
+              name="semesterId"
+              rules={[{ required: true, message: "Please select a semester" }]}
             >
-              <Input
-                value={totalStudents}
-                disabled
-                readOnly
-                placeholder="Total students in this class"
-                style={{ fontSize: "16px", fontWeight: "bold", color: "#1f1f1f" }}
+              <Select
+                placeholder="Select semester"
+                options={options.semesters.map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
               />
             </Form.Item>
-          )}
 
-          <Form.Item
-            label="Min Students"
-            name="minStudents"
-            rules={[
-              { required: false },
-              {
-                validator: async (_, value) => {
-                  if (value === undefined || value === null || value === "") return;
-                  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-                    throw new Error('Min students must be an integer >= 0');
+            <Form.Item
+              label="Level"
+              name="levelId"
+              rules={[{ required: true, message: "Please select a level" }]}
+            >
+              <Select
+                placeholder="Select level"
+                options={options.levels.map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
+                onChange={handleLevelChange}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Assign Subject"
+              name="subjectId"
+              rules={[
+                {
+                  required: true,
+                  message: "Please choose a subject",
+                },
+              ]}
+            >
+              <Select
+                placeholder={
+                  currentLevel
+                    ? "Select a subject under the chosen level"
+                    : "Select a level before picking a subject"
+                }
+                disabled={!currentLevel}
+                options={filteredSubjects.map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Class Name"
+              name="name"
+              rules={[
+                { required: true, message: "Please enter the class name." },
+                {
+                  max: 120,
+                  message: "Class names must not exceed 120 characters.",
+                },
+              ]}
+            >
+              <Input
+                placeholder="Class name will be generated automatically"
+                disabled
+              />
+            </Form.Item>
+
+            {totalStudents > 0 && (
+              <Form.Item
+                label="Current Students"
+              >
+                <Input
+                  value={totalStudents}
+                  disabled
+                  readOnly
+                  placeholder="Total students in this class"
+                  style={{ fontSize: "16px", fontWeight: "bold", color: "#1f1f1f" }}
+                />
+              </Form.Item>
+            )}
+
+            <Form.Item
+              label="Min Students"
+              name="minStudents"
+              rules={[
+                { required: true, message: "Please enter min students" },
+                {
+                  validator: async (_, value) => {
+                    if (value === undefined || value === null || value === "") return;
+                    if (typeof value !== 'number' || !Number.isInteger(value)) {
+                      throw new Error('Min students must be an integer');
+                    }
+                    if (value < 5) {
+                      throw new Error('Minimum is 5 students');
+                    }
+                    if (value > 50) {
+                      throw new Error('Cannot exceed 50 students');
+                    }
                   }
                 }
-              }
-            ]}
-          >
-            <InputNumber placeholder="Minimum students to activate" min={0} style={{ width: '100%' }} />
-          </Form.Item>
+              ]}
+            >
+              <InputNumber placeholder="Min students" min={5} max={50} style={{ width: '100%' }} />
+            </Form.Item>
 
-          <Form.Item
-            label="Max Students"
-            name="maxStudents"
-            rules={[
-              { required: false },
-              {
-                validator: async (rule, value, callback) => {
-                  if (value === undefined || value === null || value === "") {
+            <Form.Item
+              label="Max Students"
+              name="maxStudents"
+              rules={[
+                { required: true, message: "Please enter max students" },
+                {
+                  validator: async (rule, value, callback) => {
+                    if (value === undefined || value === null || value === "") {
+                      callback();
+                      return;
+                    }
+                    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+                      callback(new Error('Max students must be an integer >= 0'));
+                      return;
+                    }
+                    if (value > 50) {
+                      callback(new Error('Cannot exceed 50 students'));
+                      return;
+                    }
+                    const minVal = form.getFieldValue('minStudents');
+                    const minNum = (typeof minVal === 'number') ? minVal : (minVal ? Number(minVal) : null);
+                    if (minNum !== null && minNum !== undefined && Number(minNum) > Number(value)) {
+                      callback(new Error('Max students must be >= Min students'));
+                      return;
+                    }
+                    if (totalStudents > 0 && Number(value) < totalStudents) {
+                      callback(new Error(`Max students cannot be less than current students (${totalStudents})`));
+                      return;
+                    }
                     callback();
-                    return;
                   }
-                  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-                    callback(new Error('Max students must be an integer >= 0'));
-                    return;
-                  }
-                  const minVal = form.getFieldValue('minStudents');
-                  const minNum = (typeof minVal === 'number') ? minVal : (minVal ? Number(minVal) : null);
-                  if (minNum !== null && minNum !== undefined && Number(minNum) > Number(value)) {
-                    callback(new Error('Max students must be >= Min students'));
-                    return;
-                  }
-                  if (totalStudents > 0 && Number(value) < totalStudents) {
-                    callback(new Error(`Max students cannot be less than current students (${totalStudents})`));
-                    return;
-                  }
-                  callback();
                 }
-              }
-            ]}
-          >
-            <InputNumber placeholder="Maximum students allowed" min={0} style={{ width: '100%' }} />
-          </Form.Item>
-        </Form>
+              ]}
+            >
+              <InputNumber placeholder="Max students" min={0} max={50} style={{ width: '100%' }} />
+            </Form.Item>
+          </Form>
+        </>
       )}
     </Modal>
   );
