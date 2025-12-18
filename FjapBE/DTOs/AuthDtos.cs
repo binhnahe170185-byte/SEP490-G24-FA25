@@ -9,5 +9,6 @@ public class LoginResponse
     public int RoleId { get; set; }
     public int? StudentId { get; set; }
     public int? LecturerId { get; set; }
+    public int UserId { get; set; }
 }
 

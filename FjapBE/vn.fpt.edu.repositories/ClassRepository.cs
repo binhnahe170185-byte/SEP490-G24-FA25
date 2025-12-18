@@ -169,51 +169,56 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             // Filter by lecturer UserId - classes that have lessons taught by this lecturer
             // Lecturer is linked via: User -> Lecture -> Lessons -> Class
             // This filter should be applied after semester/level filters for better performance
-            if (filter.UserId.HasValue)
+            // Filter by Lecturer (LectureId or UserId)
+            // Priority: LectureId > UserId
+            int? targetLectureId = filter.LectureId;
+
+            if (!targetLectureId.HasValue && filter.UserId.HasValue)
             {
-                // Get LectureId from UserId
-                var lectureId = await _context.Lectures
+               // Get LectureId from UserId if LectureId not provided directly
+               targetLectureId = await _context.Lectures
                     .Where(l => l.UserId == filter.UserId.Value)
                     .Select(l => l.LectureId)
                     .FirstOrDefaultAsync();
+            }
+
+            if (targetLectureId.HasValue && targetLectureId.Value > 0)
+            {
+                // Get distinct ClassIds from Lessons where LectureId matches
+                // Apply semester and status filters to lessons for better performance
+                var lessonsQuery = _context.Lessons
+                    .Include(l => l.Class)
+                    .Where(l => l.LectureId == targetLectureId.Value);
                 
-                if (lectureId > 0)
+                // If semester filter is applied, also filter lessons by semester
+                if (filter.SemesterId.HasValue)
                 {
-                    // Get distinct ClassIds from Lessons where LectureId matches
-                    // Also apply semester and status filters to lessons for better performance
-                    var lessonsQuery = _context.Lessons
-                        .Include(l => l.Class)
-                        .Where(l => l.LectureId == lectureId);
-                    
-                    // If semester filter is applied, also filter lessons by semester
-                    if (filter.SemesterId.HasValue)
-                    {
-                        lessonsQuery = lessonsQuery.Where(l => l.Class.SemesterId == filter.SemesterId.Value);
-                    }
-                    
-                    // Always filter by Active status for lecturer - only get classes with Active status
-                    lessonsQuery = lessonsQuery.Where(l => l.Class.Status == "Active");
-                    
-                    var classIdsTaughtByLecturer = await lessonsQuery
-                        .Select(l => l.ClassId)
-                        .Distinct()
-                        .ToListAsync();
-                    
-                    query = query.Where(c => classIdsTaughtByLecturer.Contains(c.ClassId));
+                    lessonsQuery = lessonsQuery.Where(l => l.Class.SemesterId == filter.SemesterId.Value);
                 }
-                else
-                {
-                    // If no lecture found for this userId, return empty result
-                    query = query.Where(c => false);
-                }
+                
+                // Always filter by Active status for lecturer - only get classes with Active status
+                // lessonsQuery = lessonsQuery.Where(l => l.Class.Status == "Active");
+                
+                var classIdsTaughtByLecturer = await lessonsQuery
+                    .Select(l => l.ClassId)
+                    .Distinct()
+                    .ToListAsync();
+                
+                query = query.Where(c => classIdsTaughtByLecturer.Contains(c.ClassId));
+            }
+            else if (filter.UserId.HasValue && (!targetLectureId.HasValue || targetLectureId.Value == 0))
+            {
+                 // If UserId provided but no lecture found, return empty
+                 query = query.Where(c => false);
             }
 
             // Always filter by Status if provided (apply after UserId filter to ensure it works correctly)
             // For lecturer (UserId provided), always filter by Active status
             if (filter.UserId.HasValue)
             {
-                // For lecturer, always show only Active classes
-                query = query.Where(c => c.Status == "Active");
+                // For lecturer, show Active classes by default, unless overriden? 
+                // Actually user requested removal of this filter to match Homeworks feature.
+                // query = query.Where(c => c.Status == "Active");
             }
             else if (!string.IsNullOrWhiteSpace(filter.Status))
             {

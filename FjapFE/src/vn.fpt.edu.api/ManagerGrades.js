@@ -15,7 +15,7 @@ class ManagerGrades {
     try {
       const response = await api.get("/api/Semester/options");
       const semesters = response.data?.data || [];
-      
+
       // Map to format expected by SemesterTabs component
       return semesters.map(sem => ({
         semesterId: sem.semesterId || sem.id,
@@ -31,80 +31,84 @@ class ManagerGrades {
    * Lấy danh sách lớp kèm thông tin điểm
    * @param {string} managerId - ID của manager (not used by backend)
    * @param {Object} filters - Filter options
-   * @param {number|null} userId - UserId của lecturer (optional, for filtering classes taught by lecturer)
+   * @param {number|null} lecturerId - ID của lecturer (optional, for filtering classes taught by lecturer)
    * @param {boolean} isLecturer - Whether the current user is a lecturer
    * @returns {Promise<Array>}
    */
-  static async getCourses(managerId, filters = {}, userId = null, isLecturer = false) {
+  static async getCourses(managerId, filters = {}, lecturerId = null, isLecturer = false) {
     try {
       const params = {};
-      
+
       // Map frontend filters to backend ClassGradeFilterRequest
       // Only send SemesterId if it's a valid number (not null, not undefined, > 0)
       if (filters.semesterId != null && filters.semesterId !== undefined && filters.semesterId > 0) {
         params.SemesterId = filters.semesterId;
       }
-      
+
       // Only send LevelId if it's a valid number (not null, not undefined, > 0)
       if (filters.levelId != null && filters.levelId !== undefined && filters.levelId > 0) {
         params.LevelId = filters.levelId;
       }
-      
-      // For lecturers: filter by UserId and only show Active classes
-      if (isLecturer && userId) {
-        params.UserId = userId; // Backend will find LectureId from UserId
-        params.Status = "Active"; // Only show Active classes for lecturers
+
+      // For lecturers: filter by LectureId directly (mimic Homeworks)
+      if (isLecturer && lecturerId) {
+        params.LectureId = lecturerId; // Use explicit LectureId
+        // params.Status = "Active"; // Removed strict Active filter to match Homeworks
+        // Only set status if explicitly provided in filters
+        if (filters.status && filters.status !== "All Status") {
+          params.Status = filters.status;
+        }
       } else {
         // For managers: always show Active classes by default
         params.Status = "Active";
-        
+
         // Also apply CompletionStatus filter if provided
         if (filters.status && filters.status !== "All Status") {
           // Backend CompletionStatus field expects: "100% Complete", "In Progress", "Not Started"
           params.CompletionStatus = filters.status;
         }
       }
-      
+
       if (filters.search) {
         params.SearchTerm = filters.search;
       }
 
       const response = await api.get("/api/staffAcademic/classes/with-grades", { params });
       const classes = response.data?.data || [];
-      
+
       // Map backend ClassGradeDto to frontend format
       return classes.map(cls => ({
         courseId: cls.classId.toString(),
         classId: cls.classId,
-        
+
         // Course info
         courseCode: cls.subjectCode || "N/A",
         courseName: cls.subjectName || cls.className,
         className: cls.className,
-        
+
         // Semester info
         semester: cls.semesterName || "Unknown",
         semesterId: cls.semesterId,
         startDate: this.formatDate(cls.semesterStartDate),
         endDate: this.formatDate(cls.semesterEndDate),
-        
+
         // Subject info
         subjectId: cls.subjectId,
-        
+
         // Student & grade statistics
         students: cls.totalStudents || 0,
         average: cls.averageScore || 0,
         passed: cls.passedCount || 0,
         failed: cls.failedCount || 0,
         incomplete: cls.incompleteCount || 0,
-        
+
         // Progress info
         gradingProgress: cls.gradingProgress || 0,
         gradingTotal: cls.gradingTotal || cls.totalStudents || 0,
         gradingPercent: cls.gradingPercent || 0,
         completionPercent: cls.completionPercent || cls.gradingPercent || 0,
         completionStatus: cls.completionStatus || "Not Started",
-        
+
         // Other info
         level: cls.levelName || "Unknown",
         levelId: cls.levelId,
@@ -136,7 +140,7 @@ class ManagerGrades {
       } catch (e) {
         // Ignore secondary failure; we'll fallback below
       }
-      
+
       if (!data) {
         throw new Error("No data returned from API");
       }
@@ -308,13 +312,13 @@ class ManagerGrades {
       // First, get the grade ID for this student
       const detailsResponse = await api.get(`/api/staffAcademic/classes/${courseId}/grade-details`);
       const details = detailsResponse.data?.data;
-      
+
       if (!details || !details.students) {
         throw new Error("Could not find class details");
       }
 
       // Find student's grade record
-      const studentRecord = details.students.find(s => 
+      const studentRecord = details.students.find(s =>
         s.studentCode === studentId || s.studentId?.toString() === studentId
       );
 
@@ -328,18 +332,18 @@ class ManagerGrades {
       const gradeComponents = [];
       details.gradeComponentWeights?.forEach(weight => {
         let score = null;
-        
+
         // Map grade data to score based on grade type name
-        if (weight.gradeTypeName.toLowerCase().includes("attendance") || 
-            weight.gradeTypeName.toLowerCase().includes("participation")) {
+        if (weight.gradeTypeName.toLowerCase().includes("attendance") ||
+          weight.gradeTypeName.toLowerCase().includes("participation")) {
           score = gradeData.participation;
         } else if (weight.gradeTypeName.toLowerCase().includes("assignment")) {
           score = gradeData.assignment;
-        } else if (weight.gradeTypeName.toLowerCase().includes("progress test 1") || 
-                   weight.gradeTypeName.toLowerCase().includes("pt1")) {
+        } else if (weight.gradeTypeName.toLowerCase().includes("progress test 1") ||
+          weight.gradeTypeName.toLowerCase().includes("pt1")) {
           score = gradeData.progressTest1;
-        } else if (weight.gradeTypeName.toLowerCase().includes("progress test 2") || 
-                   weight.gradeTypeName.toLowerCase().includes("pt2")) {
+        } else if (weight.gradeTypeName.toLowerCase().includes("progress test 2") ||
+          weight.gradeTypeName.toLowerCase().includes("pt2")) {
           score = gradeData.progressTest2;
         } else if (weight.gradeTypeName.toLowerCase().includes("final")) {
           score = gradeData.finalExam;
@@ -527,7 +531,7 @@ class ManagerGrades {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return "N/A";
-      
+
       const day = String(date.getDate()).padStart(2, "0");
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const year = date.getFullYear();

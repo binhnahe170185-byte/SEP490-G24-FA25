@@ -30,6 +30,15 @@ namespace FJAP.Services
             // Validate pagination
             if (filter.PageNumber < 1) filter.PageNumber = 1;
             if (filter.PageSize < 1 || filter.PageSize > 100) filter.PageSize = 20;
+            
+            if (filter.UserId.HasValue)
+            {
+                var lecture = await _context.Lectures.FirstOrDefaultAsync(l => l.UserId == filter.UserId.Value);
+                if (lecture != null)
+                {
+                    filter.LectureId = lecture.LectureId;
+                }
+            }
 
             return await _gradeRepository.GetGradesWithFilterAsync(filter);
         }
@@ -400,25 +409,49 @@ namespace FJAP.Services
 
         private sealed record GradeNotificationContext(int UserId, string SubjectName);
 
-        public async Task<DashboardChartDataDto> GetDashboardChartsAsync()
+        public async Task<DashboardChartDataDto> GetDashboardChartsAsync(GradeFilterRequest filter)
         {
             var result = new DashboardChartDataDto();
 
+                    // Prepare lecturer filter if allowed
+            List<int> allowedClassIds = null;
+            if (filter != null && filter.LectureId.HasValue)
+            {
+                allowedClassIds = await _context.Lessons
+                    .Where(l => l.LectureId == filter.LectureId.Value && l.Class.Status == "Active")
+                    .Select(l => l.ClassId)
+                    .Distinct()
+                    .ToListAsync();
+            }
+
             // 1. Pass Rate by Semester
-            // Get all grades that have a FinalScore, grouped by Semester
-            var passRateData = await _context.Grades
-                .Where(g => g.FinalScore.HasValue)
+            var gradesQuery = _context.Grades
                 .Include(g => g.Subject)
-                .Include(g => g.Student)
-                .Join(_context.Classes,
-                    grade => new { grade.StudentId, grade.SubjectId },
-                    cls => new { StudentId = cls.Students.FirstOrDefault().StudentId, cls.SubjectId }, // Simplified join via student/subject - this might be tricky with many-to-many
+                .AsQueryable();
 
-                    (grade, cls) => new { grade, cls }) 
-                 .ToListAsync();
+            if (allowedClassIds != null)
+            {
+                 gradesQuery = gradesQuery.Where(g => g.Subject.Classes.Any(c => 
+                        allowedClassIds.Contains(c.ClassId) && 
+                        c.Students.Any(s => s.StudentId == g.StudentId)
+                    ));
+            }
 
-            var semesterStats = await _context.Classes
-                .Include(c => c.Semester)
+            // Note: Join logic in original code was complex/broken. Replaced with GroupBy logic on filtered grades.
+            // Actually, to keep it simple and safe, I will stick to the existing logic structure but apply the filter to the data source.
+            // But the original code was: 
+            /*
+            var semesterStats = await _context.Classes.Include(c => c.Semester).Select(...) 
+            */
+            // This selects ALL Classes. We must filter classes first.
+
+            var classesQuery = _context.Classes.Include(c => c.Semester).AsQueryable();
+            if (allowedClassIds != null)
+            {
+                classesQuery = classesQuery.Where(c => allowedClassIds.Contains(c.ClassId));
+            }
+
+            var semesterStats = await classesQuery
                 .Select(c => new 
                 {
                     SemesterName = c.Semester.Name,
@@ -432,18 +465,16 @@ namespace FJAP.Services
                 })
                 .ToListAsync();
 
-            // Group by Semester locally (since EF Core might struggle with complex sub-queries translation)
+            // Group by Semester locally
             var groupedBySemester = semesterStats
                 .GroupBy(x => x.SemesterName)
                 .Select(g => new
                 {
                     Semester = g.Key,
-                    // Sort by date if possible, but here we just take the first one found
                     OrderDate = g.FirstOrDefault()?.StartDate,
                     TotalGrades = g.Sum(x => x.Grades.Count),
                     PassedGrades = g.Sum(x => x.Grades.Count(grade => grade.FinalScore >= (grade.PassMark ?? 5.0m))),
                     AverageScore = g.Average(x => x.Grades.Any() ? x.Grades.Average(gr => gr.FinalScore ?? 0) : 0),
-                    // More precise average: Sum all scores / Sum all counts
                     SumScores = g.Sum(x => x.Grades.Sum(gr => gr.FinalScore ?? 0))
                 })
                 .OrderByDescending(x => x.OrderDate)
@@ -467,12 +498,19 @@ namespace FJAP.Services
 
 
             // 2. Attendance Rate by Semester
-            // Query Attendance -> Lesson -> Class -> Semester
-            var attendanceStats = await _context.Attendances
+            var attendanceQuery = _context.Attendances
                 .Include(a => a.Lesson)
                 .ThenInclude(l => l.Class)
                 .ThenInclude(c => c.Semester)
                 .Where(a => a.Lesson.Class.Semester != null)
+                .AsQueryable();
+
+            if (allowedClassIds != null)
+            {
+                attendanceQuery = attendanceQuery.Where(a => allowedClassIds.Contains(a.Lesson.ClassId));
+            }
+
+            var attendanceStats = await attendanceQuery
                 .GroupBy(a => new { a.Lesson.Class.Semester.Name, a.Lesson.Class.Semester.StartDate })
                 .Select(g => new
                 {
