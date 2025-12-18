@@ -7,7 +7,7 @@ import NewsApi from '../../../vn.fpt.edu.api/News';
 
 const { Title, Text } = Typography;
 
-const NewsSection = () => {
+const NewsSection = ({ basePath = '/student' }) => {
   const navigate = useNavigate();
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,12 +20,12 @@ const NewsSection = () => {
     try {
       setLoading(true);
       // Lấy 5 news gần nhất với status=published
-      const response = await NewsApi.getNews({ 
-        page: 1, 
+      const response = await NewsApi.getNews({
+        page: 1,
         pageSize: 5,
-        status: 'published' 
+        status: 'published'
       });
-      
+
       if (response && response.items) {
         setNews(response.items);
       }
@@ -46,15 +46,15 @@ const NewsSection = () => {
   };
 
   const handleViewDetails = (newsId) => {
-    navigate(`/student/news/${newsId}`);
+    navigate(`${basePath}/news/${newsId}`);
   };
 
   const handleViewAll = () => {
-    navigate('/student/news');
+    navigate(`${basePath}/news`);
   };
 
   return (
-    <Card 
+    <Card
       className="section-card"
       title={
         <div className="section-card-header">
@@ -63,8 +63,8 @@ const NewsSection = () => {
         </div>
       }
       extra={
-        <Button 
-          type="link" 
+        <Button
+          type="link"
           onClick={handleViewAll}
           style={{ padding: 0 }}
         >
@@ -83,21 +83,21 @@ const NewsSection = () => {
               const title = item.Title || item.title || '';
               const createdAt = item.CreatedAt || item.createdAt || '';
               const newsId = item.Id || item.id;
-              
+
               return (
-                <div 
-                  key={newsId} 
+                <div
+                  key={newsId}
                   className="news-item"
-                  style={{ 
+                  style={{
                     cursor: 'pointer',
                     padding: '12px 0',
                     borderBottom: '1px solid #f0f0f0'
                   }}
                   onClick={() => handleViewDetails(newsId)}
                 >
-                  <div 
-                    className="news-title" 
-                    style={{ 
+                  <div
+                    className="news-title"
+                    style={{
                       color: '#1890ff',
                       marginBottom: '4px',
                       fontWeight: 500
@@ -109,8 +109,8 @@ const NewsSection = () => {
                     <Text className="news-date" style={{ color: '#8c8c8c', fontSize: '12px' }}>
                       {formatDate(createdAt)}
                     </Text>
-                    <Button 
-                      type="link" 
+                    <Button
+                      type="link"
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -126,7 +126,7 @@ const NewsSection = () => {
             })}
           </>
         ) : (
-          <Empty 
+          <Empty
             description="No news available"
             style={{ margin: '20px 0' }}
           />
