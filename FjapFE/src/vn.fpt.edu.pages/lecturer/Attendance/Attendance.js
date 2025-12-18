@@ -41,15 +41,38 @@ export default function Attendance() {
   const [lessons, setLessons] = useState([]);
   const [students, setStudents] = useState([]);
   const [lessonInfo, setLessonInfo] = useState(null);
-  const [selectedClassId, setSelectedClassId] = useState(null);
-  const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attendanceMap, setAttendanceMap] = useState({}); // { studentId: status }
   const location = useLocation();
   const navigate = useNavigate();
-  const [prefillClassId, setPrefillClassId] = useState(location.state?.classId || null);
-  const [prefillLessonId, setPrefillLessonId] = useState(location.state?.lessonId || null);
+
+  // Helper: read last selected class/lesson from localStorage (for F5 reload)
+  const getLastAttendanceSelection = () => {
+    try {
+      const raw = window.localStorage.getItem("lecturer_last_attendance");
+      if (!raw) return { classId: null, lessonId: null };
+      const parsed = JSON.parse(raw);
+      return {
+        classId: parsed?.classId ?? null,
+        lessonId: parsed?.lessonId ?? null,
+      };
+    } catch {
+      return { classId: null, lessonId: null };
+    }
+  };
+
+  const navigationState = location.state || {};
+  const lastSelection = getLastAttendanceSelection();
+
+  const [selectedClassId, setSelectedClassId] = useState(null);
+  const [selectedLessonId, setSelectedLessonId] = useState(null);
+  const [prefillClassId, setPrefillClassId] = useState(
+    navigationState.classId ?? lastSelection.classId ?? null
+  );
+  const [prefillLessonId, setPrefillLessonId] = useState(
+    navigationState.lessonId ?? lastSelection.lessonId ?? null
+  );
   const [prefillClassApplied, setPrefillClassApplied] = useState(false);
   const [prefillLessonApplied, setPrefillLessonApplied] = useState(false);
   useEffect(() => {
@@ -121,6 +144,19 @@ export default function Attendance() {
           timeSlot: data.timeSlot,
           subjectName: data.subjectName,
         });
+
+        // Persist current selection so that F5 can restore it
+        try {
+          window.localStorage.setItem(
+            "lecturer_last_attendance",
+            JSON.stringify({
+              classId: data.classId,
+              lessonId: data.lessonId,
+            })
+          );
+        } catch {
+          // ignore storage errors
+        }
 
         // Initialize attendance map
         const map = {};
