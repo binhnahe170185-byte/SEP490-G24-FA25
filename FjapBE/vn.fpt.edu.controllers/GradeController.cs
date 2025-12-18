@@ -3,6 +3,7 @@ using FJAP.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
+using System.Security.Claims;
 
 namespace FJAP.Controllers.Manager
 {
@@ -26,6 +27,12 @@ namespace FJAP.Controllers.Manager
         {
             try
             {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    filter.UserId = userId;
+                }
+
                 var result = await _gradeService.GetGradesAsync(filter);
                 return Ok(new
                 {

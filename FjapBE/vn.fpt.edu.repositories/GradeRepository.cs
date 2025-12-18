@@ -36,6 +36,14 @@ namespace FJAP.Repositories
             if (!string.IsNullOrWhiteSpace(filter.Status))
                 query = query.Where(g => g.Status == filter.Status);
 
+            if (filter.UserId.HasValue)
+            {
+                query = query.Where(g => g.Subject.Classes.Any(c => 
+                    c.Students.Any(s => s.StudentId == g.StudentId) && 
+                    c.Lessons.Any(l => l.Lecture.UserId == filter.UserId.Value)
+                ));
+            }
+
             // Search by student name or code
             if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
             {
