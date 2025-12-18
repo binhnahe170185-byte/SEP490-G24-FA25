@@ -45,7 +45,7 @@ namespace FJAP.Services.Interfaces
         /// Cập nhật điểm thành phần của grade
         /// </summary>
         Task<bool> UpdateGradeComponentsAsync(UpdateGradeComponentsRequest request);
-        Task<DashboardChartDataDto> GetDashboardChartsAsync();
+        Task<DashboardChartDataDto> GetDashboardChartsAsync(GradeFilterRequest filter);
         
     }
 }

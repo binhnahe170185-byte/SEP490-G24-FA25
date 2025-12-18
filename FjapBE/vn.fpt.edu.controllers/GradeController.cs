@@ -289,7 +289,14 @@ namespace FJAP.Controllers.Manager
         {
             try
             {
-                var charts = await _gradeService.GetDashboardChartsAsync();
+                var filter = new GradeFilterRequest();
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    filter.UserId = userId;
+                }
+
+                var charts = await _gradeService.GetDashboardChartsAsync(filter);
                 return Ok(new
                 {
                     code = 200,

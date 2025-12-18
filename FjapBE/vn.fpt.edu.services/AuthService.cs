@@ -71,7 +71,8 @@ public class AuthService : IAuthService
             Email = user.Email,
             Name = user.FirstName,
             Picture = user.Avatar,
-            RoleId = user.RoleId
+            RoleId = user.RoleId,
+            UserId = user.UserId
         };
 
         // Add role-specific IDs

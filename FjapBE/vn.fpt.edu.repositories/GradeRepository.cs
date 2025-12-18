@@ -36,11 +36,24 @@ namespace FJAP.Repositories
             if (!string.IsNullOrWhiteSpace(filter.Status))
                 query = query.Where(g => g.Status == filter.Status);
 
-            if (filter.UserId.HasValue)
+            // Filter by Lecturer (LectureId)
+            if (filter.LectureId.HasValue)
             {
+                // Align with ClassRepository logic:
+                // 1. Get all ClassIds taught by this lecturer (from Lessons)
+                // 2. Filter must be on Active classes only -- REMOVED strict filter to match Homeworks
+                
+                var allowedClassIds = await _context.Lessons
+                    .Where(l => l.LectureId == filter.LectureId.Value)
+                    .Select(l => l.ClassId)
+                    .Distinct()
+                    .ToListAsync();
+
+                // 3. Filter grades: Student must be in one of these classes AND for that specific Subject
+                // We access Subject.Classes to check if student is enrolled in the allowed class for THIS subject.
                 query = query.Where(g => g.Subject.Classes.Any(c => 
-                    c.Students.Any(s => s.StudentId == g.StudentId) && 
-                    c.Lessons.Any(l => l.Lecture.UserId == filter.UserId.Value)
+                    allowedClassIds.Contains(c.ClassId) && 
+                    c.Students.Any(s => s.StudentId == g.StudentId)
                 ));
             }
 
@@ -210,6 +223,21 @@ namespace FJAP.Repositories
 
                 if (filter.SemesterId.HasValue)
                     query = query.Where(g => g.Student != null && g.Student.SemesterId == filter.SemesterId.Value);
+
+                // Filter by Lecturer (LectureId)
+                if (filter.LectureId.HasValue)
+                {
+                    var allowedClassIds = await _context.Lessons
+                        .Where(l => l.LectureId == filter.LectureId.Value)
+                        .Select(l => l.ClassId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    query = query.Where(g => g.Subject.Classes.Any(c => 
+                        allowedClassIds.Contains(c.ClassId) && 
+                        c.Students.Any(s => s.StudentId == g.StudentId)
+                    ));
+                }
             }
 
             var stats = await query

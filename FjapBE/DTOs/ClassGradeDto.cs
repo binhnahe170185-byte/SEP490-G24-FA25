@@ -56,6 +56,7 @@ namespace FJAP.vn.fpt.edu.models
         public string? CompletionStatus { get; set; } // "100% Complete", "In Progress", "Not Started"
         public string? SearchTerm { get; set; }
         public int? UserId { get; set; } // Filter by UserId of lecturer who teaches the class (via Lecture.UserId)
+        public int? LectureId { get; set; }
     }
 
     /// <summary>
