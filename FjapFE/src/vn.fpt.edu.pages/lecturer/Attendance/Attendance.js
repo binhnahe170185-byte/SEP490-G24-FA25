@@ -184,7 +184,39 @@ export default function Attendance() {
     loadStudents(lessonId);
   };
 
+  // Check if attendance can be taken/edited based on business rules
+  const canTakeAttendance = () => {
+    if (!lessonInfo || !lessonInfo.date) return false;
+
+    const today = new Date();
+    const lessonDate = new Date(lessonInfo.date);
+
+    // Reset time to compare dates only
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const lessonDateOnly = new Date(lessonDate.getFullYear(), lessonDate.getMonth(), lessonDate.getDate());
+
+    // Can only take attendance on the lesson date
+    if (todayDateOnly.getTime() !== lessonDateOnly.getTime()) {
+      return false;
+    }
+
+    // Cannot edit after 23:59 of the lesson date
+    const now = new Date();
+    const today23_59 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+    if (now > today23_59) {
+      return false;
+    }
+
+    return true;
+  };
+
   const handleStatusChange = (studentId, status) => {
+    if (!canTakeAttendance()) {
+      message.warning("Attendance can only be taken on the lesson date and cannot be edited after 23:59");
+      return;
+    }
+
     setAttendanceMap((prev) => ({
       ...prev,
       [studentId]: status,
@@ -192,6 +224,37 @@ export default function Attendance() {
   };
 
   const handleSave = async () => {
+    // Check business rule: can only take attendance on lesson date and before 23:59
+    if (!canTakeAttendance()) {
+      const today = new Date();
+      const lessonDate = new Date(lessonInfo.date);
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const lessonDateOnly = new Date(lessonDate.getFullYear(), lessonDate.getMonth(), lessonDate.getDate());
+
+      if (todayDateOnly.getTime() !== lessonDateOnly.getTime()) {
+        api.error({
+          message: 'Cannot Save Attendance',
+          description: 'Attendance can only be taken on the lesson date.',
+          placement: 'bottomRight',
+          duration: 5,
+        });
+        return;
+      }
+
+      const now = new Date();
+      const today23_59 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      if (now > today23_59) {
+        api.error({
+          message: 'Cannot Save Attendance',
+          description: 'Attendance cannot be edited after 23:59.',
+          placement: 'bottomRight',
+          duration: 5,
+        });
+        return;
+      }
+
+      return;
+    }
 
     const hasChanges = students.some((student) => {
       const originalStatus = student.status || "Absent";
@@ -384,6 +447,7 @@ export default function Attendance() {
       render: (_value, record) => {
         const currentStatus = attendanceMap[record.studentId] || record.status || "Absent";
         const statusOption = STATUS_OPTIONS.find((opt) => opt.value === currentStatus);
+        const canEdit = canTakeAttendance();
 
         return (
           <Space>
@@ -393,6 +457,7 @@ export default function Attendance() {
                 type={currentStatus === opt.value ? "primary" : "default"}
                 icon={opt.icon}
                 onClick={() => handleStatusChange(record.studentId, opt.value)}
+                disabled={!canEdit}
               >
                 {opt.label}
               </Button>
@@ -473,7 +538,35 @@ export default function Attendance() {
           </Card>
         )}
 
-        {/* attendance warning: previously restricted to lesson date only. Requirement changed -> no time limit. */}
+        {/* Attendance Warning: Business Rule */}
+        {lessonInfo && !canTakeAttendance() && (
+          <Alert
+            message="Attendance Restriction"
+            description={
+              (() => {
+                const today = new Date();
+                const lessonDate = new Date(lessonInfo.date);
+                const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const lessonDateOnly = new Date(lessonDate.getFullYear(), lessonDate.getMonth(), lessonDate.getDate());
+
+                if (todayDateOnly.getTime() !== lessonDateOnly.getTime()) {
+                  return `Attendance can only be taken on the lesson date (${lessonInfo.date}). Today is ${today.toLocaleDateString()}.`;
+                }
+
+                const now = new Date();
+                const today23_59 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+                if (now > today23_59) {
+                  return "Attendance cannot be edited after 23:59 of the lesson date.";
+                }
+
+                return "Attendance cannot be taken at this time.";
+              })()
+            }
+            type="warning"
+            showIcon
+            style={{ marginBottom: 24 }}
+          />
+        )}
 
         {/* Students Table */}
         {loading && students.length === 0 ? (
@@ -505,7 +598,7 @@ export default function Attendance() {
                 size="large"
                 onClick={handleSave}
                 loading={saving}
-                disabled={!selectedLessonId || students.length === 0}
+                disabled={!selectedLessonId || students.length === 0 || !canTakeAttendance()}
               >
                 Save Attendance
               </Button>

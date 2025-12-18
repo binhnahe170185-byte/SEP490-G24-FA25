@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import dayjsLib from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import {
@@ -381,69 +381,71 @@ const CreateSchedule = () => {
     }
   }, [semesterId, semesterData, semester.id]);
 
+  // Extract loadSemesterLessons logic into a reusable function
+  const loadSemesterLessons = useCallback(async () => {
+    const semId = semester.id || semesterId;
+    if (!semId) {
+      setSemesterLessons([]);
+      setConflictMap({});
+      setConflictMapSize(0);
+      return;
+    }
+
+    try {
+      setLoadingSemesterLessons(true);
+      console.log('Loading all lessons for semester:', semId);
+      const lessons = await ClassList.getAllLessonsBySemester(semId);
+      console.log('Loaded semester lessons:', lessons?.length || 0);
+
+      setSemesterLessons(lessons || []);
+
+      // Build conflict map: key = "date|slot|room", value = array of conflicts
+      const newConflictMap = {};
+      (lessons || []).forEach(lesson => {
+        if (!lesson.date || !lesson.timeId || !lesson.roomId) {
+          console.warn('Invalid lesson data:', lesson);
+          return;
+        }
+        const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
+        if (!newConflictMap[key]) {
+          newConflictMap[key] = [];
+        }
+        // Get lecturer display (prioritize email if available, then substring before @)
+        const lecturerDisplay = lesson.lecturerEmail
+          ? getEmailUsername(lesson.lecturerEmail)
+          : (lesson.lecturerCode || '');
+
+        newConflictMap[key].push({
+          classId: lesson.classId,
+          className: lesson.className,
+          lecturerId: lesson.lecturerId,
+          lecturerCode: lecturerDisplay, // Store substring email or lecturerCode
+          date: lesson.date,
+          timeId: lesson.timeId,
+          roomId: lesson.roomId,
+          roomName: lesson.roomName
+        });
+      });
+
+      const mapSize = Object.keys(newConflictMap).length;
+      console.log('Built conflict map with', mapSize, 'keys');
+      console.log('Sample conflict keys:', Object.keys(newConflictMap).slice(0, 5));
+      setConflictMap(newConflictMap);
+      setConflictMapSize(mapSize);
+    } catch (error) {
+      console.error('Failed to load semester lessons:', error);
+      setSemesterLessons([]);
+      setConflictMap({});
+      setConflictMapSize(0);
+    } finally {
+      setLoadingSemesterLessons(false);
+    }
+  }, [semester.id, semesterId]);
+
   // Load all lessons of semester when semester is selected
   useEffect(() => {
-    const loadSemesterLessons = async () => {
-      const semId = semester.id || semesterId;
-      if (!semId) {
-        setSemesterLessons([]);
-        setConflictMap(new Map());
-        return;
-      }
-
-      try {
-        setLoadingSemesterLessons(true);
-        console.log('Loading all lessons for semester:', semId);
-        const lessons = await ClassList.getAllLessonsBySemester(semId);
-        console.log('Loaded semester lessons:', lessons?.length || 0);
-
-        setSemesterLessons(lessons || []);
-
-        // Build conflict map: key = "date|slot|room", value = array of conflicts
-        const newConflictMap = {};
-        (lessons || []).forEach(lesson => {
-          if (!lesson.date || !lesson.timeId || !lesson.roomId) {
-            console.warn('Invalid lesson data:', lesson);
-            return;
-          }
-          const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
-          if (!newConflictMap[key]) {
-            newConflictMap[key] = [];
-          }
-          // Get lecturer display (prioritize email if available, then substring before @)
-          const lecturerDisplay = lesson.lecturerEmail
-            ? getEmailUsername(lesson.lecturerEmail)
-            : (lesson.lecturerCode || '');
-
-          newConflictMap[key].push({
-            classId: lesson.classId,
-            className: lesson.className,
-            lecturerId: lesson.lecturerId,
-            lecturerCode: lecturerDisplay, // Store substring email or lecturerCode
-            date: lesson.date,
-            timeId: lesson.timeId,
-            roomId: lesson.roomId,
-            roomName: lesson.roomName
-          });
-        });
-
-        const mapSize = Object.keys(newConflictMap).length;
-        console.log('Built conflict map with', mapSize, 'keys');
-        console.log('Sample conflict keys:', Object.keys(newConflictMap).slice(0, 5));
-        setConflictMap(newConflictMap);
-        setConflictMapSize(mapSize);
-      } catch (error) {
-        console.error('Failed to load semester lessons:', error);
-        setSemesterLessons([]);
-        setConflictMap({});
-        setConflictMapSize(0);
-      } finally {
-        setLoadingSemesterLessons(false);
-      }
-    };
-
     loadSemesterLessons();
-  }, [semester.id, semesterId]);
+  }, [loadSemesterLessons]);
 
   // Fetch holidays when semester is selected
   useEffect(() => {
@@ -1338,9 +1340,54 @@ const CreateSchedule = () => {
           placement: 'bottomRight',
           duration: 5,
         });
+        
+        // Refresh conflict map after successful save to include newly created lessons
+        // This prevents race condition when creating schedules for multiple classes
+        console.log('Refreshing conflict map after successful save...');
+        await loadSemesterLessons();
+        
+        // Also reload the class schedule to show newly created lessons
+        if (classId && effectiveSemesterId) {
+          try {
+            const scheduleResponse = await ClassList.getSchedule(effectiveSemesterId, classId);
+            const scheduleData = scheduleResponse || [];
+            const convertedLessons = scheduleData.map(lesson => {
+              const dateStr = lesson.date;
+              const lessonDate = fromYMD(dateStr);
+              const dayOfWeek = lessonDate.getDay();
+              const weekday = dayOfWeek === 0 ? 8 : dayOfWeek + 1;
+              const slot = lesson.timeId || 1;
+              const roomName = lesson.roomName || '';
+              const room = rooms.find(r => r.label === roomName);
+              const roomId = room ? room.value : null;
+              const lecturerDisplay = lesson.lecturerEmail
+                ? getEmailUsername(lesson.lecturerEmail)
+                : (lesson.lecturerCode || '');
+              
+              return {
+                date: dateStr,
+                weekday: weekday,
+                slot: slot,
+                room: roomName,
+                roomId: roomId,
+                lecturer: lecturerDisplay,
+                subjectCode: lesson.subjectCode || '',
+                subjectName: lesson.subjectName || '',
+                className: lesson.className || '',
+                startTime: lesson.startTime || '',
+                endTime: lesson.endTime || '',
+                timeId: lesson.timeId,
+                isLoaded: true
+              };
+            });
+            setLoadedLessons(convertedLessons);
+            console.log('Reloaded class schedule:', convertedLessons.length, 'lessons');
+          } catch (error) {
+            console.error('Failed to reload class schedule:', error);
+            // Don't fail the save operation if reload fails
+          }
+        }
       }
-
-      // TODO: reload lại schedule nếu cần
     } catch (error) {
       console.error('=== Error saving schedule ===');
       console.error('Error response status:', error?.response?.status);
