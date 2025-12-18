@@ -104,6 +104,7 @@ namespace FJAP.vn.fpt.edu.models
         public int CompletedCount { get; set; }
         public int FailedCount { get; set; }
         public decimal AverageScore { get; set; }
+        public int TotalStudents { get; set; }
     }
 
     // DTO để cập nhật điểm thành phần
