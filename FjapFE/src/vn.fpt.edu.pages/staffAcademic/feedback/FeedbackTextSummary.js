@@ -96,6 +96,11 @@ export default function FeedbackTextSummary({ data, loading }) {
     key: `positive-${idx}`,
   }));
 
+  const neutralData = (data.neutralSummary || []).map((item, idx) => ({
+    ...item,
+    key: `neutral-${idx}`,
+  }));
+
   const getRowClassName = (record) => {
     if (record.mentionCount >= 5) return "highlight-row";
     return "";
@@ -105,7 +110,7 @@ export default function FeedbackTextSummary({ data, loading }) {
     <Card title="Text Feedback Summary" style={{ width: "100%" }}>
       <div style={{ marginBottom: 16 }}>
         <Text type="secondary">
-          Total: <strong>{data.totalPositiveCount + data.totalNegativeCount}</strong> feedbacks
+          Total: <strong>{data.totalCount || (data.totalPositiveCount + data.totalNegativeCount + (data.totalNeutralCount || 0))}</strong> feedbacks
           {data.totalPositiveCount > 0 && (
             <span style={{ marginLeft: 16 }}>
               Positive: <Tag color="green">{data.totalPositiveCount}</Tag>
@@ -116,11 +121,16 @@ export default function FeedbackTextSummary({ data, loading }) {
               Negative: <Tag color="red">{data.totalNegativeCount}</Tag>
             </span>
           )}
+          {data.totalNeutralCount > 0 && (
+            <span style={{ marginLeft: 8 }}>
+              Neutral: <Tag>{data.totalNeutralCount}</Tag>
+            </span>
+          )}
         </Text>
       </div>
 
       <Collapse
-        defaultActiveKey={["negative", "positive"]}
+        defaultActiveKey={["negative", "positive", "neutral"]}
         expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
       >
         {data.totalNegativeCount > 0 && (
@@ -194,6 +204,48 @@ export default function FeedbackTextSummary({ data, loading }) {
                 rowExpandable: (record) => record.examples && record.examples.length > 0,
               }}
             />
+          </Panel>
+        )}
+
+        {data.totalNeutralCount > 0 && (
+          <Panel
+            header={
+              <span>
+                Neutral Feedback {data.neutralSummary && data.neutralSummary.length > 0 && `(${data.neutralSummary.length} topics)`}{" "}
+                <Tag>{data.totalNeutralCount} feedbacks</Tag>
+              </span>
+            }
+            key="neutral"
+          >
+            {neutralData && neutralData.length > 0 ? (
+              <Table
+                columns={positiveColumns}
+                dataSource={neutralData}
+                pagination={{ pageSize: 10 }}
+                expandable={{
+                  expandedRowRender: (record) => (
+                    <div style={{ padding: "8px 0" }}>
+                      <Text strong>Examples:</Text>
+                      <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                        {record.examples?.map((example, idx) => (
+                          <li key={idx} style={{ marginBottom: 4 }}>
+                            <Text type="secondary">"{example}"</Text>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ),
+                  rowExpandable: (record) => record.examples && record.examples.length > 0,
+                }}
+              />
+            ) : (
+              <Empty 
+                description={data.neutralSummary && data.neutralSummary.length === 0 
+                  ? "No topics found for neutral feedbacks." 
+                  : "AI analysis is in progress. Please wait or try reloading."} 
+                style={{ padding: "40px 0" }}
+              />
+            )}
           </Panel>
         )}
       </Collapse>

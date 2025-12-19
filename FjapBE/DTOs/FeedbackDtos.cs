@@ -196,7 +196,10 @@ public record FeedbackTextSummaryDto(
     List<TextSummaryItemDto> PositiveSummary,
     List<TextSummaryItemDto> NegativeSummary,
     int TotalPositiveCount,
-    int TotalNegativeCount
+    int TotalNegativeCount,
+    List<TextSummaryItemDto>? NeutralSummary = null,
+    int TotalNeutralCount = 0,
+    int TotalCount = 0
 );
 
 // Daily Feedback DTOs

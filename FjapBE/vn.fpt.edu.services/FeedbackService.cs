@@ -306,9 +306,18 @@ public class FeedbackService : IFeedbackService
             if (fixedCategoryResult != null)
             {
                 var code = fixedCategoryResult.CategoryCode;
+                // Đảm bảo code không null/empty, nếu có thì fallback về UNK
+                if (string.IsNullOrWhiteSpace(code))
+                {
+                    logger?.LogWarning("fixedCategoryResult.CategoryCode is null/empty, defaulting to UNK");
+                    code = "UNK";
+                }
+                
                 feedback.IssueCategory = code; // Store C1..F1 in IssueCategory column
                 feedback.CategoryCode = code;
-                feedback.CategoryName = fixedCategoryResult.CategoryName;
+                feedback.CategoryName = !string.IsNullOrWhiteSpace(fixedCategoryResult.CategoryName)
+                    ? fixedCategoryResult.CategoryName
+                    : FJAP.vn.fpt.edu.models.IssueCategoryInfo.GetDisplayName(code);
                 feedback.CategoryConfidence = (decimal?)fixedCategoryResult.Confidence;
                 feedback.AiReason = fixedCategoryResult.Reason;
 
@@ -357,11 +366,13 @@ public class FeedbackService : IFeedbackService
                 else
                 {
                     logger?.LogWarning("Invalid CategoryCode from AiAnalysisService: {Code}, falling back to pattern classification", categoryCode);
-                    // Fall through to pattern-based classification
+                    // Fall through to pattern-based classification in Priority 3
+                    // Treat as if CategoryCode was null
                 }
             }
-            // Priority 3: If no CategoryCode, try to map from old IssueCategory or use pattern-based classification
-            else
+            
+            // Priority 3: If no valid CategoryCode was set, try to map from old IssueCategory or use pattern-based classification
+            if (string.IsNullOrWhiteSpace(feedback.CategoryCode))
             {
                 string? finalCategoryCode = null;
                 var allAnswersLow = answers != null && answers.Values.All(a => a == 1);
@@ -422,12 +433,33 @@ public class FeedbackService : IFeedbackService
                     }
                 }
                 
+                // Đảm bảo finalCategoryCode không null - luôn có giá trị ít nhất là UNK
+                if (string.IsNullOrWhiteSpace(finalCategoryCode))
+                {
+                    finalCategoryCode = "UNK";
+                    logger?.LogWarning("FinalCategoryCode was null/empty, defaulting to UNK for feedback {FeedbackId}", feedback.Id);
+                }
+                
                 feedback.IssueCategory = finalCategoryCode;
                 feedback.CategoryCode = finalCategoryCode;
                 feedback.CategoryName = FJAP.vn.fpt.edu.models.IssueCategoryInfo.GetDisplayName(finalCategoryCode);
                 feedback.CategoryConfidence ??= analysisResult.Confidence;
                 logger?.LogInformation("Final category code for feedback {FeedbackId}: {Code}", feedback.Id, finalCategoryCode);
             }
+            
+            // Final safety check: Đảm bảo luôn có category, ít nhất là UNK
+            if (string.IsNullOrWhiteSpace(feedback.CategoryCode))
+            {
+                logger?.LogWarning("CategoryCode is still null after all processing, defaulting to UNK for feedback {FeedbackId}", feedback.Id);
+                feedback.IssueCategory = "UNK";
+                feedback.CategoryCode = "UNK";
+                feedback.CategoryName = "Unknown";
+                if (feedback.CategoryConfidence == null)
+                {
+                    feedback.CategoryConfidence = 0.0m;
+                }
+            }
+            
             feedback.AnalyzedAt = DateTime.UtcNow;
             feedback.UpdatedAt = DateTime.UtcNow;
 

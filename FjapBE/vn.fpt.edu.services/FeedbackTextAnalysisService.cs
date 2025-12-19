@@ -37,38 +37,62 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
                 classId, semesterId, from, to);
 
             // Query feedbacks with filters (keep tracking to update AnalyzedAt for incremental flow)
+            // Use null check in EF Core query, then filter empty strings in memory for better compatibility
             var query = _context.Feedbacks
                 .Include(f => f.Class)
-                .Where(f => (!string.IsNullOrWhiteSpace(f.FreeText) || !string.IsNullOrWhiteSpace(f.FreeTextTranscript)));
+                .Where(f => f.FreeText != null || f.FreeTextTranscript != null);
+
+            _logger?.LogInformation("Initial query: filtering feedbacks with FreeText or FreeTextTranscript not null");
 
             if (classId.HasValue)
             {
                 query = query.Where(f => f.ClassId == classId.Value);
+                _logger?.LogInformation("Applied ClassId filter: {ClassId}", classId.Value);
             }
 
             if (semesterId.HasValue)
             {
-                query = query.Where(f => f.Class.SemesterId == semesterId.Value);
+                // Use null-safe check to avoid issues if Class is null
+                query = query.Where(f => f.Class != null && f.Class.SemesterId == semesterId.Value);
+                _logger?.LogInformation("Applied SemesterId filter: {SemesterId}", semesterId.Value);
             }
 
             if (from.HasValue)
             {
                 query = query.Where(f => f.CreatedAt >= from.Value);
+                _logger?.LogInformation("Applied From date filter: {From}", from.Value);
             }
 
             if (to.HasValue)
             {
                 query = query.Where(f => f.CreatedAt <= to.Value);
+                _logger?.LogInformation("Applied To date filter: {To}", to.Value);
             }
 
-            var feedbacks = await query.ToListAsync();
-            _logger?.LogInformation("Found {Count} feedbacks with text content", feedbacks.Count);
+            // Execute query and get all feedbacks from database
+            var allFeedbacks = await query.ToListAsync();
+            _logger?.LogInformation("Query executed: Found {Count} feedbacks from database (before filtering empty strings)", allFeedbacks.Count);
+            
+            // Filter out truly empty strings in memory (more reliable than EF Core translation of IsNullOrWhiteSpace)
+            // Only exclude feedbacks where BOTH FreeText and FreeTextTranscript are null/empty/whitespace
+            var feedbacks = allFeedbacks.Where(f => 
+            {
+                var hasFreeText = !string.IsNullOrWhiteSpace(f.FreeText);
+                var hasTranscript = !string.IsNullOrWhiteSpace(f.FreeTextTranscript);
+                return hasFreeText || hasTranscript;
+            }).ToList();
+            
+            _logger?.LogInformation("After filtering empty strings: Found {Count} feedbacks with text content", feedbacks.Count);
+            _logger?.LogInformation("Filtered out {Count} feedbacks with empty/whitespace text", allFeedbacks.Count - feedbacks.Count);
 
             if (!feedbacks.Any())
             {
                 _logger?.LogInformation("No feedbacks found with text content for the given filters");
                 return new FeedbackTextSummaryDto(
                     new List<TextSummaryItemDto>(),
+                    new List<TextSummaryItemDto>(),
+                    0,
+                    0,
                     new List<TextSummaryItemDto>(),
                     0,
                     0
@@ -91,17 +115,26 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
             var neutralFeedbacks = feedbacks.Where(f => f.Sentiment != "Positive" && f.Sentiment != "Negative").ToList();
 
             // Build summaries from stored AI fields (no extra Gemini calls)
+            _logger?.LogInformation("Grouped by sentiment - Positive: {PositiveCount}, Negative: {NegativeCount}, Neutral: {NeutralCount}, Total: {TotalCount}", 
+                positiveFeedbacks.Count, negativeFeedbacks.Count, neutralFeedbacks.Count, feedbacks.Count);
             _logger?.LogInformation("Summarizing {PositiveCount} positive and {NegativeCount} negative feedbacks from cached data", 
                 positiveFeedbacks.Count, negativeFeedbacks.Count);
 
             var positiveSummary = BuildSummaryFromCachedData(positiveFeedbacks, "Positive");
             var negativeSummary = BuildSummaryFromCachedData(negativeFeedbacks, "Negative");
+            var neutralSummary = BuildSummaryFromCachedData(neutralFeedbacks, "Neutral");
+
+            _logger?.LogInformation("Summary counts - Positive: {PositiveCount} topics, Negative: {NegativeCount} topics, Neutral: {NeutralCount} topics",
+                positiveSummary.Count, negativeSummary.Count, neutralSummary.Count);
 
             return new FeedbackTextSummaryDto(
                 positiveSummary,
                 negativeSummary,
                 positiveFeedbacks.Count,
-                negativeFeedbacks.Count
+                negativeFeedbacks.Count,
+                neutralSummary,
+                neutralFeedbacks.Count,
+                feedbacks.Count
             );
         }
         catch (Exception ex)
@@ -387,16 +420,50 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
             return new List<TextSummaryItemDto>();
         }
 
+        _logger?.LogInformation("Building summary from cached data for {Sentiment} feedbacks: {Count} feedbacks", sentiment, feedbacks.Count);
+
+        // Normalize category codes: ensure UNK, null, empty are all treated as UNK
         var groups = feedbacks.GroupBy(f =>
-            !string.IsNullOrWhiteSpace(f.CategoryCode) ? f.CategoryCode :
-            !string.IsNullOrWhiteSpace(f.IssueCategory) ? f.IssueCategory :
-            "UNK");
+        {
+            var code = !string.IsNullOrWhiteSpace(f.CategoryCode) ? f.CategoryCode :
+                       !string.IsNullOrWhiteSpace(f.IssueCategory) ? f.IssueCategory :
+                       null;
+            
+            // Normalize: convert null/empty to UNK, and normalize case
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return "UNK";
+            }
+            
+            // Normalize case and handle variations
+            var normalized = code.Trim().ToUpperInvariant();
+            
+            // Handle variations of UNK
+            if (normalized == "UNK" || normalized == "UNKNOWN" || normalized == "OTHER")
+            {
+                return "UNK";
+            }
+            
+            // Return normalized code (C1, C2, etc.)
+            return normalized;
+        });
 
         var summaries = new List<TextSummaryItemDto>();
+
+        _logger?.LogInformation("Grouped {Sentiment} feedbacks into {GroupCount} category groups", sentiment, groups.Count());
 
         foreach (var group in groups)
         {
             var code = group.Key ?? "UNK";
+            // Ensure code is uppercase for consistency
+            code = code.ToUpperInvariant();
+            
+            // Handle UNK variations
+            if (code == "UNKNOWN" || code == "OTHER" || string.IsNullOrWhiteSpace(code))
+            {
+                code = "UNK";
+            }
+            
             var display = IssueCategoryInfo.GetDisplayNameWithCode(code);
             var nameOnly = IssueCategoryInfo.GetDisplayName(code);
             var topic = !string.IsNullOrWhiteSpace(display) ? display : nameOnly ?? "Unknown";
@@ -418,6 +485,9 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
             var mentionCount = group.Count();
             var urgencyScore = group.Any() ? group.Max(g => g.Urgency) : 0;
 
+            _logger?.LogInformation("Adding {Sentiment} summary item: {Topic} ({Code}) - {MentionCount} mentions", 
+                sentiment, topic, code, mentionCount);
+
             summaries.Add(new TextSummaryItemDto(
                 topic,
                 mainIssue,
@@ -426,6 +496,8 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
                 urgencyScore
             ));
         }
+
+        _logger?.LogInformation("Built {Count} summary items for {Sentiment} feedbacks", summaries.Count, sentiment);
 
         return summaries
             .OrderByDescending(s => s.MentionCount)
@@ -594,10 +666,30 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
     {
         var summary = new List<TextSummaryItemDto>();
         
-        // Group by IssueCategory if available
+        // Group by CategoryCode or IssueCategory, normalize null/empty to UNK
         var groupedByCategory = negativeFeedbacks
-            .Where(f => !string.IsNullOrWhiteSpace(f.IssueCategory))
-            .GroupBy(f => f.IssueCategory ?? "Other")
+            .GroupBy(f =>
+            {
+                var code = !string.IsNullOrWhiteSpace(f.CategoryCode) ? f.CategoryCode :
+                           !string.IsNullOrWhiteSpace(f.IssueCategory) ? f.IssueCategory :
+                           null;
+                
+                // Normalize: convert null/empty to UNK, and normalize case
+                if (string.IsNullOrWhiteSpace(code))
+                {
+                    return "UNK";
+                }
+                
+                var normalized = code.Trim().ToUpperInvariant();
+                
+                // Handle variations of UNK
+                if (normalized == "UNK" || normalized == "UNKNOWN" || normalized == "OTHER")
+                {
+                    return "UNK";
+                }
+                
+                return normalized;
+            })
             .ToList();
 
         if (groupedByCategory.Any())
@@ -663,18 +755,28 @@ public class FeedbackTextAnalysisService : IFeedbackTextAnalysisService
     private string GetCategoryDisplayName(string? category)
     {
         if (string.IsNullOrWhiteSpace(category))
-            return "Other";
+            return "Unknown";
 
-        // Try to get display name from FeedbackIssueCategory
-        if (FeedbackIssueCategory.DisplayNames.TryGetValue(category, out var displayName))
+        // Normalize category code
+        var normalized = category.Trim().ToUpperInvariant();
+        
+        // Handle UNK variations
+        if (normalized == "UNK" || normalized == "UNKNOWN" || normalized == "OTHER")
+        {
+            return IssueCategoryInfo.GetDisplayNameWithCode("UNK");
+        }
+
+        // Try to get display name from IssueCategoryInfo first (for new 8-category system)
+        var displayName = IssueCategoryInfo.GetDisplayNameWithCode(normalized);
+        if (!string.IsNullOrWhiteSpace(displayName) && displayName != normalized)
         {
             return displayName;
         }
 
-        // Try to parse as IssueCategory code (C1, C2, etc.) and get name
-        if (IssueCategoryInfo.GetDisplayName(category) != category)
+        // Try to get display name from FeedbackIssueCategory (old system)
+        if (FeedbackIssueCategory.DisplayNames.TryGetValue(category, out var oldDisplayName))
         {
-            return IssueCategoryInfo.GetDisplayName(category);
+            return oldDisplayName;
         }
 
         // Fallback: convert to readable format (ASSESSMENT_LOAD -> Assessment Load)
