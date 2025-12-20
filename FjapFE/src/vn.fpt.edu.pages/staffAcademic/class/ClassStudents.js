@@ -10,8 +10,10 @@ import {
   Statistic,
   Table,
   Typography,
+  Modal,
+  Tooltip
 } from "antd";
-import { ArrowLeftOutlined, UserAddOutlined, UserOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, UserAddOutlined, UserOutlined, DeleteOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
@@ -34,7 +36,8 @@ const ClassStudents = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { error: notifyError } = useNotify();
+  const { error: notifyError, success: notifySuccess } = useNotify();
+  const [modal, contextHolder] = Modal.useModal();
 
   const [loading, setLoading] = useState(true);
   const [classInfo, setClassInfo] = useState(null);
@@ -142,6 +145,7 @@ const ClassStudents = () => {
             classId,
           subjectName: subjectName,
           subjectCode: subjectCode,
+          totalLessons: data.totalLessons ?? 0,
         });
       })
       .catch((err) => {
@@ -208,16 +212,16 @@ const ClassStudents = () => {
         setClassInfo((prev) =>
           prev
             ? {
-                ...prev,
-                subjectName: prev.subjectName === "-" ? subjectName : prev.subjectName ?? subjectName,
-                subjectCode: prev.subjectCode === "-" ? subjectCode : prev.subjectCode ?? subjectCode,
-              }
+              ...prev,
+              subjectName: prev.subjectName === "-" ? subjectName : prev.subjectName ?? subjectName,
+              subjectCode: prev.subjectCode === "-" ? subjectCode : prev.subjectCode ?? subjectCode,
+            }
             : {
-                classId,
-                className: location.state?.className ?? classId,
-                subjectName,
-                subjectCode,
-              }
+              classId,
+              className: location.state?.className ?? classId,
+              subjectName,
+              subjectCode,
+            }
         );
       })
       .catch((error) => {
@@ -270,23 +274,50 @@ const ClassStudents = () => {
       render: (value) => value ?? "-",
     },
     {
-      title: "Avatar",
-      dataIndex: "avatar",
-      key: "avatar",
+      title: "Action",
+      key: "action",
       align: "center",
-      render: (value, record) => (
-        <Avatar
-          size={80}
-          src={value}
-          icon={!value ? <UserOutlined /> : undefined}
-          alt={record.fullName}
-        />
-      ),
+      render: (_, record) => {
+        const hasLessons = (classInfo?.totalLessons ?? 0) > 0;
+        return (
+          <Tooltip title={hasLessons ? "Cannot remove student: Class in progressing" : "Remove student from class"}>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              disabled={hasLessons}
+              onClick={() => handleRemoveStudent(record)}
+            />
+          </Tooltip>
+        );
+      },
     },
   ];
 
+  const handleRemoveStudent = (student) => {
+    modal.confirm({
+      title: "Remove Student",
+      icon: <ExclamationCircleOutlined />,
+      content: `Are you sure you want to remove student ${student.fullName} (${student.studentCode}) from this class?`,
+      okText: "Remove",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          await ClassListApi.removeStudent(classId, student.studentId);
+          notifySuccess("remove_student", "Success", "Student removed successfully");
+          // Update list
+          setStudents((prev) => prev.filter((s) => s.studentId !== student.studentId));
+        } catch (err) {
+          console.error(err);
+          notifyError("remove_student_error", "Error", "Failed to remove student");
+        }
+      },
+    });
+  };
+
   return (
     <section style={containerStyle}>
+      {contextHolder}
       <div style={headerStyle}>
         <Space size={12}>
           <Button

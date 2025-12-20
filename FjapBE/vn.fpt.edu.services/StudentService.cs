@@ -876,4 +876,21 @@ public class StudentService : IStudentService
 
     public Task<IEnumerable<StudentAttendanceLessonDto>> GetStudentAttendanceLessonsAsync(int studentId, int semesterId, int subjectId)
         => _studentRepository.GetStudentAttendanceLessonsAsync(studentId, semesterId, subjectId);
+
+    public async Task RemoveStudentFromClassAsync(int studentId, int classId)
+    {
+        var cls = await _db.Classes
+            .Include(c => c.Students)
+            .FirstOrDefaultAsync(c => c.ClassId == classId);
+        
+        if (cls != null)
+        {
+            var student = cls.Students.FirstOrDefault(s => s.StudentId == studentId);
+            if (student != null)
+            {
+                cls.Students.Remove(student);
+                await _db.SaveChangesAsync();
+            }
+        }
+    }
 }

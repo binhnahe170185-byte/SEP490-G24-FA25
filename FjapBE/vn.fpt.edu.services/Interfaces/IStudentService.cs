@@ -28,4 +28,5 @@ public interface IStudentService
     // Attendance (student) 
     Task<IEnumerable<StudentAttendanceSubjectDto>> GetStudentAttendanceSubjectsAsync(int studentId, int semesterId);
     Task<IEnumerable<StudentAttendanceLessonDto>> GetStudentAttendanceLessonsAsync(int studentId, int semesterId, int subjectId);
+    Task RemoveStudentFromClassAsync(int studentId, int classId);
 }

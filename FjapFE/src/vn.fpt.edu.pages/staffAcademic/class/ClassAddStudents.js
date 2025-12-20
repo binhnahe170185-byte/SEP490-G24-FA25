@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Input,
+  Select,
   Space,
   Table,
   Typography,
@@ -43,6 +44,7 @@ const ClassAddStudents = () => {
   const [maxStudents, setMaxStudents] = useState(null);
   const [currentStudents, setCurrentStudents] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     if (!classId) {
@@ -86,7 +88,7 @@ const ClassAddStudents = () => {
           subjectCode: subjectCode,
         };
         setClassInfo(info);
-        
+
         // Store max students limit and current count
         const max = data?.maxStudents ?? data?.MaxStudents ?? null;
         const current = (data?.students ?? data?.Students ?? []).length || 0;
@@ -113,10 +115,10 @@ const ClassAddStudents = () => {
     ClassListApi.getEligibleStudents(classId)
       .then((data) => {
         if (!isMounted) return;
-       const normalized = (data ?? []).map((item, index) => {
-         const firstName = item.first_name ?? item.firstName ?? item.FirstName ?? "";
-         const lastName = item.last_name ?? item.lastName ?? item.LastName ?? "";
-         const fullName =
+        const normalized = (data ?? []).map((item, index) => {
+          const firstName = item.first_name ?? item.firstName ?? item.FirstName ?? "";
+          const lastName = item.last_name ?? item.lastName ?? item.LastName ?? "";
+          const fullName =
             item.full_name ??
             item.fullName ??
             [firstName, lastName].filter(Boolean).join(" ").trim();
@@ -176,6 +178,11 @@ const ClassAddStudents = () => {
         .some((value) => value.toLowerCase().includes(term));
     });
   }, [candidates, searchTerm]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleSubmit = async () => {
     if (!selectedRowKeys.length) {
@@ -247,7 +254,7 @@ const ClassAddStudents = () => {
       key: "index",
       width: 70,
       align: "center",
-      render: (_value, _record, index) => (currentPage - 1) * 8 + index + 1,
+      render: (_value, _record, index) => (currentPage - 1) * pageSize + index + 1,
     },
     {
       title: "Student ID",
@@ -353,12 +360,25 @@ const ClassAddStudents = () => {
                 {maxStudents !== null ? ` / ${maxStudents - currentStudents}` : ""}
               </Typography.Text>
             </div>
+            <Select
+              value={pageSize}
+              onChange={(value) => {
+                setPageSize(value);
+                setCurrentPage(1);
+              }}
+              options={[
+                { value: 10, label: "10 / page" },
+                { value: 20, label: "20 / page" },
+                { value: 50, label: "50 / page" },
+              ]}
+              style={{ width: 120 }}
+            />
             <Input.Search
               allowClear
               placeholder="Search by name or ID"
               onSearch={setSearchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              style={{ width: 260 }}
+              style={{ width: 220 }}
             />
             <Button
               type="primary"
@@ -377,7 +397,18 @@ const ClassAddStudents = () => {
           columns={columns}
           dataSource={filteredCandidates}
           loading={loadingCandidates}
-          pagination={{ pageSize: 8, onChange: (page) => setCurrentPage(page) }}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            pageSizeOptions: [10, 20, 50],
+            showSizeChanger: true,
+            total: filteredCandidates.length,
+            hideOnSinglePage: false,
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size);
+            }
+          }}
           rowKey="key"
           locale={{
             emptyText: loadingCandidates ? "Loading..." : "No eligible students found.",
