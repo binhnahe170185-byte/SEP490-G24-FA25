@@ -44,12 +44,12 @@ export default function CourseList({ courses, selectedCourse, onSelectCourse, se
                 <Tag color="blue" style={{ margin: 0 }}>
                   {course.subjectCode}
                 </Tag>
-                <Tag 
+                <Tag
                   color={
-                    course.gradeStatus === "Completed" || course.gradeStatus === "Passed" ? "success" : 
-                    course.gradeStatus === "Failed" ? "error" : 
-                    "default"
-                  } 
+                    ["passed", "pass", "completed"].includes(String(course.gradeStatus).trim().toLowerCase()) ? "green" :
+                      ["failed", "fail", "not passed"].includes(String(course.gradeStatus).trim().toLowerCase()) ? "red" :
+                        "default"
+                  }
                   style={{ margin: 0 }}
                 >
                   {course.gradeStatus === "Completed" ? "Passed" : course.gradeStatus}
