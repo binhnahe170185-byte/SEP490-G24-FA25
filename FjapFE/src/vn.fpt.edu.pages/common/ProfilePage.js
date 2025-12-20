@@ -150,6 +150,20 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (file) => {
     try {
       setUploadingAvatar(true);
+
+      const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
+      if (!isJpgOrPng) {
+        message.error('You can only upload JPG/PNG file!');
+        return false;
+      }
+
+      const isLt5M = file.size / 1024 / 1024 < 5;
+      if (!isLt5M) {
+        message.error('Image must be smaller than 5MB!');
+        return false;
+      }
+
+
       const response = await ProfileApi.uploadAvatar(file);
       // Response structure: { avatarUrl: string } or { data: { avatarUrl: string } }
       const avatarUrl = response?.avatarUrl || response?.data?.avatarUrl;
@@ -447,7 +461,7 @@ export default function ProfilePage() {
                 <Upload
                   beforeUpload={handleAvatarUpload}
                   showUploadList={false}
-                  accept="image/*"
+                  accept=".jpg,.jpeg,.png"
                   disabled={uploadingAvatar}
                 >
                   <Button

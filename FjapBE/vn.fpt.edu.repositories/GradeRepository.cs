@@ -244,15 +244,24 @@ namespace FJAP.Repositories
                 .GroupBy(g => 1)
                 .Select(g => new GradeStatisticsDto
                 {
-                    TotalGrades = g.Count(),
+                    TotalGrades = g.Count(), // Total enrollment
                     InProgressCount = g.Count(x => x.Status == "In Progress"),
                     CompletedCount = g.Count(x => x.Status == "Completed"),
                     FailedCount = g.Count(x => x.Status == "Failed"),
-                    AverageScore = g.Average(x => x.FinalScore ?? 0)
+                    // Count passed based on actual score vs pass mark (default 5.0)
+                    PassedCount = g.Count(x => x.FinalScore != null && x.FinalScore >= (x.Subject.PassMark ?? 5.0m)),
+                    // Average only for students who have a score
+                    AverageScore = g.Where(x => x.FinalScore != null).Average(x => x.FinalScore) ?? 0
                 })
                 .FirstOrDefaultAsync();
 
-            return stats ?? new GradeStatisticsDto();
+            stats = stats ?? new GradeStatisticsDto();
+            if (stats.TotalGrades > 0)
+            {
+                stats.PassRate = Math.Round((double)stats.PassedCount * 100 / stats.TotalGrades, 1);
+            }
+
+            return stats;
         }
 
         public async Task<bool> GradeExistsAsync(int studentId, int subjectId)
