@@ -203,7 +203,7 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
                 ClassCode = x.Class.ClassName, // Dùng ClassName thay cho ClassCode
                 Average = x.Grade != null ? x.Grade.FinalScore : null,
                 Status = "Showing",
-                GradeStatus = x.Grade != null ? x.Grade.Status ?? "In Progress" : "Not Started",
+                GradeStatus = (x.Grade != null && x.Grade.FinalScore != null) ? (x.Grade.Status ?? "In Progress") : (x.Grade != null ? "In Progress" : "Not Started"),
                 // Lấy StartDate và EndDate từ Semester thay vì từ Class
                 StartDate = x.Class.Semester.StartDate.ToDateTime(TimeOnly.MinValue),
                 EndDate = x.Class.Semester.EndDate.ToDateTime(TimeOnly.MinValue),
@@ -212,6 +212,43 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
                 GradeId = x.Grade != null ? x.Grade.GradeId : 0
             })
             .ToListAsync();
+
+        // Calculate attendance for all courses
+        var classIds = courses.Select(c => c.ClassId).ToList();
+        
+        // Get all lessons for these classes
+        var allLessons = await _context.Lessons
+            .Where(l => classIds.Contains(l.ClassId))
+            .Select(l => new { l.ClassId, l.LessonId })
+            .ToListAsync();
+            
+        // Get student attendance
+        var lessonIds = allLessons.Select(l => l.LessonId).ToList();
+        var attendances = await _context.Attendances
+            .Where(a => a.StudentId == studentId && lessonIds.Contains(a.LessonId) && a.Status == "Present")
+            .Select(a => a.LessonId)
+            .ToListAsync();
+
+        // Calculate rates and update status
+        foreach (var course in courses)
+        {
+            var classLessons = allLessons.Where(l => l.ClassId == course.ClassId).ToList();
+            var total = classLessons.Count;
+            var present = classLessons.Count(l => attendances.Contains(l.LessonId));
+            
+            double? rate = total > 0 ? (double)present / total : null;
+            course.AttendanceRate = rate;
+
+            if (rate.HasValue && rate.Value < 0.8 && course.Average.HasValue)
+            {
+                course.GradeStatus = "Failed";
+            }
+            else if (rate.HasValue && rate.Value < 0.8 && !course.Average.HasValue)
+            {
+                // Attendance is failing but no grades entered yet -> keep as In Progress
+                // Do nothing, let it be "In Progress" or "Not Started"
+            }
+        }
 
         return courses;
     }
@@ -241,12 +278,34 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
             Comment = gt.Comment
         }).ToList();
 
+        // Calculate Attendance
+        var totalLessons = await _context.Lessons
+            .Where(l => l.ClassId == classId)
+            .CountAsync();
+
+        var presentLessons = await _context.Lessons
+            .Where(l => l.ClassId == classId)
+            .SelectMany(l => l.Attendances)
+            .Where(a => a.StudentId == studentId && a.Status == "Present")
+            .CountAsync();
+
+        double? attendanceRate = totalLessons > 0 ? (double)presentLessons / totalLessons : null;
+        
+        
+        // Force In Progress if FinalScore is null
+        string status = (grade.FinalScore.HasValue) ? (grade.Status ?? "In Progress") : "In Progress";
+        if (attendanceRate.HasValue && attendanceRate.Value < 0.8 && grade.FinalScore.HasValue)
+        {
+            status = "Failed";
+        }
+
         return new StudentGradeDetailDto
         {
             SubjectCode = classInfo.Subject.SubjectCode,
             SubjectName = classInfo.Subject.SubjectName,
             Average = grade.FinalScore,
-            Status = grade.Status ?? "In Progress",
+            Status = status,
+            AttendanceRate = attendanceRate,
             GradeComponents = gradeComponents
         };
     }
@@ -366,7 +425,8 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
                 SubjectCode = c.Subject.SubjectCode,
                 SubjectName = c.Subject.SubjectName,
                 Grade = grade?.FinalScore,
-                Status = grade != null ? (grade.Status ?? "In Progress") : "Not Started",
+                // Force In Progress if Grade (FinalScore) is null, ignoring DB Status
+                Status = (grade != null && grade.FinalScore != null) ? (grade.Status ?? "In Progress") : (grade != null ? "In Progress" : "Not Started"),
                 SemesterName = c.Semester != null ? c.Semester.Name : "N/A",
                 SemesterId = c.SemesterId 
             };
@@ -374,6 +434,41 @@ public class StudentRepository : GenericRepository<Student>, IStudentRepository
         .OrderByDescending(c => c.SemesterId)
         .ThenBy(c => c.SubjectCode)
         .ToList();
+
+        // Calculate attendance for all transcript courses
+        var classIds = coursesList.Select(c => c.CourseId).ToList();
+        
+        var allLessons = await _context.Lessons
+            .Where(l => classIds.Contains(l.ClassId))
+            .Select(l => new { l.ClassId, l.LessonId })
+            .ToListAsync();
+            
+        var lessonIds = allLessons.Select(l => l.LessonId).ToList();
+        
+        var attendances = await _context.Attendances
+            .Where(a => a.StudentId == studentId && lessonIds.Contains(a.LessonId))
+            .Select(a => new { a.LessonId, a.Status })
+            .ToListAsync();
+            
+        var presentLessonIds = attendances.Where(a => a.Status == "Present").Select(a => a.LessonId).ToHashSet();
+        var absentLessonIds = attendances.Where(a => a.Status == "Absent").Select(a => a.LessonId).ToHashSet();
+        
+        foreach (var course in coursesList)
+        {
+             var classLessons = allLessons.Where(l => l.ClassId == course.CourseId).ToList();
+             var total = classLessons.Count;
+             var present = classLessons.Count(l => presentLessonIds.Contains(l.LessonId));
+             var absent = classLessons.Count(l => absentLessonIds.Contains(l.LessonId));
+             
+             double? rate = total > 0 ? (double)present / total : null;
+             course.AttendanceRate = rate;
+             
+             // Fail if attendance rate < 80% AND grade has value (meaning entered)
+             if (rate.HasValue && rate.Value < 0.8 && course.Grade.HasValue)
+             {
+                 course.Status = "Failed";
+             }
+        }
 
         // Tính toán thống kê
         var totalCourses = coursesList.Count;

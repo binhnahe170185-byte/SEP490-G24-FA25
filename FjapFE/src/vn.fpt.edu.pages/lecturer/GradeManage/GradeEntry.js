@@ -632,13 +632,29 @@ export default function GradeEntry() {
           const displayValue = batchEditMode && record.studentId && editedDataAll[record.studentId]?.average !== undefined
             ? editedDataAll[record.studentId].average
             : value;
+
+          // Check attendance
+          const attendanceRate = record.attendanceRate;
+          // specific check: explicit fail if defined and < 0.8
+          const isAttendanceFailed = attendanceRate != null && attendanceRate < 0.8;
+
           return (
-            <span style={{ fontWeight: 600, fontSize: 15 }}>
-              {typeof displayValue === 'number' ? displayValue.toFixed(1) : "-"}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600, fontSize: 15, color: isAttendanceFailed ? '#ff4d4f' : 'inherit' }}>
+                {typeof displayValue === 'number' ? displayValue.toFixed(1) : "-"}
+              </span>
+              {isAttendanceFailed && (
+                <Tooltip title={`Attendance: ${(attendanceRate * 100).toFixed(0)}% (< 80%)`}>
+                  <span style={{ fontSize: 11, color: '#ff4d4f', cursor: 'help' }}>
+                    (Att. Fail)
+                  </span>
+                </Tooltip>
+              )}
+            </div>
           );
         },
       },
+
       {
         title: "Action",
         key: "action",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Table, Card, Typography, Spin, message, Tag, Statistic, Row, Col, Input, Space } from "antd";
+import { Table, Card, Typography, Spin, message, Tag, Statistic, Row, Col, Input, Space, Tooltip } from "antd";
 import { FileTextOutlined, SearchOutlined, TrophyOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useAuth } from "../../login/AuthContext";
 import StudentGrades from "../../../vn.fpt.edu.api/StudentGrades";
@@ -54,6 +54,15 @@ export default function AcademicTranscript() {
   };
 
   const getStatusText = (status, grade) => {
+    // Prioritize backend status if it's "Failed" (e.g. due to attendance)
+    if (status === "Failed") {
+      // SAFEGUARD: If backend says Failed but there is NO grade (null/undefined), 
+      // it must be a premature failure. Override to "In Progress".
+      if (grade === null || grade === undefined) {
+        return "In Progress";
+      }
+      return "Failed";
+    }
     if (!grade && (status === "Not Started" || status === "In Progress")) {
       return "In Progress";
     }
@@ -137,10 +146,21 @@ export default function AcademicTranscript() {
       },
       render: (_, record) => {
         const statusText = getStatusText(record.status, record.grade);
+
+        let tooltip = "";
+        const attendanceRate = record.attendanceRate;
+        // Check if failed due to attendance (Backend sends Failed and rate < 0.8)
+        // Or if local logic deduces Failed but we want to be sure it is attendance
+        if (statusText === "Failed" && attendanceRate !== null && attendanceRate !== undefined && attendanceRate < 0.8) {
+          tooltip = `Attendance < 80% (${(attendanceRate * 100).toFixed(0)}%)`;
+        }
+
         return (
-          <Tag color={getStatusColor(statusText)}>
-            {statusText}
-          </Tag>
+          <Tooltip title={tooltip}>
+            <Tag color={getStatusColor(statusText)}>
+              {statusText}
+            </Tag>
+          </Tooltip>
         );
       },
     },

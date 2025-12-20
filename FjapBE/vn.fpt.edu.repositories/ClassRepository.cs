@@ -357,22 +357,40 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             .ToListAsync();
 
         var gradeDict = grades.ToDictionary(g => g.StudentId);
+            var totalLessons = await _context.Lessons
+                .CountAsync(l => l.ClassId == classId);
 
-        var studentGrades = cls.Students.Select(student =>
-        {
-            gradeDict.TryGetValue(student.StudentId, out var grade);
-            var components = grade?.GradeTypes?.ToList() ?? new List<GradeType>();
+            var attendanceRecords = await _context.Attendances
+                .Include(a => a.Lesson)
+                .Where(a => a.Lesson.ClassId == classId && studentIds.Contains(a.StudentId))
+                .ToListAsync();
 
-            var studentGrade = new StudentGradeDto
+            var studentGrades = cls.Students.Select(student =>
             {
-                StudentId = student.StudentId,
-                StudentCode = student.StudentCode ?? student.StudentId.ToString(),
-                StudentName = $"{student.User?.FirstName ?? ""} {student.User?.LastName ?? ""}".Trim(),
-                Email = student.User?.Email ?? "N/A",
-                Average = grade?.FinalScore,
-                Status = grade?.Status ?? "Incomplete",
-                GradeId = grade?.GradeId
-            };
+                gradeDict.TryGetValue(student.StudentId, out var grade);
+                var components = grade?.GradeTypes?.ToList() ?? new List<GradeType>();
+                var studentAttendances = attendanceRecords.Where(a => a.StudentId == student.StudentId).ToList();
+                var presentCount = studentAttendances.Count(a => a.Status == "Present");
+                double? attendanceRate = totalLessons > 0 ? (double)presentCount / totalLessons : null;
+
+                // Force Incomplete if FinalScore is null, otherwise use DB status
+                string status = (grade?.FinalScore != null) ? (grade?.Status ?? "Incomplete") : "Incomplete"; 
+                if (attendanceRate.HasValue && attendanceRate.Value < 0.8 && grade?.FinalScore != null)
+                {
+                    status = "Failed";
+                }
+
+                var studentGrade = new StudentGradeDto
+                {
+                    StudentId = student.StudentId,
+                    StudentCode = student.StudentCode ?? student.StudentId.ToString(),
+                    StudentName = $"{student.User?.FirstName ?? ""} {student.User?.LastName ?? ""}".Trim(),
+                    Email = student.User?.Email ?? "N/A",
+                    Average = grade?.FinalScore,
+                    Status = status,
+                    GradeId = grade?.GradeId,
+                    AttendanceRate = attendanceRate
+                };
 
             // Map all grade components dynamically
             foreach (var subjectGradeType in cls.Subject?.SubjectGradeTypes ?? new List<SubjectGradeType>())
