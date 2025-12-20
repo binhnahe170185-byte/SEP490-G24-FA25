@@ -95,7 +95,8 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
         }
 
         cls.Status = status ? "Active" : "Inactive";
-        cls.UpdatedAt = DateTime.UtcNow;
+        // Use local time to match user expectations
+        cls.UpdatedAt = DateTime.Now;
 
         await _context.SaveChangesAsync();
         return cls;
