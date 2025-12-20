@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
 import { Form, Input, Modal, Select, Spin, InputNumber, Alert } from "antd";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import { useNotify } from "../../../vn.fpt.edu.common/notifications";
@@ -46,47 +47,7 @@ const normalizeLevels = (levels = []) =>
     };
   });
 
-const toDateInstance = (value) => {
-  if (!value) {
-    return null;
-  }
 
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
-  }
-
-  if (typeof value === "object") {
-    if (typeof value.toDate === "function") {
-      const derived = value.toDate();
-      if (derived instanceof Date && !Number.isNaN(derived.getTime())) {
-        return derived;
-      }
-    }
-
-    if (
-      typeof value.year === "number" &&
-      typeof value.month === "number" &&
-      typeof value.day === "number"
-    ) {
-      const derived = new Date(value.year, value.month - 1, value.day);
-      return Number.isNaN(derived.getTime()) ? null : derived;
-    }
-
-    if ("seconds" in value || "nanoseconds" in value) {
-      const seconds = typeof value.seconds === "number" ? value.seconds : 0;
-      const nanos = typeof value.nanoseconds === "number" ? value.nanoseconds : 0;
-      const derived = new Date(seconds * 1000 + nanos / 1e6);
-      return Number.isNaN(derived.getTime()) ? null : derived;
-    }
-  }
-
-  if (typeof value === "string" || typeof value === "number") {
-    const derived = new Date(value);
-    return Number.isNaN(derived.getTime()) ? null : derived;
-  }
-
-  return null;
-};
 
 const toUpperTrimmed = (value) => {
   if (value === null || value === undefined) {
@@ -231,22 +192,22 @@ const normalizeSemesters = (semesters = []) =>
           `semester-${index}`,
       name,
       code,
-      startDate: toDateInstance(startSource),
-      endDate: toDateInstance(endSource),
+      startDate: startSource ? dayjs(startSource) : null,
+      endDate: endSource ? dayjs(endSource) : null,
     };
   });
 
-const isSemesterFuture = (semester, referenceDate = new Date()) => {
+const isSemesterFuture = (semester, referenceDate = dayjs()) => {
   const { startDate } = semester;
-  if (startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
+  const startObj = dayjs(startDate);
+  if (startObj.isValid()) {
     // Strict future check: Semester must start after the reference date
-    // This ensures creation time is NOT within start/end dates (not curren) AND not past.
-    return startDate.getTime() > referenceDate.getTime();
+    return startObj.isAfter(referenceDate, "day") || startObj.isSame(referenceDate, "day");
   }
   return false;
 };
 
-const filterFutureSemesters = (semesters = [], referenceDate = new Date()) =>
+const filterFutureSemesters = (semesters = [], referenceDate = dayjs()) =>
   semesters.filter((semester) =>
     isSemesterFuture(semester, referenceDate)
   );

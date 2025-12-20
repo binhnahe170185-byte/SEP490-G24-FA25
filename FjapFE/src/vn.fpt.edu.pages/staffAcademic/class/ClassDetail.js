@@ -217,19 +217,23 @@ export default function ClassDetail() {
       title: "Actions",
       key: "actions",
       render: (_, record) => (
-        <Space size="middle">
-          <Tooltip title="View students">
-            <Button
-              icon={<TeamOutlined />}
-              onClick={() => handleViewStudents(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Add student">
-            <Button
-              icon={<UserAddOutlined />}
-              onClick={() => handleAddStudent(record)}
-            />
-          </Tooltip>
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<TeamOutlined />}
+            onClick={() => handleViewStudents(record)}
+          >
+            List Students
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<UserAddOutlined />}
+            onClick={() => handleAddStudent(record)}
+          >
+            Add Student
+          </Button>
         </Space>
       ),
     },

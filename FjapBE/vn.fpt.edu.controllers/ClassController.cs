@@ -292,7 +292,8 @@ public class ClassController : ControllerBase
                 .ToList(),
             maxStudents = item.MaxStudents,
             minStudents = item.MinStudents,
-            totalStudents = item.Students?.Count ?? 0
+            totalStudents = item.Students?.Count ?? 0,
+            totalLessons = await _db.Lessons.CountAsync(l => l.ClassId == id)
         };
 
         return Ok(new { code = 200, data = response });
@@ -402,6 +403,19 @@ public class ClassController : ControllerBase
         }
 
         return Ok(new { code = 200, message = "Students added to class" });
+    }
+
+    [HttpDelete("{classId:int}/students/{studentId:int}")]
+    public async Task<IActionResult> RemoveStudent(int classId, int studentId)
+    {
+         var lessonCount = await _db.Lessons.CountAsync(l => l.ClassId == classId);
+         if (lessonCount > 0) 
+         {
+             return BadRequest(new { code = 400, message = "Cannot remove student because class has lessons" });
+         }
+
+         await _studentService.RemoveStudentFromClassAsync(studentId, classId);
+         return Ok(new { code = 200, message = "Student removed from class" });
     }
 
     [HttpPost]
