@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Table, Card, Typography, Spin, message, Tag, Descriptions, Button, Modal, Input, Space, Empty, Select } from "antd";
 import { EyeOutlined, FileTextOutlined, SearchOutlined, LinkOutlined, FilterOutlined } from "@ant-design/icons";
-import StudentGrades from "../../vn.fpt.edu.api/StudentGrades";
-import { getMaterials, getMaterialsCounts } from "../../vn.fpt.edu.api/Material";
-import { api } from "../../vn.fpt.edu.api/http";
+import StudentGrades from "../../../vn.fpt.edu.api/StudentGrades";
+import { getMaterials, getMaterialsCounts } from "../../../vn.fpt.edu.api/Material";
+import { api } from "../../../vn.fpt.edu.api/http";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
@@ -17,12 +17,12 @@ const getLevelDisplay = (levelId, levelName) => {
     const match = levelName.match(/N[1-5]/i);
     if (match) return match[0].toUpperCase();
   }
-  
+
   // Map levelId: 1 -> N1, 2 -> N2, 3 -> N3, 4 -> N4, 5 -> N5
   if (levelId >= 1 && levelId <= 5) {
     return `N${levelId}`;
   }
-  
+
   return levelName || `N${levelId}` || "N/A";
 };
 
@@ -49,7 +49,7 @@ export default function CurriculumSubjects() {
       setLoading(true);
       const response = await StudentGrades.getCurriculumSubjects(searchTerm, page, pageSize);
       let subjectsList = response.items || [];
-      
+
       // Fetch all subjects with level information in one call
       let allSubjectsMap = {};
       try {
@@ -66,14 +66,14 @@ export default function CurriculumSubjects() {
       } catch (error) {
         console.error("Failed to load all subjects for level mapping:", error);
       }
-      
+
       // Map level information to curriculum subjects
       const subjectsWithLevel = subjectsList.map(subject => ({
         ...subject,
         levelId: allSubjectsMap[subject.subjectId]?.levelId || null,
         levelName: allSubjectsMap[subject.subjectId]?.levelName || null,
       }));
-      
+
       // Apply level filter if selected
       let filteredSubjects = subjectsWithLevel;
       if (levelFilter) {
@@ -82,14 +82,14 @@ export default function CurriculumSubjects() {
           return levelDisplay === levelFilter;
         });
       }
-      
+
       setSubjects(filteredSubjects);
       setPagination({
         current: response.page || page,
         pageSize: response.pageSize || pageSize,
         total: response.total || 0,
       });
-      
+
       // Load materials counts cho tất cả subjects trong 1 API call
       if (filteredSubjects.length > 0) {
         try {
@@ -192,21 +192,21 @@ export default function CurriculumSubjects() {
     if (materialsCount !== undefined && materialsCount === 0) {
       return;
     }
-    
+
     setSelectedSubjectForMaterials({
       subjectCode: record.subjectCode,
       subjectName: record.subjectName,
     });
     setMaterialModalVisible(true);
     setLoadingMaterials(true);
-    
+
     try {
       // Fetch materials từ API theo subjectCode và status=active
       const response = await getMaterials({
         subject: record.subjectCode,
         status: "active"
       });
-      
+
       const materials = response.items || [];
       // Sắp xếp materials mới nhất trước
       const sortedMaterials = [...materials].sort((a, b) => {
@@ -216,14 +216,14 @@ export default function CurriculumSubjects() {
         const timeB = dateB ? new Date(dateB).getTime() : 0;
         return timeB - timeA; // DESC - mới nhất trước
       });
-      
+
       // Cache materials count
       const count = sortedMaterials.length;
       setMaterialsCountMap(prev => ({
         ...prev,
         [record.subjectCode]: count
       }));
-      
+
       setSelectedMaterials(sortedMaterials);
     } catch (error) {
       console.error("Failed to load materials:", error);
@@ -313,7 +313,7 @@ export default function CurriculumSubjects() {
       render: (_, record) => {
         const materialsCount = materialsCountMap[record.subjectCode];
         const hasMaterials = materialsCount === undefined || materialsCount > 0;
-        
+
         return (
           <Button
             type={hasMaterials ? "primary" : "default"}
@@ -325,18 +325,18 @@ export default function CurriculumSubjects() {
               height: 32,
               borderRadius: 6,
               fontWeight: 500,
-              ...(hasMaterials 
-                ? { 
-                    background: "#1890ff",
-                    borderColor: "#1890ff",
-                    color: "#fff"
-                  }
+              ...(hasMaterials
+                ? {
+                  background: "#1890ff",
+                  borderColor: "#1890ff",
+                  color: "#fff"
+                }
                 : {
-                    background: "#f5f5f5",
-                    borderColor: "#d9d9d9",
-                    color: "#8c8c8c",
-                    cursor: "not-allowed"
-                  }
+                  background: "#f5f5f5",
+                  borderColor: "#d9d9d9",
+                  color: "#8c8c8c",
+                  cursor: "not-allowed"
+                }
               )
             }}
           >
@@ -373,8 +373,8 @@ export default function CurriculumSubjects() {
 
   return (
     <div style={{ padding: "24px", background: "#f0f2f5", minHeight: "100vh" }}>
-      <Card 
-        style={{ 
+      <Card
+        style={{
           borderRadius: 12,
           boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
         }}
@@ -388,9 +388,9 @@ export default function CurriculumSubjects() {
           </div>
 
           {/* Enhanced Search Bar */}
-          <Card 
-            size="small" 
-            style={{ 
+          <Card
+            size="small"
+            style={{
               border: "none",
               borderRadius: 8
             }}
@@ -510,7 +510,7 @@ export default function CurriculumSubjects() {
               Grade Components
             </Title>
             {selectedSubject.gradeComponents &&
-            selectedSubject.gradeComponents.length > 0 ? (
+              selectedSubject.gradeComponents.length > 0 ? (
               <Table
                 dataSource={selectedSubject.gradeComponents}
                 rowKey={(record, index) => index}
@@ -576,10 +576,10 @@ export default function CurriculumSubjects() {
             pagination={
               selectedMaterials.length > 10
                 ? {
-                    pageSize: 10,
-                    showSizeChanger: false,
-                    showTotal: (total) => `Total ${total} materials`,
-                  }
+                  pageSize: 10,
+                  showSizeChanger: false,
+                  showTotal: (total) => `Total ${total} materials`,
+                }
                 : false
             }
             size="middle"
