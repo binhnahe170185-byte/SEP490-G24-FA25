@@ -11,7 +11,7 @@ import { useLocation } from "react-router-dom";
 
 import AuthProvider, { useAuth } from "../vn.fpt.edu.pages/login/AuthContext";
 import LoginPage from "../vn.fpt.edu.pages/login/LoginPage";
-import WeeklyTimetable from "../vn.fpt.edu.pages/student/weeklyTimeTable/WeeklyTimetable";
+import TimeTable from "../vn.fpt.edu.pages/student/weeklyTimeTable/TimeTable";
 import StudentGradeReport from "../vn.fpt.edu.pages/student/MarkReport/StudentGradeReport";
 import StudentHomepage from "../vn.fpt.edu.pages/student/StudentHomepage";
 import HomeworkPage from "../vn.fpt.edu.pages/student/homework/HomeworkPage";
@@ -302,7 +302,7 @@ export default function App() {
                   <Route path="news" element={<StudentNewsList />} />
                   <Route path="news/:id" element={<StudentNewsDetail />} />
                   <Route path="class/:classId/students" element={<ClassStudentsList />} />
-                  <Route path="weeklyTimetable" element={<WeeklyTimetable />} />
+                  <Route path="weeklyTimetable" element={<TimeTable />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="feedback/:classId" element={<EndOfCourseFeedbackPage />} />
                   <Route path="feedback/daily" element={<DailyFeedbackList />} />

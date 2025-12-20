@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Table, Tag, Tooltip, Select, Input } from 'antd';
-import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { Table, Tag, Tooltip, Select, Input, Button } from 'antd';
+import { ExclamationCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import { normalizeString, getEmailPrefix, splitDayOfWeek } from '../utils/helpers';
 
 export default function ScheduleTable({
 	previewRows,
 	onUpdateRow,
+	onDeleteRow,
 	selectedSemesterId,
 	classesBySemester,
 	rooms,
@@ -43,7 +44,7 @@ export default function ScheduleTable({
 	}, [timeslots]);
 
 	const columns = [
-		{ title: '#', dataIndex: 'key', width: 60, render: (_, __, idx) => idx + 1, fixed: 'left' },
+		{ title: 'No.', dataIndex: 'key', width: 60, render: (_, __, idx) => idx + 1, fixed: 'left' },
 		{
 			title: 'Class',
 			dataIndex: 'className',
@@ -224,7 +225,7 @@ export default function ScheduleTable({
 					<Tag color="green">OK</Tag>
 				) : (
 					<Tooltip title="Have problem in Class/Room/Slot/DayOfWeek/Lecture">
-						<Tag color="red">Missing</Tag>
+						<Tag color="red">Error</Tag>
 					</Tooltip>
 				),
 		},
@@ -235,11 +236,28 @@ export default function ScheduleTable({
 			render: (_, r) =>
 				r.duplicateInFile ? (
 					<Tag color="orange" icon={<ExclamationCircleOutlined />}>
-						Potential dup
+						Duplicated
 					</Tag>
 				) : (
 					<Tag>None</Tag>
 				),
+		},
+		{
+			title: '',
+			key: 'action',
+			width: 100,
+			fixed: 'right',
+			render: (_, record) => (
+				<Button
+					type="text"
+					danger
+					icon={<DeleteOutlined />}
+					size="small"
+					onClick={() => onDeleteRow(record.key)}
+				>
+					Delete
+				</Button>
+			),
 		},
 	];
 
@@ -248,7 +266,7 @@ export default function ScheduleTable({
 			columns={columns}
 			dataSource={previewRows}
 			rowKey="key"
-			pagination={{ pageSize: 10 }}
+			pagination={{ pageSize: 50 }}
 			size="small"
 			scroll={{ x: true }}
 		/>
