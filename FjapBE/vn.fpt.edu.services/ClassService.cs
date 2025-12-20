@@ -35,7 +35,8 @@ public class ClassService : IClassService
         {
             item.Status = "Inactive";
         }
-        item.UpdatedAt = DateTime.UtcNow;
+        // Use local time to match user expectations (similar to Homework deadline handling)
+        item.UpdatedAt = DateTime.Now;
         await _classRepository.AddAsync(item);
         await _classRepository.SaveChangesAsync();
         return item;
@@ -54,7 +55,8 @@ public class ClassService : IClassService
     // persist enrollment limits
     existing.MinStudents = item.MinStudents;
     existing.MaxStudents = item.MaxStudents;
-        existing.UpdatedAt = DateTime.UtcNow;
+        // Use local time to match user expectations
+        existing.UpdatedAt = DateTime.Now;
 
         _classRepository.Update(existing);
         await _classRepository.SaveChangesAsync();

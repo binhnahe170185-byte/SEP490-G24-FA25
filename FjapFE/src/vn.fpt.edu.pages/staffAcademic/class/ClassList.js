@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { Button, Input, Select, Space, Table, Tooltip, Switch } from "antd";
 import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined, UserAddOutlined, TeamOutlined } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -8,8 +10,20 @@ import ClassFormModal from "./ClassFormModel";
 import DeleteClassFormModal from "./DeleteClassFormModal";
 import { useNotify } from "../../../vn.fpt.edu.common/notifications";
 
+// Extend dayjs with plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Format DateTime - xử lý UTC 'Z' suffix và convert về timezone Việt Nam
 const formatDateTime = (value) => {
   if (!value) return "-";
+  
+  // Nếu có 'Z' (UTC indicator), parse như UTC rồi convert sang timezone VN
+  if (typeof value === 'string' && value.endsWith('Z')) {
+    return dayjs.utc(value).tz("Asia/Ho_Chi_Minh").format("DD/MM/YYYY HH:mm:ss");
+  }
+  
+  // Không có 'Z', parse như local time
   return dayjs(value).format("DD/MM/YYYY HH:mm:ss");
 };
 
