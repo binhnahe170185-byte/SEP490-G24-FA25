@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Table, Card, Typography, Spin, message, Tag, Statistic, Row, Col, Input, Space } from "antd";
 import { FileTextOutlined, SearchOutlined, TrophyOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import { useAuth } from "../login/AuthContext";
-import StudentGrades from "../../vn.fpt.edu.api/StudentGrades";
+import { useAuth } from "../../login/AuthContext";
+import StudentGrades from "../../../vn.fpt.edu.api/StudentGrades";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
