@@ -99,6 +99,7 @@ namespace FJAP.vn.fpt.edu.models
         public decimal? Average { get; set; }
         public string Status { get; set; } = string.Empty;
         public int? GradeId { get; set; }
+        public double? AttendanceRate { get; set; }
     }
 
     /// <summary>
