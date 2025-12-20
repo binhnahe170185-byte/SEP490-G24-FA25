@@ -54,8 +54,13 @@ function GradeManage() {
       const filters = {
         semesterId: selectedSemester.semesterId
       };
-      console.log("Calling getCourses with userId:", userId);
-      const data = await ManagerGrades.getCourses(userId, filters, userId, true);
+
+      // Use user.lecturerId if available to mimic Homeworks logic
+      const lecturerId = user?.lecturerId || user?.LecturerId;
+
+      console.log("Calling getCourses with lecturerId:", lecturerId);
+      // Pass lecturerId as the 3rd argument (was userId)
+      const data = await ManagerGrades.getCourses(userId, filters, lecturerId, true);
       setCourses(data);
       setFilteredCourses(data);
     } catch (error) {

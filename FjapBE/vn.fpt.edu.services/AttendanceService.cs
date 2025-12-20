@@ -59,18 +59,6 @@ public class AttendanceService : IAttendanceService
             return null;
         }
 
-        // Business rule: Lecturer can only take attendance on the lesson date itself
-        var lessonDate = lesson.Date; // Already DateOnly type
-        var currentDate = DateOnly.FromDateTime(DateTime.UtcNow); // Get current date as DateOnly
-        var daysDifference = currentDate.DayNumber - lessonDate.DayNumber;
-
-        // Only allow attendance on the lesson date (same day)
-        if (daysDifference != 0)
-        {
-            throw new InvalidOperationException(
-                $"Attendance can only be taken on the lesson date. Lesson date: {lessonDate:yyyy-MM-dd}. Attendance cannot be changes after 23:59 of {lessonDate:yyyy-MM-dd}.");
-        }
-
         var isStudentInClass = await _attendanceRepository.IsStudentInClassAsync(lesson.ClassId, studentId);
         if (!isStudentInClass)
         {
@@ -144,18 +132,6 @@ public class AttendanceService : IAttendanceService
         if (lesson == null)
         {
             throw new InvalidOperationException("Lesson not found or not owned by lecturer");
-        }
-
-        // Business rule: Lecturer can only take attendance on the lesson date itself
-        var lessonDate = lesson.Date; // Already DateOnly type
-        var currentDate = DateOnly.FromDateTime(DateTime.UtcNow); // Get current date as DateOnly
-        var daysDifference = currentDate.DayNumber - lessonDate.DayNumber;
-
-        // Only allow attendance on the lesson date (same day)
-        if (daysDifference != 0)
-        {
-            throw new InvalidOperationException(
-                $"Attendance can only be taken on the lesson date. Lesson date: {lessonDate:yyyy-MM-dd}. Attendance cannot be changes after 23:59 of {lessonDate:yyyy-MM-dd}.");
         }
 
         var validStudentIds = (await _attendanceRepository.GetStudentsByClassAsync(lesson.ClassId))

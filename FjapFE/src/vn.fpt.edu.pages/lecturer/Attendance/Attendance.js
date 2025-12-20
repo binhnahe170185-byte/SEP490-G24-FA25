@@ -41,18 +41,40 @@ export default function Attendance() {
   const [lessons, setLessons] = useState([]);
   const [students, setStudents] = useState([]);
   const [lessonInfo, setLessonInfo] = useState(null);
-  const [selectedClassId, setSelectedClassId] = useState(null);
-  const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attendanceMap, setAttendanceMap] = useState({}); // { studentId: status }
   const location = useLocation();
   const navigate = useNavigate();
-  const [prefillClassId, setPrefillClassId] = useState(location.state?.classId || null);
-  const [prefillLessonId, setPrefillLessonId] = useState(location.state?.lessonId || null);
+
+  // Helper: read last selected class/lesson from localStorage (for F5 reload)
+  const getLastAttendanceSelection = () => {
+    try {
+      const raw = window.localStorage.getItem("lecturer_last_attendance");
+      if (!raw) return { classId: null, lessonId: null };
+      const parsed = JSON.parse(raw);
+      return {
+        classId: parsed?.classId ?? null,
+        lessonId: parsed?.lessonId ?? null,
+      };
+    } catch {
+      return { classId: null, lessonId: null };
+    }
+  };
+
+  const navigationState = location.state || {};
+  const lastSelection = getLastAttendanceSelection();
+
+  const [selectedClassId, setSelectedClassId] = useState(null);
+  const [selectedLessonId, setSelectedLessonId] = useState(null);
+  const [prefillClassId, setPrefillClassId] = useState(
+    navigationState.classId ?? lastSelection.classId ?? null
+  );
+  const [prefillLessonId, setPrefillLessonId] = useState(
+    navigationState.lessonId ?? lastSelection.lessonId ?? null
+  );
   const [prefillClassApplied, setPrefillClassApplied] = useState(false);
   const [prefillLessonApplied, setPrefillLessonApplied] = useState(false);
-  const [isOutside24Hours, setIsOutside24Hours] = useState(false);
   useEffect(() => {
     const state = location.state;
     if (state && (state.classId || state.lessonId)) {
@@ -123,19 +145,18 @@ export default function Attendance() {
           subjectName: data.subjectName,
         });
 
-        // Check if lesson is on the same date
-        const lessonDate = new Date(data.date);
-        const currentDate = new Date();
-
-        // Reset time parts to compare only dates
-        lessonDate.setHours(0, 0, 0, 0);
-        currentDate.setHours(0, 0, 0, 0);
-
-        const daysDifference = (currentDate - lessonDate) / (1000 * 60 * 60 * 24);
-
-        // Only allow attendance on the lesson date itself (same day)
-        const outside24Hours = daysDifference !== 0;
-        setIsOutside24Hours(outside24Hours);
+        // Persist current selection so that F5 can restore it
+        try {
+          window.localStorage.setItem(
+            "lecturer_last_attendance",
+            JSON.stringify({
+              classId: data.classId,
+              lessonId: data.lessonId,
+            })
+          );
+        } catch {
+          // ignore storage errors
+        }
 
         // Initialize attendance map
         const map = {};
@@ -163,7 +184,39 @@ export default function Attendance() {
     loadStudents(lessonId);
   };
 
+  // Check if attendance can be taken/edited based on business rules
+  const canTakeAttendance = () => {
+    if (!lessonInfo || !lessonInfo.date) return false;
+
+    const today = new Date();
+    const lessonDate = new Date(lessonInfo.date);
+
+    // Reset time to compare dates only
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const lessonDateOnly = new Date(lessonDate.getFullYear(), lessonDate.getMonth(), lessonDate.getDate());
+
+    // Can only take attendance on the lesson date
+    if (todayDateOnly.getTime() !== lessonDateOnly.getTime()) {
+      return false;
+    }
+
+    // Cannot edit after 23:59 of the lesson date
+    const now = new Date();
+    const today23_59 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+    if (now > today23_59) {
+      return false;
+    }
+
+    return true;
+  };
+
   const handleStatusChange = (studentId, status) => {
+    if (!canTakeAttendance()) {
+      message.warning("Attendance can only be taken on the lesson date and cannot be edited after 23:59");
+      return;
+    }
+
     setAttendanceMap((prev) => ({
       ...prev,
       [studentId]: status,
@@ -171,6 +224,37 @@ export default function Attendance() {
   };
 
   const handleSave = async () => {
+    // Check business rule: can only take attendance on lesson date and before 23:59
+    if (!canTakeAttendance()) {
+      const today = new Date();
+      const lessonDate = new Date(lessonInfo.date);
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const lessonDateOnly = new Date(lessonDate.getFullYear(), lessonDate.getMonth(), lessonDate.getDate());
+
+      if (todayDateOnly.getTime() !== lessonDateOnly.getTime()) {
+        api.error({
+          message: 'Cannot Save Attendance',
+          description: 'Attendance can only be taken on the lesson date.',
+          placement: 'bottomRight',
+          duration: 5,
+        });
+        return;
+      }
+
+      const now = new Date();
+      const today23_59 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      if (now > today23_59) {
+        api.error({
+          message: 'Cannot Save Attendance',
+          description: 'Attendance cannot be edited after 23:59.',
+          placement: 'bottomRight',
+          duration: 5,
+        });
+        return;
+      }
+
+      return;
+    }
 
     const hasChanges = students.some((student) => {
       const originalStatus = student.status || "Absent";
@@ -363,6 +447,7 @@ export default function Attendance() {
       render: (_value, record) => {
         const currentStatus = attendanceMap[record.studentId] || record.status || "Absent";
         const statusOption = STATUS_OPTIONS.find((opt) => opt.value === currentStatus);
+        const canEdit = canTakeAttendance();
 
         return (
           <Space>
@@ -372,7 +457,7 @@ export default function Attendance() {
                 type={currentStatus === opt.value ? "primary" : "default"}
                 icon={opt.icon}
                 onClick={() => handleStatusChange(record.studentId, opt.value)}
-                disabled={isOutside24Hours}
+                disabled={!canEdit}
               >
                 {opt.label}
               </Button>
@@ -453,11 +538,30 @@ export default function Attendance() {
           </Card>
         )}
 
-        {/* attendance warning */}
-        {lessonInfo && isOutside24Hours && (
+        {/* Attendance Warning: Business Rule */}
+        {lessonInfo && !canTakeAttendance() && (
           <Alert
-            message="Attendance Closed"
-            description={`You can only take attendance on the lesson date. This lesson was on ${lessonInfo.date}. Attendance cannot be changes after 23:59 of ${lessonInfo.date}.`}
+            message="Attendance Restriction"
+            description={
+              (() => {
+                const today = new Date();
+                const lessonDate = new Date(lessonInfo.date);
+                const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const lessonDateOnly = new Date(lessonDate.getFullYear(), lessonDate.getMonth(), lessonDate.getDate());
+
+                if (todayDateOnly.getTime() !== lessonDateOnly.getTime()) {
+                  return `Attendance can only be taken on the lesson date (${lessonInfo.date}). Today is ${today.toLocaleDateString()}.`;
+                }
+
+                const now = new Date();
+                const today23_59 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+                if (now > today23_59) {
+                  return "Attendance cannot be edited after 23:59 of the lesson date.";
+                }
+
+                return "Attendance cannot be taken at this time.";
+              })()
+            }
             type="warning"
             showIcon
             style={{ marginBottom: 24 }}
@@ -494,7 +598,7 @@ export default function Attendance() {
                 size="large"
                 onClick={handleSave}
                 loading={saving}
-                disabled={!selectedLessonId || students.length === 0 || isOutside24Hours}
+                disabled={!selectedLessonId || students.length === 0 || !canTakeAttendance()}
               >
                 Save Attendance
               </Button>

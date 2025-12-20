@@ -84,10 +84,14 @@ const EditSchedule = () => {
   const [lecturers, setLecturers] = useState([]);
 
   const [conflictMap, setConflictMap] = useState({});
+  const [conflictMapSize, setConflictMapSize] = useState(0);
+  const [semesterLessons, setSemesterLessons] = useState([]);
+  const [loadingSemesterLessons, setLoadingSemesterLessons] = useState(false);
   const [studentScheduleCache, setStudentScheduleCache] = useState({
     studentIds: [],
     studentTimeMap: {},
   });
+  const [loadingStudentCache, setLoadingStudentCache] = useState(false);
 
   const toYMD = (date) => {
     const y = date.getFullYear();
@@ -245,6 +249,110 @@ const EditSchedule = () => {
     fetchHolidays();
   }, [semester.id, semesterId]);
 
+  // Load semester lessons and build conflict map
+  useEffect(() => {
+    const loadSemesterLessons = async () => {
+      const semId = semester.id || semesterId;
+      if (!semId) {
+        setSemesterLessons([]);
+        setConflictMap({});
+        setConflictMapSize(0);
+        return;
+      }
+
+      try {
+        setLoadingSemesterLessons(true);
+        console.log('Loading semester lessons for semester:', semId);
+        const lessons = await ClassList.getAllLessonsBySemester(semId);
+        console.log('Loaded semester lessons:', lessons?.length || 0);
+        setSemesterLessons(lessons || []);
+
+        // Build conflict map: key = "date|slot|room", value = array of conflicts
+        const newConflictMap = {};
+        (lessons || []).forEach(lesson => {
+          if (!lesson.date || !lesson.timeId || !lesson.roomId) {
+            console.warn('Invalid lesson data:', lesson);
+            return;
+          }
+          const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
+          if (!newConflictMap[key]) {
+            newConflictMap[key] = [];
+          }
+          // Get lecturer display (prioritize email if available, then substring before @)
+          const lecturerDisplay = lesson.lecturerEmail
+            ? getEmailUsername(lesson.lecturerEmail)
+            : (lesson.lecturerCode || '');
+
+          newConflictMap[key].push({
+            lessonId: lesson.lessonId || lesson.id,
+            classId: lesson.classId,
+            className: lesson.className,
+            lecturerId: lesson.lecturerId,
+            lecturerCode: lecturerDisplay,
+            date: lesson.date,
+            timeId: lesson.timeId,
+            roomId: lesson.roomId,
+            roomName: lesson.roomName
+          });
+        });
+
+        const mapSize = Object.keys(newConflictMap).length;
+        console.log('Built conflict map with', mapSize, 'keys');
+        setConflictMap(newConflictMap);
+        setConflictMapSize(mapSize);
+      } catch (error) {
+        console.error('Failed to load semester lessons:', error);
+        setSemesterLessons([]);
+        setConflictMap({});
+        setConflictMapSize(0);
+      } finally {
+        setLoadingSemesterLessons(false);
+      }
+    };
+
+    loadSemesterLessons();
+  }, [semester.id, semesterId]);
+
+  // Load student schedule cache when class and semester are selected
+  useEffect(() => {
+    const loadStudentScheduleCache = async () => {
+      const semId = semester.id || semesterId;
+      if (!semId || !classId) {
+        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
+        return;
+      }
+
+      try {
+        setLoadingStudentCache(true);
+        console.log('Loading student schedule cache for class:', classId, 'semester:', semId);
+        const cache = await ClassList.getStudentScheduleCache(classId, semId);
+        console.log('Loaded student schedule cache:', cache);
+
+        // Convert backend format to frontend format
+        const studentTimeMap = {};
+        if (cache.studentTimeMap) {
+          Object.keys(cache.studentTimeMap).forEach(studentId => {
+            const timeSet = cache.studentTimeMap[studentId];
+            // Convert array to Set if needed
+            studentTimeMap[parseInt(studentId, 10)] = new Set(Array.isArray(timeSet) ? timeSet : []);
+          });
+        }
+
+        setStudentScheduleCache({
+          studentIds: cache.studentIds || [],
+          studentTimeMap: studentTimeMap
+        });
+      } catch (error) {
+        console.error('Failed to load student schedule cache:', error);
+        setStudentScheduleCache({ studentIds: [], studentTimeMap: {} });
+      } finally {
+        setLoadingStudentCache(false);
+      }
+    };
+
+    loadStudentScheduleCache();
+  }, [classId, semester.id, semesterId]);
+
   // Init week
   useEffect(() => {
     const today = new Date();
@@ -261,6 +369,99 @@ const EditSchedule = () => {
       setCurrentWeekStart(weekStart);
     }
   }, [year, weekNumber]);
+
+  // Check if a date-slot-room combination has conflict using conflict map
+  // Exclude currentLessonId to avoid false positives when editing existing lesson
+  const checkConflictFromMap = (date, timeId, roomId, currentClassId, currentLecturerId, currentLessonId = null) => {
+    const reasons = [];
+    let hasConflict = false;
+
+    // Check all conflicts for this date+timeId combination (not just specific room)
+    const timeKey = `${date}|${timeId}`;
+    const roomKey = `${date}|${timeId}|${roomId}`;
+
+    // Check room-specific conflicts
+    const roomConflicts = conflictMap[roomKey] || [];
+    roomConflicts.forEach(conflict => {
+      // Exclude current lesson being edited
+      if (currentLessonId && conflict.lessonId === currentLessonId) {
+        return;
+      }
+      // Room conflict: room is occupied by any OTHER class (exclude current class)
+      if (conflict.roomId === parseInt(roomId, 10)) {
+        // Exclude if it's the same class - room conflict only for other classes
+        if (!currentClassId || conflict.classId !== parseInt(currentClassId, 10)) {
+          reasons.push(`Room ${conflict.roomName} is occupied by ${conflict.className}`);
+          hasConflict = true;
+        }
+      }
+    });
+
+    // Check all conflicts for this date+timeId (to catch class and lecturer conflicts regardless of room)
+    Object.keys(conflictMap).forEach(key => {
+      if (key.startsWith(timeKey + '|')) {
+        const conflicts = conflictMap[key] || [];
+        conflicts.forEach(conflict => {
+          // Exclude current lesson being edited
+          if (currentLessonId && conflict.lessonId === currentLessonId) {
+            return;
+          }
+          // Class conflict: same class already has lesson at this date/time (even different room)
+          if (currentClassId && conflict.classId === parseInt(currentClassId, 10)) {
+            // Only add once
+            if (!reasons.some(r => r.includes('Class') && r.includes('already has a lesson'))) {
+              reasons.push(`Class ${conflict.className} already has a lesson at this time`);
+              hasConflict = true;
+            }
+          }
+
+          // Lecturer conflict: same lecturer already has lesson (exclude if same class)
+          if (currentLecturerId && conflict.lecturerId === parseInt(currentLecturerId, 10)) {
+            // If same lecturer teaching same class, it's not a conflict (they can teach same class)
+            // But if teaching different class at same time, it's a conflict
+            if (!currentClassId || conflict.classId !== parseInt(currentClassId, 10)) {
+              const lecturerDisplay = conflict.lecturerCode || 'Unknown';
+              // Only add once per lecturer
+              if (!reasons.some(r => r.includes('Lecturer') && r.includes(lecturerDisplay))) {
+                reasons.push(`Lecturer ${lecturerDisplay} is already teaching ${conflict.className} at this time`);
+                hasConflict = true;
+              }
+            }
+          }
+        });
+      }
+    });
+
+    return { hasConflict, reasons };
+  };
+
+  // Check student conflicts
+  const checkStudentConflict = (date, timeId, currentLessonId = null) => {
+    if (!studentScheduleCache.studentIds || studentScheduleCache.studentIds.length === 0) {
+      return { hasConflict: false, reasons: [] };
+    }
+
+    const classTimeKey = `${date}|${timeId}`;
+    const conflictedStudents = [];
+
+    studentScheduleCache.studentIds.forEach(studentId => {
+      const studentSlots = studentScheduleCache.studentTimeMap[studentId];
+      if (studentSlots && studentSlots.has(classTimeKey)) {
+        // Note: We can't exclude by lessonId here because studentTimeMap doesn't have lessonId info
+        // But this is okay - if student already has a lesson at this time, it's still a conflict
+        conflictedStudents.push(studentId);
+      }
+    });
+
+    if (conflictedStudents.length > 0) {
+      return {
+        hasConflict: true,
+        reasons: [`${conflictedStudents.length} student(s) already have lessons at this time`]
+      };
+    }
+
+    return { hasConflict: false, reasons: [] };
+  };
 
   const fetchClassStudents = async (clsId) => {
     if (!clsId) {
@@ -425,6 +626,48 @@ const EditSchedule = () => {
       await ClassList.deleteLesson(id);
 
       setLoadedLessons((prev) => prev.filter((l) => Number(l.lessonId) !== id));
+
+      // Reload semester lessons to update conflict map
+      const semId = semester.id || semesterId;
+      if (semId) {
+        try {
+          const lessons = await ClassList.getAllLessonsBySemester(semId);
+          setSemesterLessons(lessons || []);
+
+          // Rebuild conflict map
+          const newConflictMap = {};
+          (lessons || []).forEach(lesson => {
+            if (!lesson.date || !lesson.timeId || !lesson.roomId) {
+              return;
+            }
+            const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
+            if (!newConflictMap[key]) {
+              newConflictMap[key] = [];
+            }
+            const lecturerDisplay = lesson.lecturerEmail
+              ? getEmailUsername(lesson.lecturerEmail)
+              : (lesson.lecturerCode || '');
+
+            newConflictMap[key].push({
+              lessonId: lesson.lessonId || lesson.id,
+              classId: lesson.classId,
+              className: lesson.className,
+              lecturerId: lesson.lecturerId,
+              lecturerCode: lecturerDisplay,
+              date: lesson.date,
+              timeId: lesson.timeId,
+              roomId: lesson.roomId,
+              roomName: lesson.roomName
+            });
+          });
+
+          setConflictMap(newConflictMap);
+          setConflictMapSize(Object.keys(newConflictMap).length);
+        } catch (error) {
+          console.error('Failed to reload conflict map:', error);
+        }
+      }
+
       setEditModalVisible(false);
       setSelectedLesson(null);
 
@@ -483,6 +726,47 @@ const EditSchedule = () => {
         prev.filter((l) => (l.subjectCode || '').toString() !== subCode.toString())
       );
 
+      // Reload semester lessons to update conflict map
+      const semId = semester.id || semesterId;
+      if (semId) {
+        try {
+          const lessons = await ClassList.getAllLessonsBySemester(semId);
+          setSemesterLessons(lessons || []);
+
+          // Rebuild conflict map
+          const newConflictMap = {};
+          (lessons || []).forEach(lesson => {
+            if (!lesson.date || !lesson.timeId || !lesson.roomId) {
+              return;
+            }
+            const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
+            if (!newConflictMap[key]) {
+              newConflictMap[key] = [];
+            }
+            const lecturerDisplay = lesson.lecturerEmail
+              ? getEmailUsername(lesson.lecturerEmail)
+              : (lesson.lecturerCode || '');
+
+            newConflictMap[key].push({
+              lessonId: lesson.lessonId || lesson.id,
+              classId: lesson.classId,
+              className: lesson.className,
+              lecturerId: lesson.lecturerId,
+              lecturerCode: lecturerDisplay,
+              date: lesson.date,
+              timeId: lesson.timeId,
+              roomId: lesson.roomId,
+              roomName: lesson.roomName
+            });
+          });
+
+          setConflictMap(newConflictMap);
+          setConflictMapSize(Object.keys(newConflictMap).length);
+        } catch (error) {
+          console.error('Failed to reload conflict map:', error);
+        }
+      }
+
       notiApi.success({
         message: 'Success',
         description: `Deleted ${toDelete.length} lessons of ${subCode}`,
@@ -517,16 +801,60 @@ const EditSchedule = () => {
         prev.map((l) => {
           if (Number(l.lessonId) === id) {
             const room = rooms.find((r) => r.value === String(updatedData.roomId));
+            const lecturerOpt = lecturers.find((lec) => String(lec.value) === String(updatedData.lecturerId));
             return {
               ...l,
               ...updatedData,
               room: room ? room.label : l.room,
               roomId: String(updatedData.roomId),
+              // Cập nhật luôn display name của lecturer để calendar hiển thị đúng
+              lecturer: lecturerOpt ? lecturerOpt.label : l.lecturer,
             };
           }
           return l;
         })
       );
+
+      // Reload semester lessons to update conflict map
+      const semId = semester.id || semesterId;
+      if (semId) {
+        try {
+          const lessons = await ClassList.getAllLessonsBySemester(semId);
+          setSemesterLessons(lessons || []);
+
+          // Rebuild conflict map
+          const newConflictMap = {};
+          (lessons || []).forEach(lesson => {
+            if (!lesson.date || !lesson.timeId || !lesson.roomId) {
+              return;
+            }
+            const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
+            if (!newConflictMap[key]) {
+              newConflictMap[key] = [];
+            }
+            const lecturerDisplay = lesson.lecturerEmail
+              ? getEmailUsername(lesson.lecturerEmail)
+              : (lesson.lecturerCode || '');
+
+            newConflictMap[key].push({
+              lessonId: lesson.lessonId || lesson.id,
+              classId: lesson.classId,
+              className: lesson.className,
+              lecturerId: lesson.lecturerId,
+              lecturerCode: lecturerDisplay,
+              date: lesson.date,
+              timeId: lesson.timeId,
+              roomId: lesson.roomId,
+              roomName: lesson.roomName
+            });
+          });
+
+          setConflictMap(newConflictMap);
+          setConflictMapSize(Object.keys(newConflictMap).length);
+        } catch (error) {
+          console.error('Failed to reload conflict map:', error);
+        }
+      }
 
       notiApi.success({
         message: 'Success',
@@ -955,7 +1283,7 @@ const EditSchedule = () => {
         lesson={selectedLesson}
         rooms={rooms}
         timeslots={timeslots}
-        lecturers={[]}
+        lecturers={lecturers}
         semester={semester}
         onUpdate={handleUpdateLesson}
         onDelete={handleDeleteLesson}

@@ -12,7 +12,6 @@ import {
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import '../CreateSchedule.css';
-import { filterSemestersForCreate } from '../utils/semesterFilter';
 
 const PickSemesterAndClass = ({
   semesterId,
@@ -56,9 +55,9 @@ const PickSemesterAndClass = ({
               };
             });
 
-            // Apply filter for CREATE mode: only show future semesters
-            const formattedSemesters = filterSemestersForCreate(allSemesters);
-            setSemesterOptions(formattedSemesters);
+            // Trước đây có filter chỉ cho phép chọn kỳ tương lai.
+            // Theo yêu cầu mới: cho phép select tất cả semester.
+            setSemesterOptions(allSemesters);
           }
 
           // Store classes grouped by semester

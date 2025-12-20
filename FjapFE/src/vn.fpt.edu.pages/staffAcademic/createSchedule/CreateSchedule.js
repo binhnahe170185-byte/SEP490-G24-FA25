@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import dayjsLib from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import {
@@ -71,6 +71,7 @@ const CreateSchedule = () => {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isClassLoaded, setIsClassLoaded] = useState(false); // Chỉ cho phép thao tác sau khi Load Class
   const savingRef = useRef(false);
   const [classStudents, setClassStudents] = useState([]);
   const [totalLesson, setTotalLesson] = useState(null); // Total lesson count from subject
@@ -380,69 +381,71 @@ const CreateSchedule = () => {
     }
   }, [semesterId, semesterData, semester.id]);
 
+  // Extract loadSemesterLessons logic into a reusable function
+  const loadSemesterLessons = useCallback(async () => {
+    const semId = semester.id || semesterId;
+    if (!semId) {
+      setSemesterLessons([]);
+      setConflictMap({});
+      setConflictMapSize(0);
+      return;
+    }
+
+    try {
+      setLoadingSemesterLessons(true);
+      console.log('Loading all lessons for semester:', semId);
+      const lessons = await ClassList.getAllLessonsBySemester(semId);
+      console.log('Loaded semester lessons:', lessons?.length || 0);
+
+      setSemesterLessons(lessons || []);
+
+      // Build conflict map: key = "date|slot|room", value = array of conflicts
+      const newConflictMap = {};
+      (lessons || []).forEach(lesson => {
+        if (!lesson.date || !lesson.timeId || !lesson.roomId) {
+          console.warn('Invalid lesson data:', lesson);
+          return;
+        }
+        const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
+        if (!newConflictMap[key]) {
+          newConflictMap[key] = [];
+        }
+        // Get lecturer display (prioritize email if available, then substring before @)
+        const lecturerDisplay = lesson.lecturerEmail
+          ? getEmailUsername(lesson.lecturerEmail)
+          : (lesson.lecturerCode || '');
+
+        newConflictMap[key].push({
+          classId: lesson.classId,
+          className: lesson.className,
+          lecturerId: lesson.lecturerId,
+          lecturerCode: lecturerDisplay, // Store substring email or lecturerCode
+          date: lesson.date,
+          timeId: lesson.timeId,
+          roomId: lesson.roomId,
+          roomName: lesson.roomName
+        });
+      });
+
+      const mapSize = Object.keys(newConflictMap).length;
+      console.log('Built conflict map with', mapSize, 'keys');
+      console.log('Sample conflict keys:', Object.keys(newConflictMap).slice(0, 5));
+      setConflictMap(newConflictMap);
+      setConflictMapSize(mapSize);
+    } catch (error) {
+      console.error('Failed to load semester lessons:', error);
+      setSemesterLessons([]);
+      setConflictMap({});
+      setConflictMapSize(0);
+    } finally {
+      setLoadingSemesterLessons(false);
+    }
+  }, [semester.id, semesterId]);
+
   // Load all lessons of semester when semester is selected
   useEffect(() => {
-    const loadSemesterLessons = async () => {
-      const semId = semester.id || semesterId;
-      if (!semId) {
-        setSemesterLessons([]);
-        setConflictMap(new Map());
-        return;
-      }
-
-      try {
-        setLoadingSemesterLessons(true);
-        console.log('Loading all lessons for semester:', semId);
-        const lessons = await ClassList.getAllLessonsBySemester(semId);
-        console.log('Loaded semester lessons:', lessons?.length || 0);
-
-        setSemesterLessons(lessons || []);
-
-        // Build conflict map: key = "date|slot|room", value = array of conflicts
-        const newConflictMap = {};
-        (lessons || []).forEach(lesson => {
-          if (!lesson.date || !lesson.timeId || !lesson.roomId) {
-            console.warn('Invalid lesson data:', lesson);
-            return;
-          }
-          const key = `${lesson.date}|${lesson.timeId}|${lesson.roomId}`;
-          if (!newConflictMap[key]) {
-            newConflictMap[key] = [];
-          }
-          // Get lecturer display (prioritize email if available, then substring before @)
-          const lecturerDisplay = lesson.lecturerEmail
-            ? getEmailUsername(lesson.lecturerEmail)
-            : (lesson.lecturerCode || '');
-
-          newConflictMap[key].push({
-            classId: lesson.classId,
-            className: lesson.className,
-            lecturerId: lesson.lecturerId,
-            lecturerCode: lecturerDisplay, // Store substring email or lecturerCode
-            date: lesson.date,
-            timeId: lesson.timeId,
-            roomId: lesson.roomId,
-            roomName: lesson.roomName
-          });
-        });
-
-        const mapSize = Object.keys(newConflictMap).length;
-        console.log('Built conflict map with', mapSize, 'keys');
-        console.log('Sample conflict keys:', Object.keys(newConflictMap).slice(0, 5));
-        setConflictMap(newConflictMap);
-        setConflictMapSize(mapSize);
-      } catch (error) {
-        console.error('Failed to load semester lessons:', error);
-        setSemesterLessons([]);
-        setConflictMap({});
-        setConflictMapSize(0);
-      } finally {
-        setLoadingSemesterLessons(false);
-      }
-    };
-
     loadSemesterLessons();
-  }, [semester.id, semesterId]);
+  }, [loadSemesterLessons]);
 
   // Fetch holidays when semester is selected
   useEffect(() => {
@@ -906,6 +909,9 @@ const CreateSchedule = () => {
     // Clear Pending Schedule to avoid duplicates when loading a new class
     setPatterns([]);
 
+    // Mỗi lần load class mới thì reset flag và dữ liệu pending
+    setIsClassLoaded(false);
+
     // Nếu nhận được data từ PickSemesterAndClass (API call)
     if (data && data.schedule) {
       const { schedule, semesterId: semId, classId: clsId, semesterOptions: semOpt, subjectCode: subCode, subjectName: subName, className: clsName } = data;
@@ -1052,6 +1058,9 @@ const CreateSchedule = () => {
       setClassId(clsId);
       await fetchClassStudents(clsId);
 
+      // Đánh dấu là đã load dữ liệu lớp thành công
+      setIsClassLoaded(true);
+
       // Check if schedule is complete after fetching class students
       // Note: We need to wait for totalLesson to be set, so we'll check in useEffect
       return;
@@ -1116,6 +1125,19 @@ const CreateSchedule = () => {
   };
 
   const handlePrevWeek = () => {
+    // Nếu đã có currentWeekStart thì ưu tiên di chuyển theo ngày thực tế
+    if (currentWeekStart) {
+      let newWeekStart = addDays(currentWeekStart, -7);
+      // Nếu đã chọn semester thì không cho vượt ra ngoài phạm vi semester
+      newWeekStart = clampWeekStartWithinSemester(newWeekStart);
+      setCurrentWeekStart(newWeekStart);
+      const d = dayjs(newWeekStart);
+      setYear(d.year());
+      setWeekNumber(d.isoWeek());
+      return;
+    }
+
+    // Fallback: logic cũ theo year/weekNumber
     if (!year || !weekNumber) return;
     const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
     const prevDate = currentDate.subtract(1, 'week');
@@ -1128,6 +1150,16 @@ const CreateSchedule = () => {
   };
 
   const handleNextWeek = () => {
+    if (currentWeekStart) {
+      let newWeekStart = addDays(currentWeekStart, 7);
+      newWeekStart = clampWeekStartWithinSemester(newWeekStart);
+      setCurrentWeekStart(newWeekStart);
+      const d = dayjs(newWeekStart);
+      setYear(d.year());
+      setWeekNumber(d.isoWeek());
+      return;
+    }
+
     if (!year || !weekNumber) return;
     const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
     const nextDate = currentDate.add(1, 'week');
@@ -1139,12 +1171,19 @@ const CreateSchedule = () => {
     }
   };
 
+  const getMaxIsoWeekOfYear = (yr) => {
+    if (!yr) return 52;
+    // Chuẩn ISO: số tuần của năm được xác định bởi tuần chứa ngày 28/12
+    return dayjs(`${yr}-12-28`).isoWeek();
+  };
+
   const handleYearChange = (newYear) => {
+    const maxWeek = getMaxIsoWeekOfYear(newYear);
     setYear(newYear);
-    // Keep same week number if possible, otherwise use first week of year
+    // Giữ weekNumber hiện tại nếu còn trong khoảng của năm mới, nếu không thì clamp về maxWeek
     setWeekNumber((prev) => {
-      const testDate = dayjs().year(newYear).isoWeek(prev);
-      if (!testDate.isValid()) return 1;
+      if (!prev || prev < 1) return 1;
+      if (prev > maxWeek) return maxWeek;
       return prev;
     });
   };
@@ -1301,9 +1340,54 @@ const CreateSchedule = () => {
           placement: 'bottomRight',
           duration: 5,
         });
+        
+        // Refresh conflict map after successful save to include newly created lessons
+        // This prevents race condition when creating schedules for multiple classes
+        console.log('Refreshing conflict map after successful save...');
+        await loadSemesterLessons();
+        
+        // Also reload the class schedule to show newly created lessons
+        if (classId && effectiveSemesterId) {
+          try {
+            const scheduleResponse = await ClassList.getSchedule(effectiveSemesterId, classId);
+            const scheduleData = scheduleResponse || [];
+            const convertedLessons = scheduleData.map(lesson => {
+              const dateStr = lesson.date;
+              const lessonDate = fromYMD(dateStr);
+              const dayOfWeek = lessonDate.getDay();
+              const weekday = dayOfWeek === 0 ? 8 : dayOfWeek + 1;
+              const slot = lesson.timeId || 1;
+              const roomName = lesson.roomName || '';
+              const room = rooms.find(r => r.label === roomName);
+              const roomId = room ? room.value : null;
+              const lecturerDisplay = lesson.lecturerEmail
+                ? getEmailUsername(lesson.lecturerEmail)
+                : (lesson.lecturerCode || '');
+              
+              return {
+                date: dateStr,
+                weekday: weekday,
+                slot: slot,
+                room: roomName,
+                roomId: roomId,
+                lecturer: lecturerDisplay,
+                subjectCode: lesson.subjectCode || '',
+                subjectName: lesson.subjectName || '',
+                className: lesson.className || '',
+                startTime: lesson.startTime || '',
+                endTime: lesson.endTime || '',
+                timeId: lesson.timeId,
+                isLoaded: true
+              };
+            });
+            setLoadedLessons(convertedLessons);
+            console.log('Reloaded class schedule:', convertedLessons.length, 'lessons');
+          } catch (error) {
+            console.error('Failed to reload class schedule:', error);
+            // Don't fail the save operation if reload fails
+          }
+        }
       }
-
-      // TODO: reload lại schedule nếu cần
     } catch (error) {
       console.error('=== Error saving schedule ===');
       console.error('Error response status:', error?.response?.status);
@@ -1364,16 +1448,20 @@ const CreateSchedule = () => {
       : Array.from({ length: 8 }, (_, i) => ({ timeId: i + 1, label: `Slot ${i + 1}` }));
 
     const holidayLookup = holidays.reduce((acc, holiday) => {
-      if (holiday.date) {
-        acc[holiday.date] = holiday.name || holiday.holidayName || holiday.reason || holiday.description || 'Holiday';
+      if (holiday && holiday.date) {
+        // Chuẩn hoá lại ngày nghỉ để đảm bảo đúng format YYYY-MM-DD
+        const normalized = normalizeDateString(holiday.date);
+        if (normalized) {
+          acc[normalized] =
+            holiday.name ||
+            holiday.holidayName ||
+            holiday.reason ||
+            holiday.description ||
+            'Holiday';
+        }
       }
       return acc;
     }, {});
-
-    // Debug: log holidays for troubleshooting
-    if (holidays.length > 0 && Object.keys(holidayLookup).length === 0) {
-      console.warn('Holidays loaded but lookup is empty. Holiday dates:', holidays.map(h => h.date));
-    }
 
     const columns = [
       {
@@ -1478,9 +1566,12 @@ const CreateSchedule = () => {
           if (loadedLecturerDisplay) parts.push(loadedLecturerDisplay);
 
           cellContents.push(parts.length > 0 ? parts.join(' | ') : '');
+          // Dùng style xanh dương giống EditSchedule để đồng bộ UI
           cellStyle = {
-            backgroundColor: '#f5f5f5',
-            color: '#333'
+            backgroundColor: '#e3f2fd',
+            color: '#1976d2',
+            fontWeight: 'bold',
+            border: '2px solid #1976d2'
           };
           classNames.push('lesson-loaded');
         }
@@ -1585,8 +1676,22 @@ const CreateSchedule = () => {
                 <PickSemesterAndClass
                   semesterId={semesterId}
                   classId={classId}
-                  onSemesterChange={setSemesterId}
-                  onClassChange={setClassId}
+                  onSemesterChange={(value) => {
+                    // Đổi semester thì bắt buộc phải load lại class
+                    setSemesterId(value);
+                    setClassId('');
+                    setPatterns([]);
+                    setLoadedLessons([]);
+                    setPreviewLessons([]);
+                    setIsClassLoaded(false);
+                  }}
+                  onClassChange={(value) => {
+                    // Đổi class trong cùng semester cũng yêu cầu load lại
+                    setClassId(value);
+                    setPatterns([]);
+                    setPreviewLessons([]);
+                    setIsClassLoaded(false);
+                  }}
                   onLoadClass={handleLoadClass}
                 />
               </div>
@@ -1636,6 +1741,7 @@ const CreateSchedule = () => {
             totalLesson={totalLesson}
             mondayOf={mondayOf}
             scheduleComplete={scheduleComplete}
+            controlsDisabled={!isClassLoaded}
           />
 
           <CalendarTable
@@ -1655,6 +1761,8 @@ const CreateSchedule = () => {
           <SaveButton
             onSave={handleSave}
             saving={saving}
+            disabled={!isClassLoaded}
+            disabledReason="Please load class timetable before saving."
           />
         </Space>
       </Layout.Content>
