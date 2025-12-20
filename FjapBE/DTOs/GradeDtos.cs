@@ -155,6 +155,7 @@ namespace FJAP.vn.fpt.edu.models
         public int ClassId { get; set; }
         public int SubjectId { get; set; }
         public int GradeId { get; set; }
+        public double? AttendanceRate { get; set; }
     }
 
     /// <summary>
@@ -166,6 +167,7 @@ namespace FJAP.vn.fpt.edu.models
         public string SubjectName { get; set; } = string.Empty;
         public decimal? Average { get; set; }
         public string Status { get; set; } = string.Empty;
+        public double? AttendanceRate { get; set; }
         
         public List<StudentGradeComponentDto> GradeComponents { get; set; } = new();
     }
@@ -239,6 +241,7 @@ namespace FJAP.vn.fpt.edu.models
         public string Status { get; set; } = string.Empty;
         public string SemesterName { get; set; } = string.Empty;
         public int SemesterId { get; set; }
+        public double? AttendanceRate { get; set; }
     }
 
     /// DTO cho Academic Transcript (bảng điểm tổng hợp)

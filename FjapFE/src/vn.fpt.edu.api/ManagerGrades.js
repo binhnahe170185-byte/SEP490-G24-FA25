@@ -222,18 +222,32 @@ class ManagerGrades {
         const attendanceReport = await AttendanceApi.getAttendanceReport(courseId);
         if (Array.isArray(attendanceReport)) {
           attendanceReport.forEach(item => {
-            // Robustly extract student identifier
-            const sid = (item.studentCode ?? item.studentId ?? item.code ?? item.id ?? "").toString();
+            // Robustly extract student identifier from nested student object or direct fields
+            const studentObj = item.student || {};
+            const sid = (studentObj.studentCode ?? studentObj.studentId ?? item.studentCode ?? item.studentId ?? "").toString();
+
             if (!sid) return;
-            // Extract present/total lessons with common key names
-            const present = item.presentCount ?? item.present ?? item.attended ?? item.presents ?? 0;
-            const total = item.totalLessons ?? item.total ?? item.lessonCount ?? item.lessons ?? 0;
-            const absent = item.absentCount ?? item.absent ?? item.absents ?? 0;
-            const computedTotal = total || (present + absent);
-            const attendanceRate = computedTotal > 0 ? present / computedTotal : null;
+
+            // Calculate from lessons array
+            let present = 0;
+            let total = 0;
+
+            if (Array.isArray(item.lessons)) {
+              total = item.lessons.length;
+              present = item.lessons.filter(l => l.status === 'Present').length;
+            } else {
+              // Fallback to previous attempts if lessons array is missing (backward compatibility)
+              present = item.presentCount ?? item.present ?? item.attended ?? item.presents ?? 0;
+              const rawTotal = item.totalLessons ?? item.total ?? item.lessonCount ?? item.lessons ?? 0;
+              const absent = item.absentCount ?? item.absent ?? item.absents ?? 0;
+              total = typeof rawTotal === 'number' ? rawTotal : (present + absent);
+            }
+
+            const attendanceRate = total > 0 ? present / total : null;
+
             attendanceByStudent[sid] = {
               presentLessons: typeof present === "number" ? present : parseFloat(present) || 0,
-              totalLessons: typeof computedTotal === "number" ? computedTotal : parseFloat(computedTotal) || 0,
+              totalLessons: typeof total === "number" ? total : parseFloat(total) || 0,
               attendanceRate: attendanceRate
             };
           });

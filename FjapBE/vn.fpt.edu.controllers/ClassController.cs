@@ -16,6 +16,21 @@ public class ClassController : ControllerBase
     private readonly FjapDbContext _db;
     private readonly IScheduleAvailabilityService _availabilityService;
     private readonly ILessonService _lessonService;
+    
+    // Vietnam timezone (UTC+7)
+    private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+    
+    // Helper: Convert DB datetime (stored as UTC) to Vietnam local time
+    private static DateTime? ToVietnamTime(DateTime? utcDateTime)
+    {
+        if (!utcDateTime.HasValue) return null;
+        // DB stores UTC values, convert to Vietnam time (UTC+7)
+        return TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(utcDateTime.Value, DateTimeKind.Utc),
+            VietnamTimeZone
+        );
+    }
+    
     public ClassController(
        IClassService classService,
        IStudentService studentService,
@@ -77,7 +92,7 @@ public class ClassController : ControllerBase
                 classId = cls.ClassId,
                 className = cls.ClassName,
                 status = cls.Status,
-                updatedAt = cls.UpdatedAt,
+                updatedAt = ToVietnamTime(cls.UpdatedAt),
                 semesterName = semesterName,
                 semesterId = cls.SemesterId,
                 semesterStartDate = semesterStart,
@@ -197,7 +212,7 @@ public class ClassController : ControllerBase
                 classId = cls.ClassId,
                 className = cls.ClassName,
                 status = cls.Status,
-                updatedAt = cls.UpdatedAt,
+                updatedAt = ToVietnamTime(cls.UpdatedAt),
                 semesterName = semesterName,
                 semesterId = cls.SemesterId,
                 semesterStartDate = semesterStart,
@@ -292,7 +307,8 @@ public class ClassController : ControllerBase
                 .ToList(),
             maxStudents = item.MaxStudents,
             minStudents = item.MinStudents,
-            totalStudents = item.Students?.Count ?? 0
+            totalStudents = item.Students?.Count ?? 0,
+            totalLessons = await _db.Lessons.CountAsync(l => l.ClassId == id)
         };
 
         return Ok(new { code = 200, data = response });
@@ -402,6 +418,19 @@ public class ClassController : ControllerBase
         }
 
         return Ok(new { code = 200, message = "Students added to class" });
+    }
+
+    [HttpDelete("{classId:int}/students/{studentId:int}")]
+    public async Task<IActionResult> RemoveStudent(int classId, int studentId)
+    {
+         var lessonCount = await _db.Lessons.CountAsync(l => l.ClassId == classId);
+         if (lessonCount > 0) 
+         {
+             return BadRequest(new { code = 400, message = "Cannot remove student because class has lessons" });
+         }
+
+         await _studentService.RemoveStudentFromClassAsync(studentId, classId);
+         return Ok(new { code = 200, message = "Student removed from class" });
     }
 
     [HttpPost]
@@ -929,7 +958,7 @@ public class ClassController : ControllerBase
                     classId = updated.ClassId,
                     className = updated.ClassName,
                     status = updated.Status,
-                    updatedAt = updated.UpdatedAt,
+                    updatedAt = ToVietnamTime(updated.UpdatedAt),
                     semesterName = semesterName,
                     semesterId = updated.SemesterId,
                     semesterStartDate = semesterStart,

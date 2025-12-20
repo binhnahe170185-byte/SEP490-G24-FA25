@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { 
-  Breadcrumb, 
-  Card, 
-  Table, 
-  Button, 
-  message, 
+import {
+  Breadcrumb,
+  Card,
+  Table,
+  Button,
+  message,
   Spin,
   InputNumber,
   Space,
@@ -14,7 +14,7 @@ import {
   Input,
   Tooltip
 } from "antd";
-import { 
+import {
   ArrowLeftOutlined,
   SaveOutlined,
   EyeOutlined,
@@ -32,7 +32,7 @@ export default function GradeEntry() {
   const location = useLocation();
   const { user } = useAuth();
   const base = location.pathname.startsWith('/lecturer') ? '/lecturer' : '/manager';
-  
+
   const [courseDetails, setCourseDetails] = useState(null);
   const [students, setStudents] = useState([]);
   const [gradeComponentWeights, setGradeComponentWeights] = useState([]);
@@ -67,30 +67,30 @@ export default function GradeEntry() {
       const data = await ManagerGrades.getCourseDetails(userId, courseId);
       setCourseDetails(data);
       setGradeComponentWeights(data.gradeComponentWeights || []);
-      
+
       // Map student data with dynamic grade components
       const mappedStudents = data.students.map(s => {
         const studentData = { ...s, key: s.studentId };
         data.gradeComponentWeights?.forEach(weight => {
           const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
           const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
-          
+
           // Find score from GradeComponentScores
-          const gradeComponentScore = s.gradeComponentScores?.find(gcs => 
+          const gradeComponentScore = s.gradeComponentScores?.find(gcs =>
             gcs.subjectGradeTypeId === weight.subjectGradeTypeId
           );
           // Preserve 0 values - use nullish coalescing instead of logical OR
-          studentData[dataIndex] = gradeComponentScore?.score !== undefined && gradeComponentScore?.score !== null 
-            ? gradeComponentScore.score 
+          studentData[dataIndex] = gradeComponentScore?.score !== undefined && gradeComponentScore?.score !== null
+            ? gradeComponentScore.score
             : null;
           studentData[commentIndex] = gradeComponentScore?.comment || "";
         });
-        
+
         return studentData;
       });
-      
+
       setStudents(mappedStudents);
-      
+
       // After reload, if we were editing a record, update form with latest data
       if (preserveEditingKey) {
         const updatedRecord = mappedStudents.find(s => s.key === preserveEditingKey);
@@ -119,7 +119,7 @@ export default function GradeEntry() {
 
   // Helper function to get weight for a grade component
   const getWeightForComponent = (componentName) => {
-    const weight = gradeComponentWeights.find(w => 
+    const weight = gradeComponentWeights.find(w =>
       w.gradeTypeName.toLowerCase().includes(componentName.toLowerCase()) ||
       componentName.toLowerCase().includes(w.gradeTypeName.toLowerCase())
     );
@@ -134,17 +134,17 @@ export default function GradeEntry() {
     if (!studentId || !dataIndex) {
       return;
     }
-    
+
     if (!batchEditMode) {
       return;
     }
-    
+
     setEditedDataAll(prev => {
       const newData = { ...prev };
       if (!newData[studentId]) {
         newData[studentId] = {};
       }
-      
+
       // Store the edited value - convert to number or null
       let numValue = null;
       if (value !== null && value !== undefined && value !== '') {
@@ -154,23 +154,23 @@ export default function GradeEntry() {
         }
       }
       newData[studentId][dataIndex] = numValue;
-      
+
       // Find the original student record to get original values for unchanged fields
       const student = students.find(s => {
         const sId = String(s.studentId || '');
         const targetId = String(studentId || '');
         return sId === targetId;
       });
-      
+
       // Calculate average for this student - combine edited and original values
       let weightedSum = 0;
-      
+
       if (gradeComponentWeights && Array.isArray(gradeComponentWeights)) {
         gradeComponentWeights.forEach(weight => {
           if (weight && weight.subjectGradeTypeId) {
             const idx = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
             if (!idx) return;
-            
+
             // Get score: edited value first, then original value
             let score = null;
             if (newData[studentId].hasOwnProperty(idx)) {
@@ -180,7 +180,7 @@ export default function GradeEntry() {
               // Field not edited, use original
               score = student[idx];
             }
-            
+
             // Only add to average if we have a valid number
             if (score !== null && score !== undefined && !isNaN(score) && typeof score === 'number') {
               const weightValue = parseFloat(weight.weight) || 0;
@@ -190,7 +190,7 @@ export default function GradeEntry() {
           }
         });
       }
-      
+
       // Calculate final average - weightedSum already contains the weighted average
       const average = weightedSum;
       newData[studentId].average = parseFloat(average.toFixed(2));
@@ -199,14 +199,14 @@ export default function GradeEntry() {
       const attendanceRate = (students.find(s => (s.studentId || '').toString() === (studentId || '').toString())?.attendanceRate);
       const meetsAttendance = attendanceRate == null ? true : attendanceRate >= 0.8;
       newData[studentId].status = average >= passMark && meetsAttendance ? "Passed" : "Failed";
-      
+
       return newData;
     });
   };
 
   const edit = (record) => {
     const formValues = {};
-    
+
     // Set values for dynamic grade components
     gradeComponentWeights.forEach(weight => {
       const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
@@ -214,7 +214,7 @@ export default function GradeEntry() {
       formValues[dataIndex] = record[dataIndex];
       formValues[commentIndex] = record[commentIndex];
     });
-    
+
     form.setFieldsValue(formValues);
     setEditingKey(record.key);
   };
@@ -313,23 +313,23 @@ export default function GradeEntry() {
             existingGradeComponentsMap[gcs.subjectGradeTypeId] = gcs;
           });
         }
-        
+
         const gradeComponents = [];
         gradeComponentWeights.forEach(weight => {
           const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
           const commentIndex = getCommentDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
-          
+
           // Get values from form (user's current input in the form)
           const formScore = row[dataIndex];
           const formComment = row[commentIndex];
-          
+
           // Get existing grade component from backend (most reliable source)
           const existingGradeComponent = existingGradeComponentsMap[weight.subjectGradeTypeId];
-          
+
           // Get existing values from record (may not have latest data)
           const existingScore = item[dataIndex];
           const existingComment = item[commentIndex];
-          
+
           // Determine score: use form value if provided, otherwise use existing from backend
           let finalScore = null;
           if (formScore !== null && formScore !== undefined && formScore !== '') {
@@ -346,13 +346,13 @@ export default function GradeEntry() {
               finalScore = existingScore;
             }
           }
-          
+
           // Determine comment: prioritize form value, fallback to backend data
           let finalComment = null;
           if (formComment !== null && formComment !== undefined) {
             // Form has a value - use it (empty string means clear comment)
-            finalComment = typeof formComment === 'string' && formComment.trim() !== '' 
-              ? formComment.trim() 
+            finalComment = typeof formComment === 'string' && formComment.trim() !== ''
+              ? formComment.trim()
               : null;
           } else {
             // Form doesn't have value - keep existing comment from backend (most reliable)
@@ -362,7 +362,7 @@ export default function GradeEntry() {
               finalComment = typeof existingComment === 'string' ? existingComment : null;
             }
           }
-          
+
           // Only send grade component if it has a valid score
           if (finalScore !== null && finalScore !== undefined) {
             gradeComponents.push({
@@ -393,9 +393,9 @@ export default function GradeEntry() {
         // Save to API
         setSaving(true);
         await ManagerGrades.updateStudentGradeComponents(
-          userId, 
-          courseId, 
-          item.studentId, 
+          userId,
+          courseId,
+          item.studentId,
           item.gradeId,
           gradeComponents
         );
@@ -410,7 +410,7 @@ export default function GradeEntry() {
 
         // Clear edit mode - return to view mode after successful save
         setEditingKey('');
-        
+
         // Reload data to get updated values from server
         await loadData();
       }
@@ -447,18 +447,18 @@ export default function GradeEntry() {
 
     const isBatchMode = isBatchEditing();
     const isCellEditable = editing || (isBatchMode && dataIndex && typeof dataIndex === 'string' && dataIndex.startsWith('gradeComponent_'));
-    
+
     // Create unique field name for each cell (combine studentId and dataIndex)
-    const uniqueFieldName = isBatchMode && record.studentId 
-      ? `${record.studentId}_${dataIndex}` 
+    const uniqueFieldName = isBatchMode && record.studentId
+      ? `${record.studentId}_${dataIndex}`
       : dataIndex;
-    
+
     // Get value for batch mode - with safe access
     let batchValue = undefined;
     if (isBatchMode && record && record.studentId && editedDataAll && editedDataAll[record.studentId]) {
       batchValue = editedDataAll[record.studentId][dataIndex];
     }
-    
+
     // Get display value safely - use batch value if edited, otherwise use original record value
     const recordValue = record && dataIndex ? (record[dataIndex] ?? null) : null;
     const displayValue = isBatchMode && batchValue !== undefined ? batchValue : recordValue;
@@ -550,7 +550,7 @@ export default function GradeEntry() {
               {inputType === 'text'
                 ? (displayValue ?? '')
                 : (typeof displayValue === 'number' && !isNaN(displayValue)
-                  ? displayValue.toFixed(1) 
+                  ? displayValue.toFixed(1)
                   : "-")}
             </span>
             {commentIndex && (
@@ -632,13 +632,29 @@ export default function GradeEntry() {
           const displayValue = batchEditMode && record.studentId && editedDataAll[record.studentId]?.average !== undefined
             ? editedDataAll[record.studentId].average
             : value;
+
+          // Check attendance
+          const attendanceRate = record.attendanceRate;
+          // specific check: explicit fail if defined and < 0.8
+          const isAttendanceFailed = attendanceRate != null && attendanceRate < 0.8;
+
           return (
-            <span style={{ fontWeight: 600, fontSize: 15 }}>
-              {typeof displayValue === 'number' ? displayValue.toFixed(1) : "-"}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600, fontSize: 15, color: isAttendanceFailed ? '#ff4d4f' : 'inherit' }}>
+                {typeof displayValue === 'number' ? displayValue.toFixed(1) : "-"}
+              </span>
+              {isAttendanceFailed && (
+                <Tooltip title={`Attendance: ${(attendanceRate * 100).toFixed(0)}% (< 80%)`}>
+                  <span style={{ fontSize: 11, color: '#ff4d4f', cursor: 'help' }}>
+                    (Att. Fail)
+                  </span>
+                </Tooltip>
+              )}
+            </div>
           );
         },
       },
+
       {
         title: "Action",
         key: "action",
@@ -651,8 +667,8 @@ export default function GradeEntry() {
           const editable = isEditing(record);
           return editable ? (
             <Space>
-              <Button 
-                type="link" 
+              <Button
+                type="link"
                 onClick={() => save(record.key)}
                 loading={saving}
               >
@@ -712,12 +728,12 @@ export default function GradeEntry() {
   const handleSaveAll = async () => {
     try {
       const changesCount = Object.keys(editedDataAll).length;
-      
+
       if (!batchEditMode) {
         message.warning("Please enter batch edit mode first");
         return;
       }
-      
+
       if (changesCount === 0) {
         message.warning("No changes to save. Please enter some grades first.");
         return;
@@ -737,7 +753,7 @@ export default function GradeEntry() {
     try {
       setSavingAll(true);
       setShowSaveModal(false);
-    
+
       // Get all student IDs that have changes
       const studentIdsWithChanges = Object.keys(editedDataAll);
 
@@ -756,16 +772,16 @@ export default function GradeEntry() {
         try {
           // Find the student record
           const student = students.find(s => s.studentId === studentId || String(s.studentId) === String(studentId));
-          
-              if (!student) {
-                failCount++;
-                continue;
-              }
 
-              if (!student.gradeId) {
-                failCount++;
-                continue;
-              }
+          if (!student) {
+            failCount++;
+            continue;
+          }
+
+          if (!student.gradeId) {
+            failCount++;
+            continue;
+          }
 
           const studentChanges = editedDataAll[studentId];
           if (!studentChanges) {
@@ -773,17 +789,17 @@ export default function GradeEntry() {
           }
 
           const gradeComponents = [];
-          
+
           // Include all grade components that were edited
           if (gradeComponentWeights && Array.isArray(gradeComponentWeights)) {
             gradeComponentWeights.forEach(weight => {
               if (weight && weight.subjectGradeTypeId) {
                 const dataIndex = getDataIndexForComponent(weight.gradeTypeName, weight.subjectGradeTypeId);
-                
+
                 // Only save if this field was explicitly edited (exists in studentChanges)
                 if (studentChanges.hasOwnProperty(dataIndex)) {
                   const editedScore = studentChanges[dataIndex];
-                  
+
                   // Include if score is a valid number (including 0)
                   if (editedScore !== null && editedScore !== undefined && editedScore !== '') {
                     const numScore = parseFloat(editedScore);
@@ -800,7 +816,7 @@ export default function GradeEntry() {
               }
             });
           }
-          
+
           if (gradeComponents.length > 0) {
             await ManagerGrades.updateStudentGradeComponents(
               userId,
@@ -879,13 +895,13 @@ export default function GradeEntry() {
 
       <div style={{ marginBottom: 24 }}>
         <Space>
-          <Button 
+          <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate(`${base}/grades`)}
           >
             Back
           </Button>
-          <Button 
+          <Button
             icon={<EyeOutlined />}
             onClick={() => navigate(`${base}/grades/${courseId}`, {
               state: { course: courseFromState }
@@ -893,7 +909,7 @@ export default function GradeEntry() {
           >
             View Details
           </Button>
-          <Button 
+          <Button
             type={batchEditMode ? "default" : "primary"}
             icon={<EditOutlined />}
             onClick={toggleBatchEditMode}
@@ -902,7 +918,7 @@ export default function GradeEntry() {
             {batchEditMode ? "Exit Batch Edit" : "Enter Batch Edit Mode"}
           </Button>
           {batchEditMode && (
-            <Button 
+            <Button
               type="primary"
               icon={<SaveOutlined />}
               onClick={handleSaveAll}
@@ -915,7 +931,7 @@ export default function GradeEntry() {
         </Space>
       </div>
 
-      <Card style={{ marginBottom: 24 }}>
+      {/* <Card style={{ marginBottom: 24 }}>
         <h2 style={{ margin: 0, marginBottom: 16 }}>
           {courseFromState?.courseCode || courseDetails?.courseCode} - {courseFromState?.courseName || courseDetails?.courseName}
         </h2>
@@ -924,14 +940,14 @@ export default function GradeEntry() {
           <span>📅 Semester: {courseFromState?.semester || courseDetails?.semester}</span>
           <span>👨‍🎓 Total Students: {students.length}</span>
         </Space>
-      </Card>
+      </Card> */}
 
-      <Card 
+      <Card
         title={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 16, fontWeight: 600 }}>Enter Student Grades</span>
             <span style={{ fontSize: 13, color: '#8c8c8c', fontWeight: 400 }}>
-              {batchEditMode 
+              {batchEditMode
                 ? "Batch Edit Mode: All students are editable. Enter grades and click 'Save All Changes' to save."
                 : "Click 'Enter Batch Edit Mode' to edit all students at once, or click 'Edit' for individual students. Grades are from 0-10."}
             </span>

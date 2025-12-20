@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Card, Table, Tag, Spin, message } from "antd";
+import { Card, Table, Tag, Spin, message, Tooltip } from "antd";
 import StudentGrades from "../../../vn.fpt.edu.api/StudentGrades";
 
 export default function GradeTable({ course, studentId }) {
@@ -53,6 +53,32 @@ export default function GradeTable({ course, studentId }) {
       key: "value",
       align: "center",
       width: 100,
+      render: (text, record) => {
+        if (record.item === "Status") {
+          let color = "default";
+          const statusText = String(text).trim().toLowerCase();
+          console.log("Table Status Row Value:", text, statusText);
+
+          if (["passed", "pass", "completed"].includes(statusText)) {
+            color = "green";
+          } else if (["failed", "fail", "not passed"].includes(statusText)) {
+            color = "red";
+          }
+
+          const attendanceRate = gradeDetails?.attendanceRate;
+          let tooltip = "";
+          if (color === "red" && attendanceRate !== null && attendanceRate !== undefined && attendanceRate < 0.8) {
+            tooltip = `Attendance < 80% (${(attendanceRate * 100).toFixed(0)}%)`;
+          }
+
+          return (
+            <Tooltip title={tooltip}>
+              <Tag color={color}>{text}</Tag>
+            </Tooltip>
+          );
+        }
+        return text;
+      },
     },
     {
       title: "Comment",
@@ -72,7 +98,7 @@ export default function GradeTable({ course, studentId }) {
       gradeDetails.gradeComponents.forEach((component, index) => {
         data.push({
           key: `component-${index}`,
-          category: "", 
+          category: "",
           item: component.componentName,
           weight: component.weight,
           value: component.value,
@@ -92,13 +118,17 @@ export default function GradeTable({ course, studentId }) {
         comment: "",
       });
     }
-    
+
+    const isGradeMissing = gradeDetails.average === null || gradeDetails.average === undefined;
+    const rawStatus = gradeDetails.status;
+    const displayStatus = isGradeMissing && rawStatus === "Failed" ? "In Progress" : rawStatus;
+
     data.push({
       key: "course-status",
       category: "",
       item: "Status",
       weight: "",
-      value: gradeDetails.status === "Completed" ? "Passed" : gradeDetails.status,
+      value: displayStatus === "Completed" ? "Passed" : displayStatus,
       comment: "",
     });
 
@@ -131,20 +161,33 @@ export default function GradeTable({ course, studentId }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>Grade Report</div>
+            {console.log("GradeDetails Status:", gradeDetails.status)}
             <div style={{ fontSize: 14, color: "#595959", fontWeight: 400 }}>
               {gradeDetails.subjectName} ({gradeDetails.subjectCode})
             </div>
           </div>
-          <Tag 
-            color={
-              gradeDetails.status === "Completed" || gradeDetails.status === "Passed" ? "green" : 
-              gradeDetails.status === "Failed" ? "red" : 
-              "default"
-            } 
-            style={{ fontSize: 14, padding: "4px 12px" }}
-          >
-            {gradeDetails.status === "Completed" ? "Passed" : gradeDetails.status}
-          </Tag>
+          {/* SAFEGUARD: Force "In Progress" if average is null */}
+          {(() => {
+            const isGradeMissing = gradeDetails.average === null || gradeDetails.average === undefined;
+            const rawStatus = gradeDetails.status;
+            const displayStatus = isGradeMissing && rawStatus === "Failed" ? "In Progress" : rawStatus;
+
+            const statusStr = String(displayStatus).trim().toLowerCase();
+            let color = "default";
+            if (["passed", "pass", "completed"].includes(statusStr)) color = "green";
+            else if (["failed", "fail", "not passed"].includes(statusStr)) color = "red";
+
+            return (
+              <Tooltip title={gradeDetails.attendanceRate != null && gradeDetails.attendanceRate < 0.8 && statusStr === "failed" ? `Attendance < 80% (${(gradeDetails.attendanceRate * 100).toFixed(0)}%)` : ""}>
+                <Tag
+                  color={color}
+                  style={{ fontSize: 14, padding: "4px 12px" }}
+                >
+                  {displayStatus === "Completed" ? "Passed" : displayStatus}
+                </Tag>
+              </Tooltip>
+            );
+          })()}
         </div>
       }
     >

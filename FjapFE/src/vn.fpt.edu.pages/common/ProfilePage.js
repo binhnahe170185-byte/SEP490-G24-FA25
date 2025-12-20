@@ -48,9 +48,9 @@ const formatJapanesePhone = (value) => {
   if (!value) return value;
   // Remove all non-digit characters
   const phoneNumber = value.replace(/\D/g, "");
-  
+
   if (phoneNumber.length === 0) return "";
-  
+
   // Format: 0X-XXXX-XXXX (10 digits) or 0XX-XXXX-XXXX (11 digits)
   if (phoneNumber.length <= 3) {
     return phoneNumber;
@@ -93,7 +93,7 @@ export default function ProfilePage() {
   const [pendingValues, setPendingValues] = useState(null);
   const [form] = Form.useForm();
   const { user, login } = useAuth();
-  const { success: notifySuccess } = useNotify();
+  const { success: notifySuccess, error: notifyError } = useNotify();
 
   useEffect(() => {
     loadProfile();
@@ -153,7 +153,7 @@ export default function ProfilePage() {
       const response = await ProfileApi.uploadAvatar(file);
       // Response structure: { avatarUrl: string } or { data: { avatarUrl: string } }
       const avatarUrl = response?.avatarUrl || response?.data?.avatarUrl;
-      
+
       if (avatarUrl) {
         form.setFieldsValue({ avatar: avatarUrl });
         setAvatarPreview(avatarUrl);
@@ -194,7 +194,7 @@ export default function ProfilePage() {
       setProfile(updated);
       setIsEditing(false);
       setAvatarPreview(null);
-      
+
       notifySuccess(
         "profile-updated",
         "Success",
@@ -209,7 +209,8 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      message.error("Failed to update profile");
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to update profile";
+      notifyError("profile-update-error", "Update Failed", errorMessage);
     } finally {
       setSaving(false);
     }

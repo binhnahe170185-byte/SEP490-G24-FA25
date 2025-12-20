@@ -1,11 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { Button, Input, Select, Space, Table, Tooltip, Switch } from "antd";
-import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined, UserAddOutlined, TeamOutlined } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import ClassFormModal from "./ClassFormModel";
 import DeleteClassFormModal from "./DeleteClassFormModal";
 import { useNotify } from "../../../vn.fpt.edu.common/notifications";
+
+// Extend dayjs with plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Format DateTime - xử lý UTC 'Z' suffix và convert về timezone Việt Nam
+const formatDateTime = (value) => {
+  if (!value) return "-";
+  
+  // Nếu có 'Z' (UTC indicator), parse như UTC rồi convert sang timezone VN
+  if (typeof value === 'string' && value.endsWith('Z')) {
+    return dayjs.utc(value).tz("Asia/Ho_Chi_Minh").format("DD/MM/YYYY HH:mm:ss");
+  }
+  
+  // Không có 'Z', parse như local time
+  return dayjs(value).format("DD/MM/YYYY HH:mm:ss");
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  return dayjs(value).format("DD/MM/YYYY");
+};
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -57,8 +82,8 @@ const normalizeClasses = (list = []) =>
       null;
     const semesterDetails =
       semesterSource &&
-      typeof semesterSource === "object" &&
-      !Array.isArray(semesterSource)
+        typeof semesterSource === "object" &&
+        !Array.isArray(semesterSource)
         ? semesterSource
         : null;
     const semester =
@@ -127,8 +152,8 @@ const normalizeClasses = (list = []) =>
       null;
     const levelDetails =
       levelSource &&
-      typeof levelSource === "object" &&
-      !Array.isArray(levelSource)
+        typeof levelSource === "object" &&
+        !Array.isArray(levelSource)
         ? levelSource
         : null;
     const level =
@@ -170,8 +195,8 @@ const normalizeClasses = (list = []) =>
       null;
     const subjectDetails =
       subjectSource &&
-      typeof subjectSource === "object" &&
-      !Array.isArray(subjectSource)
+        typeof subjectSource === "object" &&
+        !Array.isArray(subjectSource)
         ? subjectSource
         : null;
     const subjectName =
@@ -399,7 +424,7 @@ export default function ClassList({ readOnly = false }) {
       setPagination((prev) => ({ ...prev, current: maxPage }));
     }
   }, [filteredClasses.length, currentPage, pageSize]);
-  
+
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
     setPagination((prev) => ({ ...prev, current: 1 }));
@@ -467,6 +492,16 @@ export default function ClassList({ readOnly = false }) {
     setPagination((prev) => ({ ...prev, current: page, pageSize }));
   };
 
+  const handleClearFilters = () => {
+    setFilters({
+      search: "",
+      semester: "all",
+      level: "all",
+      status: "all",
+    });
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  };
+
   const handleStatusToggle = async (record, checked) => {
     const targetClassId = (record.classId ?? record.class_id)?.toString();
     if (!targetClassId) {
@@ -508,33 +543,33 @@ export default function ClassList({ readOnly = false }) {
 
             const fallbackUpdatedAt =
               (updated && (updated.updated_at ?? updated.updatedAt)) ||
-              new Date().toISOString();
+              dayjs().format();
             const mergedSource = updated
               ? { ...item, ...updated, updated_at: fallbackUpdatedAt }
-            : {
+              : {
                 ...item,
                 status: checked,
                 statusLabel: toStatusLabel(checked),
                 updated_at: fallbackUpdatedAt,
               };
-          const normalizedList = normalizeClasses([mergedSource]);
-          const normalized =
-            normalizedList && normalizedList.length ? normalizedList[0] : null;
+            const normalizedList = normalizeClasses([mergedSource]);
+            const normalized =
+              normalizedList && normalizedList.length ? normalizedList[0] : null;
 
-          if (normalized) {
+            if (normalized) {
+              return {
+                ...item,
+                ...normalized,
+                updated_at: normalized.updated_at ?? fallbackUpdatedAt,
+              };
+            }
+
             return {
               ...item,
-              ...normalized,
-              updated_at: normalized.updated_at ?? fallbackUpdatedAt,
+              status: checked,
+              statusLabel: toStatusLabel(checked),
+              updated_at: fallbackUpdatedAt,
             };
-          }
-
-          return {
-            ...item,
-            status: checked,
-            statusLabel: toStatusLabel(checked),
-            updated_at: fallbackUpdatedAt,
-          };
           })
           .sort(compareClassesByIdDesc)
       );
@@ -547,8 +582,7 @@ export default function ClassList({ readOnly = false }) {
       notifySuccess(
         notifyKey,
         "Status updated",
-        `${successName ?? targetClassId} is now ${
-          checked ? "Active" : "Inactive"
+        `${successName ?? targetClassId} is now ${checked ? "Active" : "Inactive"
         }.`
       );
     } catch (error) {
@@ -565,11 +599,11 @@ export default function ClassList({ readOnly = false }) {
         prev.map((item) =>
           item.class_id === targetClassId
             ? {
-                ...item,
-                status: previousStatus,
-                statusLabel: toStatusLabel(previousStatus),
-                updated_at: previousUpdatedAt,
-              }
+              ...item,
+              status: previousStatus,
+              statusLabel: toStatusLabel(previousStatus),
+              updated_at: previousUpdatedAt,
+            }
             : item
         )
       );
@@ -588,6 +622,32 @@ export default function ClassList({ readOnly = false }) {
     const basePath = location.pathname.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
     navigate(`${basePath}/class/${destinationId}`, {
       state: { className: record.class_name ?? destinationId }
+    });
+  };
+
+  const handleViewStudents = (record) => {
+    const destinationId = record?.classId ?? record?.class_id;
+    if (!destinationId) return;
+    const basePath = location.pathname.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+    navigate(`${basePath}/class/${destinationId}/students`, {
+      state: {
+        className: record.class_name,
+        subjectName: record.subject_name,
+        subjectCode: record.subject_code
+      }
+    });
+  };
+
+  const handleAddStudent = (record) => {
+    const destinationId = record?.classId ?? record?.class_id;
+    if (!destinationId) return;
+    const basePath = location.pathname.startsWith('/headOfAcademic') ? '/headOfAcademic' : '/staffAcademic';
+    navigate(`${basePath}/class/${destinationId}/add-students`, {
+      state: {
+        className: record.class_name,
+        subjectName: record.subject_name,
+        subjectCode: record.subject_code
+      }
     });
   };
 
@@ -644,7 +704,7 @@ export default function ClassList({ readOnly = false }) {
       title: "Status",
       key: "status",
       align: "center",
-      render: (_value, record) => 
+      render: (_value, record) =>
         readOnly ? (
           <span>{record.status ? "Active" : "Inactive"}</span>
         ) : (
@@ -739,6 +799,13 @@ export default function ClassList({ readOnly = false }) {
             options={STATUS_FILTER_OPTIONS}
             style={{ minWidth: 160 }}
           />
+
+          <Button
+            onClick={handleClearFilters}
+            type="default"
+          >
+            Clear Filters
+          </Button>
         </div>
 
         {!readOnly && (
@@ -784,69 +851,9 @@ export default function ClassList({ readOnly = false }) {
   );
 }
 
-const toDateInstance = (value) => {
-  if (!value) {
-    return null;
-  }
 
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
-  }
 
-  if (typeof value === "string" || typeof value === "number") {
-    const direct = new Date(value);
-    return Number.isNaN(direct.getTime()) ? null : direct;
-  }
 
-  if (typeof value === "object") {
-    if (typeof value.toDate === "function") {
-      const derived = value.toDate();
-      if (derived instanceof Date && !Number.isNaN(derived.getTime())) {
-        return derived;
-      }
-    }
-
-    const hasYmd =
-      typeof value.year === "number" &&
-      typeof value.month === "number" &&
-      typeof value.day === "number";
-    if (hasYmd) {
-      const date = new Date(value.year, value.month - 1, value.day);
-      if (!Number.isNaN(date.getTime())) {
-        return date;
-      }
-    }
-
-    if ("seconds" in value || "nanoseconds" in value) {
-      const seconds = typeof value.seconds === "number" ? value.seconds : 0;
-      const nanos = typeof value.nanoseconds === "number" ? value.nanoseconds : 0;
-      const date = new Date(seconds * 1000 + nanos / 1e6);
-      if (!Number.isNaN(date.getTime())) {
-        return date;
-      }
-    }
-  }
-
-  return null;
-};
-
-const formatDate = (value) => {
-  const date = toDateInstance(value);
-  if (!date) {
-    return "-";
-  }
-
-  return date.toLocaleDateString();
-};
-
-const formatDateTime = (value) => {
-  const date = toDateInstance(value);
-  if (!date) {
-    return "-";
-  }
-
-  return date.toLocaleString();
-};
 
 const toolbarContainerStyle = {
   display: "flex",

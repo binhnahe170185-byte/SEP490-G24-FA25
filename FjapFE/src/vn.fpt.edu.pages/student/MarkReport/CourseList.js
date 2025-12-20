@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Tag, Spin, Empty } from "antd";
+import { Card, Tag, Spin, Empty, Tooltip } from "antd";
 import { CheckCircleOutlined } from "@ant-design/icons";
 
 export default function CourseList({ courses, selectedCourse, onSelectCourse, semester, loading }) {
@@ -44,16 +44,29 @@ export default function CourseList({ courses, selectedCourse, onSelectCourse, se
                 <Tag color="blue" style={{ margin: 0 }}>
                   {course.subjectCode}
                 </Tag>
-                <Tag 
-                  color={
-                    course.gradeStatus === "Completed" || course.gradeStatus === "Passed" ? "success" : 
-                    course.gradeStatus === "Failed" ? "error" : 
-                    "default"
-                  } 
-                  style={{ margin: 0 }}
-                >
-                  {course.gradeStatus === "Completed" ? "Passed" : course.gradeStatus}
-                </Tag>
+                {/* SAFEGUARD: Force "In Progress" if average is null, ignoring backend "Failed" */}
+                {(() => {
+                  const isGradeMissing = course.average === null || course.average === undefined;
+                  const rawStatus = course.gradeStatus;
+                  const displayStatus = isGradeMissing && rawStatus === "Failed" ? "In Progress" : rawStatus;
+
+                  // Determine color based on the calculated displayStatus
+                  const statusStr = String(displayStatus).trim().toLowerCase();
+                  let color = "default";
+                  if (["passed", "pass", "completed"].includes(statusStr)) color = "green";
+                  else if (["failed", "fail", "not passed"].includes(statusStr)) color = "red";
+
+                  return (
+                    <Tooltip title={course.attendanceRate != null && course.attendanceRate < 0.8 && statusStr === "failed" ? `Attendance < 80% (${(course.attendanceRate * 100).toFixed(0)}%)` : ""}>
+                      <Tag
+                        color={color}
+                        style={{ margin: 0 }}
+                      >
+                        {displayStatus === "Completed" ? "Passed" : displayStatus}
+                      </Tag>
+                    </Tooltip>
+                  );
+                })()}
                 {selectedCourse?.courseId === course.courseId && course.status === "Showing" && (
                   <Tag color="green" style={{ margin: 0 }}>
                     <CheckCircleOutlined /> {course.status}

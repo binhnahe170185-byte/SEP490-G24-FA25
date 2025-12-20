@@ -35,6 +35,11 @@ class ClassList {
     return response.data ?? response;
   }
 
+  static async removeStudent(classId, studentId) {
+    const response = await api.delete(`/api/staffAcademic/classes/${classId}/students/${studentId}`);
+    return response.data ?? response;
+  }
+
   static async getFormOptions() {
     const response = await api.get("/api/staffAcademic/classes/options");
     return response.data?.data ?? response.data;
@@ -57,7 +62,7 @@ class ClassList {
       const response = await api.post("/api/staffAcademic/classes/schedule", payload);
       console.log('ClassList.createSchedule - Raw response:', response);
       console.log('ClassList.createSchedule - Response data:', response.data);
-      
+
       // Handle different response formats
       if (response.data?.data) {
         return response.data.data;
@@ -95,7 +100,7 @@ class ClassList {
     });
     return response.data?.data ?? response.data;
   }
- static async checkAvailability(payload) {
+  static async checkAvailability(payload) {
     const response = await api.post("/api/staffAcademic/classes/schedule/availability", payload);
     return response.data?.data ?? response.data;
   }
