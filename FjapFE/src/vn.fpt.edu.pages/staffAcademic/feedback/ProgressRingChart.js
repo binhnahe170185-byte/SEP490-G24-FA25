@@ -65,10 +65,11 @@ export default function ProgressRingChart({ percentage = 0, size = 120, label })
             transform: "translate(-50%, -50%)",
             fontSize: size * 0.2,
             fontWeight: "bold",
-            color: color,
+            color: "#262626", // Dark color for better contrast
             textAlign: "center",
             lineHeight: 1,
             pointerEvents: "none",
+            textShadow: "0 1px 3px rgba(255, 255, 255, 0.9), 0 0 2px rgba(0, 0, 0, 0.2)", // White shadow for contrast
           }}
         >
           {normalizedPercentage.toFixed(0)}%
