@@ -198,7 +198,7 @@ const Dashboard = () => {
   };
 
   // Chart Configurations
-  const columnConfig = {
+  const columnConfig = { // Homework Submissions
     data: getHomeworkBySubjectData(),
     xField: 'subject',
     yField: 'submissions',
@@ -208,6 +208,8 @@ const Dashboard = () => {
       style: {
         fill: '#000000',
         opacity: 0.6,
+        fontSize: 14,
+        fontWeight: 'bold',
       },
     },
     xAxis: {
@@ -251,7 +253,7 @@ const Dashboard = () => {
     },
   };
 
-  const lineConfig = {
+  const lineConfig = { // Average Score Trend
     data: chartData.averageScoreBySemester.length > 0 ? chartData.averageScoreBySemester : [],
     xField: 'name',
     yField: 'value',
@@ -261,8 +263,8 @@ const Dashboard = () => {
       offsetY: -15,
       style: {
         fill: '#000',
-        fontWeight: 500,
-        fontSize: 12,
+        fontWeight: 'bold',
+        fontSize: 14,
         textBaseline: 'bottom',
       },
     },
@@ -297,8 +299,10 @@ const Dashboard = () => {
     label: {
       position: 'top',
       style: {
-        fill: '#FFFFFF',
-        opacity: 0.6,
+        fill: '#FFFF00', // Yellow for visibility
+        opacity: 1,
+        fontSize: 14,
+        fontWeight: 'bold',
       },
     },
     xAxis: {
@@ -337,6 +341,8 @@ const Dashboard = () => {
     label: {
       style: {
         fill: '#000',
+        fontSize: 14,
+        fontWeight: 'bold',
       },
     },
     yAxis: {
@@ -358,7 +364,7 @@ const Dashboard = () => {
       const submitted = homeworkData.reduce((sum, hw) => sum + (hw.submissions || 0), 0);
       return total > 0 ? ((submitted / total) * 100).toFixed(1) : 0;
     }
-    return 75.5; // Mock value
+    return 0;
   })();
 
   return (
@@ -473,15 +479,15 @@ const Dashboard = () => {
                   <div>
                     <Statistic
                       title="Average Grade"
-                      value={gradeStats.averageGrade || 8.0}
+                      value={gradeStats.averageScore !== undefined ? gradeStats.averageScore : 0}
                       precision={2}
                       prefix={<TrophyOutlined style={{ fontSize: '28px' }} />}
-                      valueStyle={{ color: '#52c41a', fontSize: '28px' }}
+                      valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 'bold' }}
                       style={{ marginBottom: 24 }}
                     />
                     <Statistic
                       title="Pass Rate"
-                      value={gradeStats.passRate || 87}
+                      value={gradeStats.passRate !== undefined ? gradeStats.passRate : 0}
                       suffix="%"
                       valueStyle={{ color: '#1890ff', fontSize: '24px' }}
                       style={{ marginBottom: 24 }}
@@ -497,7 +503,7 @@ const Dashboard = () => {
                   <div>
                     <Statistic
                       title="Average Grade"
-                      value={8.0}
+                      value={0}
                       precision={2}
                       prefix={<TrophyOutlined style={{ fontSize: '28px' }} />}
                       valueStyle={{ color: '#52c41a', fontSize: '28px' }}

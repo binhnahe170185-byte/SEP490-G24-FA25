@@ -223,25 +223,14 @@ export default function GradeEntry() {
     setEditingKey('');
   };
 
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
   const toggleBatchEditMode = () => {
     if (batchEditMode) {
       // Exiting batch mode - clear changes if user confirms
       const hasChanges = Object.keys(editedDataAll).length > 0;
       if (hasChanges) {
-        Modal.confirm({
-          title: 'Exit batch edit mode?',
-          content: 'You have unsaved changes. Are you sure you want to exit?',
-          okText: 'Yes, Exit',
-          cancelText: 'Cancel',
-          onOk: () => {
-            setBatchEditMode(false);
-            setEditedDataAll({});
-            setEditingKey('');
-          },
-          onCancel: () => {
-            // Do nothing, stay in batch mode
-          },
-        });
+        setShowExitConfirm(true);
       } else {
         // No changes, exit immediately
         setBatchEditMode(false);
@@ -255,6 +244,13 @@ export default function GradeEntry() {
       }
       setBatchEditMode(true);
     }
+  };
+
+  const handleExitConfirm = () => {
+    setBatchEditMode(false);
+    setEditedDataAll({});
+    setEditingKey('');
+    setShowExitConfirm(false);
   };
 
   const save = async (key) => {
@@ -416,6 +412,19 @@ export default function GradeEntry() {
       }
     } catch (errInfo) {
       console.error("Error saving grade:", errInfo);
+
+      // Handle form validation errors
+      if (errInfo.errorFields && errInfo.errorFields.length > 0) {
+        const firstError = errInfo.errorFields[0].errors[0];
+        notifyError(
+          `save-validation-${Date.now()}`,
+          "Validation Error",
+          firstError || "Grade must be between 0 and 10"
+        );
+        setSaving(false);
+        return;
+      }
+
       const errorMessage = errInfo?.response?.data?.message || errInfo?.message || "Failed to update grade";
 
       const errorKey = `save-error-${Date.now()}`;
@@ -472,8 +481,6 @@ export default function GradeEntry() {
             ) : (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
                 <InputNumber
-                  min={0}
-                  max={10}
                   step={0.1}
                   precision={1}
                   style={{ width: '100%' }}
@@ -521,7 +528,7 @@ export default function GradeEntry() {
                     },
                   ]}
                 >
-                  <InputNumber min={0} max={10} step={0.1} precision={1} style={{ width: '100%' }} />
+                  <InputNumber step={0.1} precision={1} style={{ width: '100%' }} />
                 </Form.Item>
                 {commentIndex && (
                   <Popover
@@ -736,6 +743,31 @@ export default function GradeEntry() {
 
       if (changesCount === 0) {
         message.warning("No changes to save. Please enter some grades first.");
+        return;
+      }
+
+      // Validate all changes before saving
+      let hasInvalidGrades = false;
+      Object.values(editedDataAll).forEach(studentChanges => {
+        Object.keys(studentChanges).forEach(key => {
+          if (key.startsWith('gradeComponent_')) {
+            const val = studentChanges[key];
+            if (val !== null && val !== undefined && val !== '' && typeof val === 'number') {
+              if (val < 0 || val > 10) {
+                hasInvalidGrades = true;
+              }
+            }
+          }
+        });
+      });
+
+      if (hasInvalidGrades) {
+        const notifyKey = `validation-error-${Date.now()}`;
+        notifyError(
+          notifyKey,
+          "Validation Error",
+          "Grade must be between 0 and 10"
+        );
         return;
       }
 
@@ -987,6 +1019,18 @@ export default function GradeEntry() {
       >
         <p>Are you sure you want to save grades for <strong>{Object.keys(editedDataAll).length}</strong> student(s)?</p>
         <p style={{ color: '#8c8c8c', fontSize: '12px' }}>This action will save all grade changes you have made.</p>
+      </Modal>
+
+      <Modal
+        title="Exit batch edit mode?"
+        open={showExitConfirm}
+        onOk={handleExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        okText="Yes, Exit"
+        cancelText="Cancel"
+        okButtonProps={{ danger: true }}
+      >
+        <p>You have unsaved changes. Are you sure you want to exit?</p>
       </Modal>
     </div>
   );
