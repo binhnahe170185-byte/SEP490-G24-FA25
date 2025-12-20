@@ -3,6 +3,7 @@ using FJAP.Repositories.Interfaces;
 using FJAP.Services.Interfaces;
 using FJAP.DTOs;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace FJAP.Services;
 
@@ -50,11 +51,39 @@ public class ProfileService : IProfileService
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null) return false;
 
+        if (request.Dob > DateOnly.FromDateTime(DateTime.Now))
+        {
+            throw new ArgumentException("Date of birth cannot be in the future.");
+        }
+
+        var allowedGenders = new[] { "Male", "Female", "Other" };
+        if (!allowedGenders.Contains(request.Gender.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Invalid gender. Allowed values: Male, Female, Other.");
+        }
+
+        var phoneNumber = request.PhoneNumber.Trim();
+        
+        // Validate phone format (Japanese)
+        // Remove dashes for validation
+        var cleanPhone = phoneNumber.Replace("-", "");
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cleanPhone, @"^0\d{9,10}$"))
+        {
+            throw new ArgumentException("Phone number must be a valid Japanese number.");
+        }
+        
+        // Check for duplicate phone number
+        var duplicateUser = await _userRepository.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber && u.UserId != userId);
+        if (duplicateUser != null)
+        {
+            throw new ArgumentException("Phone number already exists in the system.");
+        }
+
         // Update các trường có thể chỉnh sửa
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
         user.Address = request.Address.Trim();
-        user.PhoneNumber = request.PhoneNumber.Trim();
+        user.PhoneNumber = phoneNumber;
         user.Gender = request.Gender.Trim();
         user.Dob = request.Dob;
         

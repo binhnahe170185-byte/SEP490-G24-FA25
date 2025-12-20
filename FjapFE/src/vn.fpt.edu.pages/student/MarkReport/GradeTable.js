@@ -53,6 +53,21 @@ export default function GradeTable({ course, studentId }) {
       key: "value",
       align: "center",
       width: 100,
+      render: (text, record) => {
+        if (record.item === "Status") {
+          let color = "default";
+          const statusText = String(text).trim().toLowerCase();
+          console.log("Table Status Row Value:", text, statusText);
+
+          if (["passed", "pass", "completed"].includes(statusText)) {
+            color = "green";
+          } else if (["failed", "fail", "not passed"].includes(statusText)) {
+            color = "red";
+          }
+          return <Tag color={color}>{text}</Tag>;
+        }
+        return text;
+      },
     },
     {
       title: "Comment",
@@ -72,7 +87,7 @@ export default function GradeTable({ course, studentId }) {
       gradeDetails.gradeComponents.forEach((component, index) => {
         data.push({
           key: `component-${index}`,
-          category: "", 
+          category: "",
           item: component.componentName,
           weight: component.weight,
           value: component.value,
@@ -92,7 +107,7 @@ export default function GradeTable({ course, studentId }) {
         comment: "",
       });
     }
-    
+
     data.push({
       key: "course-status",
       category: "",
@@ -131,16 +146,17 @@ export default function GradeTable({ course, studentId }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>Grade Report</div>
+            {console.log("GradeDetails Status:", gradeDetails.status)}
             <div style={{ fontSize: 14, color: "#595959", fontWeight: 400 }}>
               {gradeDetails.subjectName} ({gradeDetails.subjectCode})
             </div>
           </div>
-          <Tag 
+          <Tag
             color={
-              gradeDetails.status === "Completed" || gradeDetails.status === "Passed" ? "green" : 
-              gradeDetails.status === "Failed" ? "red" : 
-              "default"
-            } 
+              ["passed", "pass", "completed"].includes(String(gradeDetails.status).trim().toLowerCase()) ? "green" :
+                ["failed", "fail", "not passed"].includes(String(gradeDetails.status).trim().toLowerCase()) ? "red" :
+                  "default"
+            }
             style={{ fontSize: 14, padding: "4px 12px" }}
           >
             {gradeDetails.status === "Completed" ? "Passed" : gradeDetails.status}

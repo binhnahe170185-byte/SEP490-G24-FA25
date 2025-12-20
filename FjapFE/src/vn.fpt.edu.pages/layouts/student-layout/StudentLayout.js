@@ -17,7 +17,7 @@ import {
   AppstoreOutlined
 } from '@ant-design/icons';
 import '../../student/StudentHomepage.css';
-import FloatingAIChatWidget from '../../student/components/FloatingAIChatWidget';
+// import FloatingAIChatWidget from '../../student/components/FloatingAIChatWidget';
 import {
   describeConnectionState,
   formatNotificationTime,
@@ -377,7 +377,7 @@ const StudentLayout = ({ children }) => {
       <MandatoryFeedbackModal />
 
       {/* Floating AI Chat Widget - Available on all student pages */}
-      <FloatingAIChatWidget />
+      {/* <FloatingAIChatWidget /> */}
     </div>
   );
 };
