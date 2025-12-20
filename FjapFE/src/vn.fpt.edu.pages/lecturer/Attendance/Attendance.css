@@ -18,7 +18,7 @@
   overflow: hidden;
 }
 
-.attendance-container .ant-table-thead > tr > th {
+.attendance-container .ant-table-thead>tr>th {
   background-color: #fafafa;
   font-weight: 600;
 }
@@ -29,3 +29,8 @@
   border-radius: 4px;
 }
 
+.attendance-container .ant-btn {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}

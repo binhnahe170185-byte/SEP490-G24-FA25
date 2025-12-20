@@ -471,38 +471,32 @@ export default function Attendance() {
 
   const scheduleState = location.state?.scheduleState;
   const handleBackToSchedule = () => {
-    // Prefer going back in history (usually returns to Schedule)
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
-    // Fallback: go directly to schedule, preserving scheduleState if available
-    if (scheduleState) {
-      navigate("/lecturer/schedule", {
-        state: { scheduleState },
-        replace: true,
-      });
-    } else {
-      navigate("/lecturer/schedule", { replace: true });
-    }
+    navigate('/lecturer/schedule', {
+      state: {
+        scheduleState: scheduleState,
+      },
+    });
   };
 
   return (
     <div className="attendance-container">
       {contextHolder}
       <Card>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={handleBackToSchedule}
-            style={{ marginRight: 16 }}
-          >
-            Back
-          </Button>
-          <Title level={2} style={{ margin: 0 }}>
-            Take Attendance
-          </Title>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <div>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={handleBackToSchedule}
+              style={{ marginBottom: 16 }}
+            >
+              Back
+            </Button>
+            <div>
+              <Title level={2} style={{ margin: 0 }}>
+                Take Attendance
+              </Title>
+            </div>
+          </div>
         </div>
 
 

@@ -7,7 +7,7 @@ import FilterBar from "./components/FilterBar";
 import TimetableTable from "./components/TimetableTable";
 import Legend from "./components/Legend";
 import LessonDetailModal from "./components/LessonDetailModal";
-import "./WeeklyTimetable.css";
+import "./WeeklyTimetable.css"; // Keep CSS file name for now
 import { api } from "../../../vn.fpt.edu.api/http";
 import { useAuth } from "../../login/AuthContext";
 import TimeslotApi from "../../../vn.fpt.edu.api/Timeslot";
@@ -159,7 +159,7 @@ function normalizeLesson(raw, fallbackId) {
 }
 
 
-export default function WeeklyTimetable({ items }) {
+export default function TimeTable({ items }) {
   const { user } = useAuth();
   const location = useLocation();
   const [remoteItems, setRemoteItems] = useState([]);
@@ -191,6 +191,23 @@ export default function WeeklyTimetable({ items }) {
       }
     }
   }, [restoredState]);
+
+  // Sync anchorDate when year or weekNumber changes, and validate weekNumber
+  useEffect(() => {
+    // Validate weekNumber for the current year
+    const week53Date = dayjs().year(year).isoWeek(53).isoWeekday(1);
+    const weeksInYear = week53Date.year() === year ? 53 : 52;
+    
+    // If weekNumber is invalid for this year, adjust it
+    if (weekNumber > weeksInYear) {
+      setWeekNumber(weeksInYear);
+      return; // Exit early, this effect will run again with the corrected weekNumber
+    }
+    
+    // Calculate the date for the current year and week
+    const newDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
+    setAnchorDate(newDate);
+  }, [year, weekNumber]);
 
   const sourceItems = useMemo(() => {
     return items ?? remoteItems;
@@ -240,11 +257,16 @@ export default function WeeklyTimetable({ items }) {
   }, [sourceItems]);
 
   const week = useMemo(() => {
-    const start = dayjs(anchorDate).year(year).isoWeek(weekNumber).isoWeekday(1);
+    // Validate weekNumber for the current year
+    const week53Date = dayjs().year(year).isoWeek(53).isoWeekday(1);
+    const weeksInYear = week53Date.year() === year ? 53 : 52;
+    const validWeekNumber = Math.min(weekNumber, weeksInYear);
+    
+    const start = dayjs().year(year).isoWeek(validWeekNumber).isoWeekday(1);
     const end = start.add(6, "day");
     const days = Array.from({ length: 7 }, (_, i) => start.add(i, "day"));
     return { start, end, days };
-  }, [anchorDate, year, weekNumber]);
+  }, [year, weekNumber]);
 
   const weekItems = useMemo(() => {
     const startStr = week.start.startOf("day");
@@ -310,19 +332,38 @@ export default function WeeklyTimetable({ items }) {
   }, [weekItems]);
 
   const goPrevWeek = () => {
-    setAnchorDate((d) => {
-      const newDate = dayjs(d).subtract(1, "week");
-      setWeekNumber(newDate.isoWeek());
-      return newDate;
-    });
+    // Only move within the selected year, don't change year
+    if (weekNumber > 1) {
+      setWeekNumber(weekNumber - 1);
+    }
+    // If already at week 1, button should be disabled, so this shouldn't be called
   };
+  
   const goNextWeek = () => {
-    setAnchorDate((d) => {
-      const newDate = dayjs(d).add(1, "week");
-      setWeekNumber(newDate.isoWeek());
-      return newDate;
-    });
+    // Calculate the number of weeks in the current year
+    const week53Date = dayjs().year(year).isoWeek(53).isoWeekday(1);
+    const weeksInYear = week53Date.year() === year ? 53 : 52;
+    
+    // Only move within the selected year, don't change year
+    if (weekNumber < weeksInYear) {
+      setWeekNumber(weekNumber + 1);
+    }
+    // If already at last week, button should be disabled, so this shouldn't be called
   };
+
+  // Check if we're at the first week of the year
+  const isFirstWeekOfYear = useMemo(() => {
+    return weekNumber === 1;
+  }, [weekNumber]);
+
+  // Check if we're at the last week of the year
+  const isLastWeekOfYear = useMemo(() => {
+    // Calculate the number of ISO weeks in the year (can be 52 or 53)
+    // Try week 53 - if it belongs to the same year, the year has 53 weeks
+    const week53Date = dayjs().year(year).isoWeek(53).isoWeekday(1);
+    const weeksInYear = week53Date.year() === year ? 53 : 52;
+    return weekNumber === weeksInYear;
+  }, [year, weekNumber]);
 
   const handleChipClick = (lesson) => {
     setSelectedLesson(lesson);
@@ -332,6 +373,18 @@ export default function WeeklyTimetable({ items }) {
   const handleCloseModal = () => {
     setModalVisible(false);
     setSelectedLesson(null);
+  };
+
+  // Handle year change - validate and adjust weekNumber if needed
+  const handleYearChange = (newYear) => {
+    setYear(newYear);
+    // Validate weekNumber for the new year
+    const week53Date = dayjs().year(newYear).isoWeek(53).isoWeekday(1);
+    const weeksInNewYear = week53Date.year() === newYear ? 53 : 52;
+    // If current weekNumber is invalid for new year, adjust it
+    if (weekNumber > weeksInNewYear) {
+      setWeekNumber(weeksInNewYear);
+    }
   };
 
   const weekLabel = `${week.start.format("DD/MM")} - ${week.end.format("DD/MM")}`;
@@ -345,12 +398,14 @@ export default function WeeklyTimetable({ items }) {
           </Typography.Title>
           <FilterBar
             year={year}
-            onYearChange={setYear}
+            onYearChange={handleYearChange}
             weekNumber={weekNumber}
             onWeekChange={setWeekNumber}
             onPrev={goPrevWeek}
             onNext={goNextWeek}
             weekLabel={weekLabel}
+            disablePrev={isFirstWeekOfYear}
+            disableNext={isLastWeekOfYear}
           />
         </div>
 

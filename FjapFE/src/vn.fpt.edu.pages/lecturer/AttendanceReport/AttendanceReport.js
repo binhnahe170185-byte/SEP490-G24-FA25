@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Card, Table, Typography, Spin, Button, Space } from "antd";
-import { ArrowLeftOutlined, BarChartOutlined } from "@ant-design/icons";
+import { Card, Table, Typography, Spin, Button, Space, Badge, Alert, Tag } from "antd";
+import { ArrowLeftOutlined, BarChartOutlined, FilterOutlined } from "@ant-design/icons";
 import AttendanceApi from "../../../vn.fpt.edu.api/Attendance";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import "./AttendanceReport.css";
@@ -16,6 +16,7 @@ export default function AttendanceReport() {
     const [classInfo, setClassInfo] = useState(null);
     const [attendanceData, setAttendanceData] = useState({ students: [], lessons: [] });
     const [error, setError] = useState(null);
+    const [filterHighAbsent, setFilterHighAbsent] = useState(false);
 
     useEffect(() => {
         if (!classId) {
@@ -180,6 +181,14 @@ export default function AttendanceReport() {
                 render: (_value, _record, index) => index + 1,
             },
             {
+                title: "Student Code",
+                dataIndex: "studentCode",
+                key: "studentCode",
+                fixed: "left",
+                width: 150,
+                render: (text) => text || "-",
+            },
+            {
                 title: "Student Name",
                 dataIndex: "studentName",
                 key: "studentName",
@@ -258,6 +267,18 @@ export default function AttendanceReport() {
 
     const columns = buildColumns();
 
+    // Filter students có percentAbsent >= 20%
+    const filteredStudents = useMemo(() => {
+        if (!filterHighAbsent) {
+            return attendanceData.students || [];
+        }
+        return (attendanceData.students || []).filter(student => student.percentAbsent >= 20);
+    }, [attendanceData.students, filterHighAbsent]);
+
+    const handleToggleFilter = () => {
+        setFilterHighAbsent(!filterHighAbsent);
+    };
+
     if (loading) {
         return (
             <div style={{ padding: "24px", textAlign: "center" }}>
@@ -286,41 +307,69 @@ export default function AttendanceReport() {
             <Card>
                 <Space direction="vertical" size="large" style={{ width: "100%" }}>
                     {/* Header */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
+                    <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                             <Button
                                 icon={<ArrowLeftOutlined />}
                                 onClick={handleBack}
-                                style={{ marginBottom: 16 }}
                             >
                                 Back
                             </Button>
-                            <div>
-                                <Title level={2} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                                    <BarChartOutlined />
-                                    Attendance Report
-                                </Title>
-                                {classInfo && (
-                                    <Text type="secondary" style={{ fontSize: 16, marginTop: 8, display: "block" }}>
-                                        {classInfo.className} - {classInfo.subjectName} ({classInfo.subjectCode})
-                                    </Text>
-                                )}
-                            </div>
+                            <Badge showZero={false}>
+                                <Button
+                                    type={filterHighAbsent ? "primary" : "default"}
+                                    onClick={handleToggleFilter}
+                                >
+                                    Absent ≥ 20%
+                                </Button>
+                            </Badge>
+                        </div>
+                        <div>
+                            <Title level={2} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                                <BarChartOutlined />
+                                Attendance Report
+                            </Title>
+                            {classInfo && (
+                                <Text type="secondary" style={{ fontSize: 16, marginTop: 8, display: "block" }}>
+                                    {classInfo.className} - {classInfo.subjectName} ({classInfo.subjectCode})
+                                </Text>
+                            )}
                         </div>
                     </div>
 
                     {/* Table */}
                     <div style={{ overflowX: "auto" }}>
+                        {filterHighAbsent && (
+                            <Alert
+                                message={
+                                    <Space>
+                                        <Tag color="red" style={{ fontSize: "14px", fontWeight: "bold" }}>
+                                            {filteredStudents.length}
+                                        </Tag>
+                                        <span>in</span>
+                                        <Tag color="green" style={{ fontSize: "14px", fontWeight: "bold" }}>
+                                            {attendanceData.students?.length || 0}
+                                        </Tag>
+                                        <span>students with absent rate ≥ 20%</span>
+                                    </Space>
+                                }
+                                type="info"
+                                showIcon={false}
+                                style={{ marginBottom: 16 }}
+                            />
+                        )}
                         <Table
                             columns={columns}
-                            dataSource={attendanceData.students || []}
+                            dataSource={filteredStudents}
                             loading={loading}
                             rowKey="key"
                             pagination={false}
                             bordered
                             scroll={{ x: "max-content" }}
                             locale={{
-                                emptyText: "No attendance data available",
+                                emptyText: filterHighAbsent
+                                    ? "No students with Absent rate ≥ 20%"
+                                    : "No attendance data available",
                             }}
                         />
                     </div>

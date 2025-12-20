@@ -91,9 +91,10 @@ export default function ImportSchedule() {
 			// Validate length if both have multiple values
 			if (dayOfWeeks.length > 0 && slots.length > 0 && dayOfWeeks.length !== slots.length) {
 				msg.warning(
-					`Dòng ${currentRow._row || 'này'}: Slot có ${slots.length} giá trị nhưng DayOfWeek có ${dayOfWeeks.length} giá trị. Vui lòng đảm bảo số lượng bằng nhau.`,
+					`Row ${currentRow._row || 'this'}: The number of slots (${slots.length}) does not match the number of days of week (${dayOfWeeks.length}). Please ensure they are equal.`,
 					5
 				);
+
 			}
 
 			// Remove the original row and add expanded rows
@@ -204,7 +205,7 @@ export default function ImportSchedule() {
 	const handleUpload = async (file) => {
 		try {
 			if (!selectedSemesterId) {
-				msg.error('Vui lòng chọn Semester trước khi import');
+				msg.error('Please select a semester before importing.');
 				return false;
 			}
 
@@ -217,14 +218,14 @@ export default function ImportSchedule() {
 
 			// Expect columns: Class | Lecturer | Slot | DayOfWeek | room
 			const rows = json.map((r, idx) => {
-				const lecturerRaw = normalizeString(r.Lecturer || r.lecturer || r['Giảng viên']);
+				const lecturerRaw = normalizeString(r.Lecturer || r.lecturer || r['Lecture']);
 				// Extract email prefix if lecturer field contains email
 				const lecturer = lecturerRaw.includes('@') ? getEmailPrefix(lecturerRaw) : lecturerRaw;
 				return {
 					_row: idx + 2,
-					className: normalizeString(r.Class || r.class || r['Lớp'] || r['Class Name']),
+					className: normalizeString(r.Class || r.class || r['Class'] || r['Class Name']),
 					lecturer: lecturer,
-					slotCell: normalizeString(r.Slot || r.slot || r['Tiết']),
+					slotCell: normalizeString(r.Slot || r.slot || r['Slot']),
 					dayOfWeekCell: normalizeString(r.DayOfWeek || r['Day Of Week'] || r['Thứ'] || ''),
 					roomName: normalizeString(r.room || r.Room || r['Phòng']),
 				};
@@ -243,7 +244,7 @@ export default function ImportSchedule() {
 				if (slots.length > 0 && dayOfWeeks.length > 0) {
 					if (slots.length !== dayOfWeeks.length) {
 						validationErrors.push(
-							`Dòng ${r._row}: Slot có ${slots.length} giá trị nhưng DayOfWeek có ${dayOfWeeks.length} giá trị. Vui lòng đảm bảo số lượng bằng nhau.`
+							`Row ${r._row}: Slot has ${slots.length} values but DayOfWeek has ${dayOfWeeks.length} values. Please ensure they have the same count.`
 						);
 						// Still expand but warn user
 						const maxLength = Math.max(slots.length, dayOfWeeks.length);
@@ -280,7 +281,7 @@ export default function ImportSchedule() {
 			// Show validation errors if any
 			if (validationErrors.length > 0) {
 				msg.warning(
-					`Cảnh báo: ${validationErrors.length} dòng có số lượng Slot và DayOfWeek không khớp. Vui lòng kiểm tra lại.`,
+					`Warning: ${validationErrors.length} row(s) have mismatched counts between Slot and DayOfWeek. Please review.`,
 					5
 				);
 				console.warn('Validation errors:', validationErrors);
@@ -295,10 +296,10 @@ export default function ImportSchedule() {
 			const withFlags = revalidateRows(withKeys);
 
 			setPreviewRows(withFlags);
-			msg.success(`Đã đọc ${rows.length} hàng, tạo ${withFlags.length} dòng (mở rộng slot).`);
+			msg.success(`Read ${rows.length} rows, expanded into ${withFlags.length} row(s).`);
 		} catch (e) {
 			console.error(e);
-			msg.error('Không đọc được file Excel.');
+			msg.error('Failed to read the Excel file.');
 		}
 		return false; // Prevent default upload
 	};
@@ -308,39 +309,36 @@ export default function ImportSchedule() {
 		setPreviewRows([]);
 	};
 
+	const handleDeleteRow = (rowKey) => {
+		const updatedRows = previewRows.filter((r) => r.key !== rowKey);
+		// Revalidate remaining rows after deletion
+		const revalidated = revalidateRows(updatedRows);
+		setPreviewRows(revalidated);
+	};
+
 	const handleDownloadTemplate = async () => {
 		try {
-			const XLSX = (await import('xlsx')).default;
-			const wb = XLSX.utils.book_new();
+			// Fetch the template file from Assets folder
+			const templatePath = require('./Assets/Template Schedule.xlsx');
+			const response = await fetch(templatePath);
+			const blob = await response.blob();
 
-			// Template sheet with headers and sample rows
-			const header = ['Class', 'Lecturer', 'Slot', 'DayOfWeek', 'room'];
-			const sample = [
-				['N1-SE1', 'AnhNN1', '2,3', '2,3', '101'], // DayOfWeek 2,3 maps to Slot 2,3
-				['N1-SE2', 'AnhNN2', '1,2', '4,5', '102'], // DayOfWeek 4,5 maps to Slot 1,2
-			];
-			const wsTemplate = XLSX.utils.aoa_to_sheet([header, ...sample]);
-			XLSX.utils.book_append_sheet(wb, wsTemplate, 'Schedule');
+			// Create a download link
+			const url = window.URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = 'ScheduleImportTemplate.xlsx';
+			document.body.appendChild(link);
+			link.click();
 
-			// Instructions sheet
-			const instructions = [
-				['Instructions'],
-				['- Required columns: Class, Lecturer, Slot, DayOfWeek, room'],
-				['- Slot can contain multiple values separated by comma, e.g. "2,3"'],
-				['- DayOfWeek can contain multiple values separated by comma, e.g. "2,3"'],
-				['- DayOfWeek uses numbers (e.g. 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat, 8=Sun).'],
-				['- If both DayOfWeek and Slot have multiple values, they will be mapped by index:'],
-				['  Example: DayOfWeek "2,3" and Slot "1,2" creates: (DayOfWeek=2, Slot=1) and (DayOfWeek=3, Slot=2)'],
-				['- Class and room must match existing names in the system.'],
-				['- Lecturer should be email prefix (part before @) or full email.'],
-			];
-			const wsInfo = XLSX.utils.aoa_to_sheet(instructions);
-			XLSX.utils.book_append_sheet(wb, wsInfo, 'Instructions');
+			// Clean up
+			document.body.removeChild(link);
+			window.URL.revokeObjectURL(url);
 
-			XLSX.writeFile(wb, 'ScheduleImportTemplate.xlsx');
+			msg.success('Template downloaded successfully');
 		} catch (e) {
 			console.error(e);
-			msg.error('Không tạo được template. Vui lòng thử lại.');
+			msg.error('Failed to download template. Please try again.');
 		}
 	};
 
@@ -463,9 +461,9 @@ export default function ImportSchedule() {
 						if (availability) {
 							if (availability.IsClassBusy || availability.IsRoomBusy || availability.IsLecturerBusy) {
 								const conflictTypes = [];
-								if (availability.IsClassBusy) conflictTypes.push('Class đã có lịch');
-								if (availability.IsRoomBusy) conflictTypes.push('Room đã được sử dụng');
-								if (availability.IsLecturerBusy) conflictTypes.push('Lecturer đã có lịch');
+								if (availability.IsClassBusy) conflictTypes.push('Class already has schedule');
+								if (availability.IsRoomBusy) conflictTypes.push('Room is in use');
+								if (availability.IsLecturerBusy) conflictTypes.push('Lecturer already has schedule');
 
 								conflicts.push({
 									className: payload._meta.className,
@@ -493,22 +491,22 @@ export default function ImportSchedule() {
 
 	const handleSave = async () => {
 		if (!selectedSemesterId) {
-			msg.error('Vui lòng chọn Semester');
+			msg.error('Please select Semester');
 			return;
 		}
 		if (previewRows.length === 0) {
-			msg.error('Chưa có dữ liệu để lưu');
+			msg.error('There is no data to save');
 			return;
 		}
 		const invalid = previewRows.filter((r) => !r.validMapping);
 		if (invalid.length > 0) {
-			msg.error('Một số dòng chưa map được dữ liệu (Class/Room/Slot/Day).');
+			msg.error('Some rows have problem');
 			return;
 		}
 
 		const payloads = buildPayloadsByClass();
 		if (payloads.length === 0) {
-			msg.warning('Không có group hợp lệ để lưu.');
+			msg.warning('No valid Class to save');
 			return;
 		}
 
@@ -526,14 +524,14 @@ export default function ImportSchedule() {
 
 		if (duplicateWarnings.length > 0) {
 			const warningMsg = duplicateWarnings
-				.map((w) => `${w.className}: ${w.count} pattern(s) trùng lặp`)
+				.map((w) => `${w.className}: ${w.count} pattern(s) Duplicated`)
 				.join('; ');
-			msg.warning(`Cảnh báo: ${warningMsg}. Các pattern trùng sẽ chỉ được tạo một lần.`, 5);
+			msg.warning(`Warning: ${warningMsg}. Duplicate patterns will only be generated once`, 5);
 		}
 
 		// Check conflicts with existing schedule
 		setSaving(true);
-		msg.loading('Đang kiểm tra conflict với lịch hiện có...', 0);
+		msg.loading('Checking for conflicts with the existing schedule...', 0);
 		const conflictCheck = await checkConflicts(payloads);
 		msg.destroy(); // Remove loading message
 
@@ -542,7 +540,7 @@ export default function ImportSchedule() {
 				.map((c) => `${c.className} (${c.date}): ${c.types.join(', ')}`)
 				.join('\n');
 			msg.error(
-				`Phát hiện ${conflictCheck.conflicts.length} conflict(s) với lịch hiện có:\n${conflictDetails}`,
+				`Detected ${conflictCheck.conflicts.length} conflict(s) with the existing schedule:\n${conflictDetails}`,
 				10
 			);
 			setSaving(false);
@@ -582,10 +580,10 @@ export default function ImportSchedule() {
 
 		const ok = results.filter((r) => r.success).length;
 		const fail = results.length - ok;
-		if (ok) msg.success(`Lưu thành công ${ok} lớp`);
+		if (ok) msg.success(`Saved successfully for ${ok} class(es).`);
 		if (fail)
 			msg.warning(
-				`${fail} lớp lỗi khi lưu. Kiểm tra trùng lịch/room/slot và thử lại.`
+				`${fail} class(es) failed to save. Please check for schedule/room/slot conflicts and try again.`
 			);
 	};
 
@@ -624,6 +622,7 @@ export default function ImportSchedule() {
 							<ScheduleTable
 								previewRows={previewRows}
 								onUpdateRow={updateRow}
+								onDeleteRow={handleDeleteRow}
 								selectedSemesterId={selectedSemesterId}
 								classesBySemester={classesBySemester}
 								rooms={rooms}
