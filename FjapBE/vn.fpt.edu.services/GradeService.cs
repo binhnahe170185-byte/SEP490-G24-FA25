@@ -461,12 +461,14 @@ namespace FJAP.Services
                     Grades = _context.Grades
                         .Where(g => g.SubjectId == c.SubjectId && c.Students.Select(s => s.StudentId).Contains(g.StudentId))
                         .Select(g => new { g.FinalScore, PassMark = g.Subject.PassMark })
-                        .ToList()
+                        .ToList(),
+                    // Capture Student IDs for unique headcount
+                    StudentIds = c.Students.Select(s => s.StudentId).ToList()
                 })
                 .ToListAsync();
 
             // Group by Semester locally
-            var groupedBySemester = semesterStats
+            var groupedBySemesterRaw = semesterStats
                 .GroupBy(x => x.SemesterName)
                 .Select(g => new
                 {
@@ -475,25 +477,41 @@ namespace FJAP.Services
                     TotalGrades = g.Sum(x => x.Grades.Count),
                     PassedGrades = g.Sum(x => x.Grades.Count(grade => grade.FinalScore >= (grade.PassMark ?? 5.0m))),
                     AverageScore = g.Average(x => x.Grades.Any() ? x.Grades.Average(gr => gr.FinalScore ?? 0) : 0),
-                    SumScores = g.Sum(x => x.Grades.Sum(gr => gr.FinalScore ?? 0))
+                    SumScores = g.Sum(x => x.Grades.Sum(gr => gr.FinalScore ?? 0)),
+                    // Calculate Unique Students
+                    UniqueStudents = g.SelectMany(x => x.StudentIds).Distinct().Count()
                 })
                 .OrderByDescending(x => x.OrderDate)
+                .ToList();
+
+            // For Charts: Take 5 most recent, sort ASC (Left to Right)
+            var groupedForCharts = groupedBySemesterRaw
                 .Take(5)
                 .OrderBy(x => x.OrderDate)
                 .ToList();
 
-            result.PassRateBySemester = groupedBySemester.Select(x => new ChartSeriesDto
+            // For List: All, Descending (Top to Bottom)
+            var groupedForList = groupedBySemesterRaw; 
+
+            result.PassRateBySemester = groupedForCharts.Select(x => new ChartSeriesDto
             {
                 Name = x.Semester,
                 Value = x.TotalGrades > 0 ? Math.Round((double)x.PassedGrades * 100 / x.TotalGrades, 1) : 0,
                 ExtraInfo = $"Passed: {x.PassedGrades}/{x.TotalGrades}"
             }).ToList();
 
-            result.AverageScoreBySemester = groupedBySemester.Select(x => new ChartSeriesDto
+            result.AverageScoreBySemester = groupedForCharts.Select(x => new ChartSeriesDto
             {
                 Name = x.Semester,
                 Value = x.TotalGrades > 0 ? Math.Round((double)x.SumScores / x.TotalGrades, 2) : 0,
                 ExtraInfo = $"Avg: {(x.TotalGrades > 0 ? Math.Round((double)x.SumScores / x.TotalGrades, 2) : 0)}"
+            }).ToList();
+
+            result.StudentQuantityBySemester = groupedForList.Select(x => new ChartSeriesDto
+            {
+                Name = x.Semester,
+                Value = x.UniqueStudents,
+                ExtraInfo = $"{x.UniqueStudents} Students"
             }).ToList();
 
 
