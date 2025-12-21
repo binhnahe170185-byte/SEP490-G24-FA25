@@ -249,7 +249,65 @@ const LessonHomeworkDetail = () => {
       notify.error("preview_error", "Preview Failed", "File path is missing.");
       return;
     }
-    handleOpenInNewTab(url);
+    const targetUrl = appendCacheBuster(url);
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDownloadFile = async (url) => {
+    if (!url) {
+      notify.error("download_error", "Download Failed", "File path is missing.");
+      return;
+    }
+    try {
+      // Extract filename from URL
+      let filename = "download";
+      try {
+        const parsed = new URL(url, window.location.href);
+        const pathParts = parsed.pathname.split("/");
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && lastPart.includes(".")) {
+          filename = decodeURIComponent(lastPart);
+        }
+      } catch {
+        // Use default filename
+      }
+
+      // Check if it's a Google Drive link
+      const isGoogleDrive = url.toLowerCase().includes("drive.google.com");
+      if (isGoogleDrive) {
+        const shareIdMatch = url.match(/\/d\/([A-Za-z0-9_-]+)/);
+        if (shareIdMatch) {
+          const downloadUrl = `https://drive.google.com/uc?export=download&id=${shareIdMatch[1]}`;
+          window.open(downloadUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+      }
+
+      // For other files, fetch and download
+      const response = await fetch(appendCacheBuster(url));
+
+      if (!response.ok) {
+        throw new Error("Failed to download file");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      
+      notify.success("download_success", "Download Started", `Downloading ${filename}`);
+    } catch (error) {
+      console.error("Download error:", error);
+      // Fallback: open in new tab
+      window.open(appendCacheBuster(url), "_blank", "noopener,noreferrer");
+    }
   };
 
   const handleClosePreviewModal = () => {
@@ -257,15 +315,6 @@ const LessonHomeworkDetail = () => {
     setPreviewModalVisible(false);
     setPreviewUrl(null);
     setPreviewLoading(false);
-  };
-
-  const handleOpenInNewTab = (url) => {
-    if (!url) {
-      notify.error("open_error", "Error", "File path is missing.");
-      return;
-    }
-    const target = appendCacheBuster(url);
-    window.open(target, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
@@ -636,13 +685,11 @@ const LessonHomeworkDetail = () => {
                   icon={<EyeOutlined />}
                   onClick={() => handleOpenPreview(homework.filePath)}
                 >
-                  Preview
+                  View
                 </Button>
                 <Button
-                  type="link"
-                  icon={<PaperClipOutlined />}
-                  onClick={() => handleOpenInNewTab(homework.filePath)}
-                  style={{ paddingLeft: 0 }}
+                  icon={<FileTextOutlined />}
+                  onClick={() => handleDownloadFile(homework.filePath)}
                 >
                   Download
                 </Button>
@@ -697,15 +744,13 @@ const LessonHomeworkDetail = () => {
                     icon={<EyeOutlined />}
                     onClick={() => handleOpenPreview(submission.filePath)}
                   >
-                    Preview
+                    View
                   </Button>
                   <Button
-                    type="link"
-                    icon={<PaperClipOutlined />}
-                    onClick={() => handleOpenInNewTab(submission.filePath)}
-                    style={{ paddingLeft: 0 }}
+                    icon={<FileTextOutlined />}
+                    onClick={() => handleDownloadFile(submission.filePath)}
                   >
-                    Open file
+                    Download
                   </Button>
                 </div>
               )}
@@ -735,7 +780,10 @@ const LessonHomeworkDetail = () => {
         ]}
       />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={handleBackNavigation}>
+          Back
+        </Button>
         <div>
           <Title level={3} style={{ margin: 0 }}>
             Homework
@@ -744,9 +792,6 @@ const LessonHomeworkDetail = () => {
             {subjectName} {subjectCode ? `(${subjectCode})` : ""} · {classLabel}
           </Text>
         </div>
-        <Button icon={<ArrowLeftOutlined />} onClick={handleBackNavigation}>
-          Back
-        </Button>
       </div>
 
       <Card style={{ marginBottom: 16 }}>

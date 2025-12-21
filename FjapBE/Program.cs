@@ -121,6 +121,10 @@ builder.Services.AddScoped<IFeedbackTextAnalysisService, FeedbackTextAnalysisSer
 builder.Services.AddScoped<IAiAnalysisService, AiAnalysisService>();
 builder.Services.AddScoped<FJAP.Services.Ai.GeminiFeedbackAnalyzer>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+// ----- Background Services -----
+builder.Services.AddHostedService<FJAP.Services.ClassStatusBackgroundService>();
+
 // ----- HttpClient for external APIs -----
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();

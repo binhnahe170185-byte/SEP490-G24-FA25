@@ -272,6 +272,9 @@ const normalizeClasses = (list = []) =>
       status: statusBool,
       statusLabel,
       updated_at: updatedAt,
+      // New fields for status change control
+      canChangeStatus: item.canChangeStatus ?? item.can_change_status ?? true,
+      semesterInProgress: item.semesterInProgress ?? item.semester_in_progress ?? false,
     };
   });
 
@@ -704,20 +707,30 @@ export default function ClassList({ readOnly = false }) {
       title: "Status",
       key: "status",
       align: "center",
-      render: (_value, record) =>
-        readOnly ? (
-          <span>{record.status ? "Active" : "Inactive"}</span>
-        ) : (
-          <Switch
-            checkedChildren="Active"
-            unCheckedChildren="Inactive"
-            checked={record.status}
-            onChange={(checked) => handleStatusToggle(record, checked)}
-            loading={
-              updatingStatusId === (record.classId ?? record.class_id)?.toString()
-            }
-          />
-        ),
+      render: (_value, record) => {
+        // Check if status can be changed (not during semester)
+        const canChange = record.canChangeStatus !== false;
+        const isInProgress = record.semesterInProgress === true;
+        
+        if (readOnly) {
+          return <span>{record.status ? "Active" : "Inactive"}</span>;
+        }
+        
+        return (
+          <Tooltip title={isInProgress ? "Cannot change status while semester is in progress" : ""}>
+            <Switch
+              checkedChildren="Active"
+              unCheckedChildren="Inactive"
+              checked={record.status}
+              onChange={(checked) => handleStatusToggle(record, checked)}
+              disabled={!canChange}
+              loading={
+                updatingStatusId === (record.classId ?? record.class_id)?.toString()
+              }
+            />
+          </Tooltip>
+        );
+      },
     },
     {
       title: "Actions",

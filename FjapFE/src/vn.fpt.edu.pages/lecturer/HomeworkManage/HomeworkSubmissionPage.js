@@ -59,17 +59,70 @@ const HomeworkSubmissionPage = () => {
     }
   };
 
-  const handleOpenInNewTab = (url) => {
+  const handleOpenPreview = (url) => {
     if (!url) {
-      notify.error("open_file_error", "Error", "File path is missing.");
+      notify.error("preview_error", "Error", "File path is missing.");
       return;
     }
     const targetUrl = appendCacheBuster(url);
     window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
-  const handleOpenPreview = (url) => {
-    handleOpenInNewTab(url);
+  const handleDownloadFile = async (url) => {
+    if (!url) {
+      notify.error("download_error", "Download Failed", "File path is missing.");
+      return;
+    }
+    try {
+      // Extract filename from URL
+      let filename = "download";
+      try {
+        const parsed = new URL(url, window.location.href);
+        const pathParts = parsed.pathname.split("/");
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && lastPart.includes(".")) {
+          filename = decodeURIComponent(lastPart);
+        }
+      } catch {
+        // Use default filename
+      }
+
+      // Check if it's a Google Drive link
+      const isGoogleDrive = url.toLowerCase().includes("drive.google.com");
+      if (isGoogleDrive) {
+        const shareIdMatch = url.match(/\/d\/([A-Za-z0-9_-]+)/);
+        if (shareIdMatch) {
+          const downloadUrl = `https://drive.google.com/uc?export=download&id=${shareIdMatch[1]}`;
+          window.open(downloadUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+      }
+
+      // For other files, fetch and download
+      const response = await fetch(appendCacheBuster(url));
+
+      if (!response.ok) {
+        throw new Error("Failed to download file");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      
+      message.success(`Downloading ${filename}`);
+    } catch (error) {
+      console.error("Download error:", error);
+      // Fallback: open in new tab
+      window.open(appendCacheBuster(url), "_blank", "noopener,noreferrer");
+    }
   };
 
   useEffect(() => {
@@ -208,7 +261,7 @@ const HomeworkSubmissionPage = () => {
       title: "File",
       dataIndex: "filePath",
       key: "filePath",
-      width: 160,
+      width: 200,
       render: (filePath) =>
         filePath ? (
           <Space>
@@ -219,13 +272,8 @@ const HomeworkSubmissionPage = () => {
               Preview
             </Button>
             <Button
-              type="link"
               icon={<FileTextOutlined />}
-              href={filePath}
-              target="_blank"
-              rel="noreferrer"
-              download
-              style={{ padding: 0 }}
+              onClick={() => handleDownloadFile(filePath)}
             >
               Download
             </Button>
@@ -293,39 +341,28 @@ const HomeworkSubmissionPage = () => {
     <div style={{ padding: 24 }}>
       <Breadcrumb items={breadcrumbItems} style={{ marginBottom: 16 }} />
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <Button
-            type="link"
-            icon={<ArrowLeftOutlined />}
-            onClick={() =>
-              navigate(`/lecturer/homework/${classId}/${lessonId}`, {
-                state: {
-                  slot,
-                  course: location.state?.course,
-                  from: location.state?.from,
-                },
-              })
-            }
-            style={{ paddingLeft: 0 }}
-          >
-            Back to homework
-          </Button>
-          <h1 style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 600 }}>
-            Homework submission page
-          </h1>
-          <p style={{ margin: 0, color: "#595959" }}>
-            Homework #{homeworkId}
-            {meta.homeworkTitle ? ` • ${meta.homeworkTitle}` : ""}
-          </p>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() =>
+            navigate(`/lecturer/homework/${classId}/${lessonId}`, {
+              state: {
+                slot,
+                course: location.state?.course,
+                from: location.state?.from,
+              },
+            })
+          }
+        >
+          Back
+        </Button>
+        <h1 style={{ margin: "12px 0 0", fontSize: 28, fontWeight: 600 }}>
+          Homework submission page
+        </h1>
+        <p style={{ margin: 0, color: "#595959" }}>
+          Homework #{homeworkId}
+          {meta.homeworkTitle ? ` • ${meta.homeworkTitle}` : ""}
+        </p>
       </div>
 
       <Card style={{ marginBottom: 24 }}>
