@@ -33,7 +33,23 @@ const HomeworkList = () => {
       setLoading(true);
       const data = await LecturerHomework.getSemesters(lecturerId);
       setSemesters(data);
+      
       if (data.length > 0) {
+        // Check if we need to restore a semester from navigation state
+        const payload = restoreRef.current;
+        const targetSemesterId = payload?.restoredSemesterId || payload?.restoredCourse?.semesterId;
+        
+        if (targetSemesterId) {
+          const matchedSemester = data.find(
+            (sem) => String(sem.semesterId) === String(targetSemesterId)
+          );
+          if (matchedSemester) {
+            setSelectedSemester(matchedSemester);
+            return;
+          }
+        }
+        
+        // Default: select first semester
         setSelectedSemester(data[0]);
       }
     } catch (error) {
@@ -69,6 +85,23 @@ const HomeworkList = () => {
       );
 
       setClasses(data);
+      
+      // Check if we need to restore a class from navigation state
+      const payload = restoreRef.current;
+      const targetClassId = payload?.restoredCourse?.classId;
+      
+      if (targetClassId) {
+        const matchedClass = data.find(
+          (cls) => String(cls.classId) === String(targetClassId)
+        );
+        if (matchedClass) {
+          setSelectedClass(matchedClass);
+          restoreRef.current = null;
+          return;
+        }
+      }
+      
+      // Default: select first class if no restore needed
       if (data.length > 0) {
         setSelectedClass(data[0]);
       } else {
@@ -106,49 +139,6 @@ const HomeworkList = () => {
       loadClasses();
     }
   }, [selectedSemester, loadClasses]);
-
-  useEffect(() => {
-    if (!restoreRef.current) return;
-    if (!semesters.length) return;
-
-    const targetSemesterId =
-      restoreRef.current.restoredSemesterId ||
-      restoreRef.current.restoredCourse?.semesterId;
-    if (!targetSemesterId) return;
-    if (String(selectedSemester?.semesterId) === String(targetSemesterId)) {
-      return;
-    }
-    const matched = semesters.find(
-      (sem) => String(sem.semesterId) === String(targetSemesterId)
-    );
-    if (matched) {
-      setSelectedSemester(matched);
-    }
-  }, [semesters, selectedSemester]);
-
-  useEffect(() => {
-    const payload = restoreRef.current;
-    if (!payload) return;
-    const targetSemesterId =
-      payload.restoredSemesterId || payload.restoredCourse?.semesterId;
-    if (targetSemesterId && String(selectedSemester?.semesterId) !== String(targetSemesterId)) {
-      return;
-    }
-    if (!classes.length) return;
-    const targetClassId = payload.restoredCourse?.classId;
-    if (!targetClassId) {
-      restoreRef.current = null;
-      return;
-    }
-    const matched = classes.find(
-      (cls) => String(cls.classId) === String(targetClassId)
-    );
-    if (matched) {
-      setSelectedClass(matched);
-    }
-    restoreRef.current = null;
-    navigate(location.pathname, { replace: true, state: null });
-  }, [classes, selectedSemester, navigate, location.pathname]);
 
   if (loading) {
     return (

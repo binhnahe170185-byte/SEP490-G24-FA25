@@ -49,6 +49,7 @@ public class ClassController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var items = await _classService.GetAllAsync();
+        var today = DateOnly.FromDateTime(DateTime.Now);
 
         var result = items.Select(cls =>
         {
@@ -57,6 +58,13 @@ public class ClassController : ControllerBase
             var semesterName = cls.Semester?.Name;
             var levelName = cls.Level?.LevelName;
             var subject = cls.Subject;
+            
+            // Check if status can be changed: only when semester hasn't started or has ended
+            var semesterInProgress = cls.Semester != null 
+                && today >= cls.Semester.StartDate 
+                && today <= cls.Semester.EndDate;
+            var canChangeStatus = !semesterInProgress;
+            
             var subjectDetail = subject == null
                 ? null
                 : new
@@ -93,6 +101,8 @@ public class ClassController : ControllerBase
                 className = cls.ClassName,
                 status = cls.Status,
                 updatedAt = ToVietnamTime(cls.UpdatedAt),
+                canChangeStatus = canChangeStatus,
+                semesterInProgress = semesterInProgress,
                 semesterName = semesterName,
                 semesterId = cls.SemesterId,
                 semesterStartDate = semesterStart,
@@ -357,6 +367,13 @@ public class ClassController : ControllerBase
         if (cls == null)
         {
             return NotFound(new { code = 404, message = "Class not found" });
+        }
+
+        // Check if class has lessons - cannot add students if lessons exist
+        var lessonCount = await _db.Lessons.CountAsync(l => l.ClassId == classId);
+        if (lessonCount > 0)
+        {
+            return BadRequest(new { code = 400, message = "Cannot add students because class already has lessons scheduled" });
         }
 
         // Enforce MaxStudents if set - get current count from DB
@@ -909,15 +926,39 @@ public class ClassController : ControllerBase
                 return BadRequest(new { code = 400, message = "Invalid class ID" });
             }
             
-            var cls = await _classService.GetByIdAsync(classIdInt);
-            if (request.Status && cls != null && cls.MinStudents.HasValue)
+            var cls = await _db.Classes
+                .Include(c => c.Students)
+                .Include(c => c.Semester)
+                .FirstOrDefaultAsync(c => c.ClassId == classIdInt);
+            
+            if (cls == null)
             {
-                // Get class with students loaded to count accurately
-                var clsWithStudents = await _db.Classes
-                    .Include(c => c.Students)
-                    .FirstOrDefaultAsync(c => c.ClassId == classIdInt);
+                return NotFound(new { code = 404, message = "Class not found" });
+            }
+            
+            // Check if class has lessons - cannot change status if lessons exist
+            var lessonCount = await _db.Lessons.CountAsync(l => l.ClassId == classIdInt);
+            if (lessonCount > 0)
+            {
+                return BadRequest(new { code = 400, message = "Cannot change class status because class already has lessons scheduled" });
+            }
+            
+            // Check if semester is in progress - cannot change status manually
+            if (cls.Semester != null)
+            {
+                var today = DateOnly.FromDateTime(DateTime.Now);
+                var semesterStarted = today >= cls.Semester.StartDate;
+                var semesterEnded = today > cls.Semester.EndDate;
                 
-                var currentCount = clsWithStudents?.Students?.Count ?? 0;
+                if (semesterStarted && !semesterEnded)
+                {
+                    return BadRequest(new { code = 400, message = "Cannot change class status while semester is in progress. Status will automatically update when semester ends." });
+                }
+            }
+            
+            if (request.Status && cls.MinStudents.HasValue)
+            {
+                var currentCount = cls.Students?.Count ?? 0;
                 if (currentCount < cls.MinStudents.Value)
                 {
                     return BadRequest(new { code = 400, message = $"Cannot activate class: current students {currentCount} less than MinStudents {cls.MinStudents.Value}" });
