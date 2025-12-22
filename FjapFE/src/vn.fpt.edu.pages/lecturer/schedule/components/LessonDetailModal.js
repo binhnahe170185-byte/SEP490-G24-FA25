@@ -10,7 +10,8 @@ import {
     VideoCameraOutlined,
     BookOutlined,
     LinkOutlined,
-    CheckSquareOutlined
+    CheckSquareOutlined,
+    EditOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -254,18 +255,44 @@ export default function LessonDetailModal({ visible, lesson, onClose, scheduleSt
                                 gap: 16,
                                 marginTop: 16
                             }}>
-                                {/* Google Meet Card */}
+                                {/* Grade Entry Card */}
                                 <Card
                                     bodyStyle={{ padding: 16, textAlign: "center" }}
                                     hoverable
+                                    onClick={() => {
+                                        if (classId) {
+                                            navigate(`/lecturer/grades/enter/${classId}`, {
+                                                state: {
+                                                    scheduleState: scheduleState,
+                                                }
+                                            });
+                                            onClose();
+                                        }
+                                    }}
+                                    style={{ cursor: classId ? "pointer" : "default" }}
                                 >
-                                    <VideoCameraOutlined style={{ fontSize: 32, color: "#34a853", marginBottom: 12 }} />
-                                    <Title level={5} style={{ marginBottom: 8 }}>Google Meet</Title>
+                                    <EditOutlined style={{ fontSize: 32, color: "#34a853", marginBottom: 12 }} />
+                                    <Title level={5} style={{ marginBottom: 8 }}>Grade Entry</Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
-                                        Join online meeting for this class
+                                        Enter grades for this class
                                     </Text>
-                                    <Button type="primary" ghost>
-                                        Join Meeting <LinkOutlined />
+                                    <Button
+                                        type="primary"
+                                        ghost
+                                        disabled={!classId}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (classId) {
+                                                navigate(`/lecturer/grades/enter/${classId}`, {
+                                                    state: {
+                                                        scheduleState: scheduleState,
+                                                    }
+                                                });
+                                                onClose();
+                                            }
+                                        }}
+                                    >
+                                        Enter Grades <LinkOutlined />
                                     </Button>
                                 </Card>
 
@@ -306,8 +333,8 @@ export default function LessonDetailModal({ visible, lesson, onClose, scheduleSt
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
                                         View student class details
                                     </Text>
-                                    <Button 
-                                        type="primary" 
+                                    <Button
+                                        type="primary"
                                         ghost
                                         onClick={handleViewStudents}
                                         disabled={!classId}
