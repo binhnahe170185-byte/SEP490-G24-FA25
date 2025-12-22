@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import templateXlsx from './Assets/ScheduleImportTemplate.xlsx';
 import {
 	Card,
 	Typography,
@@ -104,7 +105,8 @@ export default function ImportSchedule() {
 			if (dayOfWeeks.length > 0 && slots.length > 0) {
 				// Map by index - if lengths differ, warn but still expand
 				if (dayOfWeeks.length === slots.length) {
-					// Same length, map by index
+					// Same length, map by index: slot[i] maps to dayOfWeek[i]
+					// Example: slot="1,2" and DayOfWeek="3,4" → slot 1→DayOfWeek 3, slot 2→DayOfWeek 4
 					for (let i = 0; i < dayOfWeeks.length; i++) {
 						expandedRows.push({
 							...updatedRow,
@@ -231,9 +233,43 @@ export default function ImportSchedule() {
 				};
 			});
 
+			// Validate required columns (except the first "No." column)
+			// Required headers: "Class Name", "Lecturer", "Slot", "DayOfWeek", "room"
+			// Rule: Cells in these columns must not be null/empty
+			const hasMissingRequired = rows.some((r) => {
+				const isAllEmpty =
+					!r.className &&
+					!r.lecturer &&
+					!r.slotCell &&
+					!r.dayOfWeekCell &&
+					!r.roomName;
+
+				// Allow completely empty rows (usually extra blank lines in Excel)
+				if (isAllEmpty) {
+					return false;
+				}
+
+				// Any required field missing -> invalid
+				return (
+					!r.className ||
+					!r.lecturer ||
+					!r.slotCell ||
+					!r.dayOfWeekCell ||
+					!r.roomName
+				);
+			});
+
+			if (hasMissingRequired) {
+				msg.error('Required fields (*) must not be left blank.');
+				return false;
+			}
+
 			setRawRows(rows);
 
 			// Expand rows by slot and DayOfWeek, mapping them by index
+			// Example: slot="1,2" and DayOfWeek="3,4" will generate:
+			//   Row 1: slot=1, DayOfWeek=3
+			//   Row 2: slot=2, DayOfWeek=4
 			const expanded = [];
 			const validationErrors = [];
 			rows.forEach((r) => {
@@ -257,7 +293,8 @@ export default function ImportSchedule() {
 							});
 						}
 					} else {
-						// Same length, map by index
+						// Same length, map by index: slot[i] maps to dayOfWeek[i]
+						// Example: slot="1,2" and DayOfWeek="3,4" → slot 1→DayOfWeek 3, slot 2→DayOfWeek 4
 						for (let i = 0; i < slots.length; i++) {
 							expanded.push({
 								...r,
@@ -296,7 +333,7 @@ export default function ImportSchedule() {
 			const withFlags = revalidateRows(withKeys);
 
 			setPreviewRows(withFlags);
-			msg.success(`Read ${rows.length} rows, expanded into ${withFlags.length} row(s).`);
+			msg.success(`Import successfully`);
 		} catch (e) {
 			console.error(e);
 			msg.error('Failed to read the Excel file.');
@@ -316,32 +353,43 @@ export default function ImportSchedule() {
 		setPreviewRows(revalidated);
 	};
 
-	const handleDownloadTemplate = async () => {
-		try {
-			// Fetch the template file from Assets folder
-			const templatePath = require('./Assets/Template Schedule.xlsx');
-			const response = await fetch(templatePath);
-			const blob = await response.blob();
+	const handleAddRow = () => {
+		// Generate a unique key for the new row
+		const maxKey = previewRows.length > 0
+			? Math.max(...previewRows.map(r => {
+				const keyMatch = r.key?.match(/^(\d+)-/);
+				return keyMatch ? parseInt(keyMatch[1], 10) : 0;
+			}))
+			: -1;
+		const newKey = `${maxKey + 1}-new-${Date.now()}`;
 
-			// Create a download link
-			const url = window.URL.createObjectURL(blob);
-			const link = document.createElement('a');
-			link.href = url;
-			link.download = 'ScheduleImportTemplate.xlsx';
-			document.body.appendChild(link);
-			link.click();
+		// Create a new empty row
+		const newRow = {
+			key: newKey,
+			_row: previewRows.length + 1,
+			className: '',
+			lecturer: '',
+			slot: null,
+			dayOfWeek: null,
+			roomName: '',
+		};
 
-			// Clean up
-			document.body.removeChild(link);
-			window.URL.revokeObjectURL(url);
-
-			msg.success('Template downloaded successfully');
-		} catch (e) {
-			console.error(e);
-			msg.error('Failed to download template. Please try again.');
-		}
+		// Add the new row and revalidate
+		const updatedRows = [...previewRows, newRow];
+		const revalidated = revalidateRows(updatedRows);
+		setPreviewRows(revalidated);
 	};
 
+
+	const handleDownloadTemplate = () => {
+		const link = document.createElement('a');
+		link.href = templateXlsx;
+		link.download = 'ScheduleImportTemplate.xlsx';
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		msg.success('Template downloaded successfully');
+	};
 	const buildPayloadsByClass = () => {
 		// Group by classId + lecturerId because backend requires lecturerId
 		const byGroup = {};
@@ -623,6 +671,7 @@ export default function ImportSchedule() {
 								previewRows={previewRows}
 								onUpdateRow={updateRow}
 								onDeleteRow={handleDeleteRow}
+								onAddRow={handleAddRow}
 								selectedSemesterId={selectedSemesterId}
 								classesBySemester={classesBySemester}
 								rooms={rooms}
@@ -636,7 +685,7 @@ export default function ImportSchedule() {
 									onClick={handleSave}
 									loading={saving}
 								>
-									Validate & Save
+									Save
 								</Button>
 							</Space>
 						</>

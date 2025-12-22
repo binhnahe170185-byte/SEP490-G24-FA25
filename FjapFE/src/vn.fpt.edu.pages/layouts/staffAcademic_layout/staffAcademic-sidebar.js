@@ -110,12 +110,13 @@ const StaffAcademicSidebar = () => {
             <Item key="/staffAcademic/createSchedule/edit">
               <Link to="/staffAcademic/createSchedule/edit">Create Schedule</Link>
             </Item>
-            <Item key="/staffAcademic/createSchedule/editSchedule">
-              <Link to="/staffAcademic/createSchedule/editSchedule">Edit Schedule</Link>
-            </Item>
             <Item key="/staffAcademic/createSchedule/import">
               <Link to="/staffAcademic/createSchedule/import">Import Schedule</Link>
             </Item>
+            <Item key="/staffAcademic/createSchedule/editSchedule">
+              <Link to="/staffAcademic/createSchedule/editSchedule">Edit Schedule</Link>
+            </Item>
+
           </SubMenu>
         )}
       </Menu>

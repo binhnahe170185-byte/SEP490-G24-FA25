@@ -1294,6 +1294,63 @@ const CreateSchedule = () => {
       }
     }
 
+    // ====== PRE-SAVE CONFLICT VALIDATION ON UI ======
+    // Double-check that each pattern still has at least one available date in the semester
+    // using latest conflictMap + studentScheduleCache, before calling API
+    if (semester.start && semester.end && patterns.length > 0) {
+      const conflictDetails = [];
+
+      patterns.forEach((pattern) => {
+        const weekdayValue = String(pattern.weekday);
+        const timeIdValue = String(pattern.slot);
+        const roomValue = String(pattern.room);
+
+        const hasAvailable = hasAvailableDateInSemester(
+          weekdayValue,
+          timeIdValue,
+          roomValue,
+          classId || null,
+          lecturerId || null
+        );
+
+        if (!hasAvailable) {
+          // Build human‑readable description for this pattern
+          const weekdayLabel = weekdayMap[pattern.weekday] || `Weekday ${pattern.weekday}`;
+          const slotLabel = `Slot ${pattern.slot}`;
+          const roomObj = rooms.find((r) => String(r.value) === roomValue);
+          const roomLabel = roomObj ? roomObj.label : `Room ${roomValue}`;
+
+          conflictDetails.push(`${weekdayLabel} | ${slotLabel} | ${roomLabel} has no available date in this semester (conflicts with existing timetable).`);
+        }
+      });
+
+      if (conflictDetails.length > 0) {
+        console.warn('Pre-save conflict validation failed for patterns:', conflictDetails);
+        savingRef.current = false;
+        setSaving(false);
+
+        api.error({
+          message: 'Schedule conflicts detected',
+          description: (
+            <div>
+              <div style={{ marginBottom: 4 }}>
+                Some weekly patterns cannot be scheduled because they conflict with existing classes / rooms / lecturers / students.
+              </div>
+              <ul style={{ paddingLeft: 18, margin: 0 }}>
+                {conflictDetails.map((msg, idx) => (
+                  <li key={idx}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          ),
+          placement: 'bottomRight',
+          duration: 8,
+        });
+
+        return;
+      }
+    }
+
     try {
       console.log('Starting save process...');
 
@@ -1340,12 +1397,12 @@ const CreateSchedule = () => {
           placement: 'bottomRight',
           duration: 5,
         });
-        
+
         // Refresh conflict map after successful save to include newly created lessons
         // This prevents race condition when creating schedules for multiple classes
         console.log('Refreshing conflict map after successful save...');
         await loadSemesterLessons();
-        
+
         // Also reload the class schedule to show newly created lessons
         if (classId && effectiveSemesterId) {
           try {
@@ -1363,7 +1420,7 @@ const CreateSchedule = () => {
               const lecturerDisplay = lesson.lecturerEmail
                 ? getEmailUsername(lesson.lecturerEmail)
                 : (lesson.lecturerCode || '');
-              
+
               return {
                 date: dateStr,
                 weekday: weekday,
@@ -1387,6 +1444,14 @@ const CreateSchedule = () => {
             // Don't fail the save operation if reload fails
           }
         }
+
+        // Sau khi lưu thành công thì xoá cache hiện tại ở Weekly Schedules:
+        // - Xoá toàn bộ patterns (Pending Schedule)
+        // - Reset lựa chọn weekday / slot / room
+        setPatterns([]);
+        setWeekday('');
+        setSlotId('');
+        setRoomId('');
       }
     } catch (error) {
       console.error('=== Error saving schedule ===');
