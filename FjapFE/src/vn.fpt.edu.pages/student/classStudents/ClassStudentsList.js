@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Card, Table, Typography, Spin, Alert, Button } from "antd";
-import { UserOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { Card, Table, Typography, Spin, Alert, Button, message } from "antd";
+import { UserOutlined, ArrowLeftOutlined, DownloadOutlined } from "@ant-design/icons";
+import * as XLSX from "xlsx";
 import ClassListApi from "../../../vn.fpt.edu.api/ClassList";
 import { useAuth } from "../../login/AuthContext";
 import "./ClassStudentsList.css";
@@ -65,6 +66,49 @@ export default function ClassStudentsList() {
         } else {
             // Default fallback
             navigate(-1);
+        }
+    };
+
+    // Download student list as Excel
+    const handleDownloadExcel = () => {
+        if (!students.length) {
+            message.warning("No students to download");
+            return;
+        }
+
+        try {
+            // Prepare data for Excel
+            const excelData = students.map((student, index) => ({
+                "No": index + 1,
+                "Student ID": student.studentCode || "-",
+                "Full Name": student.fullName || "-",
+            }));
+
+            // Create worksheet
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+            // Set column widths
+            worksheet["!cols"] = [
+                { wch: 5 },   // STT
+                { wch: 15 },  // Mã sinh viên
+                { wch: 30 },  // Họ và tên
+            ];
+
+            // Create workbook
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách sinh viên");
+
+            // Generate filename
+            const className = classInfo?.className || classId;
+            const filename = `Student List - Class ${className}.xlsx`;
+
+            // Download file
+            XLSX.writeFile(workbook, filename);
+
+            message.success("Download successful!");
+        } catch (error) {
+            console.error("Failed to download Excel:", error);
+            message.error("Unable to download file. Please try again.");
         }
     };
 
@@ -229,12 +273,20 @@ export default function ClassStudentsList() {
     return (
         <div className="class-students-container">
             {/* Back Button */}
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Button
                     icon={<ArrowLeftOutlined />}
                     onClick={handleBack}
                 >
                     Back
+                </Button>
+                <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={handleDownloadExcel}
+                    disabled={!students.length}
+                >
+                    Download Excel
                 </Button>
             </div>
             {/* Header Section */}

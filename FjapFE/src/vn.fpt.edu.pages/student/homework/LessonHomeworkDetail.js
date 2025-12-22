@@ -649,7 +649,7 @@ const LessonHomeworkDetail = () => {
           {homework.deadline && (
             <div style={{ marginBottom: 4 }}>
               <CalendarOutlined style={{ marginRight: 6 }} />
-              Due on {formatDate(homework.deadline)}
+              Due on {formatDateTime(homework.deadline)}
             </div>
           )}
           {homework.content && (
