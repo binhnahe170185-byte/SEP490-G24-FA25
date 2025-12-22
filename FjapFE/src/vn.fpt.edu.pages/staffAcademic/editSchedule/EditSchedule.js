@@ -616,6 +616,19 @@ const EditSchedule = () => {
     }
   };
 
+  // Helper function to check and format error message for attendance/homework errors
+  const getDeleteErrorMessage = (error) => {
+    const errorMessage = error?.response?.data?.message || error?.message || '';
+
+    // Check if error is about attendance or homework
+    if (errorMessage.toLowerCase().includes('attendance') ||
+      errorMessage.toLowerCase().includes('homework')) {
+      return 'The class has active schedule and is in operation. Cannot delete this schedule.';
+    }
+
+    return errorMessage || 'Failed to delete lesson. Please try again.';
+  };
+
   // DELETE lesson
   const handleDeleteLesson = async (lessonId) => {
     const id = Number(lessonId);
@@ -678,10 +691,7 @@ const EditSchedule = () => {
         duration: 3,
       });
     } catch (error) {
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Failed to delete lesson. Please try again.';
+      const errorMessage = getDeleteErrorMessage(error);
 
       notiApi.error({
         message: 'Error',
@@ -712,16 +722,47 @@ const EditSchedule = () => {
         (l) => (l.subjectCode || '').toString() === subCode.toString()
       );
 
+      let deletedCount = 0;
+      let hasError = false;
+      let errorMessage = '';
+
       for (const lesson of toDelete) {
         if (lesson.lessonId) {
           try {
             await ClassList.deleteLesson(Number(lesson.lessonId));
+            deletedCount++;
           } catch (err) {
             console.error('Error deleting lesson', lesson.lessonId, err);
+            hasError = true;
+            const errMsg = getDeleteErrorMessage(err);
+            if (!errorMessage) {
+              errorMessage = errMsg;
+            }
           }
         }
       }
 
+      // If there were errors, show error notification and stop
+      if (hasError) {
+        notiApi.error({
+          message: 'Error',
+          description: errorMessage,
+          placement: 'bottomRight',
+          duration: 5,
+        });
+        setSaving(false);
+        return;
+      }
+
+      // Only show success if all deletions succeeded
+      notiApi.success({
+        message: 'Success',
+        description: `Deleted Schedule of ${subCode}`,
+        placement: 'bottomRight',
+        duration: 4,
+      });
+
+      // Update loaded lessons - remove successfully deleted ones
       setLoadedLessons((prev) =>
         prev.filter((l) => (l.subjectCode || '').toString() !== subCode.toString())
       );
@@ -767,22 +808,13 @@ const EditSchedule = () => {
         }
       }
 
-      notiApi.success({
-        message: 'Success',
-        description: `Deleted ${toDelete.length} lessons of ${subCode}`,
-        placement: 'bottomRight',
-        duration: 4,
-      });
-
       setEditModalVisible(false);
       setSelectedLesson(null);
     } catch (error) {
+      const errorMessage = getDeleteErrorMessage(error);
       notiApi.error({
         message: 'Error',
-        description:
-          error?.response?.data?.message ||
-          error?.message ||
-          'Failed to delete all lessons',
+        description: errorMessage,
         placement: 'bottomRight',
         duration: 5,
       });
@@ -922,14 +954,36 @@ const EditSchedule = () => {
         (l) => (l.subjectCode || '').toString() === subjectCode.toString()
       );
 
+      let deletedCount = 0;
+      let hasDeleteError = false;
+      let deleteErrorMessage = '';
+
       for (const lesson of lessonsToDelete) {
         if (lesson.lessonId) {
           try {
             await ClassList.deleteLesson(Number(lesson.lessonId));
+            deletedCount++;
           } catch (error) {
             console.error(`Error deleting lesson ${lesson.lessonId}:`, error);
+            hasDeleteError = true;
+            const errMsg = getDeleteErrorMessage(error);
+            if (!deleteErrorMessage) {
+              deleteErrorMessage = errMsg;
+            }
           }
         }
+      }
+
+      // If there were errors deleting lessons, show error and stop
+      if (hasDeleteError) {
+        notiApi.error({
+          message: 'Error',
+          description: deleteErrorMessage,
+          placement: 'bottomRight',
+          duration: 5,
+        });
+        setSaving(false);
+        return;
       }
 
       setLoadedLessons((prev) =>
@@ -939,7 +993,7 @@ const EditSchedule = () => {
       if (deleteOnly) {
         notiApi.success({
           message: 'Success',
-          description: `Deleted ${lessonsToDelete.length} lesson(s) successfully`,
+          description: `Deleted ${deletedCount} lesson(s) successfully`,
           placement: 'bottomRight',
           duration: 5,
         });
@@ -1037,16 +1091,34 @@ const EditSchedule = () => {
     if (!year || !weekNumber) return;
     const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
     const prevDate = currentDate.subtract(1, 'week');
-    setWeekNumber(prevDate.isoWeek());
-    if (prevDate.year() !== year) setYear(prevDate.year());
+    const prevWeekNumber = prevDate.isoWeek();
+    // For ISO week, the year is determined by the year of Thursday (day 4) in that week
+    // This ensures correct year assignment for weeks that span across calendar years
+    const prevWeekThursday = prevDate.isoWeekday(4);
+    const prevWeekYear = prevWeekThursday.year();
+
+    setWeekNumber(prevWeekNumber);
+    // Check if ISO week year changed
+    if (prevWeekYear !== year) {
+      setYear(prevWeekYear);
+    }
   };
 
   const handleNextWeek = () => {
     if (!year || !weekNumber) return;
     const currentDate = dayjs().year(year).isoWeek(weekNumber).isoWeekday(1);
     const nextDate = currentDate.add(1, 'week');
-    setWeekNumber(nextDate.isoWeek());
-    if (nextDate.year() !== year) setYear(nextDate.year());
+    const nextWeekNumber = nextDate.isoWeek();
+    // For ISO week, the year is determined by the year of Thursday (day 4) in that week
+    // This ensures correct year assignment for weeks that span across calendar years
+    const nextWeekThursday = nextDate.isoWeekday(4);
+    const nextWeekYear = nextWeekThursday.year();
+
+    setWeekNumber(nextWeekNumber);
+    // Check if ISO week year changed
+    if (nextWeekYear !== year) {
+      setYear(nextWeekYear);
+    }
   };
 
   const handleYearChange = (newYear) => {
@@ -1161,7 +1233,11 @@ const EditSchedule = () => {
 
         if (holidayName) {
           const holidayTag = (
-            <Tag key="holiday" color="gold" style={{ marginBottom: 4 }}>
+            <Tag
+              key="holiday"
+              color="gold"
+              title={holidayName} // Show full name on hover
+            >
               {holidayName}
             </Tag>
           );

@@ -76,7 +76,7 @@ const LessonEditModal = ({
 
       try {
         setLoadingLecturers(true);
-        console.log('🔄 Fetching lecturers...');
+
         const response = await api.get('/api/Lecturers');
         const lecturersList = response.data?.data || [];
 
@@ -86,7 +86,7 @@ const LessonEditModal = ({
         }));
 
         setAllLecturers(formattedLecturers);
-        console.log('✅ Lecturers loaded:', formattedLecturers.length);
+
       } catch (error) {
         console.error('❌ Error fetching lecturers:', error);
         setAllLecturers([]);
@@ -105,11 +105,11 @@ const LessonEditModal = ({
 
       try {
         setLoadingRooms(true);
-        console.log('🔄 Fetching all rooms...');
+
         const response = await api.get('/api/StaffOfAdmin/rooms');
         const roomsList = response.data?.data || response.data?.items || [];
 
-        console.log('📋 All rooms:', roomsList);
+
 
         const formattedRooms = roomsList.map((room) => ({
           value: String(room.roomId),
@@ -117,7 +117,7 @@ const LessonEditModal = ({
         }));
 
         setAllRooms(formattedRooms);
-        console.log('✅ Rooms loaded:', formattedRooms.length);
+
       } catch (error) {
         console.error('❌ Error fetching rooms:', error);
         setAllRooms([]);
@@ -136,11 +136,11 @@ const LessonEditModal = ({
 
       try {
         setLoadingTimeslots(true);
-        console.log('🔄 Fetching all timeslots...');
+
         const response = await api.get('/api/Timeslot');
         const timeslotsList = response.data?.data || response.data?.items || response.data || [];
 
-        console.log('📋 All timeslots:', timeslotsList);
+
 
         // Ensure timeslotsList is an array
         const safeTimeslotsList = Array.isArray(timeslotsList) ? timeslotsList : [];
@@ -154,9 +154,9 @@ const LessonEditModal = ({
         }));
 
         setAllTimeslots(formattedTimeslots);
-        console.log('✅ Timeslots loaded:', formattedTimeslots.length);
+
       } catch (error) {
-        console.error('❌ Error fetching timeslots:', error);
+
         setAllTimeslots([]);
       } finally {
         setLoadingTimeslots(false);
@@ -166,24 +166,11 @@ const LessonEditModal = ({
     fetchTimeslots();
   }, [visible]);
 
-  // Debug: Log props immediately on render
-  console.log('🔍 LessonEditModal RENDER');
-  console.log('  visible:', visible);
-  console.log('  lesson:', lesson);
-  console.log('  allLecturers.length:', allLecturers?.length);
-  console.log('  allRooms.length:', allRooms?.length);
-  console.log('  allTimeslots.length:', allTimeslots?.length);
-  console.log('  mode:', mode);
+
 
   // Khi mở modal hoặc đổi lesson → fill form
   useEffect(() => {
     if (visible && lesson) {
-      console.log('📝 Setting form values:', {
-        date: lesson.date,
-        timeId: lesson.timeId,
-        roomId: lesson.roomId,
-        lecturerId: lesson.lecturerId,
-      });
 
       // Tìm roomId từ roomName nếu roomId không có hoặc không khớp
       let finalRoomId = lesson.roomId ? String(lesson.roomId) : undefined;
@@ -518,6 +505,16 @@ const LessonEditModal = ({
     { value: '8', label: 'Sun' },
   ];
 
+  const weekdayLabelMap = {
+    2: 'Mon',
+    3: 'Tue',
+    4: 'Wed',
+    5: 'Thu',
+    6: 'Fri',
+    7: 'Sat',
+    8: 'Sun',
+  };
+
   // Debug logging
   console.log('=== LessonEditModal Debug ===');
   console.log('lesson:', lesson);
@@ -672,7 +669,7 @@ const LessonEditModal = ({
                   onClick={handleDeleteAll}
                   disabled={!lesson?.subjectCode || saving}
                 >
-                  Delete all (subject)
+                  Delete schedule
                 </Button>
 
                 <Button
@@ -763,7 +760,9 @@ const LessonEditModal = ({
                 ]}
               >
                 <Space size="small">
-                  <Tag color="blue">Weekday {item.weekday}</Tag>
+                  <Tag color="blue">
+                    {weekdayLabelMap[item.weekday] || `Weekday ${item.weekday}`}
+                  </Tag>
                   <Tag color="green">Slot {item.slot}</Tag>
                   <Tag color="purple">Room {roomOptions.find((r) => r.value === String(item.room))?.label || item.room}</Tag>
                 </Space>

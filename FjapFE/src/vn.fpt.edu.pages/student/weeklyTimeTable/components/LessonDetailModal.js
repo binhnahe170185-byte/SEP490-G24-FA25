@@ -90,7 +90,7 @@ export default function LessonDetailModal({ visible, lesson, onClose, weeklyTime
                 subject: subjectCode,
                 status: "active"
             });
-            
+
             const materialsList = response.items || [];
             // Sort by created date (newest first)
             const sortedMaterials = [...materialsList].sort((a, b) => {
@@ -100,7 +100,7 @@ export default function LessonDetailModal({ visible, lesson, onClose, weeklyTime
                 const timeB = dateB ? new Date(dateB).getTime() : 0;
                 return timeB - timeA;
             });
-            
+
             setMaterials(sortedMaterials);
         } catch (error) {
             console.error("Failed to load materials:", error);
@@ -259,18 +259,30 @@ export default function LessonDetailModal({ visible, lesson, onClose, weeklyTime
                                 gap: 16,
                                 marginTop: 16
                             }}>
-                                {/* Google Meet Card */}
+                                {/* Class Students Card */}
                                 <Card
                                     bodyStyle={{ padding: 16, textAlign: "center" }}
                                     hoverable
+                                    onClick={classId ? handleViewStudents : undefined}
+                                    style={{ cursor: classId ? "pointer" : "default" }}
                                 >
-                                    <VideoCameraOutlined style={{ fontSize: 32, color: "#34a853", marginBottom: 12 }} />
-                                    <Title level={5} style={{ marginBottom: 8 }}>Google Meet</Title>
+                                    <TeamOutlined style={{ fontSize: 32, color: "#8cc98aff", marginBottom: 12 }} />
+                                    <Title level={5} style={{ marginBottom: 8 }}>View Class Member</Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
-                                        Join online meeting for this class
+                                        {studentGroupCode || "Class information"}
                                     </Text>
-                                    <Button type="primary" ghost>
-                                        Join Meeting <LinkOutlined />
+                                    <Button
+                                        type="primary"
+                                        ghost
+                                        disabled={!classId}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            if (classId) {
+                                                handleViewStudents();
+                                            }
+                                        }}
+                                    >
+                                        View Class <LinkOutlined />
                                     </Button>
                                 </Card>
 
@@ -281,7 +293,7 @@ export default function LessonDetailModal({ visible, lesson, onClose, weeklyTime
                                     onClick={classId && lessonId ? handleOpenHomework : undefined}
                                     style={{ cursor: classId && lessonId ? "pointer" : "default" }}
                                 >
-                                    <BookOutlined style={{ fontSize: 32, color: "#1890ff", marginBottom: 12 }} />
+                                    <BookOutlined style={{ fontSize: 32, color: "#e9a065ff", marginBottom: 12 }} />
                                     <Title level={5} style={{ marginBottom: 8 }}>Lesson's Homework</Title>
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
                                         Access lesson homework and assignments
@@ -339,8 +351,8 @@ export default function LessonDetailModal({ visible, lesson, onClose, weeklyTime
                                     <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
                                         View lecturer details and contact information
                                     </Text>
-                                    <Button 
-                                        type="primary" 
+                                    <Button
+                                        type="primary"
                                         ghost
                                         disabled={!lesson?.lectureId}
                                     >

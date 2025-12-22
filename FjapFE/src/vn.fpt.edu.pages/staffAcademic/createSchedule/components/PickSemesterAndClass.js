@@ -11,6 +11,7 @@ import {
   Spin,
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import '../CreateSchedule.css';
 
 const PickSemesterAndClass = ({
@@ -55,9 +56,16 @@ const PickSemesterAndClass = ({
               };
             });
 
-            // Trước đây có filter chỉ cho phép chọn kỳ tương lai.
-            // Theo yêu cầu mới: cho phép select tất cả semester.
-            setSemesterOptions(allSemesters);
+            // Filter: chỉ hiển thị các semester từ hiện tại trở đi (startDate >= today)
+            const today = dayjs().startOf('day');
+            const futureSemesters = allSemesters.filter(sem => {
+              if (!sem.startDate) return false; // Bỏ qua semester không có startDate
+              const semesterStart = dayjs(sem.startDate).startOf('day');
+              // So sánh: semesterStart >= today (isSame hoặc isAfter)
+              return semesterStart.isSame(today) || semesterStart.isAfter(today);
+            });
+            
+            setSemesterOptions(futureSemesters);
           }
 
           // Store classes grouped by semester

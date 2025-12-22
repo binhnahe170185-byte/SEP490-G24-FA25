@@ -236,58 +236,10 @@ const AdminApi = {
   importStudents: (payload) =>
     api.post("/api/Students/import", payload).then((res) => res?.data?.data ?? res?.data),
 
+  // downloadStudentTemplate is now handled directly in ImportStudent.js component
+  // keeping this for backwards compatibility but it's no longer used
   downloadStudentTemplate: async () => {
-    try {
-      const res = await api.get("/api/Students/import/template", { 
-        responseType: "blob" 
-      });
-      
-      // Check if response is actually a blob
-      if (!(res.data instanceof Blob)) {
-        // Try to parse as JSON error message
-        const text = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.readAsText(res.data);
-        });
-        
-        try {
-          const errorData = JSON.parse(text);
-          throw new Error(errorData.message || "Failed to download template");
-        } catch {
-          throw new Error("Invalid response format from server");
-        }
-      }
-      
-      // Check if blob is empty or too small (might be error response)
-      if (res.data.size < 100) {
-        const text = await res.data.text();
-        try {
-          const errorData = JSON.parse(text);
-          throw new Error(errorData.message || "Failed to download template");
-        } catch {
-          throw new Error("Template file is too small, may be corrupted");
-        }
-      }
-      
-      const url = window.URL.createObjectURL(res.data);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "StudentImportTemplate.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-        window.URL.revokeObjectURL(url);
-      }, 100);
-    } catch (error) {
-      console.error("Download template error:", error);
-      throw error;
-    }
+    throw new Error("This method is deprecated. Template download is now handled in ImportStudent component.");
   },
 };
 
