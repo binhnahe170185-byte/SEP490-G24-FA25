@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, message } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, message, List, Avatar } from 'antd';
 import {
   BookOutlined,
   TeamOutlined,
-  TrophyOutlined,
   UserOutlined,
   BarChartOutlined,
-  FileTextOutlined,
+  WarningOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  CalendarOutlined
 } from '@ant-design/icons';
 import { Column, Pie, Line } from '@ant-design/charts';
 import ClassList from '../../vn.fpt.edu.api/ClassList';
@@ -14,15 +16,19 @@ import ManagerGrades from '../../vn.fpt.edu.api/ManagerGrades';
 import { getSubjects } from '../../vn.fpt.edu.api/Material';
 import LecturerHomework from '../../vn.fpt.edu.api/LecturerHomework';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
+    // Top Row (Original)
     totalClasses: 0,
     totalSubjects: 0,
     activeClasses: 0,
     totalStudents: 0,
+
+    // New List Data
+    studentsBySemester: []
   });
 
   const [classesData, setClassesData] = useState([]);
@@ -80,15 +86,14 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch classes
-      const classes = await ClassList.getAll();
-      setClassesData(Array.isArray(classes) ? classes : []);
+      // 1. Fetch rich course data for calculating metrics
+      const courses = await ManagerGrades.getCourses(null, { includeAllStatus: true });
 
-      // Fetch subjects
+      // 2. Fetch subjects
       const subjects = await getSubjects();
       setSubjectsData(Array.isArray(subjects) ? subjects : []);
 
-      // Fetch homework data
+      // 3. Fetch homework data (optional, used for charts if needed)
       try {
         const homeworks = await LecturerHomework.getAllHomeworks();
         setHomeworkData(Array.isArray(homeworks) ? homeworks : []);
@@ -97,7 +102,7 @@ const Dashboard = () => {
         setHomeworkData([]);
       }
 
-      // Fetch grade statistics
+      // 4. Fetch grade statistics (still useful for totalStudents or fallback)
       let gradeData = null;
       try {
         gradeData = await ManagerGrades.getStatistics();
@@ -107,43 +112,88 @@ const Dashboard = () => {
         setGradeStats(null);
       }
 
-      // Fetch dashboard charts (Pass Rate & Attendance Rate)
+      // 5. Fetch dashboard charts
+      let chartsDataLocal = {
+        passRateBySemester: [],
+        attendanceRateBySemester: [],
+        averageScoreBySemester: [],
+        studentQuantityBySemester: []
+      };
+
       try {
         const charts = await ManagerGrades.getDashboardCharts();
-        setChartData(charts);
+        if (charts) {
+          chartsDataLocal = charts;
+          setChartData(charts);
+        }
       } catch (err) {
         console.warn('Dashboard charts not available:', err);
       }
 
-      // Calculate stats from real data
-      if (Array.isArray(classes) && classes.length > 0) {
-        const activeClasses = classes.filter(c => c.status === 'Active' || c.status === 'active');
-        const totalStudents = classes.reduce((sum, c) => sum + (c.studentCount || 0), 0);
+      // --- Calculate Statistics ---
+      if (Array.isArray(courses)) {
+        // Top Row Calculations
+        const activeClassesList = courses.filter(c => c.status === 'Active' || c.status === 'active');
+        const totalClasses = courses.length;
+        const totalSubjects = Array.isArray(subjects) ? subjects.length : 0;
+        const totalStudents = gradeData?.totalStudents || courses.reduce((sum, c) => sum + (c.students || 0), 0);
+
+        // Grade Stats Card Replaced by "Student Quantity by Semester" List
+        let studentsBySemester = [];
+
+        // Priority: Use data from charts API (which has 5 semesters history)
+        if (chartsDataLocal.studentQuantityBySemester && chartsDataLocal.studentQuantityBySemester.length > 0) {
+          studentsBySemester = chartsDataLocal.studentQuantityBySemester.map(item => ({
+            semester: item.name,
+            count: item.value
+          }));
+        } else {
+          // Fallback: Calculate from current courses list (might be limited to active)
+          const semesterMap = {};
+          courses.forEach(c => {
+            const sem = c.semester || 'Unknown';
+            if (!semesterMap[sem]) {
+              semesterMap[sem] = 0;
+            }
+            semesterMap[sem] += (c.students || 0);
+          });
+          studentsBySemester = Object.keys(semesterMap).map(sem => ({
+            semester: sem,
+            count: semesterMap[sem]
+          }));
+        }
 
         setStats({
-          totalClasses: classes.length,
-          totalSubjects: Array.isArray(subjects) ? subjects.length : mockData.classesBySubject.length,
-          activeClasses: activeClasses.length,
-          totalStudents: gradeData?.totalStudents || 0, // Prioritize unique count from GradeStats
+          totalClasses,
+          activeClasses: activeClassesList.length,
+          totalSubjects,
+          totalStudents,
+          studentsBySemester
         });
       } else {
-        // Use mock data
+        // Fallback
         setStats({
-          totalClasses: mockData.classesBySubject.reduce((sum, s) => sum + s.count, 0),
-          totalSubjects: mockData.classesBySubject.length,
-          activeClasses: mockData.classesByStatus.find(s => s.type === 'Active')?.value || 0,
-          totalStudents: gradeData?.totalStudents || mockData.classesBySubject.reduce((sum, s) => sum + s.students, 0),
+          totalClasses: 45,
+          activeClasses: 20,
+          totalSubjects: 15,
+          totalStudents: 1250,
+          studentsBySemester: [
+            { semester: 'SP24', count: 450 },
+            { semester: 'SU24', count: 380 },
+            { semester: 'FA24', count: 520 },
+            { semester: 'SP25', count: 480 },
+          ]
         });
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       message.error('Unable to load dashboard data');
-      // Use mock data on error
       setStats({
-        totalClasses: mockData.classesBySubject.reduce((sum, s) => sum + s.count, 0),
-        totalSubjects: mockData.classesBySubject.length,
-        activeClasses: mockData.classesByStatus.find(s => s.type === 'Active')?.value || 0,
-        totalStudents: mockData.classesBySubject.reduce((sum, s) => sum + s.students, 0),
+        totalClasses: 45,
+        activeClasses: 20,
+        totalSubjects: 15,
+        totalStudents: 1250,
+        studentsBySemester: []
       });
     } finally {
       setLoading(false);
@@ -299,7 +349,7 @@ const Dashboard = () => {
     label: {
       position: 'top',
       style: {
-        fill: '#FFFF00', // Yellow for visibility
+        fill: '#000000ff', // Black
         opacity: 1,
         fontSize: 14,
         fontWeight: 'bold',
@@ -357,16 +407,6 @@ const Dashboard = () => {
     showTitle: false
   };
 
-  // Calculate Submission Rate
-  const submissionRate = (() => {
-    if (homeworkData.length > 0) {
-      const total = homeworkData.reduce((sum, hw) => sum + (hw.totalStudents || 0), 0);
-      const submitted = homeworkData.reduce((sum, hw) => sum + (hw.submissions || 0), 0);
-      return total > 0 ? ((submitted / total) * 100).toFixed(1) : 0;
-    }
-    return 0;
-  })();
-
   return (
     <div style={{ padding: '0' }}>
       <Title level={2} style={{ marginBottom: 32, color: '#1890ff' }}>
@@ -380,7 +420,7 @@ const Dashboard = () => {
         </div>
       ) : (
         <>
-          {/* Statistics Cards */}
+          {/* Statistics Cards - Top Row (Original) */}
           <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
             <Col xs={24} sm={12} lg={6}>
               <Card
@@ -452,7 +492,7 @@ const Dashboard = () => {
             </Col>
           </Row>
 
-          {/* Charts Row 1 - Grade Statistics */}
+          {/* Charts Row 1 - Grade Statistics Replaced by Student Quantity List */}
           <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
             <Col xs={24} lg={16}>
               <Card
@@ -470,60 +510,28 @@ const Dashboard = () => {
               <Card
                 title={
                   <span style={{ fontSize: '18px', fontWeight: 600, color: '#fa8c16' }}>
-                    Grade Statistics
+                    Student Quantity by Semester
                   </span>
                 }
-                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', height: '100%' }}
+                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', height: '100%', overflow: 'hidden' }}
+                bodyStyle={{ overflowY: 'auto', maxHeight: '300px' }}
               >
-                {gradeStats ? (
-                  <div>
-                    <Statistic
-                      title="Average Grade"
-                      value={gradeStats.averageScore !== undefined ? gradeStats.averageScore : 0}
-                      precision={2}
-                      prefix={<TrophyOutlined style={{ fontSize: '28px' }} />}
-                      valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 'bold' }}
-                      style={{ marginBottom: 24 }}
-                    />
-                    <Statistic
-                      title="Pass Rate"
-                      value={gradeStats.passRate !== undefined ? gradeStats.passRate : 0}
-                      suffix="%"
-                      valueStyle={{ color: '#1890ff', fontSize: '24px' }}
-                      style={{ marginBottom: 24 }}
-                    />
-                    <Statistic
-                      title="Submission Rate"
-                      value={submissionRate}
-                      suffix="%"
-                      valueStyle={{ color: '#722ed1', fontSize: '24px' }}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <Statistic
-                      title="Average Grade"
-                      value={0}
-                      precision={2}
-                      prefix={<TrophyOutlined style={{ fontSize: '28px' }} />}
-                      valueStyle={{ color: '#52c41a', fontSize: '28px' }}
-                      style={{ marginBottom: 24 }}
-                    />
-                    <Statistic
-                      title="Pass Rate"
-                      value={87}
-                      suffix="%"
-                      valueStyle={{ color: '#1890ff', fontSize: '24px' }}
-                      style={{ marginBottom: 24 }}
-                    />
-                    <Statistic
-                      title="Submission Rate"
-                      value={submissionRate}
-                      suffix="%"
-                      valueStyle={{ color: '#722ed1', fontSize: '24px' }}
-                    />
-                  </div>
-                )}
+                <List
+                  itemLayout="horizontal"
+                  dataSource={stats.studentsBySemester}
+                  renderItem={item => (
+                    <List.Item>
+                      <List.Item.Meta
+                        avatar={<Avatar style={{ backgroundColor: '#fa8c16' }} icon={<CalendarOutlined />} />}
+                        title={<Text strong>{item.semester}</Text>}
+                        description="Total Students"
+                      />
+                      <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
+                        {item.count}
+                      </div>
+                    </List.Item>
+                  )}
+                />
               </Card>
             </Col>
           </Row>
@@ -563,34 +571,6 @@ const Dashboard = () => {
               </Card>
             </Col>
           </Row>
-
-          {/* Charts Row 2 - Homework */}
-          {/* <Row gutter={[24, 24]}>
-            <Col xs={24} lg={14}>
-              <Card
-                title={
-                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#1890ff' }}>
-                    Homework Submissions by Subject
-                  </span>
-                }
-                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-              >
-                <Column {...columnConfig} />
-              </Card>
-            </Col>
-            <Col xs={24} lg={10}>
-              <Card
-                title={
-                  <span style={{ fontSize: '18px', fontWeight: 600, color: '#722ed1' }}>
-                    Homework Completion Status
-                  </span>
-                }
-                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-              >
-                <Pie {...pieConfig} />
-              </Card>
-            </Col>
-          </Row> */}
         </>
       )}
     </div>

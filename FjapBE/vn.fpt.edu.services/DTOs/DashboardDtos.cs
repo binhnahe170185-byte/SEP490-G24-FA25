@@ -7,6 +7,7 @@ namespace FJAP.DTOs
         public List<ChartSeriesDto> PassRateBySemester { get; set; } = new List<ChartSeriesDto>();
         public List<ChartSeriesDto> AttendanceRateBySemester { get; set; } = new List<ChartSeriesDto>();
         public List<ChartSeriesDto> AverageScoreBySemester { get; set; } = new List<ChartSeriesDto>();
+        public List<ChartSeriesDto> StudentQuantityBySemester { get; set; } = new List<ChartSeriesDto>();
     }
 
     public class ChartSeriesDto
