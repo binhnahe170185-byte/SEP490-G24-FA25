@@ -219,29 +219,37 @@ export default function ScheduleTable({
 		},
 		{
 			title: 'Status',
-			key: 'mapping',
-			width: 160,
-			render: (_, r) =>
-				r.validMapping ? (
-					<Tag color="green">OK</Tag>
-				) : (
+			key: 'statusConflict',
+			width: 200,
+			render: (_, r) => {
+				// Priority: Conflict > Error > OK
+				// Only show one status
+				if (r.daySlotConflict) {
+					return (
+						<Tag color="orange" icon={<ExclamationCircleOutlined />}>
+							Conflict
+						</Tag>
+					);
+				}
+				
+				if (r.duplicateInFile) {
+					return (
+						<Tag color="orange" icon={<ExclamationCircleOutlined />}>
+							Duplicated
+						</Tag>
+					);
+				}
+				
+				if (r.validMapping) {
+					return <Tag color="green">OK</Tag>;
+				}
+				
+				return (
 					<Tooltip title="Have problem in Class/Room/Slot/DayOfWeek/Lecture">
 						<Tag color="red">Error</Tag>
 					</Tooltip>
-				),
-		},
-		{
-			title: 'Conflict',
-			key: 'conflict',
-			width: 120,
-			render: (_, r) =>
-				r.duplicateInFile ? (
-					<Tag color="orange" icon={<ExclamationCircleOutlined />}>
-						Duplicated
-					</Tag>
-				) : (
-					<Tag>None</Tag>
-				),
+				);
+			},
 		},
 		{
 			title: (

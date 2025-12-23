@@ -88,7 +88,7 @@ const LessonEditModal = ({
         setAllLecturers(formattedLecturers);
 
       } catch (error) {
-        console.error('❌ Error fetching lecturers:', error);
+        
         setAllLecturers([]);
       } finally {
         setLoadingLecturers(false);
