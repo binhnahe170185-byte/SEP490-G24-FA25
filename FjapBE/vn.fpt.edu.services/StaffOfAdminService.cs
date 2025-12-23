@@ -58,9 +58,8 @@ public class StaffOfAdminService : IStaffOfAdminService
         {
             Console.WriteLine($"=== Setting up welcome email for user: {user.Email} ===");
             var frontendOrigins = _configuration.GetSection("Frontend:Origins").Get<string[]>();
-            var loginUrl = frontendOrigins != null && frontendOrigins.Length > 0
-                ? $"{frontendOrigins[0]}/login"
-                : "http://localhost:3000/login";
+            // Ưu tiên production URL (không phải localhost)
+            var loginUrl = GetProductionLoginUrl(frontendOrigins);
 
             Console.WriteLine($"Login URL: {loginUrl}");
 
@@ -122,7 +121,7 @@ public class StaffOfAdminService : IStaffOfAdminService
 
         await _adminRepository.UpdateAsync(existing);
         await _adminRepository.SaveChangesAsync();
-        
+
         Console.WriteLine("SaveChanges completed successfully");
         return true;
     }
@@ -348,6 +347,27 @@ public class StaffOfAdminService : IStaffOfAdminService
         {
             LecturerCodeLock.Release();
         }
+    }
+
+    private static string GetProductionLoginUrl(string[]? frontendOrigins)
+    {
+        if (frontendOrigins == null || frontendOrigins.Length == 0)
+        {
+            return "http://localhost:3000/login";
+        }
+
+        var productionUrl = frontendOrigins
+            .FirstOrDefault(url => !string.IsNullOrWhiteSpace(url) &&
+                                   !url.Contains("localhost", StringComparison.OrdinalIgnoreCase) &&
+                                   !url.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(productionUrl))
+        {
+            return $"{productionUrl.TrimEnd('/')}/login";
+        }
+
+        // Fallback về URL đầu tiên nếu không tìm thấy production URL
+        return $"{frontendOrigins[0].TrimEnd('/')}/login";
     }
 
     private static int ExtractLecturerNumber(string? code)

@@ -1,12 +1,13 @@
 import React, { useMemo } from 'react';
-import { Table, Tag, Tooltip, Select, Input, Button } from 'antd';
-import { ExclamationCircleOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Tag, Tooltip, Select, Input, Button, Space } from 'antd';
+import { ExclamationCircleOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { normalizeString, getEmailPrefix, splitDayOfWeek } from '../utils/helpers';
 
 export default function ScheduleTable({
 	previewRows,
 	onUpdateRow,
 	onDeleteRow,
+	onAddRow,
 	selectedSemesterId,
 	classesBySemester,
 	rooms,
@@ -84,7 +85,7 @@ export default function ScheduleTable({
 						showSearch
 						allowClear
 						style={{ width: '100%' }}
-						placeholder="Lecturer email prefix"
+						placeholder="Lecturer email"
 						optionFilterProp="children"
 						filterOption={(input, option) =>
 							(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
@@ -218,34 +219,53 @@ export default function ScheduleTable({
 		},
 		{
 			title: 'Status',
-			key: 'mapping',
-			width: 160,
-			render: (_, r) =>
-				r.validMapping ? (
-					<Tag color="green">OK</Tag>
-				) : (
+			key: 'statusConflict',
+			width: 200,
+			render: (_, r) => {
+				// Priority: Conflict > Error > OK
+				// Only show one status
+				if (r.daySlotConflict) {
+					return (
+						<Tag color="orange" icon={<ExclamationCircleOutlined />}>
+							Conflict
+						</Tag>
+					);
+				}
+				
+				if (r.duplicateInFile) {
+					return (
+						<Tag color="orange" icon={<ExclamationCircleOutlined />}>
+							Duplicated
+						</Tag>
+					);
+				}
+				
+				if (r.validMapping) {
+					return <Tag color="green">OK</Tag>;
+				}
+				
+				return (
 					<Tooltip title="Have problem in Class/Room/Slot/DayOfWeek/Lecture">
 						<Tag color="red">Error</Tag>
 					</Tooltip>
-				),
+				);
+			},
 		},
 		{
-			title: 'Conflict',
-			key: 'conflict',
-			width: 120,
-			render: (_, r) =>
-				r.duplicateInFile ? (
-					<Tag color="orange" icon={<ExclamationCircleOutlined />}>
-						Duplicated
-					</Tag>
-				) : (
-					<Tag>None</Tag>
-				),
-		},
-		{
-			title: '',
+			title: (
+				<Button
+					type="text"
+					icon={<PlusOutlined />}
+					size="small"
+					onClick={onAddRow}
+					title="Add new row"
+					style={{ color: '#52c41a' }}
+				>
+					Add
+				</Button>
+			),
 			key: 'action',
-			width: 100,
+			width: 150,
 			fixed: 'right',
 			render: (_, record) => (
 				<Button
@@ -254,6 +274,7 @@ export default function ScheduleTable({
 					icon={<DeleteOutlined />}
 					size="small"
 					onClick={() => onDeleteRow(record.key)}
+					title="Delete row"
 				>
 					Delete
 				</Button>

@@ -110,12 +110,31 @@ export default function ImportStudent() {
   const handleDownloadTemplate = async () => {
     setLoading(true);
     try {
-      await AdminApi.downloadStudentTemplate();
+      // Fetch the template file from Assets folder
+      const templatePath = require('./Assets/ScheduleImportTemplate.xlsx');
+      const response = await fetch(templatePath);
+      const blob = await response.blob();
+
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'ScheduleImportTemplate.xlsx';
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
       msg.success("Template downloaded successfully");
     } catch (error) {
       console.error("Download error:", error);
-      const errorMsg = error?.response?.data?.message || error?.message || "Failed to download template";
-      msg.error(`Failed to download template: ${errorMsg}`);
+      msg.error("Failed to download template. Please ensure the template file exists in Assets folder.");
     } finally {
       setLoading(false);
     }

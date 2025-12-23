@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import templateXlsx from './Assets/ScheduleImportTemplate.xlsx';
 import {
 	Card,
 	Typography,
@@ -6,6 +7,7 @@ import {
 	Button,
 	message,
 	Divider,
+	Alert,
 } from 'antd';
 import {
 	FileExcelOutlined,
@@ -27,6 +29,7 @@ export default function ImportSchedule() {
 	const [saving, setSaving] = useState(false);
 	const [previewRows, setPreviewRows] = useState([]);
 	const [rawRows, setRawRows] = useState([]);
+	const [lessonWarnings, setLessonWarnings] = useState([]); // Store warnings about lesson count
 
 	// Load lookups
 	const {
@@ -104,7 +107,8 @@ export default function ImportSchedule() {
 			if (dayOfWeeks.length > 0 && slots.length > 0) {
 				// Map by index - if lengths differ, warn but still expand
 				if (dayOfWeeks.length === slots.length) {
-					// Same length, map by index
+					// Same length, map by index: slot[i] maps to dayOfWeek[i]
+					// Example: slot="1,2" and DayOfWeek="3,4" → slot 1→DayOfWeek 3, slot 2→DayOfWeek 4
 					for (let i = 0; i < dayOfWeeks.length; i++) {
 						expandedRows.push({
 							...updatedRow,
@@ -231,9 +235,43 @@ export default function ImportSchedule() {
 				};
 			});
 
+			// Validate required columns (except the first "No." column)
+			// Required headers: "Class Name", "Lecturer", "Slot", "DayOfWeek", "room"
+			// Rule: Cells in these columns must not be null/empty
+			const hasMissingRequired = rows.some((r) => {
+				const isAllEmpty =
+					!r.className &&
+					!r.lecturer &&
+					!r.slotCell &&
+					!r.dayOfWeekCell &&
+					!r.roomName;
+
+				// Allow completely empty rows (usually extra blank lines in Excel)
+				if (isAllEmpty) {
+					return false;
+				}
+
+				// Any required field missing -> invalid
+				return (
+					!r.className ||
+					!r.lecturer ||
+					!r.slotCell ||
+					!r.dayOfWeekCell ||
+					!r.roomName
+				);
+			});
+
+			if (hasMissingRequired) {
+				msg.error('Required fields (*) must not be left blank.');
+				return false;
+			}
+
 			setRawRows(rows);
 
 			// Expand rows by slot and DayOfWeek, mapping them by index
+			// Example: slot="1,2" and DayOfWeek="3,4" will generate:
+			//   Row 1: slot=1, DayOfWeek=3
+			//   Row 2: slot=2, DayOfWeek=4
 			const expanded = [];
 			const validationErrors = [];
 			rows.forEach((r) => {
@@ -257,7 +295,8 @@ export default function ImportSchedule() {
 							});
 						}
 					} else {
-						// Same length, map by index
+						// Same length, map by index: slot[i] maps to dayOfWeek[i]
+						// Example: slot="1,2" and DayOfWeek="3,4" → slot 1→DayOfWeek 3, slot 2→DayOfWeek 4
 						for (let i = 0; i < slots.length; i++) {
 							expanded.push({
 								...r,
@@ -296,7 +335,7 @@ export default function ImportSchedule() {
 			const withFlags = revalidateRows(withKeys);
 
 			setPreviewRows(withFlags);
-			msg.success(`Read ${rows.length} rows, expanded into ${withFlags.length} row(s).`);
+			msg.success(`Import successfully`);
 		} catch (e) {
 			console.error(e);
 			msg.error('Failed to read the Excel file.');
@@ -307,6 +346,7 @@ export default function ImportSchedule() {
 	const handleClear = () => {
 		setRawRows([]);
 		setPreviewRows([]);
+		setLessonWarnings([]); // Clear warnings when clearing data
 	};
 
 	const handleDeleteRow = (rowKey) => {
@@ -316,30 +356,122 @@ export default function ImportSchedule() {
 		setPreviewRows(revalidated);
 	};
 
-	const handleDownloadTemplate = async () => {
-		try {
-			// Fetch the template file from Assets folder
-			const templatePath = require('./Assets/Template Schedule.xlsx');
-			const response = await fetch(templatePath);
-			const blob = await response.blob();
+	const handleAddRow = () => {
+		// Generate a unique key for the new row
+		const maxKey = previewRows.length > 0
+			? Math.max(...previewRows.map(r => {
+				const keyMatch = r.key?.match(/^(\d+)-/);
+				return keyMatch ? parseInt(keyMatch[1], 10) : 0;
+			}))
+			: -1;
+		const newKey = `${maxKey + 1}-new-${Date.now()}`;
 
-			// Create a download link
-			const url = window.URL.createObjectURL(blob);
-			const link = document.createElement('a');
-			link.href = url;
-			link.download = 'ScheduleImportTemplate.xlsx';
-			document.body.appendChild(link);
-			link.click();
+		// Create a new empty row
+		const newRow = {
+			key: newKey,
+			_row: previewRows.length + 1,
+			className: '',
+			lecturer: '',
+			slot: null,
+			dayOfWeek: null,
+			roomName: '',
+		};
 
-			// Clean up
-			document.body.removeChild(link);
-			window.URL.revokeObjectURL(url);
+		// Add the new row and revalidate
+		const updatedRows = [...previewRows, newRow];
+		const revalidated = revalidateRows(updatedRows);
+		setPreviewRows(revalidated);
+	};
 
-			msg.success('Template downloaded successfully');
-		} catch (e) {
-			console.error(e);
-			msg.error('Failed to download template. Please try again.');
+
+	const handleDownloadTemplate = () => {
+		const link = document.createElement('a');
+		link.href = templateXlsx;
+		link.download = 'ScheduleImportTemplate.xlsx';
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		msg.success('Template downloaded successfully');
+	};
+	// Calculate number of lessons that will be created from patterns
+	// This matches the backend logic in ClassRepository.CreateScheduleFromPatternsAsync
+	const calculateLessonsCount = (patterns, semesterStartDate, semesterEndDate, holidays = [], totalLessonLimit = null) => {
+		if (!patterns || patterns.length === 0) return 0;
+		if (!semesterStartDate || !semesterEndDate) return 0;
+
+		// Parse dates and normalize to start of day for comparison
+		const startDate = new Date(semesterStartDate);
+		startDate.setHours(0, 0, 0, 0);
+		const endDate = new Date(semesterEndDate);
+		endDate.setHours(23, 59, 59, 999);
+
+		// Create holiday set for quick lookup
+		const holidaySet = new Set(holidays.map(h => {
+			const d = new Date(h);
+			return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+		}));
+
+		// Find Monday of semester start week (same logic as backend)
+		const startDayOfWeek = startDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+		const daysToMonday = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+		const mondayOfStart = new Date(startDate);
+		mondayOfStart.setDate(startDate.getDate() - daysToMonday);
+		mondayOfStart.setHours(0, 0, 0, 0);
+
+		let lessonCount = 0;
+		let currentDate = new Date(mondayOfStart);
+
+		// Generate lessons for each week in semester (same loop structure as backend)
+		while (currentDate <= endDate) {
+			// Check totalLesson limit (if provided)
+			if (totalLessonLimit !== null && lessonCount >= totalLessonLimit) {
+				break;
+			}
+
+			// For each weekday (Mon-Sun, 0-6)
+			for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+				// Check limit again inside loop
+				if (totalLessonLimit !== null && lessonCount >= totalLessonLimit) {
+					break;
+				}
+
+				const lessonDate = new Date(currentDate);
+				lessonDate.setDate(currentDate.getDate() + dayOffset);
+				lessonDate.setHours(0, 0, 0, 0);
+
+				// Skip if beyond semester end
+				if (lessonDate > endDate) break;
+
+				// Skip if before semester start
+				if (lessonDate < startDate) continue;
+
+				// Skip if holiday
+				const dateStr = `${lessonDate.getFullYear()}-${String(lessonDate.getMonth() + 1).padStart(2, '0')}-${String(lessonDate.getDate()).padStart(2, '0')}`;
+				if (holidaySet.has(dateStr)) continue;
+
+				// Get day of week (0=Sun, 1=Mon, ..., 6=Sat)
+				// Convert to our format: Mon=2 ... Sat=7, Sun=8 (same as backend)
+				const dayOfWeek = lessonDate.getDay();
+				const normalizedWeekday = dayOfWeek === 0 ? 8 : dayOfWeek + 1;
+
+				// Check if this weekday matches any pattern
+				for (const pattern of patterns) {
+					// Check limit again before processing each pattern
+					if (totalLessonLimit !== null && lessonCount >= totalLessonLimit) {
+						break;
+					}
+
+					if (pattern.weekday === normalizedWeekday) {
+						lessonCount++;
+					}
+				}
+			}
+
+			// Move to next week
+			currentDate.setDate(currentDate.getDate() + 7);
 		}
+
+		return lessonCount;
 	};
 
 	const buildPayloadsByClass = () => {
@@ -356,9 +488,15 @@ export default function ImportSchedule() {
 			});
 		const semesterIdNum = Number(selectedSemesterId);
 
+		// Get selected semester info
+		const selectedSemester = semesters.find(
+			(s) => Number(s.semesterId || s.id) === Number(selectedSemesterId)
+		);
+
 		// Collapse rows into patterns per class and detect duplicates
 		const payloads = Object.entries(byGroup).map(([groupKey, rows]) => {
 			const [classIdStr, lecturerIdStr] = groupKey.split('|');
+			const classIdNum = Number(classIdStr);
 			const patterns = [];
 			const patternSet = new Set(); // Track unique patterns
 			const duplicatePatterns = [];
@@ -381,15 +519,23 @@ export default function ImportSchedule() {
 				}
 			});
 
+			// Get totalLesson for this class
+			const semesterClasses = classesBySemester[semesterIdNum] || [];
+			const classInfo = semesterClasses.find(c => c.classId === classIdNum);
+			const totalLesson = classInfo?.totalLesson || 0;
+
 			return {
-				classId: Number(classIdStr),
+				classId: classIdNum,
 				semesterId: semesterIdNum,
 				lecturerId: Number(lecturerIdStr),
 				patterns,
 				duplicatePatterns, // Store duplicates for warning
+				totalLesson, // Required total lessons from subject
 				_meta: {
 					className: rows[0]?.className || `Class ${classIdStr}`,
 					lecturerCode: rows[0]?.lecturer || '',
+					semesterStartDate: selectedSemester?.startDate,
+					semesterEndDate: selectedSemester?.endDate,
 				},
 			};
 		});
@@ -490,6 +636,12 @@ export default function ImportSchedule() {
 	};
 
 	const handleSave = async () => {
+		// Prevent multiple simultaneous calls
+		if (saving) {
+			console.warn('Save already in progress, ignoring duplicate call');
+			return;
+		}
+
 		if (!selectedSemesterId) {
 			msg.error('Please select Semester');
 			return;
@@ -500,7 +652,22 @@ export default function ImportSchedule() {
 		}
 		const invalid = previewRows.filter((r) => !r.validMapping);
 		if (invalid.length > 0) {
-			msg.error('Some rows have problem');
+			const conflictRows = previewRows.filter((r) => r.daySlotConflict);
+			const duplicateRows = previewRows.filter((r) => r.duplicateInFile);
+			const errorRows = previewRows.filter((r) => !r.validMapping && !r.daySlotConflict && !r.duplicateInFile);
+			
+			let errorMsg = 'Some rows have problem';
+			if (conflictRows.length > 0) {
+				errorMsg += `: ${conflictRows.length} row(s) have conflict (same DayOfWeek + Slot)`;
+			}
+			if (duplicateRows.length > 0) {
+				errorMsg += `: ${duplicateRows.length} row(s) are duplicated`;
+			}
+			if (errorRows.length > 0) {
+				errorMsg += `: ${errorRows.length} row(s) have mapping errors`;
+			}
+			
+			msg.error(errorMsg);
 			return;
 		}
 
@@ -509,6 +676,26 @@ export default function ImportSchedule() {
 			msg.warning('No valid Class to save');
 			return;
 		}
+
+		// Set saving flag early to prevent duplicate calls
+		setSaving(true);
+
+		// Get holidays for accurate lesson count calculation
+		let holidays = [];
+		try {
+			const holidayRes = await api.get(`/api/Holiday/semester/${selectedSemesterId}`);
+			holidays = (holidayRes?.data?.data || holidayRes?.data || []).map(h => h.date || h.holidayDate);
+		} catch (e) {
+			console.warn('Failed to load holidays, continuing without holiday check:', e);
+		}
+
+		const selectedSemester = semesters.find(
+			(s) => Number(s.semesterId || s.id) === Number(selectedSemesterId)
+		);
+
+		// Note: We don't check for exceeding totalLesson here
+		// Backend will automatically limit lessons to totalLesson if exceeded
+		// We only warn if lessons created < totalLesson (insufficient)
 
 		// Check for duplicate patterns within same class+lecturer
 		const duplicateWarnings = [];
@@ -530,7 +717,6 @@ export default function ImportSchedule() {
 		}
 
 		// Check conflicts with existing schedule
-		setSaving(true);
 		msg.loading('Checking for conflicts with the existing schedule...', 0);
 		const conflictCheck = await checkConflicts(payloads);
 		msg.destroy(); // Remove loading message
@@ -549,6 +735,7 @@ export default function ImportSchedule() {
 
 		// Proceed with saving
 		const results = [];
+		const lessonWarningsList = [];
 		for (const p of payloads) {
 			try {
 				const res = await api.post('/api/staffAcademic/classes/schedule', {
@@ -560,14 +747,29 @@ export default function ImportSchedule() {
 						TimeId: x.timeId,
 						RoomId: x.roomId,
 					})),
+					TotalLesson: p.totalLesson > 0 ? p.totalLesson : null, // Pass totalLesson to backend
 				});
+				const lessonsCreated = res?.data?.data?.lessonsCreated ?? 0;
 				results.push({
 					className: p._meta.className,
 					success: true,
+					lessonsCreated,
 					message:
 						res?.data?.message ||
-						`Created ${res?.data?.data?.lessonsCreated ?? ''} lessons`,
+						`Created ${lessonsCreated} lessons`,
 				});
+
+				// Check if lessons created is less than totalLesson requirement
+				// Only warn if insufficient (less than required)
+				// If exceeded, backend already limited it, no need to warn
+				if (p.totalLesson > 0 && lessonsCreated < p.totalLesson) {
+					lessonWarningsList.push({
+						className: p._meta.className,
+						created: lessonsCreated,
+						required: p.totalLesson,
+						type: 'insufficient',
+					});
+				}
 			} catch (e) {
 				const status = e?.response?.status;
 				const msgText =
@@ -580,11 +782,41 @@ export default function ImportSchedule() {
 
 		const ok = results.filter((r) => r.success).length;
 		const fail = results.length - ok;
-		if (ok) msg.success(`Saved successfully for ${ok} class(es).`);
-		if (fail)
-			msg.warning(
-				`${fail} class(es) failed to save. Please check for schedule/room/slot conflicts and try again.`
-			);
+		
+		// If all saves were successful, clear cache to prevent spam
+		if (ok > 0 && fail === 0) {
+			msg.success(`Saved successfully for ${ok} class(es).`);
+			
+			// Clear all cache after successful save
+			setPreviewRows([]);
+			setRawRows([]);
+			setLessonWarnings([]);
+			
+			// Show totalLesson warnings if any (only for insufficient lessons)
+			if (lessonWarningsList.length > 0) {
+				const insufficientMsg = lessonWarningsList
+					.map((w) => `Class '${w.className}' is missing required lessons. Please increase the slots per week.`)
+					.join('\n');
+				msg.warning(insufficientMsg, 10);
+			}
+		} else {
+			// If some failed, keep data and show warnings
+			setLessonWarnings(lessonWarningsList); // Store warnings for display
+			
+			if (ok) msg.success(`Saved successfully for ${ok} class(es).`);
+			if (fail)
+				msg.warning(
+					`${fail} class(es) failed to save. Please check for schedule/room/slot conflicts and try again.`
+				);
+
+			// Show totalLesson warnings if any (only for insufficient lessons)
+			if (lessonWarningsList.length > 0) {
+				const insufficientMsg = lessonWarningsList
+					.map((w) => `Class '${w.className}' is missing required lessons. Please increase the slots per week.`)
+					.join('\n');
+				msg.warning(insufficientMsg, 10);
+			}
+		}
 	};
 
 	const selectedSemesterName = useMemo(() => {
@@ -619,10 +851,32 @@ export default function ImportSchedule() {
 						<>
 							<Divider />
 
+							{/* Display lesson count warnings - only show insufficient (missing) lessons */}
+							{lessonWarnings.length > 0 && (
+								<>
+									{lessonWarnings.map((w, idx) => (
+										<Alert
+											key={`insufficient-${idx}`}
+											message={`Class '${w.className}' is missing required lessons. Please increase the slots per week.`}
+											type="warning"
+											showIcon
+											style={{ marginBottom: 16 }}
+											closable
+											onClose={() => {
+												setLessonWarnings((prev) =>
+													prev.filter((item, i) => i !== idx)
+												);
+											}}
+										/>
+									))}
+								</>
+							)}
+
 							<ScheduleTable
 								previewRows={previewRows}
 								onUpdateRow={updateRow}
 								onDeleteRow={handleDeleteRow}
+								onAddRow={handleAddRow}
 								selectedSemesterId={selectedSemesterId}
 								classesBySemester={classesBySemester}
 								rooms={rooms}
@@ -635,8 +889,12 @@ export default function ImportSchedule() {
 									icon={<SaveOutlined />}
 									onClick={handleSave}
 									loading={saving}
+									disabled={
+										previewRows.length === 0 ||
+										previewRows.some((r) => !r.validMapping)
+									}
 								>
-									Validate & Save
+									Save
 								</Button>
 							</Space>
 						</>

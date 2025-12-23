@@ -830,9 +830,7 @@ public class StaffOfAdminController : ControllerBase
         {
             Console.WriteLine($"=== Setting up welcome email for student: {user.Email} ===");
             var frontendOrigins = _configuration.GetSection("Frontend:Origins").Get<string[]>();
-            var loginUrl = frontendOrigins != null && frontendOrigins.Length > 0
-                ? $"{frontendOrigins[0]}/login"
-                : "http://localhost:3000/login";
+            var loginUrl = GetProductionLoginUrl(frontendOrigins);
 
             Console.WriteLine($"Login URL: {loginUrl}");
 
@@ -928,9 +926,7 @@ public class StaffOfAdminController : ControllerBase
             Console.WriteLine($"To: {request.Email}");
             
             var frontendOrigins = _configuration.GetSection("Frontend:Origins").Get<string[]>();
-            var loginUrl = frontendOrigins != null && frontendOrigins.Length > 0
-                ? $"{frontendOrigins[0]}/login"
-                : "http://localhost:3000/login";
+            var loginUrl = GetProductionLoginUrl(frontendOrigins);
 
             using var scope = _serviceScopeFactory.CreateScope();
             var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
@@ -1259,6 +1255,28 @@ public class StaffOfAdminController : ControllerBase
                 error = ex.Message
             });
         }
+    }
+
+    private static string GetProductionLoginUrl(string[]? frontendOrigins)
+    {
+        if (frontendOrigins == null || frontendOrigins.Length == 0)
+        {
+            return "http://localhost:3000/login";
+        }
+
+        // Ưu tiên URL production (không chứa localhost)
+        var productionUrl = frontendOrigins
+            .FirstOrDefault(url => !string.IsNullOrWhiteSpace(url) && 
+                                   !url.Contains("localhost", StringComparison.OrdinalIgnoreCase) &&
+                                   !url.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(productionUrl))
+        {
+            return $"{productionUrl.TrimEnd('/')}/login";
+        }
+
+        // Fallback về URL đầu tiên nếu không tìm thấy production URL
+        return $"{frontendOrigins[0].TrimEnd('/')}/login";
     }
 
 }

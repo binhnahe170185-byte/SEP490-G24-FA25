@@ -271,6 +271,7 @@
     max-width: 200px;
     align-items: stretch;
     justify-content: stretch;
+    overflow: visible;
 }
 
 .calendar-grid-slot-head,
@@ -292,8 +293,7 @@
 .calendar-grid-day-cell .calendar-cell {
     width: 100%;
     min-height: 56px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
 }
 
 .calendar-cell {
@@ -310,7 +310,8 @@
     overflow-wrap: break-word;
     font-size: 11px;
     line-height: 1.4;
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
 }
 
 .calendar-cell.lesson-preview {
@@ -338,4 +339,29 @@
     background: #fff9e6;
     border: 2px dashed #fbc02d;
     color: #f57f17;
+}
+
+/* Holiday tag styling - allow text to wrap to multiple lines */
+.calendar-cell .ant-tag {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.calendar-cell.holiday-cell .ant-tag {
+    max-width: 100%;
+    width: 100%;
+    overflow: visible;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+    display: block;
+    line-height: 1.4;
+    padding: 4px 6px;
+    font-size: 11px;
+    margin-bottom: 2px;
+    box-sizing: border-box;
 }

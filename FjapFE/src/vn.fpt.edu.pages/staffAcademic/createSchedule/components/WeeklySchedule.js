@@ -381,12 +381,7 @@ const WeeklySchedules = ({
           message="Lesson Count Status"
           description={
             <Typography.Text type="success">
-              Current patterns will generate <strong>{lessonCountStatus.currentCount}</strong> lesson(s), which meets the required <strong>{lessonCountStatus.requiredCount}</strong> lesson(s).
-              {lessonCountStatus.currentCount > lessonCountStatus.requiredCount && (
-                <Typography.Text type="warning" style={{ display: 'block', marginTop: 4 }}>
-                  Note: Only {lessonCountStatus.requiredCount} lesson(s) will be created (limited by totalLesson).
-                </Typography.Text>
-              )}
+              This class already has all required
             </Typography.Text>
           }
           type="success"

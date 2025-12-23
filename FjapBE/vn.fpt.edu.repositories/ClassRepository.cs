@@ -546,13 +546,21 @@ public class ClassRepository : GenericRepository<Class>, IClassRepository
             throw new ArgumentException($"Semester with ID {request.SemesterId} not found");
         }
 
-        // Validate class exists and belongs to semester
+        // Validate class exists and belongs to semester, include Subject to get TotalLesson
         var classEntity = await _context.Classes
+            .Include(c => c.Subject)
             .FirstOrDefaultAsync(c => c.ClassId == request.ClassId && c.SemesterId == request.SemesterId);
         
         if (classEntity == null)
         {
             throw new ArgumentException($"Class with ID {request.ClassId} not found or does not belong to semester {request.SemesterId}");
+        }
+
+        // Auto-set TotalLesson from Subject if not provided in request
+        if (!request.TotalLesson.HasValue && classEntity.Subject != null && classEntity.Subject.TotalLesson > 0)
+        {
+            request.TotalLesson = classEntity.Subject.TotalLesson;
+            Console.WriteLine($"Auto-set TotalLesson from Subject: {request.TotalLesson.Value}");
         }
 
         // Validate lecturer exists
