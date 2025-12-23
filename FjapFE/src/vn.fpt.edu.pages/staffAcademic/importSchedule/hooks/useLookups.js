@@ -50,6 +50,7 @@ export function useLookups() {
 			});
 
 			setSemesters(filteredSemesters);
+			// classesBySemester already contains totalLesson from API
 			setClassesBySemester(data.classesBySemester || {});
 
 			// Rooms

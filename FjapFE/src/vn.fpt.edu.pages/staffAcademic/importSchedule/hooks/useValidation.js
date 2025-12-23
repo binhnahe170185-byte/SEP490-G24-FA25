@@ -64,7 +64,7 @@ export function useValidation({
 				slotNumberToTimeIdMap: slotNumberToTimeId,
 			});
 
-			// Detect duplicates
+			// Detect duplicates (full match: className + dayOfWeek + slot + roomName)
 			const keyCount = {};
 			rows.forEach((r) => {
 				const key = [
@@ -74,6 +74,16 @@ export function useValidation({
 					normalizeString(r.roomName),
 				].join('|');
 				keyCount[key] = (keyCount[key] || 0) + 1;
+			});
+
+			// Detect conflicts: same DayOfWeek + Slot (regardless of class/room)
+			const daySlotKeyCount = {};
+			rows.forEach((r) => {
+				// Only check if both dayOfWeek and slot are valid
+				if (r.dayOfWeek != null && r.slot != null) {
+					const daySlotKey = `${r.dayOfWeek}|${r.slot}`;
+					daySlotKeyCount[daySlotKey] = (daySlotKeyCount[daySlotKey] || 0) + 1;
+				}
 			});
 
 			// Re-validate each row
@@ -101,6 +111,11 @@ export function useValidation({
 					].join('|')
 					] > 1;
 
+				// Check conflict: same DayOfWeek + Slot (regardless of class/room)
+				const daySlotConflict = r.dayOfWeek != null && r.slot != null
+					? daySlotKeyCount[`${r.dayOfWeek}|${r.slot}`] > 1
+					: false;
+
 				// Debug missing mappings
 				const missingFields = [];
 				if (!classId) missingFields.push(`Class: "${normalizedClassName}"`);
@@ -113,19 +128,23 @@ export function useValidation({
 					console.log(`Row missing mappings: ${missingFields.join(', ')}`);
 				}
 
+				// validMapping: all fields valid AND no conflicts
+				const hasValidFields =
+					Boolean(classId) &&
+					Boolean(roomId) &&
+					Boolean(timeId) &&
+					Boolean(r.dayOfWeek) &&
+					Boolean(lecturerId);
+
 				return {
 					...r,
 					classId,
 					roomId,
 					timeId,
 					lecturerId,
-					validMapping:
-						Boolean(classId) &&
-						Boolean(roomId) &&
-						Boolean(timeId) &&
-						Boolean(r.dayOfWeek) &&
-						Boolean(lecturerId),
+					validMapping: hasValidFields && !daySlotConflict && !duplicateInFile,
 					duplicateInFile,
+					daySlotConflict, // Conflict when same DayOfWeek + Slot
 				};
 			});
 		};
